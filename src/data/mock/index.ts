@@ -36,7 +36,6 @@ export const mockClinics: Clinic[] = [
     name: 'عيادة النور للأسنان',
     phone: '07701234567',
     governorate: 'Baghdad',
-    city: 'Mansour',
     location: { lat: 33.3152, lng: 44.3661 },
     rating: 4.8,
     specialties: ['تقويم', 'تجميل', 'زراعة'],
