@@ -1,0 +1,43 @@
+
+> react_repo@0.0.0 build
+> pnpm install --prefer-offline && rm -rf node_modules/.vite-temp && tsc -b && vite build
+
+Lockfile is up to date, resolution step is skipped
+Already up to date
+
+╭ Warning ─────────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│   Ignored build scripts: esbuild.                                            │
+│   Run "pnpm approve-builds" to pick which dependencies should be allowed     │
+│   to run scripts.                                                            │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+Done in 1.3s using pnpm v10.12.4
+src/pages/doctor/PatientProfile.tsx(2523,7): error TS2657: JSX expressions must have one parent element.
+src/pages/doctor/PatientProfile.tsx(2821,11): error TS1128: Declaration or statement expected.
+src/pages/doctor/PatientProfile.tsx(2822,9): error TS1109: Expression expected.
+src/pages/doctor/PatientProfile.tsx(2823,7): error TS1109: Expression expected.
+src/pages/doctor/PatientProfile.tsx(2826,12): error TS1005: ';' expected.
+src/pages/doctor/PatientProfile.tsx(2827,9): error TS2657: JSX expressions must have one parent element.
+src/pages/doctor/PatientProfile.tsx(2852,7): error TS1128: Declaration or statement expected.
+src/pages/doctor/PatientProfile.tsx(2855,12): error TS1005: ';' expected.
+src/pages/doctor/PatientProfile.tsx(2869,7): error TS1128: Declaration or statement expected.
+src/pages/doctor/PatientProfile.tsx(2872,12): error TS1005: ';' expected.
+src/pages/doctor/PatientProfile.tsx(2873,9): error TS2657: JSX expressions must have one parent element.
+src/pages/doctor/PatientProfile.tsx(2999,7): error TS1128: Declaration or statement expected.
+src/pages/doctor/PatientProfile.tsx(3002,12): error TS1005: ';' expected.
+src/pages/doctor/PatientProfile.tsx(3003,27): error TS1005: ',' expected.
+src/pages/doctor/PatientProfile.tsx(3105,7): error TS1128: Declaration or statement expected.
+src/pages/doctor/PatientProfile.tsx(3108,12): error TS1005: ';' expected.
+src/pages/doctor/PatientProfile.tsx(3109,9): error TS2657: JSX expressions must have one parent element.
+src/pages/doctor/PatientProfile.tsx(3147,7): error TS1128: Declaration or statement expected.
+src/pages/doctor/PatientProfile.tsx(3150,12): error TS1005: ';' expected.
+src/pages/doctor/PatientProfile.tsx(3151,9): error TS2657: JSX expressions must have one parent element.
+src/pages/doctor/PatientProfile.tsx(3200,7): error TS1128: Declaration or statement expected.
+src/pages/doctor/PatientProfile.tsx(3203,12): error TS1005: ';' expected.
+src/pages/doctor/PatientProfile.tsx(3204,9): error TS2657: JSX expressions must have one parent element.
+src/pages/doctor/PatientProfile.tsx(3242,7): error TS1128: Declaration or statement expected.
+src/pages/doctor/PatientProfile.tsx(3243,5): error TS1109: Expression expected.
+src/pages/doctor/PatientProfile.tsx(3244,3): error TS1109: Expression expected.
+src/pages/doctor/PatientProfile.tsx(4930,1): error TS1128: Declaration or statement expected.

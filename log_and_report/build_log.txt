@@ -1,0 +1,21 @@
+src/components/LabSystemDemo.tsx(3,32): error TS2307: Cannot find module '../pages/patient/PatientProfile' or its corresponding type declarations.
+src/components/LabSystemDemo.tsx(4,37): error TS2307: Cannot find module '../pages/patient/LaboratoryDirectory' or its corresponding type declarations.
+src/components/LabSystemDemo.tsx(5,37): error TS2307: Cannot find module '../pages/patient/PatientLabDashboard' or its corresponding type declarations.
+src/data/mock/admin.ts(57,5): error TS2353: Object literal may only specify known properties, and 'maxStaff' does not exist in type 'SubscriptionPlan'.
+src/data/mock/admin.ts(84,5): error TS2353: Object literal may only specify known properties, and 'maxStaff' does not exist in type 'SubscriptionPlan'.
+src/data/mock/admin.ts(113,5): error TS2353: Object literal may only specify known properties, and 'maxStaff' does not exist in type 'SubscriptionPlan'.
+src/data/mock/posts.ts(1,10): error TS2305: Module '"../../hooks/useCommunity"' has no exported member 'Post'.
+src/pages/admin/AdminDashboard.tsx(30,30): error TS2307: Cannot find module './sections/UsersSection' or its corresponding type declarations.
+src/pages/admin/community/GroupsManager.tsx(18,21): error TS2339: Property 'deleteItem' does not exist on type '{ courses: CommunityEvent[]; webinars: CommunityEvent[]; groups: CommunityGroup[]; users: CommunityUser[]; resources: CommunityResource[]; ... 10 more ...; refresh: () => Promise<...>; }'.
+src/pages/admin/community/GroupsManager.tsx(18,33): error TS2339: Property 'verifyGroup' does not exist on type '{ courses: CommunityEvent[]; webinars: CommunityEvent[]; groups: CommunityGroup[]; users: CommunityUser[]; resources: CommunityResource[]; ... 10 more ...; refresh: () => Promise<...>; }'.
+src/pages/admin/community/GroupsManager.tsx(55,45): error TS2551: Property 'isPrivate' does not exist on type 'CommunityGroup'. Did you mean 'is_private'?
+src/pages/admin/community/GroupsManager.tsx(59,78): error TS2551: Property 'memberCount' does not exist on type 'CommunityGroup'. Did you mean 'member_count'?
+src/pages/admin/community/GroupsManager.tsx(62,86): error TS2339: Property 'posts' does not exist on type 'CommunityGroup'.
+src/pages/admin/community/UsersManager.tsx(10,13): error TS2339: Property 'eliteDoctors' does not exist on type '{ courses: CommunityEvent[]; webinars: CommunityEvent[]; groups: CommunityGroup[]; users: CommunityUser[]; resources: CommunityResource[]; ... 10 more ...; refresh: () => Promise<...>; }'.
+src/pages/admin/community/UsersManager.tsx(10,34): error TS2339: Property 'promoteUser' does not exist on type '{ courses: CommunityEvent[]; webinars: CommunityEvent[]; groups: CommunityGroup[]; users: CommunityUser[]; resources: CommunityResource[]; ... 10 more ...; refresh: () => Promise<...>; }'.
+src/pages/admin/sections/community/WebinarsManager.tsx(206,53): error TS2322: Type '"time"' is not assignable to type '"number" | "email" | "password" | "select" | "text" | "checkbox" | "date" | "textarea"'.
+src/pages/community/connections/FriendsList.tsx(22,126): error TS2339: Property 'status' does not exist on type 'Friend'.
+src/pages/doctor/ai/AIAnalysisPage.tsx(65,41): error TS2739: Type 'AIAnalysisResult' is missing the following properties from type 'AIResult': issues, summary, recommendation
+src/pages/doctor/clinic/ClinicAppointmentsPage.tsx(689,23): error TS2554: Expected 2 arguments, but got 3.
+src/pages/laboratory/sections/LabOverviewSection.tsx(81,75): error TS2367: This comparison appears to be unintentional because the types '"pending" | "completed" | "cancelled" | "rejected" | "delivered" | "returned" | "waiting_for_representative" | "representative_dispatched" | "out_for_delivery" | "modification_requested"' and '"accepted"' have no overlap.
+src/pages/laboratory/sections/LabOverviewSection.tsx(106,14): error TS2367: This comparison appears to be unintentional because the types '"pending" | "completed" | "cancelled" | "rejected" | "delivered" | "returned" | "in_progress" | "waiting_for_representative" | "representative_dispatched" | "out_for_delivery" | "modification_requested"' and '"accepted"' have no overlap.

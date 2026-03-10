@@ -1,0 +1,35 @@
+src/data/mock/admin.ts(58,5): error TS2353: Object literal may only specify known properties, and 'hasAISupport' does not exist in type 'SubscriptionPlan'.
+src/data/mock/admin.ts(82,5): error TS2353: Object literal may only specify known properties, and 'hasAISupport' does not exist in type 'SubscriptionPlan'.
+src/data/mock/admin.ts(108,5): error TS2353: Object literal may only specify known properties, and 'hasAISupport' does not exist in type 'SubscriptionPlan'.
+src/hooks/useLowStockItems.ts(46,200): error TS2353: Object literal may only specify known properties, and 'clinicName' does not exist in type 'InventoryItem'.
+src/hooks/useLowStockItems.ts(47,205): error TS2353: Object literal may only specify known properties, and 'clinicName' does not exist in type 'InventoryItem'.
+src/hooks/useLowStockItems.ts(48,211): error TS2353: Object literal may only specify known properties, and 'clinicName' does not exist in type 'InventoryItem'.
+src/hooks/useLowStockItems.ts(58,196): error TS2353: Object literal may only specify known properties, and 'clinicName' does not exist in type 'InventoryItem'.
+src/hooks/useLowStockItems.ts(59,201): error TS2353: Object literal may only specify known properties, and 'clinicName' does not exist in type 'InventoryItem'.
+src/hooks/useLowStockItems.ts(60,207): error TS2353: Object literal may only specify known properties, and 'clinicName' does not exist in type 'InventoryItem'.
+src/hooks/usePatientTreatments.ts(40,29): error TS2339: Property 'teethConditions' does not exist on type 'Patient'.
+src/hooks/usePatientTreatments.ts(40,56): error TS2339: Property 'teethConditions' does not exist on type 'Patient'.
+src/hooks/usePatientTreatments.ts(42,47): error TS2339: Property 'teethConditions' does not exist on type 'Patient'.
+src/hooks/usePatientTreatments.ts(83,42): error TS2339: Property 'teethConditions' does not exist on type 'Patient'.
+src/hooks/usePatientTreatments.ts(92,40): error TS2353: Object literal may only specify known properties, and 'teethConditions' does not exist in type 'Partial<Patient>'.
+src/pages/admin/sections/JobsSection.tsx(31,45): error TS2367: This comparison appears to be unintentional because the types '"active" | "expired" | "draft"' and '"featured"' have no overlap.
+src/pages/admin/sections/JobsSection.tsx(32,44): error TS2367: This comparison appears to be unintentional because the types '"active" | "expired" | "draft"' and '"featured"' have no overlap.
+src/pages/auth/RegisterPage.tsx(88,13): error TS2304: Cannot find name 'login'.
+src/pages/doctor/clinic/ClinicPatientsPage.tsx(91,37): error TS2367: This comparison appears to be unintentional because the types '"active" | "inactive"' and '"emergency"' have no overlap.
+src/pages/doctor/DoctorNotificationsPage.tsx(190,28): error TS2367: This comparison appears to be unintentional because the types '"alert" | "message" | "reminder" | "confirmation" | "system"' and '"inventory"' have no overlap.
+src/pages/doctor/DoctorNotificationsPage.tsx(206,108): error TS2304: Cannot find name 'getNotificationColor'.
+src/pages/doctor/DoctorNotificationsPage.tsx(207,22): error TS2304: Cannot find name 'getNotificationIcon'.
+src/pages/emergency/EmergencyCentersPage.tsx(437,73): error TS2339: Property 'address' does not exist on type 'Clinic'.
+src/pages/public/ServicesPage.tsx(402,17): error TS2322: Type 'import("C:/Users/AL NABAA/Desktop/ANTI/smart-dental/src/hooks/useClinics").Clinic[]' is not assignable to type 'import("C:/Users/AL NABAA/Desktop/ANTI/smart-dental/src/types/index").Clinic[]'.
+  Type 'Clinic' is missing the following properties from type 'Clinic': address, workingHours
+src/pages/public/ServicesPage.tsx(410,45): error TS2739: Type 'Clinic' is missing the following properties from type 'Clinic': address, workingHours
+src/pages/store/FavoritesPage.tsx(116,32): error TS2551: Property 'brand' does not exist on type 'Product'. Did you mean 'brandId'?
+src/pages/store/FavoritesPage.tsx(116,103): error TS2551: Property 'brand' does not exist on type 'Product'. Did you mean 'brandId'?
+src/pages/supplier/SupplierDashboard.tsx(55,24): error TS2559: Type '{ onNavigate: (tab: string) => void; }' has no properties in common with type 'IntrinsicAttributes'.
+src/pages/supplier/SupplierOrdersPage.tsx(22,37): error TS2367: This comparison appears to be unintentional because the types '"pending" | "cancelled" | "processing" | "shipped" | "delivered" | "returned"' and '"received"' have no overlap.
+src/pages/supplier/SupplierProfilePage.tsx(475,45): error TS2339: Property 'settings' does not exist on type 'SupplierProfile'.
+src/pages/supplier/SupplierProfilePage.tsx(478,49): error TS2339: Property 'settings' does not exist on type 'SupplierProfile'.
+src/pages/supplier/SupplierProfilePage.tsx(500,45): error TS2339: Property 'settings' does not exist on type 'SupplierProfile'.
+src/pages/supplier/SupplierProfilePage.tsx(503,49): error TS2339: Property 'settings' does not exist on type 'SupplierProfile'.
+src/pages/supplier/SupplierProfilePage.tsx(525,45): error TS2339: Property 'settings' does not exist on type 'SupplierProfile'.
+src/pages/supplier/SupplierProfilePage.tsx(528,49): error TS2339: Property 'settings' does not exist on type 'SupplierProfile'.

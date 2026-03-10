@@ -1,0 +1,215 @@
+252:export const PatientProfile: React.FC = () => {
+253:  const { patientId } = useParams<{ patientId: string }>();
+254:  const navigate = useNavigate();
+255:  const [activeTab, setActiveTab] = useState('overview');
+256:  const [showLabRequestModal, setShowLabRequestModal] = useState(false);
+257:  const [showToothModal, setShowToothModal] = useState(false);
+258:  const [showPatientModal, setShowPatientModal] = useState(false);
+259:  const [showTreatmentPlanModal, setShowTreatmentPlanModal] = useState(false);
+260:  const [selectedTooth, setSelectedTooth] = useState<ToothCondition | null>(null);
+261:  const [selectedLab, setSelectedLab] = useState('');
+264:  const [showSmartServiceModal, setShowSmartServiceModal] = useState(false);
+265:  const [selectedSmartService, setSelectedSmartService] = useState<'image_analysis' | 'smart_diagnosis' | 'treatment_plan' | null>(null);
+266:  const [showArchiveModal, setShowArchiveModal] = useState(false);
+267:  const [selectedFileType, setSelectedFileType] = useState<'all' | 'image' | 'pdf' | 'xray' | 'report'>('all');
+268:  const [showFileUpload, setShowFileUpload] = useState(false);
+271:  const [showViewTreatmentModal, setShowViewTreatmentModal] = useState(false);
+272:  const [showEditTreatmentModal, setShowEditTreatmentModal] = useState(false);
+273:  const [showCreateTreatmentModal, setShowCreateTreatmentModal] = useState(false);
+274:  const [selectedTreatmentPlan, setSelectedTreatmentPlan] = useState<any>(null);
+277:  const [showToothChartModal, setShowToothChartModal] = useState(false);
+278:  const [showToothDetailModal, setShowToothDetailModal] = useState(false);
+279:  const [showCreateLabOrderFromChart, setShowCreateLabOrderFromChart] = useState(false);
+280:  const [showPrintReportModal, setShowPrintReportModal] = useState(false);
+281:  const [showShareTreatmentModal, setShowShareTreatmentModal] = useState(false);
+282:  const [selectedToothForChart, setSelectedToothForChart] = useState<number | null>(null);
+285:  const [smartLinkingApplied, setSmartLinkingApplied] = useState(false);
+288:  const [treatmentFormData, setTreatmentFormData] = useState({
+355:  const [treatmentFilter, setTreatmentFilter] = useState<'all' | 'needs_treatment' | 'in_progress' | 'completed' | 'planned'>('all');
+356:  const [showToothSearch, setShowToothSearch] = useState(false);
+357:  const [searchToothNumber, setSearchToothNumber] = useState('');
+360:  const [interactiveTeethChart, setInteractiveTeethChart] = useState<ToothCondition[]>([
+763:  const [patientFiles, setPatientFiles] = useState<PatientFile[]>([
+792:  const [smartServiceReports, setSmartServiceReports] = useState<SmartServiceReport[]>([
+824:  const labsList = [
+864:  const treatmentPlanData = {
+989:  const patient = useMemo(() => {
+990:    for (const clinicPatients of Object.values(clinicPatientsData)) {
+991:      const foundPatient = clinicPatients.find(p => p.id === patientId);
+1009:  const patientDetails = {
+1065:  const treatmentPlan: TreatmentStep[] = [
+1120:  const treatmentProgress = useMemo(() => {
+1121:    const completed = treatmentPlan.filter(t => t.status === 'completed').length;
+1122:    const total = treatmentPlan.length;
+1127:  const labSummary = {
+1134:  const handleLabRequest = () => {
+1138:  const handleToothClick = (tooth: ToothCondition) => {
+1143:  const handleCompleteLabRequest = () => {
+1152:  const handleEditPatient = () => {
+1156:  const handleExport = () => {
+1161:  const handleShare = () => {
+1173:  const linkTreatmentTypeWithDetails = (treatmentType: string, toothNumber: number) => {
+1178:      const updated = { ...prev };
+1291:  const updateToothInInteractiveChart = (toothNumber: number, updateData: Partial<ToothCondition>) => {
+1297:          const updated = { ...tooth, ...updateData };
+1324:  const syncChartWithModalData = (modalData: any, toothNumber: number) => {
+1328:    const toothData: Partial<ToothCondition> = {
+1340:        overallStatus: 'needs_treatment' as const,
+1341:        status: 'planned' as const,
+1381:  const refreshChartStatistics = () => {
+1385:      const stats = {
+1419:  const saveCompleteToothData = (toothNumber: number, completeData: any) => {
+1429:      const toothCondition: ToothCondition = {
+1440:          overallStatus: 'needs_treatment' as const,
+1441:          status: 'planned' as const,
+1517:  const autoSaveTreatmentPlan = (treatmentPlan: any) => {
+1522:      const savedData = {
+1541:  const enhancedModalHandlers = {
+1558:      const success = saveCompleteToothData(toothNumber, data);
+1619:  const updateFormField = (field: string, value: any) => {
+1621:      const updated = { ...prev, [field]: value };
+1628:        const treatmentTypeMap: { [key: string]: string } = {
+1647:        const mappedType = treatmentTypeMap[value] || value;
+1650:        const toothNumber = parseInt(updated.toothPosition) || updated.toothNumber || 0;
+1662:        const toothNumber = parseInt(value);
+1687:        const costMap: { [key: string]: number } = {
+1700:        const baseCost = costMap[value] || 150000;
+1719:  const mockTreatmentPlans = [
+1726:      status: 'in_progress' as const,
+1740:          status: 'completed' as const,
+1752:          status: 'scheduled' as const,
+1763:          status: 'pending' as const,
+1776:      status: 'pending' as const,
+1787:          status: 'pending' as const,
+1796:          status: 'pending' as const,
+1809:      status: 'completed' as const,
+1823:          status: 'completed' as const,
+1837:      status: 'cancelled' as const,
+1848:          status: 'cancelled' as const,
+1858:  const handleViewTreatment = (plan: any) => {
+1864:  const handleEditTreatment = (plan: any) => {
+1871:  const handleCreateTreatment = () => {
+1878:  const handleSaveTreatment = (updatedPlan: any) => {
+1893:      const saveSuccess = autoSaveTreatmentPlan(updatedPlan);
+1914:  const handleCreateNewTreatment = (newPlan: any) => {
+1925:        const saveSuccess = saveCompleteToothData(newPlan.toothNumber, newPlan);
+1949:  const handleToothChartClick = (toothNumber: number) => {
+1955:  const handleToothDetailClick = (toothNumber: number) => {
+1957:    const tooth = interactiveTeethChart.find(t => t.number === toothNumber);
+1963:      const newTooth: ToothCondition = {
+1977:  const handleCreateToothTreatment = (toothNumber: number) => {
+1981:    const tooth = interactiveTeethChart.find(t => t.number === toothNumber);
+1984:    const toothCondition: ToothCondition = {
+2008:  const handleEditToothTreatment = (toothNumber: number) => {
+2011:    const tooth = interactiveTeethChart.find(t => t.number === toothNumber);
+2022:  const handleCreateLabOrderFromTooth = (toothNumber: number) => {
+2025:    const tooth = interactiveTeethChart.find(t => t.number === toothNumber);
+2036:  const handlePrintToothReport = (toothNumber: number) => {
+2050:  const handleShareToothTreatment = (toothNumber: number) => {
+2064:  const handleCompleteSession = (planId: string, sessionId: string) => {
+2071:          const updatedPlan = {
+2084:            updatedPlan.overallStatus = 'completed' as const;
+2085:            updatedPlan.status = 'completed' as const;
+2099:    const tooth = interactiveTeethChart.find(t => t.treatmentPlan?.id === planId);
+2109:  const updateFormField = (field: string, value: any) => {
+2111:      const updated = { ...prev, [field]: value };
+2116:        const treatmentTypeKey = Object.keys(treatmentTypeMappings).find(key =>
+2129:        const newSessionCount = parseInt(value);
+2160:  const updateSessionDetail = (sessionIndex: number, field: string, value: any) => {
+2162:      const updatedSessionDetails = [...prev.sessionDetails];
+2175:  const addNewSession = () => {
+2177:      const newSessionCount = prev.sessionCount + 1;
+2178:      const newSessionDetails = [
+2203:  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
+2204:  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+2205:  const [chartStatistics, setChartStatistics] = useState({
+2217:  const treatmentTypeMappings = {
+2311:  const applySmartTreatmentLinking = (treatmentType: string) => {
+2312:    const mapping = treatmentTypeMappings[treatmentType as keyof typeof treatmentTypeMappings];
+2340:  const autoSaveTreatmentPlan = (updatedData?: any) => {
+2343:    const dataToSave = updatedData || treatmentFormData;
+2356:  const loadSavedTreatmentPlan = () => {
+2358:      const savedData = localStorage.getItem(`treatmentPlan_${patientId}`);
+2360:        const parsedData = JSON.parse(savedData);
+2373:  const calculateChartStatistics = useMemo(() => {
+2374:    const stats = {
+2403:          const progress = (tooth.treatmentPlan.completedSessions / tooth.treatmentPlan.sessionCount) * 100;
+2427:  const updateInteractiveTeethChart = (toothNumber: number, updatedData: Partial<TreatmentPlanForTooth>) => {
+2430:        const updatedTreatmentPlan: TreatmentPlanForTooth = {
+2452:  const applySmartDiagnosisLinking = (diagnosis: string, tooth: ToothCondition) => {
+2453:    const updatedTooth = { ...tooth, condition: diagnosis as any };
+2456:    const treatmentMapping: Record<string, any> = {
+2467:    const suggestedTreatment = treatmentMapping[diagnosis] || treatmentMapping['healthy'];
+2479:  const applyComprehensiveTreatmentLinking = (treatmentType: string, tooth: ToothCondition) => {
+2480:    const updatedTooth = { ...tooth, treatmentType };
+2483:    const treatmentDetails: Record<string, any> = {
+2576:    const details = treatmentDetails[treatmentType] || treatmentDetails.observation;
+2588:  const updateFinancialData = (field: string, value: string) => {
+2589:    const baseCost = parseFloat((document.getElementById('baseCost') as HTMLInputElement)?.value) || 0;
+2590:    const additionalCost = parseFloat((document.getElementById('additionalCost') as HTMLInputElement)?.value) || 0;
+2591:    const paidAmount = parseFloat((document.getElementById('paidAmount') as HTMLInputElement)?.value) || 0;
+2593:    const totalCost = baseCost + additionalCost;
+2594:    const remaining = totalCost - paidAmount;
+2595:    const paymentPercentage = totalCost > 0 ? Math.round((paidAmount / totalCost) * 100) : 0;
+2598:    const elements = {
+2614:  const saveToothData = () => {
+2618:    const toothData = {
+2640:  const generateToothReport = () => {
+2643:    const reportData = {
+2665:  const DynamicTreatmentDetails = ({ selectedTooth, updateSelectedTooth }: {
+2681:    const treatmentDetails = selectedTooth.treatmentDetails;
+2684:    const renderTreatmentSpecificDetails = () => {
+2851:  const renderTreatmentPlanTab = () => {
+2853:    const chartStats = useMemo(() => {
+2854:      const stats = {
+3084:      const timeoutId = setTimeout(() => {
+3092:  const handleEditToothTreatment = (toothNumber: number) => {
+3093:    const tooth = interactiveTeethChart.find(t => t.number === toothNumber);
+3101:  const handleCreateLabOrderFromTooth = (toothNumber: number) => {
+3107:  const handlePrintToothReport = (toothNumber: number) => {
+3108:    const tooth = interactiveTeethChart.find(t => t.number === toothNumber);
+3117:  const handleShareToothTreatment = (toothNumber: number) => {
+3118:    const tooth = interactiveTeethChart.find(t => t.number === toothNumber);
+3127:  const handleToothSearch = () => {
+3129:      const toothNumber = parseInt(searchToothNumber);
+3139:  const getTeethChartStats = () => {
+3140:    const totalTeeth = interactiveTeethChart.length;
+3141:    const healthyTeeth = interactiveTeethChart.filter(t => t.condition === 'healthy').length;
+3142:    const needsTreatment = interactiveTeethChart.filter(t =>
+3145:    const inProgress = interactiveTeethChart.filter(t =>
+3148:    const completed = interactiveTeethChart.filter(t =>
+3151:    const missing = interactiveTeethChart.filter(t => t.condition === 'missing').length;
+3163:  const chartStats = getTeethChartStats();
+3167:  const renderInteractiveTeethChart = () => (
+3191:            const isHealthy = tooth.condition === 'healthy';
+3192:            const hasTreatment = !!tooth.treatmentPlan;
+3193:            const isCompleted = tooth.treatmentPlan?.overallStatus === 'completed';
+3194:            const isInProgress = tooth.treatmentPlan?.overallStatus === 'in_progress';
+3294:                      overallStatus: 'planned' as const,
+3295:                      status: 'planned' as const,
+3296:                      priority: 'medium' as const,
+3319:                      financialStatus: 'pending' as const,
+3358:  const renderSmartServicesTab = () => (
+3506:  const renderArchiveTab = () => (
+3643:  const renderOverviewTab = () => {
+3645:    const chartStats = useMemo(() => {
+3646:      const totalTeeth = interactiveTeethChart.length;
+3647:      const healthyTeeth = interactiveTeethChart.filter(t => t.condition === 'healthy').length;
+3648:      const needsTreatment = interactiveTeethChart.filter(t =>
+3654:      const completedTreatments = interactiveTeethChart.filter(t =>
+3657:      const inProgressTreatments = interactiveTeethChart.filter(t =>
+3660:      const totalTreatmentCost = interactiveTeethChart.reduce((sum, t) =>
+3663:      const completedCost = interactiveTeethChart.reduce((sum, t) => {
+4042:        const existingTooth = interactiveTeethChart.find(t => t.number === tooth.num);
+4043:        const finalTooth = existingTooth || tooth;
+4115:        const existingTooth = interactiveTeethChart.find(t => t.number === tooth.num);
+4116:        const finalTooth = existingTooth || tooth;
+4437:                  const toothCondition: ToothCondition = {
+4600:const renderMedicalHistoryTab = () => (
+4640:const renderFinancialTab = () => (
+4695:const renderTabContent = () => {
+4906:                const lab = labsList.find(l => l.id === selectedLab);
+5033:                          const updatedTooth = { ...selectedTooth, condition: option.value as any };
+5069:                        const treatmentType = e.target.value;
+5070:                        const updatedTooth = { ...selectedTooth, treatmentType };
+6152:                  const tooth = interactiveTeethChart.find(t => t.number === selectedToothForChart);
