@@ -10,7 +10,7 @@ import { IRAQI_GOVERNORATES } from '../../utils/location';
 
 export const RegisterPage: React.FC = () => {
   const { t } = useLanguage();
-  const { register, login } = useAuth();
+  const { register } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
