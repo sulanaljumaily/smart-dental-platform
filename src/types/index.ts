@@ -60,6 +60,7 @@ export interface ClinicInvitation {
   status: 'pending' | 'accepted' | 'rejected';
   createdBy: string;
   createdAt: string;
+  isStaffRecord?: boolean;
 }
 
 // Re-exporting from specific file to avoid duplication
