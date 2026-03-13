@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { UserPlus, Mail, Lock, User, Phone, CheckCircle, Building, Stethoscope, Package, TestTube, Settings, MapPin } from 'lucide-react';
+import { UserPlus, Mail, Lock, User, Phone, Stethoscope, Package, TestTube, MapPin } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card } from '../../components/common/Card';
@@ -10,7 +10,7 @@ import { IRAQI_GOVERNORATES } from '../../utils/location';
 
 export const RegisterPage: React.FC = () => {
   const { t } = useLanguage();
-  const { register, login } = useAuth();
+  const { register } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -22,7 +22,7 @@ export const RegisterPage: React.FC = () => {
     address: '',
     password: '',
     confirmPassword: '',
-    accountType: 'doctor' as 'doctor' | 'supplier' | 'laboratory' | 'admin',
+    accountType: 'doctor' as 'doctor' | 'supplier' | 'laboratory',
     agreeToTerms: false
   });
 
@@ -32,7 +32,7 @@ export const RegisterPage: React.FC = () => {
   // تحديث نوع الحساب بناءً على query parameter
   useEffect(() => {
     const type = searchParams.get('type');
-    if (type && ['doctor', 'supplier', 'laboratory', 'admin'].includes(type)) {
+    if (type && ['doctor', 'supplier', 'laboratory'].includes(type)) {
       setFormData(prev => ({ ...prev, accountType: type as any }));
     }
   }, [searchParams]);
@@ -84,11 +84,14 @@ export const RegisterPage: React.FC = () => {
     setLoading(true);
 
     try {
-      // محاكاة عملية التسجيل
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      // بعد التسجيل الناجح، تسجيل الدخول تلقائياً
-      await login(formData.email, formData.password, formData.accountType);
+      // تسجيل الحساب الجديد في قاعدة البيانات
+      await register(
+        formData.email, 
+        formData.password, 
+        formData.fullName, 
+        formData.accountType, 
+        formData.phone
+      );
 
       // التوجيه إلى المركز المناسب
       switch (formData.accountType) {
@@ -100,9 +103,6 @@ export const RegisterPage: React.FC = () => {
           break;
         case 'laboratory':
           navigate('/laboratory');
-          break;
-        case 'admin':
-          navigate('/admin');
           break;
         default:
           navigate('/');
@@ -141,7 +141,7 @@ export const RegisterPage: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 mb-3">
               نوع الحساب
             </label>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <button
                 type="button"
                 onClick={() => handleInputChange('accountType', 'doctor')}
@@ -179,19 +179,6 @@ export const RegisterPage: React.FC = () => {
                 <TestTube className="w-8 h-8 mx-auto mb-2 text-primary" />
                 <p className="font-medium text-gray-900">مختبر أسنان</p>
                 <p className="text-xs text-gray-500 mt-1">للمختبرات الطبية</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleInputChange('accountType', 'admin')}
-                className={`p-4 rounded-lg border-2 transition-all ${formData.accountType === 'admin'
-                  ? 'border-primary bg-primary/10'
-                  : 'border-gray-200 hover:border-primary/50'
-                  }`}
-              >
-                <Settings className="w-8 h-8 mx-auto mb-2 text-primary" />
-                <p className="font-medium text-gray-900">إدارة المنصة</p>
-                <p className="text-xs text-gray-500 mt-1">لمالك النظام</p>
               </button>
             </div>
           </div>
