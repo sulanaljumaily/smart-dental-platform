@@ -29,10 +29,8 @@ export const useClinics = () => {
             if (ownerError) throw ownerError;
 
             // 2. Fetch Clinics where User is a Member (Staff)
-            // 2. Fetch Clinics where User is a Member (Staff)
-            let memberClinics = [];
+            let memberClinics: any[] = [];
             try {
-                // Check 'staff' table which we recently linked with auth_user_id
                 const { data: staffData, error: staffError } = await supabase
                     .from('staff')
                     .select('clinic:clinics(*)')
@@ -43,56 +41,14 @@ export const useClinics = () => {
                 } else {
                     memberClinics = staffData?.map((m: any) => m.clinic).filter(Boolean) || [];
                 }
-
-                // Legacy check for clinic_members if it still exists (optional)
-                /*
-                const { data: memberData, error: memberError } = await supabase
-                    .from('clinic_members')
-                    .select('clinic:clinics(*)')
-                    .eq('user_id', user.id);
-                if (!memberError && memberData) {
-                    const legacyClinics = memberData.map((m: any) => m.clinic);
-                    memberClinics = [...memberClinics, ...legacyClinics];
-                }
-                */
             } catch (err) {
                 console.warn('Member fetch exception (ignoring):', err);
             }
 
-            // 3. Merge and Deduplicate
-            let allClinics = [...(ownedClinics || []), ...memberClinics].filter((c, index, self) =>
+            // 3. Merge and Deduplicate - No fallback demo clinics for new accounts
+            const allClinics = [...(ownedClinics || []), ...memberClinics].filter((c, index, self) =>
                 index === self.findIndex((t) => (t.id === c.id))
             );
-
-            // FALLBACK: If no clinics found (e.g. fresh demo account), show Demo Clinics
-            if (allClinics.length === 0) {
-                allClinics = [
-                    {
-                        id: '101',
-                        name: 'عيادة النور التخصصية',
-                        address: 'بغداد - المنصور',
-                        phone: '07701234567',
-                        email: 'info@alnoor.com',
-                        image: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=800&auto=format&fit=crop&q=60',
-                        owner_id: user.id,
-                        specialties: ['جراحة وجه وفكين', 'تجميل الأسنان'],
-                        services: ['زراعة أسنان', 'ابتسامة هوليود', 'تبييض بالليزر'],
-                        description: 'عيادة متخصصة في طب وجراحة الفم والأسنان وتجميل الابتسامة بأحدث التقنيات.'
-                    },
-                    {
-                        id: '102',
-                        name: 'مركز الابتسامة الرقمي',
-                        address: 'البصرة - الجزائر',
-                        phone: '07901112233',
-                        email: 'info@smilecenter.com',
-                        image: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=800&auto=format&fit=crop&q=60',
-                        owner_id: user.id,
-                        specialties: ['تقويم الأسنان', 'طب أسنان أطفال', 'تجميل الأسنان', 'طب أسنان عام'],
-                        services: ['خلع جراحي', 'علاج عصب', 'تركيبات ثابتة'],
-                        description: 'High quality dental care for everyone. Modern clinic specialized in family innovation.'
-                    }
-                ];
-            }
 
             // Map to Interface
             const mappedClinics: Clinic[] = allClinics.map((c: any) => ({
@@ -163,7 +119,7 @@ export const useClinics = () => {
                 delete dbUpdates.image;
             }
             if ('logo' in updates) {
-                dbUpdates.image_url = updates.logo; // Handle legacy 'logo' prop
+                dbUpdates.image_url = updates.logo;
                 delete dbUpdates.logo;
             }
             if ('location' in updates && updates.location) {
@@ -186,11 +142,9 @@ export const useClinics = () => {
                 .eq('id', id);
 
             if (error) throw error;
-            // Background refresh to ensure consistency
             fetchClinics();
         } catch (err) {
             console.error('Error updating clinic:', err);
-            // Revert on error (optional, but good practice)
             fetchClinics();
             throw err;
         }
