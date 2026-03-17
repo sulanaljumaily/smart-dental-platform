@@ -8,9 +8,6 @@
 @layer base {
   :root {
     --radius: 0.5rem;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 217.2 91.2% 59.8%;
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 240 5.9% 10%;
