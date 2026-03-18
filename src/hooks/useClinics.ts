@@ -29,26 +29,43 @@ export const useClinics = () => {
             if (ownerError) throw ownerError;
 
             // 2. Fetch Clinics where User is a Member (Staff)
-            let memberClinics: any[] = [];
+            // 2. Fetch Clinics where User is a Member (Staff)
+            let memberClinics = [];
             try {
+                // Check 'staff' table using both user_id and auth_user_id for compatibility
                 const { data: staffData, error: staffError } = await supabase
                     .from('staff')
                     .select('clinic:clinics(*)')
-                    .eq('user_id', user.id);
+                    .or(`user_id.eq.${user.id},auth_user_id.eq.${user.id}`)
+                    .in('status', ['active', 'on_leave']);
 
                 if (staffError) {
                     console.warn('Staff fetch error (ignoring):', staffError);
                 } else {
                     memberClinics = staffData?.map((m: any) => m.clinic).filter(Boolean) || [];
                 }
+
+                // Legacy check for clinic_members if it still exists (optional)
+                /*
+                const { data: memberData, error: memberError } = await supabase
+                    .from('clinic_members')
+                    .select('clinic:clinics(*)')
+                    .eq('user_id', user.id);
+                if (!memberError && memberData) {
+                    const legacyClinics = memberData.map((m: any) => m.clinic);
+                    memberClinics = [...memberClinics, ...legacyClinics];
+                }
+                */
             } catch (err) {
                 console.warn('Member fetch exception (ignoring):', err);
             }
 
-            // 3. Merge and Deduplicate - No fallback demo clinics for new accounts
-            const allClinics = [...(ownedClinics || []), ...memberClinics].filter((c, index, self) =>
+            // 3. Merge and Deduplicate
+            let allClinics = [...(ownedClinics || []), ...memberClinics].filter((c, index, self) =>
                 index === self.findIndex((t) => (t.id === c.id))
             );
+
+
 
             // Map to Interface
             const mappedClinics: Clinic[] = allClinics.map((c: any) => ({
@@ -119,7 +136,7 @@ export const useClinics = () => {
                 delete dbUpdates.image;
             }
             if ('logo' in updates) {
-                dbUpdates.image_url = updates.logo;
+                dbUpdates.image_url = updates.logo; // Handle legacy 'logo' prop
                 delete dbUpdates.logo;
             }
             if ('location' in updates && updates.location) {
@@ -142,9 +159,11 @@ export const useClinics = () => {
                 .eq('id', id);
 
             if (error) throw error;
+            // Background refresh to ensure consistency
             fetchClinics();
         } catch (err) {
             console.error('Error updating clinic:', err);
+            // Revert on error (optional, but good practice)
             fetchClinics();
             throw err;
         }

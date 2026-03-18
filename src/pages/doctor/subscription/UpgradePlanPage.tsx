@@ -276,8 +276,8 @@ export const UpgradePlanPage: React.FC = () => {
             if (receiptImage) {
                 const result = await uploadFile(
                     receiptImage,
-                    'receipts',
-                    `receipt_${user?.id}_${Date.now()}`
+                    'documents',
+                    'receipts'
                 );
                 // Assume uploadFile throws on error or returns null
                 if (!result) throw new Error('فشل رفع الملف');

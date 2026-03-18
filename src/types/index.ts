@@ -54,6 +54,7 @@ export interface Clinic {
 export interface ClinicInvitation {
   id: string;
   clinicId: number;
+  staffId?: string;    // if set, accept → update this staff record instead of creating new
   clinic?: Clinic;
   email: string;
   role: string;
