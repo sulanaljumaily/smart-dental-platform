@@ -7,6 +7,8 @@ import { usePlatform } from '../../contexts/PlatformContext';
 import { Card } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
+import { Header } from '../../components/layout/Header';
+import { supabase } from '../../lib/supabase';
 
 export const LoginPage: React.FC = () => {
   const { t } = useLanguage();
@@ -18,6 +20,7 @@ export const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'doctor' | 'supplier' | 'laboratory' | 'admin'>('doctor');
   const [loading, setLoading] = useState(false);
+  const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
   const [loginMode, setLoginMode] = useState<'normal' | 'quick'>('normal');
 
   // Handle URL parameters to set role automatically
@@ -32,11 +35,12 @@ export const LoginPage: React.FC = () => {
   const { isAuthenticated, user: authUser } = useAuth(); // Destructure properly
   useEffect(() => {
     if (isAuthenticated && authUser) {
-      const targetRole = authUser.role || 'doctor';
+      const targetRole = authUser.role || 'newuser';
       if (targetRole === 'admin') navigate('/admin');
       else if (targetRole === 'supplier') navigate('/supplier');
       else if (targetRole === 'laboratory') navigate('/laboratory');
-      else navigate('/doctor');
+      else if (targetRole === 'doctor') navigate('/doctor');
+      // If targetRole is 'newuser' or missing, we stay so the CompleteRegistrationModal shows
     }
   }, [isAuthenticated, authUser, navigate]);
 
@@ -114,6 +118,24 @@ export const LoginPage: React.FC = () => {
     }
   };
 
+  const handleOAuthLogin = async (provider: 'google' | 'facebook') => {
+    try {
+      setLoadingProvider(provider);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: window.location.origin,
+        }
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      console.error(err);
+      alert('فشل الدخول بحساب التواصل الاجتماعي');
+    } finally {
+      setLoadingProvider(null);
+    }
+  };
+
   const navigateBasedOnRole = (r: string) => {
     if (r === 'admin') {
       navigate('/admin');
@@ -123,9 +145,11 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary via-primary-dark to-blue-900 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <div className="p-4 sm:p-8 space-y-6">
+    <>
+      <Header />
+      <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-primary via-primary-dark to-blue-900 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <div className="p-4 sm:p-8 space-y-6">
           {/* Logo */}
           <div className="text-center">
             {settings.logo_url ? (
@@ -200,22 +224,43 @@ export const LoginPage: React.FC = () => {
               >
                 مختبر
               </button>
-              <button
-                type="button"
-                onClick={() => setRole('admin')}
-                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all border-2 ${role === 'admin'
-                  ? 'bg-purple-50 text-purple-700 border-purple-300 shadow-md'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-purple-200'
-                  }`}
-              >
-                إدارة المنصة
-              </button>
             </div>
           </div>
 
           {/* Normal Login Form */}
           {loginMode === 'normal' && (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-4">
+              {/* Social Logins */}
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="flex items-center justify-center gap-2 bg-white"
+                  onClick={() => handleOAuthLogin('google')}
+                  disabled={loading || !!loadingProvider}
+                >
+                  <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
+                  {loadingProvider === 'google' ? 'جاري التحويل...' : 'Google'}
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="flex items-center justify-center gap-2 bg-[#1877F2] text-white hover:bg-[#1865F2]"
+                  onClick={() => handleOAuthLogin('facebook')}
+                  disabled={loading || !!loadingProvider}
+                >
+                  <img src="https://www.svgrepo.com/show/475647/facebook-color.svg" alt="Facebook" className="w-5 h-5 bg-white rounded-full" />
+                  {loadingProvider === 'facebook' ? 'جاري التحويل...' : 'Facebook'}
+                </Button>
+              </div>
+
+              <div className="flex items-center gap-4 text-gray-500 text-sm">
+                <span className="flex-1 h-px bg-gray-200"></span>
+                أو بالبريد الإلكتروني
+                <span className="flex-1 h-px bg-gray-200"></span>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <Mail className="w-4 h-4 inline ml-1" />
@@ -254,11 +299,12 @@ export const LoginPage: React.FC = () => {
                 type="submit"
                 variant="primary"
                 className="w-full"
-                disabled={loading}
+                disabled={loading || !!loadingProvider}
               >
                 {loading ? 'جاري الدخول...' : t('login')}
               </Button>
             </form>
+            </div>
           )}
 
           {/* Quick Login */}
@@ -307,14 +353,23 @@ export const LoginPage: React.FC = () => {
             <Link to="/" className="block text-sm text-gray-600 hover:text-primary">
               العودة للصفحة الرئيسية
             </Link>
-            <div className="flex justify-center gap-4 text-xs text-gray-500">
+            <div className="flex justify-center items-center gap-4 text-xs text-gray-500 relative">
               <Link to="/privacy-policy" className="hover:text-primary">سياسة الخصوصية</Link>
               <span>•</span>
               <Link to="/terms-of-service" className="hover:text-primary">الشروط والأحكام</Link>
+              
+              {/* Hidden Admin Button */}
+              <button 
+                type="button" 
+                onClick={() => setRole('admin')} 
+                className="w-2 h-2 rounded-full opacity-10 hover:opacity-100 hover:bg-purple-500 transition-all absolute left-0"
+                title="Admin"
+              ></button>
             </div>
           </div>
         </div>
       </Card>
-    </div>
+      </div>
+    </>
   );
 };

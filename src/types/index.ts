@@ -1,6 +1,6 @@
 // أنواع البيانات للتطبيق
 
-export type UserRole = 'doctor' | 'supplier' | 'laboratory' | 'staff' | 'admin';
+export type UserRole = 'doctor' | 'supplier' | 'laboratory' | 'staff' | 'admin' | 'newuser';
 
 export interface User {
   id: string;

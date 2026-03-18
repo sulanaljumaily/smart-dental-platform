@@ -10,6 +10,7 @@ import {
 import { Card } from '../../../components/common/Card';
 import { BentoStatCard } from '../../../components/dashboard/BentoStatCard';
 import { NotificationsList } from '../../../components/common/NotificationsList';
+import { SocialBadges } from '../../../components/auth/SocialBadges';
 
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -246,7 +247,10 @@ export const LabProfileSection: React.FC = () => {
             <div className="flex items-start justify-between mb-6 flex-wrap gap-4">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">{profile.labName}</h1>
-                <p className="text-gray-600 text-lg mb-4 max-w-2xl leading-relaxed">{profile.description}</p>
+                <p className="text-gray-600 text-lg mb-2 max-w-2xl leading-relaxed">{profile.description}</p>
+                <div className="mb-4">
+                  <SocialBadges />
+                </div>
                 <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
                   <div className="flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
                     <Calendar className="w-4 h-4 text-purple-500" />
