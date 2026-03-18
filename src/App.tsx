@@ -309,6 +309,7 @@ function AppContent() {
   );
 }
 
+import { CompleteRegistrationModal } from './components/auth/CompleteRegistrationModal';
 import { StoreProvider } from './context/StoreContext';
 import { CommunityProvider } from './contexts/CommunityContext';
 import { PlatformProvider } from './contexts/PlatformContext';
@@ -317,6 +318,7 @@ function App() {
   return (
     <LanguageProvider>
       <AuthProvider>
+        <CompleteRegistrationModal />
         <StoreProvider>
           <CommunityProvider>
             <PlatformProvider>

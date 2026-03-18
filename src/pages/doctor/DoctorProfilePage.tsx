@@ -17,6 +17,7 @@ import { useTransactions } from '../../hooks/useTransactions';
 import { supabase } from '../../lib/supabase';
 import { IRAQI_GOVERNORATES } from '../../utils/location';
 import { toast } from 'sonner';
+import { SocialBadges } from '../../components/auth/SocialBadges';
 
 const SubscriptionCard: React.FC = () => {
   const navigate = useNavigate();
@@ -371,7 +372,11 @@ export const DoctorProfilePage: React.FC = () => {
                   </div>
 
                   <h2 className="text-xl font-bold text-gray-900 mb-1">{profileData.name}</h2>
-                  <p className="text-gray-500 text-sm mb-4">{profileData.specialization}</p>
+                  <p className="text-gray-500 text-sm mb-2">{profileData.specialization}</p>
+                  
+                  <div className="mb-4">
+                    <SocialBadges />
+                  </div>
 
                   <Button 
                     variant="outline" 

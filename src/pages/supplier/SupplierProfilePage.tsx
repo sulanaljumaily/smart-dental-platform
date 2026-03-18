@@ -11,6 +11,7 @@ import { useSupplierProfile, SupplierProfile } from '../../hooks/useSupplierProf
 import { NotificationsList } from '../../components/common/NotificationsList';
 import { supabase } from '../../lib/supabase';
 import { IRAQI_GOVERNORATES, formatLocation } from '../../utils/location';
+import { SocialBadges } from '../../components/auth/SocialBadges';
 
 export const SupplierProfilePage: React.FC = () => {
   const { profile, loading, updateProfile } = useSupplierProfile();
@@ -207,6 +208,9 @@ export const SupplierProfilePage: React.FC = () => {
                   )}
                 </div>
                 <p className="text-xl text-blue-100 font-medium opacity-90">{profile.companyName}</p>
+                <div className="mt-2 flex justify-center md:justify-start">
+                  <SocialBadges />
+                </div>
               </div>
 
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 text-sm">
