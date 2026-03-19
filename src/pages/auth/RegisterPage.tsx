@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { UserPlus, Mail, Lock, User, Phone, CheckCircle, Building, Stethoscope, Package, TestTube, Settings, MapPin, Eye, EyeOff } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePlatform } from '../../contexts/PlatformContext';
 import { Card } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
@@ -13,6 +14,7 @@ import { supabase } from '../../lib/supabase';
 export const RegisterPage: React.FC = () => {
   const { t } = useLanguage();
   const { register, login } = useAuth();
+  const { settings } = usePlatform();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -24,7 +26,7 @@ export const RegisterPage: React.FC = () => {
     address: '',
     password: '',
     confirmPassword: '',
-    accountType: 'doctor' as 'doctor' | 'supplier' | 'laboratory',
+    accountType: '' as 'doctor' | 'supplier' | 'laboratory' | '',
     agreeToTerms: false
   });
 
@@ -70,6 +72,10 @@ export const RegisterPage: React.FC = () => {
 
     if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'كلمتا المرور غير متطابقتين';
+    }
+
+    if (!formData.accountType) {
+      newErrors.accountType = 'يرجى اختيار نوع الحساب لتتمكن من التسجيل';
     }
 
     if (!formData.agreeToTerms) {
@@ -176,56 +182,57 @@ export const RegisterPage: React.FC = () => {
           <div className="p-8 space-y-6">
             {/* Logo */}
             <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary-dark rounded-2xl mx-auto mb-4 flex items-center justify-center">
-                <span className="text-white font-bold text-2xl">S</span>
-              </div>
+              {settings.logo_url ? (
+                <img src={settings.logo_url} alt="Logo" className="w-24 h-24 mx-auto mb-4 object-contain rounded-3xl" />
+              ) : (
+                <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary-dark rounded-2xl mx-auto mb-4 flex items-center justify-center">
+                  <span className="text-white font-bold text-2xl">S</span>
+                </div>
+              )}
               <h1 className="text-2xl font-bold text-gray-900">إنشاء حساب جديد</h1>
-              <p className="text-gray-600 mt-2">انضم إلى SMART اليوم</p>
+              <p className="text-gray-600 mt-2">كن جزءاً من منصتنا اليوم</p>
             </div>
 
             {/* Account Type Selector */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                نوع الحساب
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                اختر نوع الحساب الذي تريد إنشاءه
               </label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="flex gap-2 p-1 bg-gray-100/60 rounded-xl mb-4 border border-gray-200/50">
                 <button
                   type="button"
                   onClick={() => handleInputChange('accountType', 'doctor')}
-                  className={`p-4 rounded-lg border-2 transition-all ${formData.accountType === 'doctor'
-                    ? 'border-primary bg-primary/10'
-                    : 'border-gray-200 hover:border-primary/50'
+                  className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-bold transition-all duration-300 flex items-center justify-center gap-2 transform active:scale-95 ${formData.accountType === 'doctor'
+                    ? 'bg-blue-50 text-blue-700 shadow-sm border border-blue-200 scale-[1.02]'
+                    : 'text-gray-500 hover:bg-white hover:shadow-sm hover:text-blue-600 border border-transparent'
                     }`}
                 >
-                  <Stethoscope className="w-8 h-8 mx-auto mb-2 text-primary" />
-                  <p className="font-medium text-gray-900">طبيب أسنان</p>
-                  <p className="text-xs text-gray-500 mt-1">للأطباء المتخصصين</p>
+                  <Stethoscope className={`w-4 h-4 transition-colors ${formData.accountType === 'doctor' ? 'text-blue-600' : 'text-gray-400'}`} />
+                  <span>طبيب</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleInputChange('accountType', 'supplier')}
-                  className={`p-4 rounded-lg border-2 transition-all ${formData.accountType === 'supplier'
-                    ? 'border-primary bg-primary/10'
-                    : 'border-gray-200 hover:border-primary/50'
+                  className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-bold transition-all duration-300 flex items-center justify-center gap-2 transform active:scale-95 ${formData.accountType === 'supplier'
+                    ? 'bg-emerald-50 text-emerald-700 shadow-sm border border-emerald-200 scale-[1.02]'
+                    : 'text-gray-500 hover:bg-white hover:shadow-sm hover:text-emerald-600 border border-transparent'
                     }`}
                 >
-                  <Package className="w-8 h-8 mx-auto mb-2 text-primary" />
-                  <p className="font-medium text-gray-900">مورد</p>
-                  <p className="text-xs text-gray-500 mt-1">لموردي المعدات الطبية</p>
+                  <Package className={`w-4 h-4 transition-colors ${formData.accountType === 'supplier' ? 'text-emerald-600' : 'text-gray-400'}`} />
+                  <span>مورد</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleInputChange('accountType', 'laboratory')}
-                  className={`p-4 rounded-lg border-2 transition-all ${formData.accountType === 'laboratory'
-                    ? 'border-primary bg-primary/10'
-                    : 'border-gray-200 hover:border-primary/50'
+                  className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-bold transition-all duration-300 flex items-center justify-center gap-2 transform active:scale-95 ${formData.accountType === 'laboratory'
+                    ? 'bg-purple-50 text-purple-700 shadow-sm border border-purple-200 scale-[1.02]'
+                    : 'text-gray-500 hover:bg-white hover:shadow-sm hover:text-purple-600 border border-transparent'
                     }`}
                 >
-                  <TestTube className="w-8 h-8 mx-auto mb-2 text-primary" />
-                  <p className="font-medium text-gray-900">مختبر أسنان</p>
-                  <p className="text-xs text-gray-500 mt-1">للمختبرات الطبية</p>
+                  <TestTube className={`w-4 h-4 transition-colors ${formData.accountType === 'laboratory' ? 'text-purple-600' : 'text-gray-400'}`} />
+                  <span>مختبر</span>
                 </button>
               </div>
             </div>
@@ -239,7 +246,7 @@ export const RegisterPage: React.FC = () => {
                 disabled={loading || !!loadingProvider}
               >
                 <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
-                {loadingProvider === 'google' ? 'جاري التحويل...' : 'إنشاء بحساب Google'}
+                {loadingProvider === 'google' ? 'جاري التحويل...' : 'Google'}
               </Button>
               <Button
                 type="button"
@@ -248,8 +255,8 @@ export const RegisterPage: React.FC = () => {
                 onClick={() => handleOAuthLogin('facebook', formData.accountType)}
                 disabled={loading || !!loadingProvider}
               >
-                <img src="https://www.svgrepo.com/show/475647/facebook-color.svg" alt="Facebook" className="w-5 h-5 bg-white rounded-full" />
-                {loadingProvider === 'facebook' ? 'جاري التحويل...' : 'إنشاء بحساب Facebook'}
+                <img src="https://www.svgrepo.com/show/354981/facebook-option.svg" alt="Facebook" className="w-5 h-5 brightness-0 invert" />
+                {loadingProvider === 'facebook' ? 'جاري التحويل...' : 'Facebook'}
               </Button>
             </div>
 
@@ -444,11 +451,18 @@ export const RegisterPage: React.FC = () => {
                 <p className="text-red-500 text-xs">{errors.agreeToTerms}</p>
               )}
 
+              {/* Account Type Error Warning */}
+              {errors.accountType && (
+                <p className="text-red-600 text-center font-bold text-sm bg-red-50 p-2 rounded-lg border border-red-200 animate-pulse">
+                  ⚠️ {errors.accountType}
+                </p>
+              )}
+
               {/* Submit Button */}
               <Button
                 type="submit"
-                variant="primary"
-                className="w-full flex items-center justify-center gap-2"
+                variant={errors.accountType ? "outline" : "primary"}
+                className={`w-full flex items-center justify-center gap-2 ${errors.accountType ? 'border-red-500 text-red-600 hover:bg-red-50 bg-white' : ''}`}
                 disabled={loading || !!loadingProvider}
               >
                 <UserPlus className="w-5 h-5" />
@@ -464,12 +478,6 @@ export const RegisterPage: React.FC = () => {
               </Link>
             </div>
 
-            {/* Quick Links */}
-            <div className="pt-4 border-t text-center space-y-2">
-              <Link to="/" className="block text-sm text-gray-600 hover:text-primary">
-                العودة للصفحة الرئيسية
-              </Link>
-            </div>
           </div>
         </Card>
       </div>
