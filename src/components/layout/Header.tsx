@@ -1,170 +1,75 @@
-import React, { useState } from 'react';
-import { Menu, X, Globe } from 'lucide-react';
+import { Globe, Stethoscope, Home } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { Button } from '../common/Button';
+import { usePlatform } from '../../contexts/PlatformContext';
 
 export const Header: React.FC = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { language, setLanguage, t } = useLanguage();
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
+  const { settings } = usePlatform();
 
   const toggleLanguage = () => {
     setLanguage(language === 'ar' ? 'en' : 'ar');
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white shadow-md">
-      <div className="container mx-auto mobile-container">
-        <div className="flex items-center justify-between h-16 mobile-header">
+    <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200/50 shadow-sm">
+      <div className="container mx-auto px-2 sm:px-4">
+        <div className="flex items-center justify-between h-11 sm:h-12">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-dark rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-xl">S</span>
-            </div>
-            <span className="text-xl font-bold text-gray-900">{t('appName')}</span>
+          <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
+            {settings.logo_url ? (
+              <img src={settings.logo_url} alt="Logo" className="w-8 h-8 sm:w-10 sm:h-10 object-contain rounded-xl" />
+            ) : (
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-lg sm:rounded-xl flex items-center justify-center shadow-md">
+                <span className="text-white font-bold text-sm sm:text-base">S</span>
+              </div>
+            )}
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-6">
-            {/* Non-authenticated users (patients) */}
+          {/* Navigation Items */}
+          <nav className="flex items-center gap-1.5 sm:gap-3">
             {!isAuthenticated && (
               <>
-                <Link to="/services" className="text-gray-700 hover:text-primary transition-colors font-medium">
-                  {t('services')}
-                </Link>
-                
                 <Link 
-                  to="/doctor-welcome" 
-                  className="px-3 py-1.5 text-sm bg-secondary text-secondary-foreground hover:bg-gray-100 border border-gray-200 rounded-lg font-medium transition-all duration-200"
+                  to="/services" 
+                  className="group relative px-2 py-1.5 sm:px-4 sm:py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105 text-[11px] sm:text-sm flex items-center gap-1"
                 >
-                  {t('areDoctorQuestion')}
+                  <Stethoscope className="w-3.5 h-3.5 sm:w-4 h-4" />
+                  <span>الخدمات الطبية</span>
                 </Link>
-                
+
                 <Link 
-                  to="/supplier-welcome" 
-                  className="px-3 py-1.5 text-sm bg-secondary text-secondary-foreground hover:bg-gray-100 border border-gray-200 rounded-lg font-medium transition-all duration-200"
+                  to="/" 
+                  className="group relative px-2 py-1.5 sm:px-4 sm:py-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105 text-[11px] sm:text-sm flex items-center gap-1"
                 >
-                  {t('areYouSupplier')}
-                </Link>
-                
-                <Link 
-                  to="/login" 
-                  className="px-3 py-1.5 text-sm bg-primary text-primary-foreground hover:bg-primary-dark shadow-md rounded-lg font-medium transition-all duration-200 active:scale-95"
-                >
-                  {t('login')}
+                  <Home className="w-3.5 h-3.5 sm:w-4 h-4" />
+                  <span>الصفحة العامة</span>
                 </Link>
               </>
             )}
-            
-            {/* Authenticated users */}
+
             {isAuthenticated && (
-              <>
-                <Link 
-                  to={user?.role === 'doctor' ? '/doctor' : '/supplier'} 
-                  className="text-gray-700 hover:text-primary transition-colors"
-                >
-                  {t('overview')}
-                </Link>
-                <button 
-                  onClick={logout}
-                  className="px-3 py-1.5 text-sm bg-transparent hover:bg-gray-100 text-gray-700 rounded-lg font-medium transition-all duration-200"
-                >
-                  تسجيل الخروج
-                </button>
-              </>
+              <button 
+                onClick={logout}
+                className="px-2 py-1 text-xs sm:text-sm bg-transparent hover:bg-gray-100 text-gray-700 rounded-lg font-medium transition-all duration-200"
+              >
+                تسجيل الخروج
+              </button>
             )}
 
             <button
               onClick={toggleLanguage}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-1 sm:p-2 hover:bg-gray-100 rounded-xl transition-colors"
+              title={language === 'ar' ? 'English' : 'العربية'}
             >
-              <Globe className="w-5 h-5" />
+              <Globe className="w-4 h-4 sm:w-5 h-5 text-gray-600" />
             </button>
           </nav>
-
-          {/* Mobile Menu Button */}
-          <button
-            className="md:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            aria-label={isMenuOpen ? 'إغلاق القائمة' : 'فتح القائمة'}
-          >
-            {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
         </div>
-
-        {/* Mobile Navigation */}
-        {isMenuOpen && (
-          <div className="md:hidden py-4 border-t animate-fade-in mobile-menu-container">
-            <nav className="flex flex-col gap-0">
-              {/* Non-authenticated users (patients) */}
-              {!isAuthenticated && (
-                <>
-                  <Link 
-                    to="/services" 
-                    className="mobile-nav-item hover:bg-gray-100 transition-colors mobile-nav-text rtl-text"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    {t('services')}
-                  </Link>
-                  
-                  <Link 
-                    to="/doctor-welcome" 
-                    className="mobile-nav-item hover:bg-gray-100 transition-colors mobile-nav-text rtl-text"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    {t('areDoctorQuestion')}
-                  </Link>
-                  
-                  <Link 
-                    to="/supplier-welcome" 
-                    className="mobile-nav-item hover:bg-gray-100 transition-colors mobile-nav-text rtl-text"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    {t('areYouSupplier')}
-                  </Link>
-                  
-                  <Link 
-                    to="/login" 
-                    className="mobile-nav-item hover:bg-gray-100 transition-colors mobile-nav-text rtl-text"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    {t('login')}
-                  </Link>
-                </>
-              )}
-              
-              {/* Authenticated users */}
-              {isAuthenticated && (
-                <>
-                  <Link 
-                    to={user?.role === 'doctor' ? '/doctor' : '/supplier'} 
-                    className="mobile-nav-item hover:bg-gray-100 transition-colors mobile-nav-text rtl-text"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    {t('overview')}
-                  </Link>
-                  <button 
-                    onClick={() => { logout(); setIsMenuOpen(false); }}
-                    className="mobile-nav-item text-left text-red-600 hover:bg-red-50 transition-colors mobile-nav-text rtl-text"
-                  >
-                    تسجيل الخروج
-                  </button>
-                </>
-              )}
-              
-              <button
-                onClick={toggleLanguage}
-                className="mobile-nav-item flex items-center gap-2 hover:bg-gray-100 transition-colors text-right mobile-nav-text rtl-text"
-              >
-                <Globe className="w-5 h-5" />
-                <span>{language === 'ar' ? 'English' : 'العربية'}</span>
-              </button>
-            </nav>
-          </div>
-        )}
       </div>
     </header>
   );
 };
+
