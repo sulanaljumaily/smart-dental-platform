@@ -15,7 +15,6 @@ export interface FinancialTransaction {
     paymentMethod: string;
     labId?: string;
     clinicId?: number;
-    payment_status?: 'paid' | 'unpaid' | 'partial';
 }
 
 export interface LabFinanceStats {
@@ -27,8 +26,6 @@ export interface LabFinanceStats {
     netIncome: number;
     orderCount: number;
     averageOrderValue: number;
-    unpaidCount: number;
-    unpaidValue: number;
 }
 
 export const useLabFinance = () => {
@@ -42,9 +39,7 @@ export const useLabFinance = () => {
         pendingFees: 0,
         netIncome: 0,
         orderCount: 0,
-        averageOrderValue: 0,
-        unpaidCount: 0,
-        unpaidValue: 0
+        averageOrderValue: 0
     });
     const [loading, setLoading] = useState(true);
 
@@ -78,7 +73,7 @@ export const useLabFinance = () => {
             const { data: labData, error: labError } = await supabase
                 .from('dental_laboratories')
                 .select('*')
-                .or(`id.eq.${user.id},user_id.eq.${user.id}`) // Try both
+                .or(`id.eq.${user.id},owner_id.eq.${user.id}`) // Try both
                 .maybeSingle();
 
             if (labData) {
@@ -109,11 +104,6 @@ export const useLabFinance = () => {
             // Let's generic to 'completed', 'shipped', 'delivered'.
             const revenueOrders = (orders || []).filter((o: any) => ['completed', 'delivered', 'shipped'].includes(o.status));
 
-            // Unpaid calculation
-            const unpaidOrders = (orders || []).filter((o: any) => o.status === 'delivered' && o.payment_status !== 'paid');
-            const unpaidCount = unpaidOrders.length;
-            const unpaidValue = unpaidOrders.reduce((sum: number, o: any) => sum + (Number(o.price) || Number(o.final_amount) || 0), 0);
-
             const totalRevenue = revenueOrders.reduce((sum: number, o: any) => sum + (Number(o.price) || 0), 0);
 
             const now = new Date();
@@ -141,8 +131,7 @@ export const useLabFinance = () => {
                 transactionDate: o.created_at,
                 status: 'completed',
                 paymentMethod: 'cash', // Default
-                labId: labId,
-                payment_status: o.payment_status || 'unpaid'
+                labId: labId
             }));
 
             // Settlements
@@ -173,9 +162,7 @@ export const useLabFinance = () => {
                 pendingFees,
                 netIncome: totalRevenue - platformFees, // Approximate
                 orderCount: revenueOrders.length,
-                averageOrderValue: revenueOrders.length ? totalRevenue / revenueOrders.length : 0,
-                unpaidCount,
-                unpaidValue
+                averageOrderValue: revenueOrders.length ? totalRevenue / revenueOrders.length : 0
             });
 
         } catch (err) {

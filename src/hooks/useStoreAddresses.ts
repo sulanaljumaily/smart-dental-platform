@@ -12,8 +12,7 @@ export interface ShippingAddress {
     phone: string;
     isDefault: boolean;
     type?: 'custom' | 'clinic' | 'lab';
-    sourceId?: string;
-    governorate?: string;
+    sourceId?: string; // ID referencing the clinic or lab
 }
 
 
@@ -22,7 +21,6 @@ const mapAddress = (dbAddr: any): ShippingAddress => ({
     id: dbAddr.id,
     name: dbAddr.name || 'عنوان محفوظ',
     city: dbAddr.city,
-    governorate: dbAddr.governorate,
     area: '', // Not stored in our simple schema, optional
     street: dbAddr.address,
     phone: dbAddr.phone,
@@ -65,10 +63,9 @@ export const useStoreAddresses = () => {
                     newAddressList.push({
                         id: `LAB-${labData.id}`,
                         name: labData.lab_name,
-                        city: labData.address || '',
-                        governorate: labData.governorate || 'بغداد',
+                        city: labData.city || 'بغداد',
                         area: '',
-                        street: '',
+                        street: labData.address || '',
                         phone: labData.phone || '',
                         isDefault: false,
                         type: 'lab',
@@ -80,16 +77,15 @@ export const useStoreAddresses = () => {
             // 3. Fetch Clinic Addresses if User is Doctor (Owner)
             if (user.role === 'doctor' && clinics.length > 0) {
                 // Filter clinics owned by this user
-                const mine = clinics.filter(c => c.owner_id === user.id);
+                const myClinics = clinics.filter(c => c.owner_id === user.id);
 
-                mine.forEach(clinic => {
+                myClinics.forEach(clinic => {
                     newAddressList.push({
                         id: `CLINIC-${clinic.id}`,
                         name: clinic.name || '',
-                        city: clinic.address || '',
-                        governorate: clinic.governorate || 'بغداد',
+                        city: clinic.city || '',
                         area: '',
-                        street: '',
+                        street: clinic.address || '',
                         phone: clinic.phone || '',
                         isDefault: false,
                         type: 'clinic',
@@ -114,7 +110,7 @@ export const useStoreAddresses = () => {
                 city: address.city,
                 address: address.street,
                 phone: address.phone,
-                governorate: address.governorate,
+                governorate: address.city, // simplified
                 is_default: false
             });
             if (error) throw error;

@@ -15,21 +15,12 @@ export interface LabOrder {
     patient_id?: string;
     doctor_id?: string;
     patient_name: string;
-    doctor_name?: string;
     clinic_name?: string;
     lab_name?: string;
     service_name: string;
-    tooth_number?: number;
-    tooth_numbers?: number[];
     status: 'pending' | 'waiting_for_representative' | 'representative_dispatched' | 'in_progress' | 'completed' | 'out_for_delivery' | 'delivered' | 'returned' | 'cancelled' | 'rejected' | 'modification_requested';
     delegate_id?: string;
     delegate_name?: string;
-    pickup_delegate_id?: string;
-    pickup_delegate_name?: string;
-    pickup_delegate_phone?: string;
-    delivery_delegate_id?: string;
-    delivery_delegate_name?: string;
-    delivery_delegate_phone?: string;
     return_reason?: string;
     is_return_cycle?: boolean;
     order_date: string;
@@ -40,7 +31,6 @@ export interface LabOrder {
     rating?: number;
     review_note?: string;
     modification_note?: string;
-    notes?: string;
     paymentStatus?: 'paid' | 'unpaid' | 'waiting_approval' | 'partial';
 }
 
@@ -58,9 +48,8 @@ export const useLabOrders = (options?: { clinicId?: string, laboratoryId?: strin
                 .from('dental_lab_orders')
                 .select(`
                     *,
-                    laboratory:dental_laboratories(name, phone),
-                    clinic:clinics(name),
-                    staff:staff_record_id(full_name)
+                    laboratory:dental_laboratories(name),
+                    clinic:clinics(name)
                 `)
                 .order('created_at', { ascending: false });
 
@@ -89,8 +78,8 @@ export const useLabOrders = (options?: { clinicId?: string, laboratoryId?: strin
                     query = query.in('clinic_id', uniqueIds);
                 }
             } else if (user.role === 'laboratory') {
-                // Fallback: Find lab associated with user - try all possible link columns
-                const { data: lab } = await supabase.from('dental_laboratories').select('id').or(`id.eq.${user.id},user_id.eq.${user.id}`).maybeSingle();
+                // Fallback: Find lab associated with user
+                const { data: lab } = await supabase.from('dental_laboratories').select('id').eq('user_id', user.id).single();
                 if (lab) {
                     console.log('Filtering by user-owned lab:', lab.id);
                     query = query.eq('laboratory_id', lab.id);
@@ -107,48 +96,24 @@ export const useLabOrders = (options?: { clinicId?: string, laboratoryId?: strin
             if (error) throw error;
             console.log('Orders fetch result count:', data?.length);
 
-            // Now fetch delegate phones separately to bypass missing FK constraints
-            const delegateIds = new Set<string>();
-            data?.forEach(o => {
-                if (o.pickup_delegate_id) delegateIds.add(o.pickup_delegate_id);
-                if (o.delivery_delegate_id) delegateIds.add(o.delivery_delegate_id);
-            });
-
-            let delegatesMap: Record<string, string> = {};
-            if (delegateIds.size > 0) {
-                const { data: delegatesData } = await supabase
-                    .from('dental_lab_representatives')
-                    .select('id, phone')
-                    .in('id', Array.from(delegateIds));
-
-                if (delegatesData) {
-                    delegatesMap = delegatesData.reduce((acc, d) => ({ ...acc, [d.id]: d.phone }), {});
-                }
-                console.log('Map of fetched delegate phones:', delegatesMap);
-            }
-
             const mappedOrders: LabOrder[] = (data || []).map((o: any) => ({
                 id: o.id,
                 order_number: o.order_number,
                 clinic_id: o.clinic_id,
                 laboratory_id: o.laboratory_id,
                 patient_id: o.patient_id,
-                // Unified: Use staff_id instead of doctor_id
-                doctor_id: o.staff_id?.toString(),
+                doctor_id: o.doctor_id,
 
                 // Snake Case (DB / Hook Internal)
                 patient_name: o.patient_name,
                 service_name: o.service_name,
-                tooth_number: o.tooth_number,
-                tooth_numbers: o.tooth_numbers,
-                doctor_name: o.doctor_name || o.staff?.full_name, // Use joined staff name
+                doctor_name: o.doctor_name,
 
                 // Camel Case (UI Compatibility)
                 patientName: o.patient_name,
-                doctorName: o.doctor_name || o.staff?.full_name,
+                doctorName: o.doctor_name,
                 testType: o.service_name,
                 labName: o.laboratory?.name || o.custom_lab_name || 'مختبر خارجي',
-                lab_phone: o.laboratory?.phone, // Mapped lab phone
                 createdAt: o.created_at?.split('T')[0],
                 expectedDelivery: o.expected_delivery_date,
 
@@ -160,19 +125,12 @@ export const useLabOrders = (options?: { clinicId?: string, laboratoryId?: strin
                 priority: o.priority,
                 delegate_id: o.delegate_id,
                 delegate_name: o.delegate_name,
-                pickup_delegate_id: o.pickup_delegate_id,
-                pickup_delegate_name: o.pickup_delegate_name,
-                pickup_delegate_phone: delegatesMap[o.pickup_delegate_id] || undefined,
-                delivery_delegate_id: o.delivery_delegate_id,
-                delivery_delegate_name: o.delivery_delegate_name,
-                delivery_delegate_phone: delegatesMap[o.delivery_delegate_id] || undefined,
                 return_reason: o.return_reason,
                 is_return_cycle: o.is_return_cycle,
                 paid_amount: o.paid_amount,
                 expected_delivery_date: o.expected_delivery_date,
                 rating: o.rating,
                 review_note: o.review_note,
-                notes: o.notes,
                 modification_note: o.modification_note,
                 paymentStatus: o.payment_status || 'unpaid',
 
@@ -205,9 +163,8 @@ export const useLabOrders = (options?: { clinicId?: string, laboratoryId?: strin
                 custom_lab_name: orderData.custom_lab_name || null,
                 patient_name: orderData.patient_name,
                 patient_id: orderData.patient_id ? Number(orderData.patient_id) : null,
-
-                doctor_id: orderData.doctor_id ? String(orderData.doctor_id) : null,
-
+                doctor_id: orderData.doctor_id || null,
+                staff_record_id: orderData.staff_record_id ? Number(orderData.staff_record_id) : null,
                 doctor_name: orderData.doctor_name || null,
                 service_name: orderData.service_name,
                 final_amount: orderData.price || orderData.final_amount || 0,
@@ -215,7 +172,7 @@ export const useLabOrders = (options?: { clinicId?: string, laboratoryId?: strin
                 expected_delivery_date: orderData.expected_date || orderData.expected_delivery_date,
 
                 notes: orderData.notes, // Fixed mapping
-                order_number: `ORD-${Date.now().toString().slice(-6)}`, // Generate Order Numberhttps://127.0.0.1:21939/static/artifacts/75a91a56-0dcf-40db-aead-6642fd08cd02/verify_dropdown_fix_1771727406120.webp?csrf=7aaa7bd1-a321-4590-aaac-c9c269011456&t=1771727547281
+                order_number: `ORD-${Date.now().toString().slice(-6)}`, // Generate Order Number
                 status: 'pending',
                 created_at: new Date().toISOString()
             };
@@ -281,7 +238,6 @@ export const useLabOrders = (options?: { clinicId?: string, laboratoryId?: strin
             const order = orders.find(o => o.id === orderId);
             if (order && order.clinic_id) {
                 await sendNotification({
-                    target_user_id: order.doctor_id,
                     clinic_id: order.clinic_id,
                     type: 'order_update',
                     title: `تحديث حالة الطلب #${order.order_number}`,
@@ -320,15 +276,13 @@ export const useLabOrders = (options?: { clinicId?: string, laboratoryId?: strin
             // 1. Fetch order details for notification
             const orderToDelete = orders.find(o => o.id === orderId);
 
-            // 2. Perform Delete and check if actually deleted
-            const { data, error } = await supabase
+            // 2. Perform Delete
+            const { error } = await supabase
                 .from('dental_lab_orders')
                 .delete()
-                .eq('id', orderId)
-                .select();
+                .eq('id', orderId);
 
             if (error) throw error;
-            if (!data || data.length === 0) throw new Error("لا تملك صلاحية لحذف هذا الطلب، تأكد من شروط الحذف.");
 
             // 3. Update Local State
             setOrders(prev => prev.filter(o => o.id !== orderId));

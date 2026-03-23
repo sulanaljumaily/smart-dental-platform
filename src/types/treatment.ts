@@ -42,9 +42,8 @@ export interface ProstheticSessionData {
 export interface TreatmentPlan {
     id: string;
     patientId: string;
-    toothNumber: number; // For backward compatibility 
-    toothNumbers?: number[]; // Support for multiple teeth
-    type: string;
+    toothNumber: number;
+    type: TreatmentType;
     status: TreatmentStatus;
 
     // Progress tracking
@@ -60,7 +59,7 @@ export interface TreatmentPlan {
 
     startDate: string;
     endDate?: string;
-    doctor?: string;
+
     notes?: string;
 }
 

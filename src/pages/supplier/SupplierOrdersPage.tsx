@@ -380,11 +380,7 @@ export const SupplierOrdersPage: React.FC = () => {
                   <div className="sm:col-span-2">
                     <p className="text-xs font-bold text-gray-400 mb-1 flex items-center gap-1"><MapPin className="w-3 h-3" /> العنوان</p>
                     <div className="flex items-center gap-1">
-                      <p className="font-medium text-gray-900 leading-relaxed">
-                        {order.customer?.governorate
-                          ? `${order.customer.governorate}${order.customer.city ? `، ${order.customer.city}` : ''} - ${order.customer.address}`
-                          : (order.customer?.address || 'العنوان غير متوفر')}
-                      </p>
+                      <p className="font-medium text-gray-900 leading-relaxed">{order.customer?.address || 'العنوان غير متوفر'}</p>
                     </div>
                   </div>
                 </div>

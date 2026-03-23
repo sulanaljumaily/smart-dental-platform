@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
 import {
@@ -87,9 +87,7 @@ interface CommunityContextType {
     posts: Post[];
     events: Course[];
     groups: Group[];
-    friends: Friend[]; // Close Friends (Profiles)
-    following: string[]; // List of user IDs I follow
-    followers: string[]; // List of user IDs following me (or just count)
+    friends: Friend[];
     resources: ScientificResource[];
     models: any[]; // Todo: Add Model interface
     users: any[]; // Mock database of all users
@@ -97,7 +95,6 @@ interface CommunityContextType {
     myEnrollments: Enrollment[];
     notifications: Notification[];
     groupRequests: GroupRequest[]; // For admins to see
-    suggestedUsers: any[]; // New field
 
     // Actions - Posts
     createPost: (content: string, image?: string | string[], groupId?: string) => Promise<void>;
@@ -105,17 +102,9 @@ interface CommunityContextType {
     deletePost: (postId: string) => Promise<void>;
     likePost: (postId: string) => void;
     addComment: (postId: string, text: string, replyToUserId?: string) => void;
-    updateComment: (commentId: string, postId: string, text: string) => Promise<void>;
-    deleteComment: (commentId: string, postId: string) => Promise<void>;
     sendMessage: (recipientId: string, content: string) => void;
 
     // Actions - Social
-    followUser: (userId: string) => Promise<void>;
-    unfollowUser: (userId: string) => Promise<void>;
-    amIFollowing: (userId: string) => boolean;
-    toggleCloseFriend: (userId: string) => Promise<void>;
-    isCloseFriend: (userId: string) => boolean;
-    // Deprecated
     addFriend: (userId: string) => void;
     removeFriend: (userId: string) => void;
     joinGroup: (groupId: string) => void;
@@ -159,9 +148,7 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
     const [posts, setPosts] = useState<Post[]>([]);
     const [events, setEvents] = useState<Course[]>([]);
     const [groups, setGroups] = useState<Group[]>([]);
-    const [friends, setFriends] = useState<Friend[]>([]); // Deprecated
-    const [following, setFollowing] = useState<string[]>([]);
-    const [followers, setFollowers] = useState<string[]>([]);
+    const [friends, setFriends] = useState<Friend[]>([]);
     const [resources, setResources] = useState<ScientificResource[]>([]);
     const [models, setModels] = useState<any[]>([]);
     const [users, setUsers] = useState<any[]>([]);
@@ -169,24 +156,17 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
     const [myEnrollments, setMyEnrollments] = useState<Enrollment[]>([]);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [groupRequests, setGroupRequests] = useState<GroupRequest[]>([]);
-    const [suggestedUsers, setSuggestedUsers] = useState<any[]>([]);
 
     const [loading, setLoading] = useState(true);
     const [currentUser, setCurrentUser] = useState<any>(null);
-    const mountedRef = useRef(true);
 
     // Initial Data Fetch
     useEffect(() => {
-        mountedRef.current = true;
-        let modelsChannelRef: any = null;
-        let notificationsChannelRef: any = null;
-
         const loadData = async () => {
             setLoading(true);
             try {
                 // Get Current User
                 const { data: { session } } = await supabase.auth.getSession();
-                if (!mountedRef.current) return;
                 const userId = session?.user?.id || 'mock-user-id';
                 setCurrentUser(session?.user);
 
@@ -203,10 +183,8 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
                     { data: enrollmentsData },
                     { data: notificationsData },
                     { data: groupRequestsData },
-                    { data: myGroupMemberships }, // Added
                     { data: resourcesData }, // Added Resources
-                    { data: myLikesData }, // Newly Added
-                    { data: followsData } // Add follows data
+                    { data: myLikesData } // Newly Added
                 ] = await Promise.all([
                     supabase.from('community_posts').select('*').order('created_at', { ascending: false }),
                     supabase.from('profiles').select('*'),
@@ -214,14 +192,11 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
                     supabase.from('courses').select('*'),
                     supabase.from('community_comments').select('*'),
                     supabase.from('saved_items').select('*').eq('user_id', userId),
-                    supabase.from('friendships').select('*'), // Deprecated
-                    supabase.from('follows').select('*').or(`follower_id.eq.${userId},following_id.eq.${userId}`), // Fetch my follows/followers
+                    supabase.from('friendships').select('*'),
                     supabase.from('models').select('*'),
                     supabase.from('enrollments').select('*').eq('user_id', userId),
                     supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-                    supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
                     supabase.from('group_requests').select('*, profiles:user_id(full_name, avatar_url)').eq('status', 'pending'),
-                    supabase.from('group_members').select('group_id').eq('user_id', userId), // Fetch my group memberships
                     supabase.from('scientific_resources').select('*').order('created_at', { ascending: false }),
                     supabase.from('community_likes').select('post_id').eq('user_id', userId)
                 ]);
@@ -241,15 +216,7 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
                 setUsers(adaptedUsers);
 
                 setEvents(eventsData || []);
-                setEvents(eventsData || []);
-
-                const myGroupIds = new Set((myGroupMemberships || []).map((m: any) => m.group_id));
-                const hydratedGroups = (groupsData || []).map((g: any) => ({
-                    ...g,
-                    isJoined: myGroupIds.has(g.id)
-                }));
-                setGroups(hydratedGroups);
-
+                setGroups(groupsData || []);
                 setModels(modelsData || []);
                 setResources(resourcesData || []); // Set Resources
                 setSavedItems(savedData || []);
@@ -275,7 +242,7 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
                         actorAvatar: actor?.avatar_url,
                         type: n.type,
                         title: n.title,
-                        content: n.message,
+                        content: n.content,
                         link: n.link,
                         isRead: n.is_read,
                         createdAt: n.created_at
@@ -337,11 +304,11 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
                 });
                 setPosts(hydratedPosts);
 
-                // Hydrate Friends (Close Friends)
+                // Hydrate Friends
                 const myFriends = (friendshipsData || [])
-                    .filter((f: any) => f.user_id_1 === userId || f.user_id_2 === userId)
+                    .filter((f: any) => f.user_a === userId || f.user_b === userId)
                     .map((f: any) => {
-                        const friendId = f.user_id_1 === userId ? f.user_id_2 : f.user_id_1;
+                        const friendId = f.user_a === userId ? f.user_b : f.user_a;
                         const friendProfile = (profilesData || []).find((p: any) => p.id === friendId);
                         if (!friendProfile) return null;
                         return {
@@ -352,21 +319,18 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
                             location: friendProfile.location,
                             mutualFriends: 0,
                             isOnline: false,
-                            avatar: friendProfile.avatar_url,
-                            status: 'offline'
+                            avatar: friendProfile.avatar_url
                         } as Friend;
                     })
                     .filter(Boolean) as Friend[];
 
                 setFriends(myFriends);
 
-                if (!mountedRef.current) return;
-
                 // --- REALTIME SUBSCRIPTION FOR MODELS ---
                 const modelsChannel = supabase
                     .channel('public:models')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'models' }, (payload) => {
-                        if (!mountedRef.current) return;
+                        console.log('Realtime Models Update:', payload);
                         if (payload.eventType === 'INSERT') {
                             setModels((prev) => [payload.new, ...prev]);
                         } else if (payload.eventType === 'UPDATE') {
@@ -376,81 +340,22 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
                         }
                     })
                     .subscribe();
-                modelsChannelRef = modelsChannel;
-
-                // --- REALTIME SUBSCRIPTION FOR NOTIFICATIONS ---
-                const notificationsChannel = supabase
-                    .channel('public:notifications')
-                    .on('postgres_changes', {
-                        event: 'INSERT',
-                        schema: 'public',
-                        table: 'notifications',
-                        filter: `user_id=eq.${userId}`
-                    }, async (payload) => {
-                        if (!mountedRef.current) return;
-
-                        // Fetch actor details
-                        const { data: actor } = await supabase
-                            .from('profiles')
-                            .select('full_name, avatar_url')
-                            .eq('id', payload.new.actor_id)
-                            .single();
-
-                        const newNotification: Notification = {
-                            id: payload.new.id,
-                            userId: payload.new.user_id,
-                            actorId: payload.new.actor_id,
-                            actorName: actor?.full_name || 'System',
-                            actorAvatar: actor?.avatar_url,
-                            type: payload.new.type,
-                            title: payload.new.title,
-                            content: payload.new.message,
-                            link: payload.new.link,
-                            isRead: payload.new.is_read,
-                            createdAt: payload.new.created_at
-                        };
-
-                        setNotifications((prev) => [newNotification, ...prev]);
-                        toast.info(`إشعار جديد: ${newNotification.title}`);
-                    })
-                    .subscribe();
-                notificationsChannelRef = notificationsChannel;
 
                 // Auto-Fetch Logic if empty
                 if (!modelsData || modelsData.length === 0) {
                     await autoFetchModels();
                 }
 
-                // Set Follows
-                const myFollows = (followsData || []).filter((f: any) => f.follower_id === userId).map((f: any) => f.following_id);
-                setFollowing(myFollows);
+                // Cleanup subscription
+                return () => {
+                    supabase.removeChannel(modelsChannel);
+                };
 
-                // Set Followers (optional, mostly need count per user usually, but here we keep list of who follows ME)
-                const myFollowers = (followsData || []).filter((f: any) => f.following_id === userId).map((f: any) => f.follower_id);
-                setFollowers(myFollowers);
-
-                // --- SUGGESTIONS LOGIC ---
-                // 1. Users who follow me but I don't follow back
-                const followMeNotBack = adaptedUsers.filter(u => myFollowers.includes(u.id) && !myFollows.includes(u.id));
-
-                // 2. Users who follow people I follow (2nd degree) (Mock logic for now as we need complex query or graph lookup)
-                // For now, let's just take random users I don't follow to fill the list if needed
-                const randomSuggestions = adaptedUsers.filter(u =>
-                    u.id !== userId &&
-                    !myFollows.includes(u.id) &&
-                    !myFollowers.includes(u.id) // Exclude those already in priority 1
-                ).slice(0, 10);
-
-                setSuggestedUsers([...followMeNotBack, ...randomSuggestions]);
-
-            } catch (error: any) {
-                if (error?.name === 'AbortError' || error?.message?.includes('AbortError')) return;
-                if (mountedRef.current) {
-                    console.error('Failed to load community data', error);
-                    toast.error('فشل تحميل بيانات المجتمع');
-                }
+            } catch (error) {
+                console.error('Failed to load community data', error);
+                toast.error('فشل تحميل بيانات المجتمع');
             } finally {
-                if (mountedRef.current) setLoading(false);
+                setLoading(false);
             }
         };
 
@@ -522,16 +427,6 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
         };
 
         loadData();
-
-        return () => {
-            mountedRef.current = false;
-            if (modelsChannelRef) {
-                supabase.removeChannel(modelsChannelRef);
-            }
-            if (notificationsChannelRef) {
-                supabase.removeChannel(notificationsChannelRef);
-            }
-        };
     }, []);
 
     // --- ACTIONS ---
@@ -742,56 +637,6 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
         }
     };
 
-    const updateComment = async (commentId: string, postId: string, text: string) => {
-        try {
-            const { error } = await supabase
-                .from('community_comments')
-                .update({ content: text })
-                .eq('id', commentId);
-
-            if (error) throw error;
-
-            setPosts(posts.map(post => {
-                if (post.id === postId) {
-                    return {
-                        ...post,
-                        comments: post.comments.map(c => c.id === commentId ? { ...c, text } : c)
-                    };
-                }
-                return post;
-            }));
-            toast.success('تم تحديث التعليق');
-        } catch (e) {
-            console.error(e);
-            toast.error('فشل تحديث التعليق');
-        }
-    };
-
-    const deleteComment = async (commentId: string, postId: string) => {
-        try {
-            const { error } = await supabase
-                .from('community_comments')
-                .delete()
-                .eq('id', commentId);
-
-            if (error) throw error;
-
-            setPosts(posts.map(post => {
-                if (post.id === postId) {
-                    return {
-                        ...post,
-                        comments: post.comments.filter(c => c.id !== commentId)
-                    };
-                }
-                return post;
-            }));
-            toast.success('تم حذف التعليق');
-        } catch (e) {
-            console.error(e);
-            toast.error('فشل حذف التعليق');
-        }
-    };
-
     const sendMessage = async (recipientId: string, content: string) => {
         // Mock sending message logic
         toast.success('تم إرسال الرسالة');
@@ -799,158 +644,35 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
         sendNotification(recipientId, 'message', 'رسالة جديدة', `أرسل لك شخص ما رسالة`, `/messages`, 'me');
     };
 
-    const followUser = async (targetId: string) => {
-        // Optimistic Update
-        if (!following.includes(targetId)) {
-            setFollowing([...following, targetId]);
-            toast.success('تمت المتابعة');
-        }
-
-        try {
-            const { error } = await supabase.from('follows').insert({ follower_id: currentUser?.id, following_id: targetId });
-            if (error && error.code !== '23505') throw error;
-
-            // Notify User
-            sendNotification(targetId, 'follow', 'متابع جديد', 'بدأ شخص ما بمتابعتك', `/community`, currentUser?.id);
-
-            // Check for Mutual Follow -> Auto-add to "Friends/Close Friends"
-            if (followers.includes(targetId)) {
-                const isAlreadyFriend = friends.some(f => f.id === targetId);
-
-                if (!isAlreadyFriend) {
-                    await supabase.from('friendships').insert({ user_id_1: currentUser?.id, user_id_2: targetId, status: 'accepted' });
-                    toast.success('أصبحتما أصدقاء الآن!');
-
-                    // Add to state
-                    const { data: profile } = await supabase.from('profiles').select('*').eq('id', targetId).single();
-                    if (profile) {
-                        const newFriend: Friend = {
-                            id: profile.id,
-                            name: profile.full_name,
-                            role: profile.role,
-                            avatar: profile.avatar_url,
-                            status: 'offline'
-                        };
-                        setFriends(prev => [...prev, newFriend]);
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('Follow error:', error);
-            // Revert
-            setFollowing(following.filter(id => id !== targetId));
-            toast.error('فشل المتابعة');
+    const addFriend = async (userId: string) => {
+        const { error } = await supabase.from('friendships').insert({ user_a: 'me', user_b: userId, status: 'pending' });
+        if (!error) {
+            toast.success(`تم إرسال طلب الصداقة`);
+            sendNotification(userId, 'follow', 'متابع جديد', 'لقد قام شخص ما بمتابعتك', `/community/user/${userId}`, 'me'); // Using me as placeholder ID
         }
     };
 
-    const toggleCloseFriend = async (targetId: string) => {
-        try {
-            // Check if already friend
-            const isFriend = friends.some(f => f.id === targetId);
-
-            if (isFriend) {
-                // Remove
-                const { error } = await supabase.from('friendships').delete().or(`and(user_id_1.eq.${currentUser?.id},user_id_2.eq.${targetId}),and(user_id_1.eq.${targetId},user_id_2.eq.${currentUser?.id})`);
-                if (error) throw error;
-
-                setFriends(friends.filter(f => f.id !== targetId));
-                toast.success('تمت الإزالة من الأصدقاء المقربين');
-            } else {
-                // Add
-                const { error } = await supabase.from('friendships').insert({ user_id_1: currentUser?.id, user_id_2: targetId, status: 'accepted' });
-                if (error) throw error;
-
-                // Fetch Profile to add to state
-                const { data: profile } = await supabase.from('profiles').select('*').eq('id', targetId).single();
-                if (profile) {
-                    const newFriend: Friend = {
-                        id: profile.id,
-                        name: profile.full_name,
-                        role: profile.role,
-                        avatar: profile.avatar_url,
-                        status: 'offline'
-                    };
-                    setFriends([...friends, newFriend]);
-                }
-                toast.success('تمت الإضافة للأصدقاء المقربين');
-            }
-        } catch (error) {
-            console.error('Toggle Close Friend Error:', error);
-            toast.error('حدث خطأ أثناء التحديث');
-        }
-    }
-
-    const isCloseFriend = (userId: string) => {
-        return friends.some(f => f.id === userId);
-    }
-
-    const unfollowUser = async (targetId: string) => {
-        // Optimistic Update
-        if (following.includes(targetId)) {
-            setFollowing(following.filter(id => id !== targetId));
-            toast.success('تم إلغاء المتابعة');
-        }
-
-        try {
-            const { error } = await supabase.from('follows').delete().match({ follower_id: currentUser?.id, following_id: targetId });
-            if (error) throw error;
-        } catch (error) {
-            console.error('Unfollow error:', error);
-            // Revert
-            setFollowing([...following, targetId]);
-            toast.error('فشل إلغاء المتابعة');
-        }
+    const removeFriend = async (userId: string) => {
+        // Mock remove
+        setFriends(friends.filter(f => f.id !== userId));
+        toast.success('تم إزالة الصديق');
     };
-
-    const amIFollowing = (userId: string) => {
-        return following.includes(userId);
-    };
-
-    // Deprecated
-    const addFriend = (userId: string) => followUser(userId);
-    const removeFriend = (userId: string) => unfollowUser(userId);
 
     const joinGroup = async (groupId: string) => {
-        try {
-            // Check privacy
-            const group = groups.find(g => g.id === groupId);
-            if (group?.privacy === 'private') {
-                // Create Request
-                const { error } = await supabase.from('group_requests').insert({
-                    group_id: groupId,
-                    user_id: currentUser?.id,
-                    status: 'pending'
-                });
-                if (error) throw error;
-                toast.success('تم إرسال طلب الانضمام');
-                return;
-            }
-
-            const { error } = await supabase.from('group_members').insert({ group_id: groupId, user_id: currentUser?.id });
-            if (error) throw error;
-
-            setGroups(groups.map(g => g.id === groupId ? { ...g, isJoined: true, members: (g.members || 0) + 1 } : g));
+        const { error } = await supabase.from('group_members').insert({ group_id: groupId, user_id: 'me' });
+        if (!error) {
+            setGroups(groups.map(g => g.id === groupId ? { ...g, isJoined: true, members: g.members + 1 } : g));
             toast.success('تم الانضمام للمجموعة');
 
             // Notify Group Admins (Mock logic: finding implicit admin)
             // sendNotification(groupAdminId, 'group_request', 'طلب انضمام', ...)
-        } catch (e) {
-            console.error(e);
-            toast.error('فشل الانضمام للمجموعة');
         }
     };
 
     const leaveGroup = async (groupId: string) => {
-        try {
-            const { error } = await supabase.from('group_members').delete().match({ group_id: groupId, user_id: currentUser?.id });
-            if (error) throw error;
-
-            setGroups(groups.map(g => g.id === groupId ? { ...g, isJoined: false, members: Math.max(0, (g.members || 0) - 1) } : g));
-            toast.success('تم مغادرة المجموعة');
-        } catch (e) {
-            console.error(e);
-            toast.error('فشل مغادرة المجموعة');
-        }
+        // Mock delete
+        setGroups(groups.map(g => g.id === groupId ? { ...g, isJoined: false, members: g.members - 1 } : g));
+        toast.success('تم مغادرة المجموعة');
     };
 
     const registerForEvent = async (eventId: string) => {
@@ -1032,7 +754,7 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
                 actor_id: actorId,
                 type,
                 title,
-                message: content,
+                content,
                 link,
                 is_read: false
             }).select().single();
@@ -1223,12 +945,9 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
             events,
             groups,
             friends,
-            following,
-            followers,
             resources,
             models,
             users,
-            suggestedUsers,
             savedItems,
             myEnrollments,
             createPost,
@@ -1236,19 +955,9 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
             deletePost,
             likePost,
             addComment,
-            updateComment,
-            deleteComment,
             sendMessage,
-
-            // Social
-            followUser,
-            unfollowUser,
-            amIFollowing,
-            toggleCloseFriend,
-            isCloseFriend,
-            addFriend, // Deprecated
-            removeFriend, // Deprecated
-
+            addFriend,
+            removeFriend,
             joinGroup,
             leaveGroup,
             registerForEvent,

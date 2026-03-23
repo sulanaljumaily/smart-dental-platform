@@ -183,12 +183,8 @@ export const StoreSuppliersSection: React.FC = () => {
       sortable: true,
       render: (value, record) => (
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center text-white font-bold overflow-hidden">
-            {record.logo ? (
-              <img src={record.logo} alt={value} className="w-full h-full object-cover" />
-            ) : (
-              value.charAt(0)
-            )}
+          <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center text-white font-bold">
+            {value.charAt(0)}
           </div>
           <div>
             <div className="font-semibold">{value}</div>
@@ -262,12 +258,8 @@ export const StoreSuppliersSection: React.FC = () => {
       sortable: true,
       render: (value, record) => (
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold overflow-hidden">
-            {record.logo ? (
-              <img src={record.logo} alt={value} className="w-full h-full object-cover" />
-            ) : (
-              value.charAt(0)
-            )}
+          <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold">
+            {value.charAt(0)}
           </div>
           <div>
             <div className="font-semibold">{value}</div>
@@ -327,18 +319,7 @@ export const StoreSuppliersSection: React.FC = () => {
       key: 'companyName',
       title: 'المورد',
       sortable: true,
-      render: (value, record) => (
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 font-bold overflow-hidden shadow-inner">
-            {record.logo ? (
-              <img src={record.logo} alt={value} className="w-full h-full object-cover" />
-            ) : (
-              value.charAt(0)
-            )}
-          </div>
-          <span className="font-semibold">{value}</span>
-        </div>
-      )
+      render: (value) => <span className="font-semibold">{value}</span>
     },
     {
       key: 'totalSales',

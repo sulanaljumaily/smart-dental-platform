@@ -9,9 +9,6 @@ import { Button } from '../../components/common/Button';
 import { formatDate } from '../../lib/utils';
 import { useSupplierProfile, SupplierProfile } from '../../hooks/useSupplierProfile';
 import { NotificationsList } from '../../components/common/NotificationsList';
-import { supabase } from '../../lib/supabase';
-import { IRAQI_GOVERNORATES, formatLocation } from '../../utils/location';
-import { SocialBadges } from '../../components/auth/SocialBadges';
 
 export const SupplierProfilePage: React.FC = () => {
   const { profile, loading, updateProfile } = useSupplierProfile();
@@ -131,62 +128,13 @@ export const SupplierProfilePage: React.FC = () => {
 
             {/* Avatar Section */}
             <div className="relative shrink-0 mx-auto md:mx-0">
-              <div className="w-32 h-32 bg-white/20 rounded-full flex items-center justify-center text-5xl backdrop-blur-md shadow-2xl border-4 border-white/10 overflow-hidden">
-                {profile.avatar && (profile.avatar.startsWith('http') || profile.avatar.startsWith('data:')) ? (
-                  <img src={profile.avatar} alt={profile.companyName} className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-4xl font-bold text-white/80">
-                    {(profile.companyName || profile.firstName || '?').charAt(0)}
-                  </span>
-                )}
+              <div className="w-32 h-32 bg-white/20 rounded-full flex items-center justify-center text-5xl backdrop-blur-md shadow-2xl border-4 border-white/10">
+                {profile.avatar}
               </div>
               {isEditing && (
-                <>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    id="avatar-upload"
-                    className="hidden"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file || !profile.id) return;
-                      try {
-                        const fileExt = file.name.split('.').pop();
-                        const filePath = `supplier-logos/${profile.id}.${fileExt}`;
-
-                        const { error: uploadError } = await supabase.storage
-                          .from('supplier-logos')
-                          .upload(filePath, file, { upsert: true });
-
-                        if (uploadError) {
-                          console.error('Upload error:', uploadError);
-                          return;
-                        }
-
-                        const { data: urlData } = supabase.storage
-                          .from('supplier-logos')
-                          .getPublicUrl(filePath);
-
-                        if (urlData?.publicUrl) {
-                          setEditForm(prev => ({ ...prev, avatar: urlData.publicUrl }));
-                          // Also sync to profiles table for community consistency
-                          const { data: { user: authUser } } = await supabase.auth.getUser();
-                          if (authUser?.id) {
-                            await supabase.from('profiles').update({ avatar_url: urlData.publicUrl }).eq('id', authUser.id);
-                          }
-                        }
-                      } catch (err) {
-                        console.error('Avatar upload failed:', err);
-                      }
-                    }}
-                  />
-                  <button
-                    onClick={() => document.getElementById('avatar-upload')?.click()}
-                    className="absolute -bottom-2 -right-2 w-10 h-10 bg-white text-blue-600 rounded-full flex items-center justify-center shadow-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <Camera className="w-5 h-5" />
-                  </button>
-                </>
+                <button className="absolute -bottom-2 -right-2 w-10 h-10 bg-white text-blue-600 rounded-full flex items-center justify-center shadow-lg hover:bg-gray-50 transition-colors">
+                  <Camera className="w-5 h-5" />
+                </button>
               )}
               {profile.verified && (
                 <div className="absolute top-0 left-0 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-lg border-2 border-white">
@@ -208,9 +156,6 @@ export const SupplierProfilePage: React.FC = () => {
                   )}
                 </div>
                 <p className="text-xl text-blue-100 font-medium opacity-90">{profile.companyName}</p>
-                <div className="mt-2 flex justify-center md:justify-start">
-                  <SocialBadges />
-                </div>
               </div>
 
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 text-sm">
@@ -334,39 +279,20 @@ export const SupplierProfilePage: React.FC = () => {
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">المحافظة و العنوان</label>
-                  {isEditing ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-5 h-5 text-gray-400" />
-                        <select
-                          value={editForm.governorate || 'بغداد'}
-                          onChange={(e) => setEditForm({ ...editForm, governorate: e.target.value })}
-                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg bg-white"
-                        >
-                          {IRAQI_GOVERNORATES.map(gov => (
-                            <option key={gov} value={gov}>{gov}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <textarea
-                          value={editForm.address}
-                          onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-                          rows={1}
-                          placeholder="الشارع، الحي..."
-                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg resize-none"
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-5 h-5 text-gray-400" />
-                      <p className="flex-1 px-4 py-2 bg-gray-50 rounded-lg">
-                        {formatLocation(profile.governorate, profile.address) || 'غير محدد'}
-                      </p>
-                    </div>
-                  )}
+                  <label className="block text-sm font-medium text-gray-700 mb-2">العنوان الكامل</label>
+                  <div className="flex items-start gap-2">
+                    <MapPin className="w-5 h-5 text-gray-400 mt-2" />
+                    {isEditing ? (
+                      <textarea
+                        value={editForm.address}
+                        onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                        rows={2}
+                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg resize-none"
+                      />
+                    ) : (
+                      <p className="flex-1 px-4 py-2 bg-gray-50 rounded-lg">{profile.address}</p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

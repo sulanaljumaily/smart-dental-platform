@@ -12,7 +12,6 @@ export interface TreatmentAsset {
     expectedSessions: number; // New field for session management
     isComplex: boolean;
     defaultPhases?: string[];
-    scope?: 'tooth' | 'general' | 'both';
 }
 
 export interface InventoryItem {
@@ -132,12 +131,6 @@ export interface DentalLabRequest {
     laboratoryId?: string | null;
     delegate_id?: string;
     delegate_name?: string;
-    pickup_delegate_id?: string;
-    pickup_delegate_name?: string;
-    pickup_delegate_phone?: string;
-    delivery_delegate_id?: string;
-    delivery_delegate_name?: string;
-    delivery_delegate_phone?: string;
     return_reason?: string;
     is_return_cycle?: boolean;
 }
@@ -190,90 +183,102 @@ export interface OnlineRequest {
 // Initial Data
 export let treatments: TreatmentAsset[] = [
     // --- 1. وقائي / Preventive ---
-    { id: 'prev_1', name: 'فحص دوري شامل', category: 'وقائي', basePrice: 15000, costEstimate: 0, profitMargin: 100, popularity: 90, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'general' },
-    { id: 'prev_2', name: 'تنظيف أسنان (Scaling)', category: 'وقائي', basePrice: 25000, costEstimate: 5000, profitMargin: 87, popularity: 95, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'general' },
-    { id: 'prev_5', name: 'تلميع الأسنان (Polishing)', category: 'وقائي', basePrice: 25000, costEstimate: 2000, profitMargin: 92, popularity: 85, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'general' },
-    { id: 'prev_6', name: 'تطبيق الفلورايد', category: 'وقائي', basePrice: 30000, costEstimate: 5000, profitMargin: 83, popularity: 70, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'general' },
-    { id: 'prev_8', name: 'سد الشقوق (Fissure Sealant) - للسن', category: 'وقائي', basePrice: 35000, costEstimate: 5000, profitMargin: 85, popularity: 65, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'tooth' },
-    { id: 'prev_9', name: 'تعليمات العناية الفموية', category: 'وقائي', basePrice: 10000, costEstimate: 0, profitMargin: 100, popularity: 50, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'general' },
-    { id: 'prev_11', name: 'واقي ليلي (Night Guard)', category: 'وقائي', basePrice: 150000, costEstimate: 50000, profitMargin: 66, popularity: 45, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true, defaultPhases: ['أخذ طبعة', 'تسليم'], scope: 'general' },
+    { id: 'prev_1', name: 'فحص دوري شامل', category: 'وقائي', basePrice: 15000, costEstimate: 0, profitMargin: 100, popularity: 90, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'prev_2', name: 'تنظيف أسنان (Scaling)', category: 'وقائي', basePrice: 25000, costEstimate: 5000, profitMargin: 87, popularity: 95, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'prev_5', name: 'تلميع الأسنان (Polishing)', category: 'وقائي', basePrice: 25000, costEstimate: 2000, profitMargin: 92, popularity: 85, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'prev_6', name: 'تطبيق الفلورايد', category: 'وقائي', basePrice: 30000, costEstimate: 5000, profitMargin: 83, popularity: 70, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'prev_8', name: 'سد الشقوق (Fissure Sealant) - للسن', category: 'وقائي', basePrice: 35000, costEstimate: 5000, profitMargin: 85, popularity: 65, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'prev_9', name: 'تعليمات العناية الفموية', category: 'وقائي', basePrice: 10000, costEstimate: 0, profitMargin: 100, popularity: 50, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'prev_11', name: 'واقي ليلي (Night Guard)', category: 'وقائي', basePrice: 150000, costEstimate: 50000, profitMargin: 66, popularity: 45, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true, defaultPhases: ['أخذ طبعة', 'تسليم'] },
 
     // --- 2. ترميمي / Restorative ---
-    { id: 'res_2', name: 'حشوة كلاس آينومر (Glass Ionomer)', category: 'ترميمي', basePrice: 50000, costEstimate: 12000, profitMargin: 76, popularity: 70, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'tooth' },
-    { id: 'res_4', name: 'حشوة ضوئية (Composite) - سطح واحد', category: 'ترميمي', basePrice: 60000, costEstimate: 12000, profitMargin: 80, popularity: 95, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'tooth' },
-    { id: 'res_7', name: 'بناء سن متهدم (Buildup) - كومبوزيت', category: 'ترميمي', basePrice: 100000, costEstimate: 25000, profitMargin: 75, popularity: 50, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'tooth' },
-    { id: 'res_8', name: 'حشوة أملغم (Amalgam)', category: 'ترميمي', basePrice: 50000, costEstimate: 10000, profitMargin: 80, popularity: 30, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'tooth' },
-    { id: 'res_13', name: 'تغطية لب مباشرة (Direct Pulp Cap)', category: 'ترميمي', basePrice: 30000, costEstimate: 5000, profitMargin: 83, popularity: 35, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'tooth' },
-    { id: 'res_14', name: 'تغطية لب غير مباشرة (Indirect Pulp Cap)', category: 'ترميمي', basePrice: 30000, costEstimate: 5000, profitMargin: 83, popularity: 35, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'tooth' },
-    { id: 'res_15', name: '(POST)', category: 'ترميمي', basePrice: 120000, costEstimate: 30000, profitMargin: 75, popularity: 40, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'tooth' },
-    { id: 'res_17', name: 'إزالة وتد قديم', category: 'ترميمي', basePrice: 80000, costEstimate: 5000, profitMargin: 93, popularity: 15, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'tooth' },
-    { id: 'res_18', name: 'حشوة تجميلية (Diastema Closure)', category: 'ترميمي', basePrice: 150000, costEstimate: 20000, profitMargin: 86, popularity: 30, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'tooth' },
-    { id: 'res_19', name: 'حشوة وقائية (PRR)', category: 'ترميمي', basePrice: 40000, costEstimate: 5000, profitMargin: 87, popularity: 50, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'tooth' },
-    { id: 'res_20', name: 'تبييض داخلي (سن واحد)', category: 'ترميمي', basePrice: 100000, costEstimate: 10000, profitMargin: 90, popularity: 10, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true, scope: 'tooth' },
-    { id: 'pros_15', name: 'Inlay/Onlay - سيراميك', category: 'ترميمي', basePrice: 250000, costEstimate: 80000, profitMargin: 68, popularity: 10, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true, scope: 'tooth' },
+    { id: 'res_2', name: 'حشوة كلاس آينومر (Glass Ionomer)', category: 'ترميمي', basePrice: 50000, costEstimate: 12000, profitMargin: 76, popularity: 70, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'res_4', name: 'حشوة ضوئية (Composite) - سطح واحد', category: 'ترميمي', basePrice: 60000, costEstimate: 12000, profitMargin: 80, popularity: 95, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'res_5', name: 'حشوة ضوئية (Composite) - سطحين', category: 'ترميمي', basePrice: 75000, costEstimate: 15000, profitMargin: 80, popularity: 90, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'res_6', name: 'حشوة ضوئية (Composite) - 3 أسطح', category: 'ترميمي', basePrice: 90000, costEstimate: 20000, profitMargin: 77, popularity: 85, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'res_7', name: 'بناء سن متهدم (Buildup) - كومبوزيت', category: 'ترميمي', basePrice: 100000, costEstimate: 25000, profitMargin: 75, popularity: 50, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'res_8', name: 'حشوة أملغم (Amalgam)', category: 'ترميمي', basePrice: 50000, costEstimate: 10000, profitMargin: 80, popularity: 30, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'res_11', name: 'حشوة عنق السن (Class V)', category: 'ترميمي', basePrice: 55000, costEstimate: 10000, profitMargin: 81, popularity: 60, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'res_12', name: 'إصلاح حشوة قديمة', category: 'ترميمي', basePrice: 40000, costEstimate: 5000, profitMargin: 87, popularity: 45, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'res_13', name: 'تغطية لب مباشرة (Direct Pulp Cap)', category: 'ترميمي', basePrice: 30000, costEstimate: 5000, profitMargin: 83, popularity: 35, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'res_14', name: 'تغطية لب غير مباشرة (Indirect Pulp Cap)', category: 'ترميمي', basePrice: 30000, costEstimate: 5000, profitMargin: 83, popularity: 35, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'res_15', name: '(POST)', category: 'ترميمي', basePrice: 120000, costEstimate: 30000, profitMargin: 75, popularity: 40, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'res_17', name: 'إزالة وتد قديم', category: 'ترميمي', basePrice: 80000, costEstimate: 5000, profitMargin: 93, popularity: 15, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'res_18', name: 'حشوة تجميلية (Diastema Closure)', category: 'ترميمي', basePrice: 150000, costEstimate: 20000, profitMargin: 86, popularity: 30, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'res_19', name: 'حشوة وقائية (PRR)', category: 'ترميمي', basePrice: 40000, costEstimate: 5000, profitMargin: 87, popularity: 50, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'res_20', name: 'تبييض داخلي (سن واحد)', category: 'ترميمي', basePrice: 100000, costEstimate: 10000, profitMargin: 90, popularity: 10, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true },
+    { id: 'res_21', name: 'حشوة ساندويش (Sandwich Tech)', category: 'ترميمي', basePrice: 85000, costEstimate: 18000, profitMargin: 78, popularity: 15, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'res_22', name: 'إعادة تشكيل السن (Cosmetic Contouring)', category: 'ترميمي', basePrice: 50000, costEstimate: 2000, profitMargin: 96, popularity: 25, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'res_23', name: 'حشوة Onlay (Direct)', category: 'ترميمي', basePrice: 120000, costEstimate: 25000, profitMargin: 79, popularity: 10, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'res_24', name: 'حشوة Inlay (Direct)', category: 'ترميمي', basePrice: 120000, costEstimate: 25000, profitMargin: 79, popularity: 10, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'res_25', name: 'ترميم كسر بسيط', category: 'ترميمي', basePrice: 60000, costEstimate: 10000, profitMargin: 83, popularity: 40, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
 
     // --- 3. علاج جذور / Endodontics (15) ---
-    { id: 'endo_1', name: 'علاج عصب - (RCT)', category: 'علاج جذور', basePrice: 150000, costEstimate: 30000, profitMargin: 80, popularity: 70, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true, defaultPhases: ['فتح وتنظيف قنوات', 'حشو قنوات نهائي'], scope: 'tooth' },
-    { id: 'endo_4', name: 'إعادة علاج عصب (Re-treatment)', category: 'علاج جذور', basePrice: 200000, costEstimate: 40000, profitMargin: 80, popularity: 20, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true, scope: 'tooth' },
-    { id: 'endo_6', name: 'بتر اللب (Pulpotomy) - أطفال', category: 'علاج جذور', basePrice: 100000, costEstimate: 20000, profitMargin: 80, popularity: 50, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'tooth' },
-    { id: 'endo_7', name: 'استئصال اللب (Pulpectomy) - أطفال', category: 'علاج جذور', basePrice: 120000, costEstimate: 25000, profitMargin: 79, popularity: 40, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'tooth' },
-    { id: 'endo_11', name: 'سد ثقب الجذر (Perforation Repair)', category: 'علاج جذور', basePrice: 150000, costEstimate: 40000, profitMargin: 73, popularity: 5, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: true, scope: 'tooth' },
-    { id: 'endo_12', name: 'فتح خراج (Abscess Drainage)', category: 'علاج جذور', basePrice: 50000, costEstimate: 5000, profitMargin: 90, popularity: 30, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'tooth' },
-    { id: 'endo_13', name: 'Apexogenesis', category: 'علاج جذور', basePrice: 150000, costEstimate: 30000, profitMargin: 80, popularity: 2, totalRevenue: 0, isActive: true, expectedSessions: 3, isComplex: true, scope: 'tooth' },
-    { id: 'endo_14', name: 'Apexification', category: 'علاج جذور', basePrice: 200000, costEstimate: 50000, profitMargin: 75, popularity: 2, totalRevenue: 0, isActive: true, expectedSessions: 3, isComplex: true, scope: 'tooth' },
+    { id: 'endo_1', name: 'علاج عصب - (RCT)', category: 'علاج جذور', basePrice: 150000, costEstimate: 30000, profitMargin: 80, popularity: 70, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true, defaultPhases: ['فتح وتنظيف قنوات', 'حشو قنوات نهائي'] },
+    { id: 'endo_4', name: 'إعادة علاج عصب (Re-treatment)', category: 'علاج جذور', basePrice: 200000, costEstimate: 40000, profitMargin: 80, popularity: 20, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true },
+    { id: 'endo_6', name: 'بتر اللب (Pulpotomy) - أطفال', category: 'علاج جذور', basePrice: 100000, costEstimate: 20000, profitMargin: 80, popularity: 50, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'endo_7', name: 'استئصال اللب (Pulpectomy) - أطفال', category: 'علاج جذور', basePrice: 120000, costEstimate: 25000, profitMargin: 79, popularity: 40, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'endo_10', name: 'جراحة ذروة الجذر (Apicoectomy)', category: 'علاج جذور', basePrice: 350000, costEstimate: 50000, profitMargin: 85, popularity: 10, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: true },
+    { id: 'endo_11', name: 'سد ثقب الجذر (Perforation Repair)', category: 'علاج جذور', basePrice: 150000, costEstimate: 40000, profitMargin: 73, popularity: 5, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: true },
+    { id: 'endo_12', name: 'فتح خراج (Abscess Drainage)', category: 'علاج جذور', basePrice: 50000, costEstimate: 5000, profitMargin: 90, popularity: 30, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'endo_13', name: 'Apexogenesis', category: 'علاج جذور', basePrice: 150000, costEstimate: 30000, profitMargin: 80, popularity: 2, totalRevenue: 0, isActive: true, expectedSessions: 3, isComplex: true },
+    { id: 'endo_14', name: 'Apexification', category: 'علاج جذور', basePrice: 200000, costEstimate: 50000, profitMargin: 75, popularity: 2, totalRevenue: 0, isActive: true, expectedSessions: 3, isComplex: true },
 
 
     // --- 4. جراحة / Surgery (20) ---
-    { id: 'surg_1', name: 'قلع بسيط (Simple Extraction)', category: 'جراحة', basePrice: 50000, costEstimate: 5000, profitMargin: 90, popularity: 85, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'tooth' },
-    { id: 'surg_2', name: 'قلع جراحي (Surgical Extraction)', category: 'جراحة', basePrice: 100000, costEstimate: 15000, profitMargin: 85, popularity: 40, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: true, scope: 'tooth' },
-    { id: 'endo_10', name: 'جراحة ذروة الجذر (Apicoectomy)', category: 'جراحة', basePrice: 350000, costEstimate: 50000, profitMargin: 85, popularity: 10, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: true, scope: 'tooth' },
-    { id: 'surg_6', name: 'زراعة سنية (Implant) - كوري', category: 'جراحة', basePrice: 600000, costEstimate: 300000, profitMargin: 50, popularity: 50, totalRevenue: 0, isActive: true, expectedSessions: 3, isComplex: true, defaultPhases: ['جراحة الزرع', 'كشف الزرعة', 'تركيب التاج'], scope: 'tooth' },
-    { id: 'surg_7', name: 'زراعة سنية (Implant) - سويسري', category: 'جراحة', basePrice: 1000000, costEstimate: 500000, profitMargin: 50, popularity: 40, totalRevenue: 0, isActive: true, expectedSessions: 3, isComplex: true, defaultPhases: ['جراحة الزرع', 'كشف الزرعة', 'تركيب التاج'], scope: 'tooth' },
-    { id: 'surg_8', name: 'زراعة سنية (Implant) - ألماني', category: 'جراحة', basePrice: 800000, costEstimate: 400000, profitMargin: 50, popularity: 45, totalRevenue: 0, isActive: true, expectedSessions: 3, isComplex: true, defaultPhases: ['جراحة الزرع', 'كشف الزرعة', 'تركيب التاج'], scope: 'tooth' },
-    { id: 'surg_9', name: 'رفع جيب فكي (Sinus Lift)', category: 'جراحة', basePrice: 400000, costEstimate: 100000, profitMargin: 75, popularity: 15, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: true, scope: 'general' },
-    { id: 'surg_11', name: 'تطعيم عظمي (Bone Graft)', category: 'جراحة', basePrice: 200000, costEstimate: 100000, profitMargin: 50, popularity: 20, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: true, scope: 'tooth' },
-    { id: 'surg_13', name: 'قص اللثة (Gingivectomy) - للسن', category: 'جراحة', basePrice: 50000, costEstimate: 5000, profitMargin: 90, popularity: 30, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'tooth' },
-    { id: 'surg_14', name: 'جراحة اللثة التجميلية (Per Quadrant)', category: 'جراحة', basePrice: 250000, costEstimate: 30000, profitMargin: 88, popularity: 15, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: true, scope: 'general' },
-    { id: 'surg_15', name: 'Frenectomy', category: 'جراحة', basePrice: 100000, costEstimate: 10000, profitMargin: 90, popularity: 10, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'general' },
+    { id: 'surg_1', name: 'قلع بسيط (Simple Extraction)', category: 'جراحة', basePrice: 50000, costEstimate: 5000, profitMargin: 90, popularity: 85, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'surg_2', name: 'قلع جراحي (Surgical Extraction)', category: 'جراحة', basePrice: 100000, costEstimate: 15000, profitMargin: 85, popularity: 40, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: true },
+    { id: 'surg_3', name: 'قلع ضرس العقل - مطمور (Impaction)', category: 'جراحة', basePrice: 350000, costEstimate: 50000, profitMargin: 85, popularity: 30, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: true },
+    { id: 'surg_6', name: 'زراعة سنية (Implant) - كوري', category: 'جراحة', basePrice: 600000, costEstimate: 300000, profitMargin: 50, popularity: 50, totalRevenue: 0, isActive: true, expectedSessions: 3, isComplex: true, defaultPhases: ['جراحة الزرع', 'كشف الزرعة', 'تركيب التاج'] },
+    { id: 'surg_7', name: 'زراعة سنية (Implant) - سويسري', category: 'جراحة', basePrice: 1000000, costEstimate: 500000, profitMargin: 50, popularity: 40, totalRevenue: 0, isActive: true, expectedSessions: 3, isComplex: true, defaultPhases: ['جراحة الزرع', 'كشف الزرعة', 'تركيب التاج'] },
+    { id: 'surg_8', name: 'زراعة سنية (Implant) - ألماني', category: 'جراحة', basePrice: 800000, costEstimate: 400000, profitMargin: 50, popularity: 45, totalRevenue: 0, isActive: true, expectedSessions: 3, isComplex: true, defaultPhases: ['جراحة الزرع', 'كشف الزرعة', 'تركيب التاج'] },
+    { id: 'surg_9', name: 'رفع جيب فكي (Sinus Lift)', category: 'جراحة', basePrice: 400000, costEstimate: 100000, profitMargin: 75, popularity: 15, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: true },
+    { id: 'surg_11', name: 'تطعيم عظمي (Bone Graft)', category: 'جراحة', basePrice: 200000, costEstimate: 100000, profitMargin: 50, popularity: 20, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: true },
+    { id: 'surg_13', name: 'قص اللثة (Gingivectomy) - للسن', category: 'جراحة', basePrice: 50000, costEstimate: 5000, profitMargin: 90, popularity: 30, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'surg_14', name: 'جراحة اللثة التجميلية (Per Quadrant)', category: 'جراحة', basePrice: 250000, costEstimate: 30000, profitMargin: 88, popularity: 15, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: true },
+    { id: 'surg_15', name: 'Frenectomy', category: 'جراحة', basePrice: 100000, costEstimate: 10000, profitMargin: 90, popularity: 10, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
 
-    { id: 'surg_18', name: 'معالجة سنخ جاف (Dry Socket)', category: 'جراحة', basePrice: 20000, costEstimate: 2000, profitMargin: 90, popularity: 15, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'tooth' },
-    { id: 'surg_19', name: 'استئصال كيس (Cyst Enucleation)', category: 'جراحة', basePrice: 250000, costEstimate: 30000, profitMargin: 88, popularity: 5, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: true, scope: 'both' },
-    { id: 'surg_20', name: 'Biopsy', category: 'جراحة', basePrice: 100000, costEstimate: 20000, profitMargin: 80, popularity: 5, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'general' },
+    { id: 'surg_18', name: 'معالجة سنخ جاف (Dry Socket)', category: 'جراحة', basePrice: 20000, costEstimate: 2000, profitMargin: 90, popularity: 15, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'surg_19', name: 'استئصال كيس (Cyst Enucleation)', category: 'جراحة', basePrice: 250000, costEstimate: 30000, profitMargin: 88, popularity: 5, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: true },
+    { id: 'surg_20', name: 'Biopsy', category: 'جراحة', basePrice: 100000, costEstimate: 20000, profitMargin: 80, popularity: 5, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
 
     // --- 5. تعويضات / Prosthodontics (25) ---
-    { id: 'pros_1', name: 'تاج خزف معدن (PFM Crown)', category: 'تعويضات', basePrice: 150000, costEstimate: 50000, profitMargin: 66, popularity: 80, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true, defaultPhases: ['تحضير وطبعة', 'بروفة', 'تسليم'], scope: 'tooth' },
-    { id: 'pros_2', name: 'تاج زركون (Zirconia Crown)', category: 'تعويضات', basePrice: 250000, costEstimate: 80000, profitMargin: 68, popularity: 85, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true, defaultPhases: ['تحضير وطبعة', 'بروفة', 'تسليم'], scope: 'tooth' },
-    { id: 'pros_3', name: 'تاج إيماكس (E-max Crown)', category: 'تعويضات', basePrice: 300000, costEstimate: 100000, profitMargin: 66, popularity: 70, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true, defaultPhases: ['تحضير وطبعة', 'بروفة', 'تسليم'], scope: 'tooth' },
-    { id: 'pros_4', name: 'جسر خزف معدن (لكل وحدة)', category: 'تعويضات', basePrice: 150000, costEstimate: 50000, profitMargin: 66, popularity: 60, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true, scope: 'tooth' },
-    { id: 'pros_5', name: 'جسر زركون (لكل وحدة)', category: 'تعويضات', basePrice: 250000, costEstimate: 80000, profitMargin: 68, popularity: 65, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true, scope: 'tooth' },
-    { id: 'pros_6', name: 'طقم جزئي أكريليك (Partial Acrylic)', category: 'تعويضات', basePrice: 300000, costEstimate: 50000, profitMargin: 83, popularity: 50, totalRevenue: 0, isActive: true, expectedSessions: 4, isComplex: true, defaultPhases: ['طبعات أولية', 'طبعات نهائية', 'عضة شمعية', 'بروفة أسنان', 'تسليم'], scope: 'general' },
-    { id: 'pros_7', name: 'طقم جزئي معدني (Cast Partial)', category: 'تعويضات', basePrice: 600000, costEstimate: 200000, profitMargin: 66, popularity: 30, totalRevenue: 0, isActive: true, expectedSessions: 5, isComplex: true, defaultPhases: ['طبعات أولية', 'طبعات نهائية', 'تجربة معدن', 'عضة شمعية', 'تسليم'], scope: 'general' },
-    { id: 'pros_8', name: 'طقم جزئي مرن (Flexible Denture)', category: 'تعويضات', basePrice: 500000, costEstimate: 150000, profitMargin: 70, popularity: 40, totalRevenue: 0, isActive: true, expectedSessions: 4, isComplex: true, scope: 'general' },
-    { id: 'pros_9', name: 'طقم كامل (Complete Denture) - فك واحد', category: 'تعويضات', basePrice: 500000, costEstimate: 100000, profitMargin: 80, popularity: 45, totalRevenue: 0, isActive: true, expectedSessions: 5, isComplex: true, defaultPhases: ['طبعات أولية', 'طبعات نهائية', 'عضة شمعية', 'بروفة', 'تسليم'], scope: 'general' },
-    { id: 'pros_10', name: 'طقم كامل (Complete Denture) - فكين', category: 'تعويضات', basePrice: 900000, costEstimate: 150000, profitMargin: 83, popularity: 40, totalRevenue: 0, isActive: true, expectedSessions: 5, isComplex: true, scope: 'general' },
-    { id: 'pros_11', name: 'تبطين طقم (Reline) - مباشر', category: 'تعويضات', basePrice: 100000, costEstimate: 20000, profitMargin: 80, popularity: 20, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'general' },
-    { id: 'pros_12', name: 'تبطين طقم (Reline) - مختبري', category: 'تعويضات', basePrice: 150000, costEstimate: 50000, profitMargin: 66, popularity: 15, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true, scope: 'general' },
-    { id: 'pros_13', name: 'إصلاح كسر طقم (Denture Repair)', category: 'تعويضات', basePrice: 50000, costEstimate: 10000, profitMargin: 80, popularity: 25, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: true, scope: 'general' },
-    { id: 'pros_14', name: 'إضافة سن لطقم', category: 'تعويضات', basePrice: 60000, costEstimate: 15000, profitMargin: 75, popularity: 20, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: true, scope: 'general' },
-    { id: 'pros_16', name: 'إلصاق تاج (Recementation)', category: 'تعويضات', basePrice: 25000, costEstimate: 2000, profitMargin: 92, popularity: 35, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'tooth' },
-    { id: 'pros_19', name: 'تاج مؤقت (Temporary Crown)', category: 'تعويضات', basePrice: 25000, costEstimate: 2000, profitMargin: 92, popularity: 80, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'tooth' },
-    { id: 'pros_20', name: 'وتد وبناء (Cast Post & Core)', category: 'تعويضات', basePrice: 150000, costEstimate: 40000, profitMargin: 73, popularity: 30, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true, scope: 'tooth' },
-    { id: 'pros_21', name: 'Richmond Crown', category: 'تعويضات', basePrice: 200000, costEstimate: 60000, profitMargin: 70, popularity: 5, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true, scope: 'tooth' },
-    { id: 'pros_22', name: 'Veneer (E-max)', category: 'تعويضات', basePrice: 350000, costEstimate: 100000, profitMargin: 71, popularity: 60, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true, scope: 'tooth' },
-    { id: 'pros_23', name: 'Veneer (Zirconia)', category: 'تعويضات', basePrice: 300000, costEstimate: 80000, profitMargin: 73, popularity: 40, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true, scope: 'tooth' },
-    { id: 'pros_24', name: 'Lumineer (No prep)', category: 'تعويضات', basePrice: 400000, costEstimate: 150000, profitMargin: 62, popularity: 20, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true, scope: 'tooth' },
-    { id: 'pros_25', name: 'إزالة تاج قديم', category: 'تعويضات', basePrice: 30000, costEstimate: 2000, profitMargin: 93, popularity: 45, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'tooth' },
+    { id: 'pros_1', name: 'تاج خزف معدن (PFM Crown)', category: 'تعويضات', basePrice: 150000, costEstimate: 50000, profitMargin: 66, popularity: 80, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true, defaultPhases: ['تحضير وطبعة', 'بروفة', 'تسليم'] },
+    { id: 'pros_2', name: 'تاج زركون (Zirconia Crown)', category: 'تعويضات', basePrice: 250000, costEstimate: 80000, profitMargin: 68, popularity: 85, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true, defaultPhases: ['تحضير وطبعة', 'بروفة', 'تسليم'] },
+    { id: 'pros_3', name: 'تاج إيماكس (E-max Crown)', category: 'تعويضات', basePrice: 300000, costEstimate: 100000, profitMargin: 66, popularity: 70, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true, defaultPhases: ['تحضير وطبعة', 'بروفة', 'تسليم'] },
+    { id: 'pros_4', name: 'جسر خزف معدن (لكل وحدة)', category: 'تعويضات', basePrice: 150000, costEstimate: 50000, profitMargin: 66, popularity: 60, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true },
+    { id: 'pros_5', name: 'جسر زركون (لكل وحدة)', category: 'تعويضات', basePrice: 250000, costEstimate: 80000, profitMargin: 68, popularity: 65, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true },
+    { id: 'pros_6', name: 'طقم جزئي أكريليك (Partial Acrylic)', category: 'تعويضات', basePrice: 300000, costEstimate: 50000, profitMargin: 83, popularity: 50, totalRevenue: 0, isActive: true, expectedSessions: 4, isComplex: true, defaultPhases: ['طبعات أولية', 'طبعات نهائية', 'عضة شمعية', 'بروفة أسنان', 'تسليم'] },
+    { id: 'pros_7', name: 'طقم جزئي معدني (Cast Partial)', category: 'تعويضات', basePrice: 600000, costEstimate: 200000, profitMargin: 66, popularity: 30, totalRevenue: 0, isActive: true, expectedSessions: 5, isComplex: true, defaultPhases: ['طبعات أولية', 'طبعات نهائية', 'تجربة معدن', 'عضة شمعية', 'تسليم'] },
+    { id: 'pros_8', name: 'طقم جزئي مرن (Flexible Denture)', category: 'تعويضات', basePrice: 500000, costEstimate: 150000, profitMargin: 70, popularity: 40, totalRevenue: 0, isActive: true, expectedSessions: 4, isComplex: true },
+    { id: 'pros_9', name: 'طقم كامل (Complete Denture) - فك واحد', category: 'تعويضات', basePrice: 500000, costEstimate: 100000, profitMargin: 80, popularity: 45, totalRevenue: 0, isActive: true, expectedSessions: 5, isComplex: true, defaultPhases: ['طبعات أولية', 'طبعات نهائية', 'عضة شمعية', 'بروفة', 'تسليم'] },
+    { id: 'pros_10', name: 'طقم كامل (Complete Denture) - فكين', category: 'تعويضات', basePrice: 900000, costEstimate: 150000, profitMargin: 83, popularity: 40, totalRevenue: 0, isActive: true, expectedSessions: 5, isComplex: true },
+    { id: 'pros_11', name: 'تبطين طقم (Reline) - مباشر', category: 'تعويضات', basePrice: 100000, costEstimate: 20000, profitMargin: 80, popularity: 20, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'pros_12', name: 'تبطين طقم (Reline) - مختبري', category: 'تعويضات', basePrice: 150000, costEstimate: 50000, profitMargin: 66, popularity: 15, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true },
+    { id: 'pros_13', name: 'إصلاح كسر طقم (Denture Repair)', category: 'تعويضات', basePrice: 50000, costEstimate: 10000, profitMargin: 80, popularity: 25, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: true },
+    { id: 'pros_14', name: 'إضافة سن لطقم', category: 'تعويضات', basePrice: 60000, costEstimate: 15000, profitMargin: 75, popularity: 20, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: true },
+    { id: 'pros_15', name: 'Inlay/Onlay - سيراميك', category: 'تعويضات', basePrice: 250000, costEstimate: 80000, profitMargin: 68, popularity: 10, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true },
+    { id: 'pros_16', name: 'إلصاق تاج (Recementation)', category: 'تعويضات', basePrice: 25000, costEstimate: 2000, profitMargin: 92, popularity: 35, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'pros_17', name: 'Maryland Bridge (لكل وحدة)', category: 'تعويضات', basePrice: 200000, costEstimate: 60000, profitMargin: 70, popularity: 10, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true },
+    { id: 'pros_18', name: 'Snap-on Smile (للفك)', category: 'تعويضات', basePrice: 400000, costEstimate: 150000, profitMargin: 62, popularity: 15, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true },
+    { id: 'pros_19', name: 'تاج مؤقت (Temporary Crown)', category: 'تعويضات', basePrice: 25000, costEstimate: 2000, profitMargin: 92, popularity: 80, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'pros_20', name: 'وتد وبناء (Cast Post & Core)', category: 'تعويضات', basePrice: 150000, costEstimate: 40000, profitMargin: 73, popularity: 30, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true },
+    { id: 'pros_21', name: 'Richmond Crown', category: 'تعويضات', basePrice: 200000, costEstimate: 60000, profitMargin: 70, popularity: 5, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true },
+    { id: 'pros_22', name: 'Veneer (E-max)', category: 'تعويضات', basePrice: 350000, costEstimate: 100000, profitMargin: 71, popularity: 60, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true },
+    { id: 'pros_23', name: 'Veneer (Zirconia)', category: 'تعويضات', basePrice: 300000, costEstimate: 80000, profitMargin: 73, popularity: 40, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true },
+    { id: 'pros_24', name: 'Lumineer (No prep)', category: 'تعويضات', basePrice: 400000, costEstimate: 150000, profitMargin: 62, popularity: 20, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true },
+    { id: 'pros_25', name: 'إزالة تاج قديم', category: 'تعويضات', basePrice: 30000, costEstimate: 2000, profitMargin: 93, popularity: 45, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
 
     // --- 6. تجميل / Cosmetic (12) ---
-    { id: 'cos_1', name: 'تبييض منزلي (Kit)', category: 'تجميل', basePrice: 250000, costEstimate: 100000, profitMargin: 60, popularity: 70, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'general' },
-    { id: 'cos_2', name: 'تبييض ليزر (عيادة)', category: 'تجميل', basePrice: 400000, costEstimate: 80000, profitMargin: 80, popularity: 75, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'general' },
+    { id: 'cos_1', name: 'تبييض منزلي (Kit)', category: 'تجميل', basePrice: 250000, costEstimate: 100000, profitMargin: 60, popularity: 70, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'cos_2', name: 'تبييض ليزر (عيادة)', category: 'تجميل', basePrice: 400000, costEstimate: 80000, profitMargin: 80, popularity: 75, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
 
-    { id: 'cos_6', name: 'إغلاق فلجة بالكومبوزيت', category: 'تجميل', basePrice: 150000, costEstimate: 20000, profitMargin: 86, popularity: 35, totalRevenue: 0, isActive: true, expectedSessions: 3, isComplex: false, scope: 'general' },
-    { id: 'cos_7', name: 'سنايل آرت (Snap-on)', category: 'تجميل', basePrice: 400000, costEstimate: 150000, profitMargin: 62, popularity: 15, totalRevenue: 0, isActive: true, expectedSessions: 3, isComplex: true, scope: 'general' },
-    { id: 'cos_8', name: 'Botox (Smile correction)', category: 'تجميل', basePrice: 250000, costEstimate: 100000, profitMargin: 60, popularity: 20, totalRevenue: 0, isActive: true, expectedSessions: 3, isComplex: false, scope: 'general' },
-    { id: 'cos_9', name: 'Fillers (Lip)', category: 'تجميل', basePrice: 300000, costEstimate: 150000, profitMargin: 50, popularity: 15, totalRevenue: 0, isActive: true, expectedSessions: 3, isComplex: false, scope: 'general' },
+    { id: 'cos_6', name: 'إغلاق فلجة بالكومبوزيت', category: 'تجميل', basePrice: 150000, costEstimate: 20000, profitMargin: 86, popularity: 35, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'cos_7', name: 'سنايل آرت (Snap-on)', category: 'تجميل', basePrice: 400000, costEstimate: 150000, profitMargin: 62, popularity: 15, totalRevenue: 0, isActive: true, expectedSessions: 2, isComplex: true },
+    { id: 'cos_8', name: 'Botox (Smile correction)', category: 'تجميل', basePrice: 250000, costEstimate: 100000, profitMargin: 60, popularity: 20, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
+    { id: 'cos_9', name: 'Fillers (Lip)', category: 'تجميل', basePrice: 300000, costEstimate: 150000, profitMargin: 50, popularity: 15, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
 
-    { id: 'cos_12', name: 'Mock-up', category: 'تجميل', basePrice: 50000, costEstimate: 5000, profitMargin: 90, popularity: 30, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false, scope: 'general' },
+    { id: 'cos_12', name: 'Mock-up', category: 'تجميل', basePrice: 50000, costEstimate: 5000, profitMargin: 90, popularity: 30, totalRevenue: 0, isActive: true, expectedSessions: 1, isComplex: false },
 ];
 
 export let inventory: InventoryItem[] = [

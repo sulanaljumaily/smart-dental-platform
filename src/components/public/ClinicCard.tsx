@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { MapPin, Star, Phone, Navigation, Calendar, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '../common/Button';
-import { formatLocation } from '../../utils/location';
 
 interface ClinicCardProps {
   clinic: {
@@ -16,8 +15,6 @@ interface ClinicCardProps {
     lat: number;
     lng: number;
     image?: string;
-    governorate?: string;
-    city?: string;
   };
 }
 
@@ -52,9 +49,7 @@ export const ClinicCard: React.FC<ClinicCardProps> = ({ clinic }) => {
           </h3>
           <div className="flex items-center gap-2 text-gray-600 mb-3">
             <MapPin className="w-4 h-4 text-blue-600" />
-            <span className="text-sm">
-              {formatLocation(clinic.governorate, clinic.address)}
-            </span>
+            <span className="text-sm">{clinic.location}</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {clinic.specialties.slice(0, 2).map((specialty, idx) => (
@@ -107,9 +102,7 @@ export const ClinicCard: React.FC<ClinicCardProps> = ({ clinic }) => {
                 <MapPin className="w-6 h-6 text-blue-600 mt-1 flex-shrink-0" />
                 <div>
                   <p className="font-semibold text-gray-900 mb-1">الموقع</p>
-                  <p className="text-gray-600">
-                    {formatLocation(clinic.governorate, clinic.address)}
-                  </p>
+                  <p className="text-gray-600">{clinic.address}</p>
                 </div>
               </div>
 

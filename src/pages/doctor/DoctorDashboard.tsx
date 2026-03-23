@@ -194,12 +194,8 @@ const DoctorDashboardContent: React.FC = () => {
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                     className="flex items-center gap-2 p-1.5 sm:p-2 rounded-xl bg-white/60 hover:bg-white transition-all ring-1 ring-transparent hover:ring-gray-200"
                   >
-                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-sm overflow-hidden">
-                      {user?.avatar ? (
-                        <img src={user.avatar} alt={user?.name || ''} className="w-full h-full object-cover" />
-                      ) : (
-                        <User className="w-4 h-4 text-white" />
-                      )}
+                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-sm">
+                      <User className="w-4 h-4 text-white" />
                     </div>
                     {/* User Name hidden globally as per request, shown only in dropdown */}
                     <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
@@ -209,12 +205,8 @@ const DoctorDashboardContent: React.FC = () => {
                     <div className="absolute end-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 z-50 animate-in fade-in slide-in-from-top-2 origin-top-end">
                       <div className="p-3 border-b border-gray-100">
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center overflow-hidden">
-                            {user?.avatar ? (
-                              <img src={user.avatar} alt={user?.name || ''} className="w-full h-full object-cover" />
-                            ) : (
-                              <User className="w-6 h-6 text-white" />
-                            )}
+                          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center">
+                            <User className="w-6 h-6 text-white" />
                           </div>
                           <div>
                             <p className="font-medium text-gray-900">{user?.name || 'مستخدم'}</p>

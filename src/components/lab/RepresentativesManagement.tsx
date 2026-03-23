@@ -62,15 +62,6 @@ type Representative = {
   working_hours?: any;
 };
 
-type DelegateOrder = {
-  id: string;
-  order_number: string;
-  clinic_name: string;
-  status: string;
-  role: 'pickup' | 'delivery' | 'both' | 'legacy';
-  date: string;
-};
-
 type RepresentativeStats = {
   total_representatives: number;
   active_representatives: number;
@@ -93,10 +84,6 @@ export default function RepresentativesManagement() {
 
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [labId, setLabId] = useState<string | null>(null);
-
-  // Orders assigned to the selected representative
-  const [repOrders, setRepOrders] = useState<DelegateOrder[]>([]);
-  const [loadingOrders, setLoadingOrders] = useState(false);
 
   // نموذج إضافة مندوب
   const [newRep, setNewRep] = useState({
@@ -128,8 +115,8 @@ export default function RepresentativesManagement() {
       const { data: labData, error: labError } = await supabase
         .from('dental_laboratories')
         .select('id')
-        .or(`id.eq.${user.id},user_id.eq.${user.id}`)
-        .maybeSingle();
+        .eq('user_id', user.id)
+        .single();
 
       if (labError || !labData) {
         console.error('Lab not found for user:', user.id);
@@ -263,55 +250,6 @@ export default function RepresentativesManagement() {
     }
   }, [user]);
 
-  // جلب طلبات المندوب المحدد
-  useEffect(() => {
-    const fetchRepOrders = async () => {
-      if (!selectedRep || !showDetailsDialog) return;
-
-      setLoadingOrders(true);
-      try {
-        const { data, error } = await supabase
-          .from('dental_lab_orders')
-          .select('id, order_number, clinic:clinics(name), status, created_at, delegate_id, pickup_delegate_id, delivery_delegate_id')
-          .or(`delegate_id.eq.${selectedRep.representative_id},pickup_delegate_id.eq.${selectedRep.representative_id},delivery_delegate_id.eq.${selectedRep.representative_id}`)
-          .order('created_at', { ascending: false })
-          .limit(20);
-
-        if (error) throw error;
-
-        const mappedOrders: DelegateOrder[] = (data || []).map((o: any) => {
-          let role: 'pickup' | 'delivery' | 'both' | 'legacy' = 'legacy';
-
-          const isPickup = o.pickup_delegate_id === selectedRep.representative_id;
-          const isDelivery = o.delivery_delegate_id === selectedRep.representative_id;
-          const isLegacy = o.delegate_id === selectedRep.representative_id && !isPickup && !isDelivery;
-
-          if (isPickup && isDelivery) role = 'both';
-          else if (isPickup) role = 'pickup';
-          else if (isDelivery) role = 'delivery';
-          else if (isLegacy) role = 'legacy';
-
-          return {
-            id: o.id,
-            order_number: o.order_number,
-            clinic_name: o.clinic?.name || 'عيادة',
-            status: o.status,
-            role,
-            date: o.created_at
-          };
-        });
-
-        setRepOrders(mappedOrders);
-      } catch (err) {
-        console.error('Error fetching rep orders:', err);
-      } finally {
-        setLoadingOrders(false);
-      }
-    };
-
-    fetchRepOrders();
-  }, [selectedRep, showDetailsDialog]);
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'available': return 'bg-green-500';
@@ -322,23 +260,12 @@ export default function RepresentativesManagement() {
   };
 
   const getStatusText = (status: string) => {
-    const map: any = {
-      'available': 'متوفر',
-      'busy': 'مشغول',
-      'offline': 'غير متصل',
-      'pending': 'في الانتظار',
-      'confirmed': 'تم التأكيد',
-      'in_progress': 'جاري العمل',
-      'ready_for_pickup': 'جاهز للاستلام',
-      'collected': 'تم الاستلام',
-      'in_lab': 'في المختبر',
-      'ready_for_delivery': 'جاهز للتوصيل',
-      'delivered': 'تم التوصيل',
-      'completed': 'مكتمل',
-      'returned': 'مرتجع',
-      'cancelled': 'ملغي'
-    };
-    return map[status] || status;
+    switch (status) {
+      case 'available': return 'متوفر';
+      case 'busy': return 'مشغول';
+      case 'offline': return 'غير متصل';
+      default: return 'غير محدد';
+    }
   };
 
   const getTypeText = (type: string) => {
@@ -657,64 +584,6 @@ export default function RepresentativesManagement() {
                       غير متصل
                     </Button>
                   </div>
-                </div>
-
-                {/* الطلبات المسندة */}
-                <div className="border-t pt-6">
-                  <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <Package className="w-5 h-5 text-purple-600" />
-                    الطلبات المسندة حديثاً ({repOrders.length})
-                  </h4>
-
-                  {loadingOrders ? (
-                    <div className="flex justify-center p-4">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-                    </div>
-                  ) : repOrders.length === 0 ? (
-                    <div className="text-center p-6 bg-gray-50 rounded-xl border border-dashed text-gray-500">
-                      لا توجد طلبات مسندة لهذا المندوب حالياً
-                    </div>
-                  ) : (
-                    <ScrollArea className="h-64 border rounded-xl bg-gray-50/50">
-                      <div className="p-4 space-y-3">
-                        {repOrders.map(order => (
-                          <div key={order.id} className="bg-white p-3 rounded-lg border flex items-center justify-between hover:border-purple-200 transition-colors">
-                            <div className="flex items-start gap-3">
-                              <div className={`p-2 rounded-lg flex-shrink-0 ${order.role === 'pickup' ? 'bg-purple-100 text-purple-700' :
-                                  order.role === 'delivery' ? 'bg-cyan-100 text-cyan-700' :
-                                    order.role === 'both' ? 'bg-indigo-100 text-indigo-700' :
-                                      'bg-gray-100 text-gray-700'
-                                }`}>
-                                <Truck className="w-4 h-4" />
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-bold text-gray-900">#{order.order_number}</span>
-                                  <Badge variant="outline" className="text-xs bg-gray-50">
-                                    {order.clinic_name}
-                                  </Badge>
-                                </div>
-                                <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-                                  <span>دور المندوب: {
-                                    order.role === 'pickup' ? 'استلام' :
-                                      order.role === 'delivery' ? 'توصيل' :
-                                        order.role === 'both' ? 'استلام وتوصيل' : 'عام'
-                                  }</span>
-                                  <span>•</span>
-                                  <span>{new Date(order.date).toLocaleDateString('ar-IQ')}</span>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="whitespace-nowrap">
-                              <Badge className="bg-gray-100 text-gray-700 hover:bg-gray-200 font-normal">
-                                {getStatusText(order.status)}
-                              </Badge>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  )}
                 </div>
               </div>
               <DialogFooter>

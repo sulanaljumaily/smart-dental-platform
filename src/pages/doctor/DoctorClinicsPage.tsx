@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
-import { supabase } from '../../lib/supabase';
-import { Building2, MapPin, Plus, Settings, Users, Shield, LayoutDashboard, Star, Phone, Clock, Activity, Trash2, AlertTriangle, Lock, CheckCircle, Mail, Check, X } from 'lucide-react';
-import { useInvitations } from '../../hooks/useInvitations';
+import { Building2, MapPin, Plus, Settings, Users, Shield, LayoutDashboard, Star, Phone, Clock, Activity, Trash2, AlertTriangle, Lock, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useNavigate } from 'react-router-dom';
@@ -20,15 +18,13 @@ import { useDoctorContext } from '../../contexts/DoctorContext';
 import { ClinicLocationPicker } from '../../components/common/ClinicLocationPicker';
 import { useStorage } from '../../hooks/useStorage';
 import { UpgradeModal } from '../../components/subscription/UpgradeModal';
-import { StaffManagement } from './components/StaffManagement';
-import { formatLocation } from '../../utils/location';
 
 export const DoctorClinicsPage: React.FC = () => {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const { user } = useAuth(); // Added user hook
   // Removed duplicate hook call from here, moving it down to use selectedClinic state
-  const isSystemStaff = user?.role === 'staff'; // System-level staff flag
+  const isStaff = user?.role === 'staff'; // Added staff check
   const { selectedClinicId } = useDoctorContext(); // Get global filter
 
   const [selectedClinic, setSelectedClinic] = useState<string | null>(null);
@@ -52,27 +48,14 @@ export const DoctorClinicsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'settings' | 'profile' | 'staff_settings'>('settings');
 
   // Real Data
+  const { clinics, loading, addClinic, updateClinic, deleteClinic } = useClinics();
   const { appointments } = useAppointments();
   const { patients } = usePatients(undefined); // Fetch all patients
-  const { staff, updateStaff, leaveClinic } = useStaff(); // Fetch all staff (filtered by RLS)
-  const { invitations, respondToInvitation, refresh: refreshInvitations } = useInvitations();
-  const { clinics, loading, addClinic, updateClinic, deleteClinic, refresh: refreshClinics } = useClinics();
-
-  // Handler for staff member to leave a clinic
-  const handleLeaveClinic = async (clinicId: string) => {
-    if (!user?.id) return;
-    if (!confirm('هل أنت متأكد من الخروج من هذه العيادة؟ لن تتمكن من الوصول إليها بعد ذلك.')) return;
-    try {
-      await leaveClinic(clinicId, user.id);
-      await refreshClinics();
-    } catch (err) {
-      // Error handled inside leaveClinic
-    }
-  };
+  const { staff, updateStaff } = useStaff(); // Fetch all staff (filtered by RLS)
 
   // New Clinic Form State
   const [newClinic, setNewClinic] = useState({
-    name: '', phone: '', address: '', governorate: 'بغداد'
+    name: '', address: '', phone: '', city: 'Baghdad'
   });
 
   // File Input Refs
@@ -122,8 +105,6 @@ export const DoctorClinicsPage: React.FC = () => {
     description: string;
     latitude?: number;
     longitude?: number;
-    governorate?: string;
-    address?: string;
     isFeatured: boolean;
     isDigitalBookingEnabled: boolean;
     settings: any;
@@ -145,9 +126,6 @@ export const DoctorClinicsPage: React.FC = () => {
 
           latitude: clinic.location?.lat,
           longitude: clinic.location?.lng,
-          governorate: clinic.governorate || 'بغداد',
-          address: clinic.address || '',
-
           isFeatured: clinic.isFeatured || false,
           isDigitalBookingEnabled: clinic.isDigitalBookingEnabled || false,
           settings: clinic.settings || {}
@@ -181,8 +159,6 @@ export const DoctorClinicsPage: React.FC = () => {
         phone: tempSettings.phone,
         description: tempSettings.description,
         location: (tempSettings.latitude && tempSettings.longitude) ? { lat: tempSettings.latitude, lng: tempSettings.longitude } : undefined,
-        governorate: tempSettings.governorate,
-        address: tempSettings.address,
         isFeatured: tempSettings.isFeatured,
         isDigitalBookingEnabled: tempSettings.isDigitalBookingEnabled,
         settings: tempSettings.settings
@@ -265,13 +241,13 @@ export const DoctorClinicsPage: React.FC = () => {
       await addClinic({
         name: newClinic.name,
         address: newClinic.address,
-        governorate: newClinic.governorate,
+        city: newClinic.city,
         phone: newClinic.phone
       });
       toast.success('تم إضافة العيادة بنجاح');
       setShowAddClinic(false);
       // Reset form
-      setNewClinic({ name: '', phone: '', address: '', governorate: 'بغداد' });
+      setNewClinic({ name: '', address: '', phone: '', city: 'Baghdad' });
     } catch (err: any) {
       console.error('Failed to add clinic:', err);
       toast.error('فشل إضافة العيادة: ' + (err.message || 'خطأ غير معروف'));
@@ -290,14 +266,7 @@ export const DoctorClinicsPage: React.FC = () => {
     }
   };
 
-
-
-
   const currentClinic = clinics.find(c => c.id === selectedClinic);
-  const isCurrentClinicOwner = currentClinic && currentClinic.owner_id === user?.id;
-  const selectedClinicPermissions = staff.find(
-    s => String(s.clinicId) === String(selectedClinic) && s.email === user?.email
-  )?.permissions;
 
   if (loading && clinics.length === 0) return <div className="p-8 text-center">جاري التحميل...</div>;
 
@@ -307,9 +276,9 @@ export const DoctorClinicsPage: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">عياداتي</h1>
-          <p className="text-gray-600 mt-1">إدارة جميع عياداتك المستهدفة ({clinics.length} عيادات مشتركة)</p>
+          <p className="text-gray-600 mt-1">إدارة جميع عياداتك في مكان واحد ({clinics.length} عيادة نشطة)</p>
         </div>
-        {!isSystemStaff && (
+        {!isStaff && (
           <Button
             variant="primary"
             className="flex items-center gap-2"
@@ -332,112 +301,17 @@ export const DoctorClinicsPage: React.FC = () => {
         )}
       </div>
 
-
       {/* Clinics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Pending Invitations */}
-        {invitations.map((invitation) => {
-          const clinic = invitation.clinic;
-          if (!clinic) return null;
-
-          return (
-            <Card key={`inv-${invitation.id}`} className="overflow-hidden border-2 border-dashed border-purple-200 bg-white/50 backdrop-blur-sm transition-all relative">
-              <div className="absolute top-4 left-4 z-10 bg-purple-600 text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 shadow-lg">
-                <Mail className="w-3 h-3" />
-                دعوة انضمام
-              </div>
-              
-              {/* Clinic Image */}
-              <div className="h-32 relative overflow-hidden group-hover:scale-105 transition-transform duration-500">
-                <img
-                  src={clinic.coverImage || clinic.image}
-                  alt={clinic.name}
-                  className="w-full h-full object-cover grayscale-[30%]"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
-                <div className="absolute bottom-0 right-0 p-4">
-                  {/* Logo Overlay */}
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full border-2 border-white/50 overflow-hidden bg-white/10 backdrop-blur-sm">
-                      <img src={clinic.image} alt="" className="w-full h-full object-cover" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Clinic Info */}
-              <div className="p-6 space-y-4">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">{clinic.name}</h3>
-                  <div className="flex items-center gap-2 mt-2 text-sm text-gray-600">
-                    <Phone className="w-4 h-4" />
-                    <span dir="ltr">{clinic.phone || 'غير مسجل'}</span>
-                  </div>
-                  
-                  <div className="bg-purple-50 rounded-lg p-3 text-sm text-purple-800 mt-4 border border-purple-100 flex items-center gap-2">
-                    <Shield className="w-4 h-4 flex-shrink-0" />
-                    <p>المنصب المقترح: <span className="font-bold">{invitation.role === 'doctor' ? 'طبيب' : invitation.role === 'nurse' ? 'ممرض' : invitation.role === 'receptionist' ? 'إستقبال' : invitation.role}</span></p>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="grid grid-cols-2 gap-2 pt-4 border-t border-purple-100">
-                  <Button
-                    variant="primary"
-                    className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      toast.promise(async () => {
-                        await respondToInvitation(invitation.id, true);
-                        await Promise.all([refreshClinics(), refreshInvitations()]);
-                      }, {
-                        loading: 'جاري قبول الدعوة...',
-                        success: 'تم قبول الدعوة بنجاح!',
-                        error: 'فشل قبول الدعوة'
-                      });
-                    }}
-                  >
-                    <Check className="w-4 h-4 ml-1" />
-                    قبول
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      if (confirm('هل أنت متأكد من رفض هذه الدعوة؟')) {
-                        try {
-                          await respondToInvitation(invitation.id, false);
-                          toast.success('تم رفض الدعوة');
-                        } catch (err) {
-                          toast.error('حدث خطأ أثناء رفض الدعوة');
-                        }
-                      }
-                    }}
-                  >
-                    <X className="w-4 h-4 ml-1" />
-                    رفض
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          );
-        })}
-
-        {/* Real Clinics */}
         {clinics
           .filter(c => {
+            // Staff: Show only their assumed primary clinic
+            if (isStaff) return clinics.length > 0 && c.id === clinics[0].id;
+            // Owner: Show all if 'all' selected, otherwise specific
             if (selectedClinicId === 'all') return true;
             return c.id === selectedClinicId;
           })
-          .map((clinic) => {
-            const isClinicStaff = clinic.owner_id !== user?.id; // Determine per-clinic specific role
-            const userStaffRecord = staff.find(
-              s => String(s.clinicId) === String(clinic.id) && s.email === user?.email
-            );
-            const userPermissions = userStaffRecord?.permissions;
-
-            return (
+          .map((clinic) => (
             <Card key={clinic.id} className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer" onClick={(e) => {
               if ((e.target as HTMLElement).closest('button')) return;
               navigate(`/doctor/clinic/${clinic.id}`);
@@ -466,9 +340,7 @@ export const DoctorClinicsPage: React.FC = () => {
                   <h3 className="text-xl font-bold text-gray-900">{clinic.name}</h3>
                   <div className="flex items-start gap-2 mt-2 text-sm text-gray-600">
                     <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                    <span>
-                      {formatLocation(clinic.governorate, clinic.address)}
-                    </span>
+                    <span>{clinic.address}</span>
                   </div>
                   <div className="flex items-center gap-2 mt-1 text-sm text-gray-600">
                     <Phone className="w-4 h-4" />
@@ -520,11 +392,10 @@ export const DoctorClinicsPage: React.FC = () => {
                     <span className="text-xs font-medium">لوحة التحكم</span>
                   </button>
 
-                  {/* Settings Button: Owner Only */}
-                  {(!isClinicStaff || userPermissions?.settings) && (
+                  {/* Settings Button: Owner OR Staff with 'settings' permission */}
+                  {(!isStaff || staff.find(s => s.email === user?.email)?.permissions?.settings) && (
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
+                      onClick={() => {
                         setSelectedClinic(clinic.id);
                         setActiveTab('settings');
                         setShowSettings(true);
@@ -538,7 +409,7 @@ export const DoctorClinicsPage: React.FC = () => {
                 </div>
 
                 {/* Owner Only Actions */}
-                {!isClinicStaff && (
+                {!isStaff && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -552,8 +423,8 @@ export const DoctorClinicsPage: React.FC = () => {
                   </button>
                 )}
 
-                {/* Activity Log: Owner Only */}
-                {(!isClinicStaff || userPermissions?.activityLog) && (
+                {/* Activity Log: Owner OR Staff with 'activityLog' permission */}
+                {(!isStaff || staff.find(s => s.email === user?.email)?.permissions?.activityLog) && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -565,28 +436,13 @@ export const DoctorClinicsPage: React.FC = () => {
                     <span className="text-xs font-medium">سجل النشاطات</span>
                   </button>
                 )}
-
-                {/* Staff Only Actions */}
-                {isClinicStaff && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleLeaveClinic(clinic.id);
-                    }}
-                    className="w-full mt-2 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <X className="w-4 h-4" />
-                    <span className="text-xs font-medium">الخروج من العيادة</span>
-                  </button>
-                )}
               </div>
             </Card>
-            );
-          })}
+          ))}
       </div>
 
       {/* Add Clinic Modal - Owner Only */}
-      {!isSystemStaff && (
+      {!isStaff && (
         <Modal
           isOpen={showAddClinic}
           onClose={() => setShowAddClinic(false)}
@@ -606,23 +462,22 @@ export const DoctorClinicsPage: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">المحافظة</label>
-              <select
-                value={newClinic.governorate}
-                onChange={e => setNewClinic({ ...newClinic, governorate: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
-              >
-                {['بغداد', 'البصرة', 'نينوى', 'أربيل', 'السليمانية', 'دهوك', 'كركو', 'صلاح الدين', 'ديالى', 'الأنبار', 'بابل', 'كربلاء', 'النجف', 'واسط', 'القادسية', 'ميسان', 'ذي قار', 'المثنى'].map((gov) => (
-                  <option key={gov} value={gov}>{gov}</option>
-                ))}
-              </select>
+              <label className="block text-sm font-medium text-gray-700 mb-1">العنوان</label>
+              <input
+                type="text"
+                value={newClinic.address}
+                onChange={e => setNewClinic({ ...newClinic, address: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                required
+                placeholder="الشارع / المنطقة"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">المدينة</label>
               <input
                 type="text"
-                value={newClinic.address}
-                onChange={e => setNewClinic({ ...newClinic, address: e.target.value })}
+                value={newClinic.city}
+                onChange={e => setNewClinic({ ...newClinic, city: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 required
               />
@@ -655,33 +510,27 @@ export const DoctorClinicsPage: React.FC = () => {
         <div className="flex flex-col h-[600px]">
           {/* Tabs */}
           <div className="flex border-b border-gray-200 mb-6">
-            {(isCurrentClinicOwner || selectedClinicPermissions?.settings) && (
-              <button
-                className={`pb-3 px-6 font-medium text-sm transition-colors relative ${activeTab === 'settings' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-                onClick={() => setActiveTab('settings')}
-              >
-                الإعدادات العامة
-                {activeTab === 'settings' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />}
-              </button>
-            )}
-            {(isCurrentClinicOwner || selectedClinicPermissions?.settings) && (
-              <button
-                className={`pb-3 px-6 font-medium text-sm transition-colors relative ${activeTab === 'profile' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-                onClick={() => setActiveTab('profile')}
-              >
-                ملف العيادة
-                {activeTab === 'profile' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />}
-              </button>
-            )}
-            {(isCurrentClinicOwner || selectedClinicPermissions?.manageStaff) && (
-              <button
-                className={`pb-3 px-6 font-medium text-sm transition-colors relative ${activeTab === 'staff_settings' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-                onClick={() => setActiveTab('staff_settings')}
-              >
-                إعدادات الطاقم
-                {activeTab === 'staff_settings' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />}
-              </button>
-            )}
+            <button
+              className={`pb-3 px-6 font-medium text-sm transition-colors relative ${activeTab === 'settings' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              onClick={() => setActiveTab('settings')}
+            >
+              الإعدادات العامة
+              {activeTab === 'settings' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />}
+            </button>
+            <button
+              className={`pb-3 px-6 font-medium text-sm transition-colors relative ${activeTab === 'profile' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              onClick={() => setActiveTab('profile')}
+            >
+              ملف العيادة
+              {activeTab === 'profile' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />}
+            </button>
+            <button
+              className={`pb-3 px-6 font-medium text-sm transition-colors relative ${activeTab === 'staff_settings' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              onClick={() => setActiveTab('staff_settings')}
+            >
+              إعدادات الطاقم
+              {activeTab === 'staff_settings' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />}
+            </button>
           </div>
 
           <div className="flex-1 overflow-y-auto px-1">
@@ -900,31 +749,6 @@ export const DoctorClinicsPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">المحافظة</label>
-                        <select
-                          value={tempSettings.governorate || 'بغداد'}
-                          onChange={(e) => setTempSettings({ ...tempSettings, governorate: e.target.value })}
-                          className="w-full px-3 py-2 border rounded-lg text-sm bg-white"
-                        >
-                          {['بغداد', 'البصرة', 'نينوى', 'أربيل', 'السليمانية', 'دهوك', 'كركو', 'صلاح الدين', 'ديالى', 'الأنبار', 'بابل', 'كربلاء', 'النجف', 'واسط', 'القادسية', 'ميسان', 'ذي قار', 'المثنى'].map((gov) => (
-                            <option key={gov} value={gov}>{gov}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">المدينة / المنطقة</label>
-                        <input
-                          type="text"
-                          value={tempSettings.address || ''}
-                          onChange={(e) => setTempSettings({ ...tempSettings, address: e.target.value })}
-                          placeholder="مثال: المنصور، الكرادة"
-                          className="w-full px-3 py-2 border rounded-lg text-sm"
-                        />
-                      </div>
-                    </div>
-
                     {/* Map Section - Full Width at Bottom */}
                     {/* Map Section - Only if Enabled */}
                     {tempSettings.settings?.showOnMap && (
@@ -934,14 +758,8 @@ export const DoctorClinicsPage: React.FC = () => {
                           <ClinicLocationPicker
                             initialLat={tempSettings.latitude}
                             initialLng={tempSettings.longitude}
-                            onLocationSelect={(lat, lng, governorate, city) => {
-                              setTempSettings(prev => ({
-                                ...prev,
-                                latitude: lat,
-                                longitude: lng,
-                                governorate: governorate || prev.governorate,
-                                address: city || prev.address
-                              }));
+                            onLocationSelect={(lat, lng) => {
+                              setTempSettings(prev => ({ ...prev, latitude: lat, longitude: lng }));
                             }}
                           />
                         </div>
@@ -1057,8 +875,208 @@ export const DoctorClinicsPage: React.FC = () => {
               </div>
             )}
 
-            {activeTab === 'staff_settings' && selectedClinic && (
-              <StaffManagement clinicId={selectedClinic} clinicOwnerId={currentClinic?.owner_id} />
+            {activeTab === 'staff_settings' && (
+              <div className="space-y-6">
+                {/* Settings Header */}
+                <div className="bg-blue-50 p-4 rounded-lg flex items-start gap-3 border border-blue-100">
+                  <Shield className="w-5 h-5 text-blue-600 mt-0.5" />
+                  <div>
+                    <h4 className="font-medium text-blue-900">إدارة حسابات وصلاحيات الطاقم</h4>
+                    <p className="text-sm text-blue-700">إنشاء حسابات دخول للموظفين والتحكم في صلاحيات الوصول.</p>
+                  </div>
+                </div>
+
+                {/* Staff List */}
+                <div className="space-y-6">
+                  {/* Global Staff Permissions */}
+                  <div className="bg-white p-4 rounded-lg border border-gray-200 space-y-3">
+                    <h5 className="font-semibold text-gray-900 mb-2">الصلاحيات العامة للطاقم</h5>
+
+                    <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={tempSettings.settings?.staffSeeFullSchedule ?? true}
+                        onChange={(e) => setTempSettings(prev => ({ ...prev, settings: { ...prev.settings, staffSeeFullSchedule: e.target.checked } }))}
+                        className="w-5 h-5 text-blue-600 rounded"
+                      />
+                      <div>
+                        <span className="block font-medium text-gray-900 text-sm">السماح للموظفين برؤية سجل المواعيد الكامل</span>
+                        <span className="text-xs text-gray-500">يستطيع الموظف رؤية جميع المواعيد وليس فقط مواعيده</span>
+                      </div>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={tempSettings.settings?.staffEditPatients ?? false}
+                        onChange={(e) => setTempSettings(prev => ({ ...prev, settings: { ...prev.settings, staffEditPatients: e.target.checked } }))}
+                        className="w-5 h-5 text-blue-600 rounded"
+                      />
+                      <div>
+                        <span className="block font-medium text-gray-900 text-sm">السماح للموظفين بتعديل بيانات المرضى</span>
+                        <span className="text-xs text-gray-500">منح صلاحية التعديل (وليس فقط القراءة) لملفات المرضى</span>
+                      </div>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={tempSettings.settings?.staffHideFinancials ?? false}
+                        onChange={(e) => setTempSettings(prev => ({ ...prev, settings: { ...prev.settings, staffHideFinancials: e.target.checked } }))}
+                        className="w-5 h-5 text-blue-600 rounded"
+                      />
+                      <div>
+                        <span className="block font-medium text-gray-900 text-sm">إخفاء الأرقام المالية</span>
+                        <span className="text-xs text-gray-500">عدم إظهار الإيرادات والأسعار للموظفين غير المصرح لهم</span>
+                      </div>
+                    </label>
+                  </div>
+
+                  <div className="border-t border-gray-200"></div>
+                  {staff.filter(s => String(s.clinicId) === String(currentClinic?.id)).length > 0 ? (
+                    staff.filter(s => String(s.clinicId) === String(currentClinic?.id)).map((employee) => (
+                      <div key={employee.id} className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                              <Users className="w-5 h-5 text-gray-500" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">{employee.name}</p>
+                              <p className="text-xs text-gray-500">{employee.position}</p>
+                            </div>
+                          </div>
+                          <div className={`px-2 py-1 rounded-full text-xs font-medium ${employee.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                            {employee.status === 'active' ? 'نشط' : 'غير نشط'}
+                          </div>
+                        </div>
+
+                        {/* Credentials Section */}
+                        <div className="bg-white p-3 rounded border border-gray-200 mb-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <h5 className="text-xs font-semibold text-gray-700">بيانات الدخول</h5>
+                            {generatedCredentials[employee.id]?.saved && (
+                              <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full">محفوظ</span>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[10px] text-gray-500 mb-1">اسم المستخدم</label>
+                              <input
+                                type="text"
+                                className="w-full px-2 py-1.5 text-sm border rounded bg-gray-50 focus:bg-white focus:border-blue-500 transition-colors"
+                                placeholder="username"
+                                value={generatedCredentials[employee.id]?.username || employee.username || ''}
+                                onChange={(e) => setGeneratedCredentials(prev => ({
+                                  ...prev,
+                                  [employee.id]: { ...prev[employee.id], username: e.target.value, saved: false }
+                                }))}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] text-gray-500 mb-1">كلمة المرور</label>
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  className="w-full px-2 py-1.5 text-sm border rounded bg-gray-50 focus:bg-white focus:border-blue-500 transition-colors"
+                                  placeholder="password"
+                                  value={generatedCredentials[employee.id]?.password || employee.password || ''}
+                                  onChange={(e) => setGeneratedCredentials(prev => ({
+                                    ...prev,
+                                    [employee.id]: { ...prev[employee.id], password: e.target.value, saved: false }
+                                  }))}
+                                />
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="px-2"
+                                  title="توليد تلقائي"
+                                  onClick={() => {
+                                    const randomPass = Math.random().toString(36).slice(-8);
+                                    setGeneratedCredentials(prev => ({
+                                      ...prev,
+                                      [employee.id]: { ...prev[employee.id], password: randomPass, saved: false }
+                                    }));
+                                  }}
+                                >
+                                  <Settings className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex justify-end mt-3 gap-2">
+                            <Button
+                              size="sm"
+                              disabled={generatedCredentials[employee.id]?.saved || (!generatedCredentials[employee.id]?.username && !employee.username)}
+                              className={`h-8 text-xs ${generatedCredentials[employee.id]?.saved ? 'bg-gray-100 text-gray-400' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                              onClick={async () => {
+                                const creds = generatedCredentials[employee.id];
+                                if (!creds?.username) return toast.error('يرجى إدخال اسم مستخدم');
+
+                                try {
+                                  await updateStaff(employee.id, { username: creds.username, password: creds.password });
+                                  setGeneratedCredentials(prev => ({
+                                    ...prev,
+                                    [employee.id]: { ...prev[employee.id], saved: true }
+                                  }));
+                                  toast.success('تم حفظ بيانات الدخول بنجاح');
+                                } catch (err) {
+                                  toast.error('حدث خطأ أثناء الحفظ');
+                                }
+                              }}
+                            >
+                              {generatedCredentials[employee.id]?.saved ? 'تم الحفظ' : 'حفظ البيانات'}
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Permissions Toggles */}
+                        <div className="pt-3 border-t border-gray-100">
+                          <p className="text-xs font-semibold text-gray-700 mb-2">صلاحيات الوصول:</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {[
+                              { key: 'appointments', label: 'المواعيد' },
+                              { key: 'patients', label: 'المرضى' },
+                              { key: 'financials', label: 'المالية' },
+                              { key: 'reports', label: 'التقارير' },
+                              { key: 'settings', label: 'الإعدادات' },
+                              { key: 'activityLog', label: 'سجل النشاطات' },
+                              { key: 'assets', label: 'الأصول' },
+                              { key: 'staff', label: 'إدارة الطاقم' },
+                              { key: 'lab', label: 'المختبر' },
+                            ].map((perm) => (
+                              <label key={perm.key} className="flex items-center gap-2 cursor-pointer group">
+                                <div className="relative inline-flex items-center">
+                                  <input
+                                    type="checkbox"
+                                    className="sr-only peer"
+                                    checked={employee.permissions?.[perm.key as keyof typeof employee.permissions] || false}
+                                    onChange={(e) => {
+                                      const newPermissions = {
+                                        ...employee.permissions,
+                                        [perm.key]: e.target.checked
+                                      };
+                                      updateStaff(employee.id, { permissions: newPermissions });
+                                    }}
+                                  />
+                                  <div className="w-8 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
+                                </div>
+                                <span className="text-xs text-gray-600 group-hover:text-gray-900 transition-colors">{perm.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      لا يوجد موظفين في هذه العيادة
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </div>
 

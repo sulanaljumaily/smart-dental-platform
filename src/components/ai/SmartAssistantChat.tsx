@@ -156,43 +156,24 @@ export const SmartAssistantChat: React.FC<SmartAssistantChatProps> = ({ patientI
     return (
         <div className="flex flex-col h-full min-h-0 bg-gray-50/50" style={{ height: '100%' }}>
             {/* Context Header */}
-            <div className="bg-white border-b border-gray-100 p-3 px-4 flex justify-between items-center shadow-sm z-10">
-                <div className="flex items-center gap-3">
-                    {patientName ? (
-                        <div className="flex items-center gap-2 text-sm text-gray-700">
-                            <User className="w-4 h-4 text-blue-500" />
-                            <span>ملف المريض: <b className="text-gray-900">{patientName}</b></span>
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-2 text-sm text-gray-700">
-                            <Bot className="w-4 h-4 text-purple-500" />
-                            <span className="font-bold">المساعد الطبي الذكي</span>
-                        </div>
-                    )}
-
-                    {/* Status Indicator */}
-                    <div className="h-4 w-px bg-gray-200 mx-1"></div>
-                    <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100">
-                        <div className={`w-2 h-2 rounded-full animate-pulse ${aiService.getConfig('doctor_assistant').provider === 'mock' || !aiService.getConfig('doctor_assistant').apiKey ? 'bg-orange-500' : 'bg-green-500'}`}></div>
-                        <span className="text-[10px] font-medium text-gray-500">
-                            {aiService.getConfig('doctor_assistant').provider === 'mock' || !aiService.getConfig('doctor_assistant').apiKey ? 'Demo Mode' : 'Online'}
-                        </span>
+            {patientName && (
+                <div className="bg-white border-b border-gray-100 p-3 px-4 flex justify-between items-center shadow-sm z-10">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <User className="w-4 h-4 text-blue-500" />
+                        <span>ملف المريض: <b>{patientName}</b></span>
                     </div>
-                </div>
-
-                <div className="flex gap-2">
-                    {onSave && (
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => onSave(messages)}
-                            className="text-xs h-8"
-                        >
-                            <Save className="w-3 h-3 ml-1" />
-                            حفظ المحادثة
-                        </Button>
-                    )}
-                    {patientName && (
+                    <div className="flex gap-2">
+                        {onSave && (
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => onSave(messages)}
+                                className="text-xs h-8"
+                            >
+                                <Save className="w-3 h-3 ml-1" />
+                                حفظ المحادثة
+                            </Button>
+                        )}
                         <Button
                             size="sm"
                             variant="ghost"
@@ -202,9 +183,9 @@ export const SmartAssistantChat: React.FC<SmartAssistantChatProps> = ({ patientI
                             <FileSpreadsheet className="w-3 h-3 ml-1" />
                             إرسال بيانات المريض
                         </Button>
-                    )}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Messages Area */}
             <div className="flex-1 h-0 overflow-y-auto p-4 space-y-6">

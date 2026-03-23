@@ -458,7 +458,7 @@ export const NewLabOrder: React.FC<NewLabOrderProps> = ({
                               {lab.is_accredited && <span title="معتمد"><CheckCircle className="w-4 h-4 text-purple-600" /></span>}
                             </div>
                             <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
-                              <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {lab.governorate}</span>
+                              <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {lab.city}</span>
                               <span className="flex items-center gap-1"><Star className="w-3 h-3 text-yellow-500 fill-yellow-500" /> {lab.rating.toFixed(1)}</span>
                             </div>
                           </div>

@@ -25,12 +25,8 @@ export const PremiumPostCard = ({
                     className="flex items-center gap-3 cursor-pointer group"
                     onClick={onProfileClick}
                 >
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center font-bold text-gray-700 shadow-inner group-hover:scale-105 transition-transform overflow-hidden">
-                        {post.authorAvatar ? (
-                            <img src={post.authorAvatar} alt={post.authorName} className="w-full h-full object-cover" />
-                        ) : (
-                            post.authorName?.[0] || '?'
-                        )}
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center font-bold text-gray-700 shadow-inner group-hover:scale-105 transition-transform">
+                        {post.authorName?.[0] || '?'}
                     </div>
                     <div>
                         <div className="flex items-center gap-1.5 align-middle">

@@ -6,10 +6,8 @@ import {
     Eye,
     CheckCircle,
     XCircle,
-    Stethoscope,
-    User
+    Stethoscope
 } from 'lucide-react';
-import { supabase } from '../../../lib/supabase';
 
 interface SubscriptionReviewModalProps {
     request: any;
@@ -29,38 +27,6 @@ export const SubscriptionReviewModal: React.FC<SubscriptionReviewModalProps> = (
     onViewDoctor
 }) => {
     const [showImagePreview, setShowImagePreview] = useState(false);
-    const [doctorAvatar, setDoctorAvatar] = useState<string | null>(null);
-
-    React.useEffect(() => {
-        if (isOpen && request) {
-            const fetchDoctorAvatar = async () => {
-                let ownerId = request.user_id || request.doctor_id;
-
-                if (!ownerId && (request.email || request.phone)) {
-                    // Try lookup
-                    try {
-                        if (request.email) {
-                            const { data } = await supabase.from('users').select('id').eq('email', request.email).maybeSingle();
-                            if (data) ownerId = data.id;
-                        }
-                        if (!ownerId && request.phone) {
-                            const { data } = await supabase.from('users').select('id').eq('phone_number', request.phone).maybeSingle();
-                            if (data) ownerId = data.id;
-                        }
-                    } catch (e) { console.error(e); }
-                }
-
-                if (ownerId) {
-                    const { data } = await supabase.from('profiles').select('avatar_url').eq('id', ownerId).single();
-                    if (data?.avatar_url) setDoctorAvatar(data.avatar_url);
-                    else setDoctorAvatar(null);
-                } else {
-                    setDoctorAvatar(null);
-                }
-            };
-            fetchDoctorAvatar();
-        }
-    }, [isOpen, request]);
 
     if (!request) return null;
 
@@ -76,12 +42,8 @@ export const SubscriptionReviewModal: React.FC<SubscriptionReviewModalProps> = (
                     {/* Doctor Header & Actions */}
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-4 bg-gray-50 rounded-xl">
                         <div className="flex items-center gap-4">
-                            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-xl font-bold overflow-hidden">
-                                {doctorAvatar ? (
-                                    <img src={doctorAvatar} alt={request.doctorName} className="w-full h-full object-cover" />
-                                ) : (
-                                    request.doctorName?.charAt(0) || '?'
-                                )}
+                            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-xl font-bold">
+                                {request.doctorName?.charAt(0) || '?'}
                             </div>
                             <div>
                                 <h3 className="font-bold text-lg text-gray-900">{request.doctorName || 'غير متوفر'}</h3>

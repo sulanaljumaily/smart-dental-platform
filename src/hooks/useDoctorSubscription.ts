@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -35,7 +35,6 @@ export const useDoctorSubscription = () => {
     const { user } = useAuth();
     const [subscription, setSubscription] = useState<DoctorSubscription | null>(null);
     const [loading, setLoading] = useState(true);
-    const mountedRef = useRef(true);
 
     const fetchSubscription = async () => {
         if (!user) return;
@@ -106,18 +105,15 @@ export const useDoctorSubscription = () => {
                 setSubscription(null);
             }
 
-        } catch (error: any) {
-            if (error?.name === 'AbortError' || error?.message?.includes('AbortError')) return;
-            if (mountedRef.current) console.error(error);
+        } catch (error) {
+            console.error(error);
         } finally {
-            if (mountedRef.current) setLoading(false);
+            setLoading(false);
         }
     };
 
     useEffect(() => {
-        mountedRef.current = true;
         fetchSubscription();
-        return () => { mountedRef.current = false; };
     }, [user]);
 
     return { subscription, loading, refresh: fetchSubscription };

@@ -150,7 +150,7 @@ export const CartPage: React.FC = () => {
       // Construct composite address since detailed field is removed
       const finalAddress = {
         ...shippingAddress,
-        address: `${shippingAddress.governorate || ''}، ${shippingAddress.city || ''}`
+        address: `${shippingAddress.governorate || ''} - ${shippingAddress.city || ''}`
       };
 
       await placeOrder(simplifiedItems, finalAddress, paymentMethod);
@@ -265,7 +265,7 @@ export const CartPage: React.FC = () => {
                                 address: addr.street || '',
                                 city: addr.city || '',
                                 phone: addr.phone || '',
-                                governorate: addr.governorate || 'بغداد'
+                                governorate: addr.city || 'بغداد'
                               }));
                               toast.success('تم اختيار العنوان');
                             }}>
@@ -344,9 +344,11 @@ export const CartPage: React.FC = () => {
                       onChange={(e) => setShippingAddress({ ...shippingAddress, governorate: e.target.value })}
                       className="w-full rounded-xl border-slate-200 focus:ring-blue-500 focus:border-blue-500"
                     >
-                      {['بغداد', 'البصرة', 'نينوى', 'أربيل', 'السليمانية', 'دهوك', 'كركوك', 'صلاح الدين', 'ديالى', 'الأنبار', 'بابل', 'كربلاء', 'النجف', 'واسط', 'القادسية', 'ميسان', 'ذي قار', 'المثنى'].map((gov) => (
-                        <option key={gov} value={gov}>{gov}</option>
-                      ))}
+                      <option value="بغداد">بغداد</option>
+                      <option value="أربيل">أربيل</option>
+                      <option value="البصرة">البصرة</option>
+                      <option value="النجف">النجف</option>
+                      <option value="نينوى">نينوى</option>
                     </select>
                   </div>
                   <div>

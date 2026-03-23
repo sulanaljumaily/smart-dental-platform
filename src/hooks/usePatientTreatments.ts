@@ -81,17 +81,15 @@ export const usePatientTreatments = (patientId: string | undefined) => {
                 id: p.id,
                 patientId: p.patient_id,
                 toothNumber: p.tooth_number || 0,
-                toothNumbers: p.tooth_numbers || undefined,
                 type: (p.treatment_type as any) || 'general',
                 status: p.status,
                 totalSessions: p.session_count,
                 completedSessions: p.completed_sessions,
                 progress: p.session_count > 0 ? Math.round((p.completed_sessions / p.session_count) * 100) : 0,
                 cost: p.estimated_cost,
-                paid: p.paid || 0,
+                paid: 0, // Need to join with financial_transactions if we want real paid amount
                 startDate: p.estimated_start_date || p.created_at.split('T')[0],
                 notes: p.treatment_description || '',
-                doctor: p.assigned_doctor, // Map from DB
                 sessions: (p.sessions || [])
                     .sort((a: any, b: any) => a.session_number - b.session_number)
                     .map((s: any) => ({
@@ -117,7 +115,6 @@ export const usePatientTreatments = (patientId: string | undefined) => {
 
     const updateTooth = async (toothNumber: number, condition: string, notes: string) => {
         if (!patientId) return;
-        if (toothNumber === 0) return; // Skip update for general treatments
 
         // Optimistic Update Local
         setTeeth(prev => prev.map(t => t.number === toothNumber ? { ...t, condition: condition as any, notes } : t));
@@ -155,7 +152,6 @@ export const usePatientTreatments = (patientId: string | undefined) => {
                 .insert({
                     patient_id: patientId,
                     tooth_number: plan.toothNumber,
-                    tooth_numbers: plan.toothNumbers || null,
                     treatment_type: plan.type,
                     status: 'planned',
                     overall_status: 'needs_treatment',
@@ -164,7 +160,7 @@ export const usePatientTreatments = (patientId: string | undefined) => {
                     estimated_cost: plan.cost,
                     diagnosis: plan.notes, // Mapping notes to diagnosis/description
                     treatment_description: plan.notes,
-                    assigned_doctor: (user as any).user_metadata?.full_name || user.email || 'Unknown',
+                    assigned_doctor: user.email || 'Unknown',
                     created_by: user.id
                 })
                 .select()
@@ -229,32 +225,6 @@ export const usePatientTreatments = (patientId: string | undefined) => {
         } catch (err) {
             console.error('Error updating session:', err);
             // toast.error('فشل حفظ بيانات الجلسة'); // Silent save preferred usually
-        }
-    };
-
-    const updatePlan = async (planId: string, updates: Partial<TreatmentPlan>) => {
-        if (!patientId) return;
-
-        // Optimistic Update
-        setTreatmentPlans(prev => prev.map(p => p.id === planId ? { ...p, ...updates } : p));
-
-        try {
-            // We only support updating specific fields for now in DB mapping
-            // For 'paid' field specifically:
-            if (updates.paid !== undefined) {
-                const { error } = await supabase
-                    .from('tooth_treatment_plans')
-                    .update({ paid: updates.paid })
-                    .eq('id', planId);
-                if (error) throw error;
-            }
-
-            // For other fields, add logic as needed
-
-        } catch (err) {
-            console.error('Error updating plan:', err);
-            // Revert logic would go here
-            toast.error('فشل تحديث الخطة');
         }
     };
 
@@ -335,7 +305,6 @@ export const usePatientTreatments = (patientId: string | undefined) => {
         updateTooth,
         addPlan,
         updateSession,
-        updatePlan,
         completeSession,
         deletePlan,
         loading,

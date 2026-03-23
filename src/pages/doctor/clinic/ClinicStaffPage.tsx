@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../../../lib/supabase';
+import React, { useState } from 'react';
 import {
   Users,
   Search,
@@ -18,8 +17,7 @@ import {
   UserX,
   Edit,
   FileText,
-  X,
-  History
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card } from '../../../components/common/Card';
@@ -27,10 +25,10 @@ import { Button } from '../../../components/common/Button';
 import { formatDate } from '../../../lib/utils';
 import { BentoStatCard } from '../../../components/dashboard/BentoStatCard';
 import { useStaff, StaffMember } from '../../../hooks/useStaff';
-import { StaffFormModal } from '../components/StaffFormModal';
-import { useAuth } from '../../../contexts/AuthContext';
 import { StaffProfileContent } from './components/StaffProfileContent';
-import { ActivityLogModal } from '../components/ActivityLogModal';
+import { useAuth } from '../../../contexts/AuthContext';
+
+
 
 interface ClinicStaffPageProps {
   clinicId: string;
@@ -43,37 +41,14 @@ export const ClinicStaffPage: React.FC<ClinicStaffPageProps> = ({ clinicId }) =>
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [viewingStaffProfile, setViewingStaffProfile] = useState<StaffMember | null>(null);
-  // Unified modal state
-  const [showModal, setShowModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [showActivityLogModal, setShowActivityLogModal] = useState(false);
 
   // Supabase Hook
-  const { staff, loading, addStaff, updateStaff, deleteStaff, sendInvitation, cancelInvitation, unlinkStaff } = useStaff(clinicId);
+  const { staff, loading, addStaff, updateStaff } = useStaff(clinicId);
   const { user } = useAuth();
-  const [isOwner, setIsOwner] = useState(false);
-  const [clinicOwnerId, setClinicOwnerId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const checkOwner = async () => {
-      if (!clinicId || !user?.id) return;
-      try {
-        const { data, error } = await supabase
-          .from('clinics')
-          .select('owner_id')
-          .eq('id', clinicId)
-          .single();
-        if (error) throw error;
-        const ownerId = data?.owner_id;
-        setClinicOwnerId(ownerId);
-        setIsOwner(ownerId === user.id);
-      } catch (err) {
-        console.error("Error checking clinic owner:", err);
-        setIsOwner(false);
-      }
-    };
-    checkOwner();
-  }, [clinicId, user?.id]);
+  const isOwner = user?.role === 'doctor';
   const currentStaffPermissions = staff.find(s => s.email === user?.email)?.permissions;
 
 
@@ -89,6 +64,29 @@ export const ClinicStaffPage: React.FC<ClinicStaffPageProps> = ({ clinicId }) =>
     avgAttendance: 95, // Mock or calculate if data exists
     totalSalary: staff.reduce((acc, curr) => acc + curr.salary, 0)
   };
+
+  const [newStaff, setNewStaff] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    department: '',
+    position: 'doctor',
+    salary: '',
+    username: '',
+    password: '',
+    permissions: {
+      appointments: false,
+      patients: false,
+      financials: false,
+      settings: false,
+      reports: false,
+      activityLog: false,
+      assets: false,
+      staff: false,
+      lab: false
+    },
+    status: 'active'
+  });
 
   // Filter Logic
   const filteredStaff = staff.filter(member => {
@@ -122,7 +120,6 @@ export const ClinicStaffPage: React.FC<ClinicStaffPageProps> = ({ clinicId }) =>
       case 'on_leave': return 'text-yellow-600 bg-yellow-100';
       case 'suspended': return 'text-red-600 bg-red-100';
       case 'terminated': return 'text-gray-600 bg-gray-100';
-      case 'pending': return 'text-amber-700 bg-amber-100 border border-amber-300 border-dashed';
       default: return 'text-gray-600 bg-gray-100';
     }
   };
@@ -133,7 +130,6 @@ export const ClinicStaffPage: React.FC<ClinicStaffPageProps> = ({ clinicId }) =>
       case 'on_leave': return 'إجازة';
       case 'suspended': return 'موقوف';
       case 'terminated': return 'منتهي الخدمة';
-      case 'pending': return '⏳ في الانتظار';
       default: return 'غير محدد';
     }
   };
@@ -152,48 +148,80 @@ export const ClinicStaffPage: React.FC<ClinicStaffPageProps> = ({ clinicId }) =>
 
   // Handlers
   const handleEditStaff = (staffMember: StaffMember) => {
-    setEditingStaff(staffMember);
-    setShowModal(true);
+    setEditingStaff({ ...staffMember });
+    setShowEditModal(true);
   };
 
-  const handleSave = async (data: Partial<StaffMember>) => {
-    try {
-      if (editingStaff) {
-        await updateStaff(editingStaff.id, data);
-      } else {
-        // Add default values for new staff
-        await addStaff({
-          ...data,
-          // @ts-ignore
-          clinicId,
-          hireDate: new Date().toISOString().split('T')[0],
-          address: 'العنوان غير محدد',
-          qualifications: [],
-          certifications: [],
-          workSchedule: data.workSchedule || {
-            days: ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'],
-            startTime: '09:00',
-            endTime: '17:00',
-            breaks: []
-          },
-          attendance: { present: 0, absent: 0, late: 0, overtime: 0 },
-          performance: {
-            rating: 5,
-            lastReview: new Date().toISOString().split('T')[0],
-            achievements: [],
-            goals: []
-          },
-          skills: [],
-          languages: ['العربية'],
-          notes: '',
-        } as any);
-      }
-      setShowModal(false);
-      setEditingStaff(null);
-    } catch (error) {
-      console.error("Error saving staff:", error);
-      toast.error("حدث خطأ أثناء حفظ البيانات");
+  const handleSaveStaff = async () => {
+    if (!editingStaff) return;
+    await updateStaff(editingStaff.id, editingStaff);
+    setShowEditModal(false);
+    setEditingStaff(null);
+  };
+
+  const handleAddStaff = async () => {
+    if (!newStaff.name) {
+      alert('يرجى إدخال اسم الموظف');
+      return;
     }
+
+    await addStaff({
+      clinicId,
+      name: newStaff.name,
+      phone: newStaff.phone,
+      email: newStaff.email,
+      department: newStaff.department,
+      position: newStaff.position as any,
+      salary: Number(newStaff.salary) || 0,
+      status: newStaff.status as any,
+      hireDate: new Date().toISOString().split('T')[0],
+      address: 'العنوان غير محدد',
+      qualifications: [],
+      certifications: [],
+      workSchedule: {
+        days: ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'],
+        startTime: '09:00',
+        endTime: '17:00',
+        breaks: []
+      },
+      attendance: { present: 0, absent: 0, late: 0, overtime: 0 },
+      performance: {
+        rating: 5,
+        lastReview: new Date().toISOString().split('T')[0],
+        achievements: [],
+        goals: []
+      },
+      skills: [],
+      languages: ['العربية'],
+      permissions: newStaff.permissions,
+      username: newStaff.username,
+      password: newStaff.password,
+      notes: '',
+    });
+
+    setNewStaff({
+      name: '',
+      phone: '',
+      email: '',
+      department: '',
+      position: 'doctor',
+      salary: '',
+      username: '',
+      password: '',
+      permissions: {
+        appointments: false,
+        patients: false,
+        financials: false,
+        settings: false,
+        reports: false,
+        activityLog: false,
+        assets: false,
+        staff: false,
+        lab: false
+      },
+      status: 'active'
+    });
+    setShowAddModal(false);
   };
 
   const handleViewProfile = (staffMember: any) => {
@@ -328,17 +356,6 @@ export const ClinicStaffPage: React.FC<ClinicStaffPageProps> = ({ clinicId }) =>
 
             {/* Actions */}
             <div className="flex items-center gap-3">
-              {/* Activity Log Button */}
-              {(isOwner || currentStaffPermissions?.activityLog) && (
-                <button
-                  onClick={() => setShowActivityLogModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <History className="w-4 h-4" />
-                  <span className="text-sm font-medium">سجل النشاطات</span>
-                </button>
-              )}
-
               {/* View Toggle */}
               <div className="flex bg-gray-100 rounded-lg p-1">
                 <button
@@ -362,18 +379,13 @@ export const ClinicStaffPage: React.FC<ClinicStaffPageProps> = ({ clinicId }) =>
               </div>
 
               {/* Add Button */}
-              {(isOwner || currentStaffPermissions?.manageStaff) && (
-                <button
-                  onClick={() => {
-                    setEditingStaff(null);
-                    setShowModal(true);
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span className="text-sm font-medium">موظف جديد</span>
-                </button>
-              )}
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="text-sm font-medium">موظف جديد</span>
+              </button>
             </div>
           </div>
         </div>
@@ -403,31 +415,15 @@ export const ClinicStaffPage: React.FC<ClinicStaffPageProps> = ({ clinicId }) =>
                   className="p-6 border border-gray-200 rounded-xl hover:shadow-lg transition-all"
                 >
                   {/* Staff Header */}
-                  {/* Staff Header */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-4">
-                      {member.avatar ? (
-                        <img src={member.avatar} alt={member.name} className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm" />
-                      ) : (
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
-                          {getPositionIcon(member.position)}
-                        </div>
-                      )}
-                      <div>
-                        <h3 className="font-semibold text-gray-900">{member.name}</h3>
-                        <p className="text-sm text-gray-600">{member.department}</p>
-                        <p className="text-xs text-blue-600 font-medium">{getPositionLabel(member.position)}</p>
-                      </div>
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+                      {getPositionIcon(member.position)}
                     </div>
-                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(member.status)}`}>
-                      {getStatusLabel(member.status)}
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-900">{member.name}</h3>
+                      <p className="text-sm text-gray-600">{member.department}</p>
+                      <p className="text-xs text-blue-600 font-medium">{getPositionLabel(member.position)}</p>
                     </div>
-                    {/* Linked account badge below status */}
-                    {member.isLinkedAccount && (
-                      <span className="text-xs text-blue-600 font-medium flex items-center gap-1 mt-1">
-                        🔗 مربوط
-                      </span>
-                    )}
                   </div>
 
                   {/* Contact Info */}
@@ -467,7 +463,15 @@ export const ClinicStaffPage: React.FC<ClinicStaffPageProps> = ({ clinicId }) =>
                     </div>
                   </div>
 
-
+                  {/* Status */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(member.status)}`}>
+                      {getStatusLabel(member.status)}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      راتب: {(member.salary || 0).toLocaleString()} د.ع
+                    </div>
+                  </div>
 
                   {/* Skills Preview */}
                   <div className="mb-4">
@@ -488,34 +492,7 @@ export const ClinicStaffPage: React.FC<ClinicStaffPageProps> = ({ clinicId }) =>
                     </div>
                   </div>
 
-                  {/* Action Buttons — context-aware for pending invitations */}
-                  {member.status === 'pending' ? (
-                    <div className="flex gap-2 mb-4">
-                      {(isOwner || currentStaffPermissions?.manageStaff || member.authUserId === user?.id || member.userId === user?.id) && (
-                        <button
-                          onClick={() => handleEditStaff(member)}
-                          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-                        >
-                          <Edit className="w-4 h-4" />
-                          تعديل
-                        </button>
-                      )}
-                      {isOwner && member.authUserId !== clinicOwnerId && member.userId !== clinicOwnerId && (
-                        <button
-                          onClick={async () => {
-                            if (confirm('هل أنت متأكد من إلغاء الدعوة؟')) {
-                              await cancelInvitation(member.invitationId || member.id);
-                            }
-                          }}
-                          className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors border border-red-200"
-                        >
-                          <X className="w-4 h-4" />
-                          إلغاء الدعوة
-                        </button>
-                      )}
-                    </div>
-
-                  ) : (
+                  {/* Action Buttons */}
                   <div className="flex gap-2 mb-4">
                     <button
                       onClick={() => handleViewProfile(member)}
@@ -524,29 +501,16 @@ export const ClinicStaffPage: React.FC<ClinicStaffPageProps> = ({ clinicId }) =>
                       <FileText className="w-4 h-4" />
                       عرض الملف
                     </button>
-                    {(isOwner || currentStaffPermissions?.manageStaff || member.authUserId === user?.id || member.userId === user?.id) && (
+                    {(isOwner || currentStaffPermissions?.staff) && (
                       <button
                         onClick={() => handleEditStaff(member)}
-                        className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
                       >
                         <Edit className="w-4 h-4" />
                         تعديل
                       </button>
                     )}
-                    {(isOwner || currentStaffPermissions?.manageStaff) && member.authUserId !== clinicOwnerId && member.userId !== clinicOwnerId && (
-                      <button
-                        onClick={async () => {
-                          if (confirm('هل أنت متأكد من حذف هذا الموظف نهائياً من طاقم العيادة؟')) {
-                            await deleteStaff(member.id);
-                          }
-                        }}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors border border-red-100"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
                   </div>
-                  )}
                 </div>
               ))}
             </div>
@@ -639,28 +603,457 @@ export const ClinicStaffPage: React.FC<ClinicStaffPageProps> = ({ clinicId }) =>
         </div>
       )}
 
-      {/* Activity Log Modal */}
-      <ActivityLogModal
-        isOpen={showActivityLogModal}
-        onClose={() => setShowActivityLogModal(false)}
-        clinicId={clinicId}
-      />
+      {/* Modal تعديل الموظف */}
+      {
+        showEditModal && editingStaff && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900">تعديل بيانات الموظف</h2>
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-6 h-6 text-gray-500" />
+                </button>
+              </div>
 
-      {/* Unified Staff Form Modal */}
-      <StaffFormModal
-        isOpen={showModal}
-        onClose={() => {
-          setShowModal(false);
-          setEditingStaff(null);
-        }}
-        initialData={editingStaff}
-        onSave={handleSave}
-        onInvite={sendInvitation}
-        onCancelInvitation={cancelInvitation}
-        onUnlink={unlinkStaff}
-        clinicId={clinicId}
-      />
+              <div className="p-6 space-y-6">
+                {/* معلومات شخصية */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">المعلومات الشخصية</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">الاسم الكامل</label>
+                      <input
+                        type="text"
+                        value={editingStaff.name}
+                        onChange={(e) => setEditingStaff({ ...editingStaff, name: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">الهاتف</label>
+                      <input
+                        type="tel"
+                        value={editingStaff.phone}
+                        onChange={(e) => setEditingStaff({ ...editingStaff, phone: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">البريد الإلكتروني</label>
+                      <input
+                        type="email"
+                        value={editingStaff.email}
+                        onChange={(e) => setEditingStaff({ ...editingStaff, email: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                </div>
 
+                {/* معلومات العمل */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">معلومات العمل</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">القسم</label>
+                      <input
+                        type="text"
+                        value={editingStaff.department}
+                        onChange={(e) => setEditingStaff({ ...editingStaff, department: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">المنصب</label>
+                      <select
+                        value={editingStaff.position}
+                        onChange={(e) => setEditingStaff({ ...editingStaff, position: e.target.value as any })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="doctor">طبيب</option>
+                        <option value="assistant">مساعد</option>
+                        <option value="nurse">ممرض</option>
+                        <option value="receptionist">مستقبل</option>
+                        <option value="admin">إداري</option>
+                        <option value="technician">فني</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">الراتب (د.ع)</label>
+                      <input
+                        type="number"
+                        value={editingStaff.salary}
+                        onChange={(e) => setEditingStaff({ ...editingStaff, salary: Number(e.target.value) })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">الحالة</label>
+                      <select
+                        value={editingStaff.status}
+                        onChange={(e) => setEditingStaff({ ...editingStaff, status: e.target.value as any })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="active">نشط</option>
+                        <option value="on_leave">إجازة</option>
+                        <option value="suspended">موقوف</option>
+                        <option value="terminated">منتهي الخدمة</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Permissions */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">صلاحيات الوصول</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingStaff.permissions?.reports || false}
+                        onChange={(e) => setEditingStaff({
+                          ...editingStaff,
+                          permissions: { ...editingStaff.permissions, reports: e.target.checked }
+                        })}
+                        className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-gray-700">التقارير والإحصائيات</span>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingStaff.permissions?.financials || false}
+                        onChange={(e) => setEditingStaff({
+                          ...editingStaff,
+                          permissions: { ...editingStaff.permissions, financials: e.target.checked }
+                        })}
+                        className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-gray-700">الأمور المالية</span>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingStaff.permissions?.activityLog || false}
+                        onChange={(e) => setEditingStaff({
+                          ...editingStaff,
+                          permissions: { ...editingStaff.permissions, activityLog: e.target.checked }
+                        })}
+                        className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-gray-700">سجل النشاطات</span>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingStaff.permissions?.assets || false}
+                        onChange={(e) => setEditingStaff({
+                          ...editingStaff,
+                          permissions: { ...editingStaff.permissions, assets: e.target.checked }
+                        })}
+                        className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-gray-700">الأصول والمخزون</span>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingStaff.permissions?.staff || false}
+                        onChange={(e) => setEditingStaff({
+                          ...editingStaff,
+                          permissions: { ...editingStaff.permissions, staff: e.target.checked }
+                        })}
+                        className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-gray-700">إدارة الطاقم</span>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingStaff.permissions?.lab || false}
+                        onChange={(e) => setEditingStaff({
+                          ...editingStaff,
+                          permissions: { ...editingStaff.permissions, lab: e.target.checked }
+                        })}
+                        className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-gray-700">معامل الأسنان</span>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingStaff.permissions?.appointments || false}
+                        onChange={(e) => setEditingStaff({
+                          ...editingStaff,
+                          permissions: { ...editingStaff.permissions, appointments: e.target.checked }
+                        })}
+                        className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-gray-700">المواعيد</span>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingStaff.permissions?.patients || false}
+                        onChange={(e) => setEditingStaff({
+                          ...editingStaff,
+                          permissions: { ...editingStaff.permissions, patients: e.target.checked }
+                        })}
+                        className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-gray-700">المرضى</span>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingStaff.permissions?.settings || false}
+                        onChange={(e) => setEditingStaff({
+                          ...editingStaff,
+                          permissions: { ...editingStaff.permissions, settings: e.target.checked }
+                        })}
+                        className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-gray-700">الإعدادات</span>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingStaff.permissions?.appointments || false}
+                        onChange={(e) => setEditingStaff({
+                          ...editingStaff,
+                          permissions: { ...editingStaff.permissions, appointments: e.target.checked }
+                        })}
+                        className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-gray-700">المواعيد</span>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingStaff.permissions?.patients || false}
+                        onChange={(e) => setEditingStaff({
+                          ...editingStaff,
+                          permissions: { ...editingStaff.permissions, patients: e.target.checked }
+                        })}
+                        className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-gray-700">المرضى</span>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingStaff.permissions?.settings || false}
+                        onChange={(e) => setEditingStaff({
+                          ...editingStaff,
+                          permissions: { ...editingStaff.permissions, settings: e.target.checked }
+                        })}
+                        className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-gray-700">الإعدادات</span>
+                    </label>
+                  </div>
+
+
+                  {/* Login Credentials */}
+                  <div className="border-t pt-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900">بيانات الدخول</h3>
+                      <button
+                        onClick={() => {
+                          const generatedPass = Math.random().toString(36).slice(-8);
+                          setEditingStaff({ ...editingStaff, password: generatedPass });
+                          navigator.clipboard.writeText(generatedPass);
+                          toast.success(`تم نسخ كلمة المرور: ${generatedPass}`);
+                        }}
+                        className="text-sm text-blue-600 hover:text-blue-800"
+                      >
+                        توليد كلمة مرور
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">اسم المستخدم</label>
+                        <input
+                          type="text"
+                          value={editingStaff.username || ''}
+                          onChange={(e) => setEditingStaff({ ...editingStaff, username: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="username"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">كلمة المرور</label>
+                        <input
+                          type="text"
+                          value={editingStaff.password || ''}
+                          onChange={(e) => setEditingStaff({ ...editingStaff, password: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="********"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">اترك الحقل فارغاً إذا كنت لا تريد تغيير كلمة المرور</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* أزرار الحفظ */}
+                  <div className="flex gap-4 pt-6 border-t border-gray-200">
+                    <button
+                      onClick={() => setShowEditModal(false)}
+                      className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      إلغاء
+                    </button>
+                    <button
+                      onClick={handleSaveStaff}
+                      className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      حفظ التغييرات
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+      {/* Modal إضافة موظف جديد */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-gray-900">إضافة موظف جديد</h2>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* معلومات شخصية */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">المعلومات الشخصية</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">الاسم الكامل</label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="اسم الموظف"
+                      value={newStaff.name}
+                      onChange={(e) => setNewStaff({ ...newStaff, name: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">الهاتف</label>
+                    <input
+                      type="tel"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="077..."
+                      value={newStaff.phone}
+                      onChange={(e) => setNewStaff({ ...newStaff, phone: e.target.value })}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">البريد الإلكتروني</label>
+                    <input
+                      type="email"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="البريد الإلكتروني"
+                      value={newStaff.email}
+                      onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* معلومات العمل */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">معلومات العمل</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">القسم</label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      value={newStaff.department}
+                      onChange={(e) => setNewStaff({ ...newStaff, department: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">المنصب</label>
+                    <select
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      value={newStaff.position}
+                      onChange={(e) => setNewStaff({ ...newStaff, position: e.target.value })}
+                    >
+                      <option value="doctor">طبيب</option>
+                      <option value="assistant">مساعد</option>
+                      <option value="nurse">ممرض</option>
+                      <option value="receptionist">مستقبل</option>
+                      <option value="admin">إداري</option>
+                      <option value="technician">فني</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">الراتب (د.ع)</label>
+                    <input
+                      type="number"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      value={newStaff.salary}
+                      onChange={(e) => setNewStaff({ ...newStaff, salary: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">الحالة</label>
+                    <select
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      value={newStaff.status}
+                      onChange={(e) => setNewStaff({ ...newStaff, status: e.target.value })}
+                    >
+                      <option value="active">نشط</option>
+                      <option value="on_leave">إجازة</option>
+                      <option value="suspended">موقوف</option>
+                      <option value="terminated">منتهي الخدمة</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* أزرار الحفظ */}
+              <div className="flex gap-4 pt-6 border-t border-gray-200">
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={handleAddStaff}
+                  className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  إضافة
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

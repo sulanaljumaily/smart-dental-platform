@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Save, FileText, Calendar, DollarSign, Activity, CheckCircle, AlertCircle, ChevronRight, ChevronDown, Stethoscope, Clock, Shield, Beaker } from 'lucide-react';
 import { Button } from '../common/Button';
 import { Card } from '../common/Card';
-import { Modal } from '../common/Modal';
+import { Modal } from '../common/Modal'; // Import Modal
 import { TreatmentAsset } from '../../data/mock/assets';
 import { getWorkflowForAsset, TreatmentWorkflow } from '../../lib/treatment-registry';
 import { formatCurrency } from '../../lib/utils';
@@ -11,40 +11,41 @@ import { ToothCondition } from '../../types/treatment';
 interface ToothInteractionModalProps {
     isOpen: boolean;
     onClose: () => void;
-    // Multi-tooth support
-    toothNumbers: number[];
+    toothNumber: number;
+    initialData?: Partial<ToothCondition>;
     onSave: (data: any) => void;
     availableTreatments?: TreatmentAsset[];
+    initialTab?: 'general' | 'treatment';
 }
 
 export const ToothInteractionModal: React.FC<ToothInteractionModalProps> = ({
     isOpen,
     onClose,
-    toothNumbers = [],
+    toothNumber,
+    initialData,
     onSave,
-    availableTreatments = []
+    availableTreatments = [],
+    initialTab = 'general'
 }) => {
-    // Only two tabs now: treatment and confirm
-    const [activeTab, setActiveTab] = useState<'treatment' | 'confirm'>('treatment');
+    const [activeTab, setActiveTab] = useState<'general' | 'treatment' | 'confirm'>(initialTab);
 
-    // Reset when modal opens
     useEffect(() => {
         if (isOpen) {
-            setActiveTab('treatment');
-            setFormData({
-                notes: '',
-                selectedAssetId: '',
-                customCost: 0, // Cost PER TOOTH
-                priority: 'medium',
-                startDate: new Date().toISOString().split('T')[0],
-                assignedDoctor: 'د. أحمد محمد'
-            });
-            setSelectedAsset(null);
-            setSelectedWorkflow(null);
+            setActiveTab(initialTab);
         }
-    }, [isOpen, toothNumbers]);
-
-    const [formData, setFormData] = useState({
+    }, [isOpen, initialTab]);
+    const [formData, setFormData] = useState<{
+        toothCondition: any; // Relaxing type to avoid strict union issues with dynamic data
+        diagnosis: string;
+        notes: string;
+        selectedAssetId: string;
+        customCost: number;
+        priority: string;
+        startDate: string;
+        assignedDoctor: string;
+    }>({
+        toothCondition: initialData?.condition || 'healthy',
+        diagnosis: initialData?.notes || '',
         notes: '',
         selectedAssetId: '',
         customCost: 0,
@@ -55,6 +56,33 @@ export const ToothInteractionModal: React.FC<ToothInteractionModalProps> = ({
 
     const [selectedAsset, setSelectedAsset] = useState<TreatmentAsset | null>(null);
     const [selectedWorkflow, setSelectedWorkflow] = useState<TreatmentWorkflow | null>(null);
+
+    // Reset when modal opens
+    useEffect(() => {
+        if (isOpen && initialData) {
+            setFormData({
+                toothCondition: initialData.condition || 'healthy',
+                diagnosis: initialData.notes || '',
+                notes: '',
+                selectedAssetId: '',
+                customCost: 0,
+                priority: 'medium',
+                startDate: new Date().toISOString().split('T')[0],
+                assignedDoctor: 'د. أحمد محمد'
+            });
+            setSelectedAsset(null);
+            setSelectedWorkflow(null);
+        }
+    }, [isOpen, initialData, toothNumber]);
+
+    // Handle Initial Tab
+    useEffect(() => {
+        if (isOpen) {
+            // If explicit prop or logic needed, handle here. 
+            // For now, we will expose a prop in the next step or parent controls it.
+            // But we can reset to 'general' default if not controlled.
+        }
+    }, [isOpen]);
 
     // Handle Asset Selection
     useEffect(() => {
@@ -77,36 +105,43 @@ export const ToothInteractionModal: React.FC<ToothInteractionModalProps> = ({
     // Group treatments by category for better UI
     const groupedTreatments = React.useMemo(() => {
         const groups: Record<string, TreatmentAsset[]> = {};
-
-        // If toothNumbers includes 0, it means "General Treatment" (e.g. cleaning, whitening)
-        const isGeneral = toothNumbers.length === 1 && toothNumbers[0] === 0;
-
-        availableTreatments.filter(t => {
-            const treatmentScope = t.scope || 'tooth';
-            if (isGeneral) {
-                return treatmentScope === 'general' || treatmentScope === 'both';
-            } else {
-                return treatmentScope === 'tooth' || treatmentScope === 'both';
-            }
-        }).forEach(t => {
+        availableTreatments.forEach(t => {
             if (!groups[t.category]) groups[t.category] = [];
             groups[t.category].push(t);
         });
         return groups;
-    }, [availableTreatments, toothNumbers]);
+    }, [availableTreatments]);
+
+    const handleSaveCondition = () => {
+        onSave({
+            toothNumber,
+            condition: formData.toothCondition,
+            notes: formData.diagnosis // Save diagnosis as main note
+        });
+        onClose();
+    };
 
     const handleConfirmTreatment = () => {
         if (!selectedAsset || !selectedWorkflow) return;
 
+        // Calculate total duration
+        const totalDuration = selectedWorkflow.defaultSessions.reduce((acc, s) => acc + s.duration, 0);
+
+
         // Determine the "Resulting Condition" based on the Treatment Type
-        let resultingCondition = 'healthy'; // Default fallback, but actually it will be merged with current condition in parent
+        // This satisfies the user requirement: "Shape changes after selecting treatment"
+        let resultingCondition = formData.toothCondition;
 
         if (selectedWorkflow.type === 'endo' || selectedAsset.category === 'علاج جذور') {
             resultingCondition = 'endo';
         } else if (selectedWorkflow.type === 'implant' || (selectedAsset.category === 'جراحة' && selectedAsset.name.includes('Implant'))) {
             resultingCondition = 'implant';
         } else if (selectedWorkflow.type === 'prosthetic' || selectedAsset.category === 'تعويضات') {
-            resultingCondition = 'crown';
+            if (selectedAsset.name.toLowerCase().includes('crown') || selectedAsset.name.includes('تاج')) {
+                resultingCondition = 'crown';
+            } else {
+                resultingCondition = 'crown'; // Default prosthetic visual
+            }
         } else if (selectedAsset.name.toLowerCase().includes('extraction') || selectedAsset.name.includes('قلع')) {
             resultingCondition = 'missing';
         } else if (selectedAsset.category === 'ترميمي' || selectedAsset.category === 'Restorative') {
@@ -114,38 +149,43 @@ export const ToothInteractionModal: React.FC<ToothInteractionModalProps> = ({
         }
 
         onSave({
-            toothNumbers,
-            condition: resultingCondition, // Applied predictive visual condition per tooth
+            toothNumber,
+            condition: resultingCondition, // Apply predictive visual condition
             treatmentType: selectedWorkflow.type,
-            notes: formData.notes,
+            notes: formData.notes || formData.diagnosis, // Combine notes
 
-            estimatedCostPerTooth: formData.customCost, // Note: per tooth
+            // Plan Meta Data
+            estimatedCost: formData.customCost,
             startDate: formData.startDate,
-            priority: formData.priority,
 
-            // Construct the Plan blueprint
+            // Construct the Plan
             treatmentPlan: {
                 assetId: selectedAsset.id,
                 workflowType: selectedWorkflow.type,
                 name: selectedAsset.name,
-                sessions: selectedWorkflow.defaultSessions.map((s) => ({
+
+                // Session Generation based on Registry
+                sessions: selectedWorkflow.defaultSessions.map((s, idx) => ({
                     title: s.title,
                     duration: s.duration,
-                    schemaId: s.schemaId,
+                    schemaId: s.schemaId, // Important: This links to the Dynamic Forms
                     status: 'pending'
                 })),
+
                 requiresLab: selectedWorkflow.requiresLab || selectedAsset.isComplex
             }
         });
         onClose();
     };
 
-    const isGeneral = toothNumbers.length === 1 && toothNumbers[0] === 0;
-    const titleString = isGeneral
-        ? 'اختيار علاج عام'
-        : `خطة علاج لـ ${toothNumbers.length > 1 ? `(${toothNumbers.length}) أسنان` : `السن رقم ${toothNumbers[0]}`}`;
-
-    const teethListString = isGeneral ? 'عام' : toothNumbers.join(' , ');
+    const conditions = [
+        { id: 'healthy', label: 'سليم', color: 'bg-green-100 text-green-800' },
+        { id: 'cavity', label: 'تسوس', color: 'bg-red-100 text-red-800' },
+        { id: 'broken', label: 'مكسور', color: 'bg-orange-100 text-orange-800' },
+        { id: 'missing', label: 'مفقود', color: 'bg-gray-100 text-gray-800' },
+        { id: 'stained', label: 'تصبغ', color: 'bg-yellow-100 text-yellow-800' },
+        { id: 'abscess', label: 'خراج', color: 'bg-red-200 text-red-900' }
+    ];
 
     return (
         <Modal
@@ -162,24 +202,35 @@ export const ToothInteractionModal: React.FC<ToothInteractionModalProps> = ({
                             <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
                                 <Activity className="w-6 h-6" />
                             </div>
-                            {titleString}
+                            تفاعل السن رقم {toothNumber}
                         </h2>
-                        <p className="text-blue-100 opacity-90 mt-1 mr-14">
-                            {!isGeneral && `الأسنان المستهدفة: ${teethListString}`}
-                        </p>
+                        <p className="text-blue-100 opacity-90 mt-1 mr-14">تشخيص الحالة واختيار خطة العلاج المناسبة</p>
                     </div>
+                    {/* Close button is handled by Modal typically, but we suppressed the header. 
+                        Actually standard Modal normally has a close button in its header. 
+                        Since we passed no title, we might miss the close button if Modal logic hides header when title is missing.
+                        Checking Modal.tsx logic: {title && ( ... )} -> yes, it hides the entire header bar if no title.
+                        So we need to add our own close button here if we want the custom header look.
+                    */}
                     <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full transition-colors">
                         <X className="w-6 h-6" />
                     </button>
                 </div>
 
                 {/* Stepper / Status Bar */}
-                <div className="bg-gray-50 border-b p-4 flex justify-end items-center text-sm shadow-sm z-10">
+                <div className="bg-gray-50 border-b p-4 flex justify-between items-center text-sm shadow-sm z-10">
+                    <div className="flex items-center gap-3">
+                        <span className="text-gray-500 font-medium">الحالة الحالية:</span>
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold ring-1 ring-inset ${conditions.find(c => c.id === formData.toothCondition)?.color || 'bg-gray-100'
+                            }`}>
+                            {conditions.find(c => c.id === formData.toothCondition)?.label || formData.toothCondition}
+                        </span>
+                    </div>
                     <div className="flex items-center gap-2">
-                        {['treatment', 'confirm'].map((step, idx) => (
-                            <div key={step} className={`flex items-center ${idx < 1 ? 'after:content-[""] after:w-8 after:h-0.5 after:mx-2 after:bg-gray-200' : ''}`}>
+                        {['general', 'treatment', 'confirm'].map((step, idx) => (
+                            <div key={step} className={`flex items-center ${idx < 2 ? 'after:content-[""] after:w-8 after:h-0.5 after:mx-2 after:bg-gray-200' : ''}`}>
                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${activeTab === step ? 'bg-blue-600 text-white shadow-md scale-110' :
-                                        (idx < ['treatment', 'confirm'].indexOf(activeTab)) ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'
+                                    (idx < ['general', 'treatment', 'confirm'].indexOf(activeTab)) ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'
                                     }`}>
                                     {idx + 1}
                                 </div>
@@ -190,8 +241,63 @@ export const ToothInteractionModal: React.FC<ToothInteractionModalProps> = ({
 
                 {/* Content Area */}
                 <div className="flex-1 p-6">
+                    {activeTab === 'general' && (
+                        <div className="space-y-6 animate-in slide-in-from-right-8 duration-300">
+                            <Card className="p-8 border-blue-100 shadow-sm bg-white">
+                                <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-gray-800 border-b pb-4">
+                                    <Stethoscope className="w-5 h-5 text-blue-600" />
+                                    التشخيص الأولي للحالة
+                                </h3>
+
+                                <div className="mb-8">
+                                    <label className="block text-sm font-bold text-gray-700 mb-4">اختر حالة السن الظاهرية</label>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                                        {conditions.map(cond => (
+                                            <button
+                                                key={cond.id}
+                                                onClick={() => setFormData(prev => ({ ...prev, toothCondition: cond.id }))}
+                                                className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 hover:shadow-md ${formData.toothCondition === cond.id
+                                                    ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200 transform scale-105'
+                                                    : 'border-transparent bg-white hover:border-gray-200'
+                                                    }`}
+                                            >
+                                                <div className={`w-3 h-3 rounded-full ${cond.color.split(' ')[0].replace('bg-', 'bg-')}`}></div>
+                                                <span className={`text-sm font-bold ${formData.toothCondition === cond.id ? 'text-blue-700' : 'text-gray-600'}`}>
+                                                    {cond.label}
+                                                </span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-2">ملاحظات التشخيص السريري</label>
+                                    <textarea
+                                        className="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none shadow-sm transition-shadow focus:shadow-md"
+                                        rows={4}
+                                        placeholder="اكتب تفاصيل التشخيص هنا... (مثلاً: تسوس عميق واصل للعصب، ألم عند الطرق، حركة درجة 1)"
+                                        value={formData.diagnosis}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, diagnosis: e.target.value }))}
+                                    />
+                                </div>
+                            </Card>
+
+                            <div className="flex justify-end gap-4 pt-4">
+                                <Button variant="outline" onClick={handleSaveCondition} className="hover:bg-gray-50">
+                                    حفظ الحالة فقط (بدون خطة)
+                                </Button>
+                                <Button onClick={() => setActiveTab('treatment')} className="bg-blue-600 hover:bg-blue-700 text-white px-8">
+                                    التالي: اختيار العلاج
+                                    <ChevronRight className="w-4 h-4 mr-2 rotate-180" />
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
                     {activeTab === 'treatment' && (
                         <div className="space-y-6 animate-in slide-in-from-right-8 duration-300">
+                            {/* Categories Filter could go here */}
+
                             <div className="grid grid-cols-1 gap-8">
                                 {Object.entries(groupedTreatments).map(([category, treatments]) => (
                                     <div key={category}>
@@ -214,7 +320,7 @@ export const ToothInteractionModal: React.FC<ToothInteractionModalProps> = ({
                                                         </span>
                                                         {asset.isComplex && (
                                                             <span className="flex items-center gap-1 text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded-full border border-orange-100">
-                                                                <Clock className="w-3 h-3" /> جلسات
+                                                                <Clock className="w-3 h-3" /> جلسات متعددة
                                                             </span>
                                                         )}
                                                     </div>
@@ -224,7 +330,8 @@ export const ToothInteractionModal: React.FC<ToothInteractionModalProps> = ({
                                                     <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
                                                         <span className="font-bold text-lg text-blue-600">{formatCurrency(asset.basePrice)}</span>
                                                         <div className="text-xs text-gray-400">
-                                                            {getWorkflowForAsset(asset.name, asset.category).defaultSessions.length} جلسات م.
+                                                            {/* Placeholder for matched registry info */}
+                                                            {getWorkflowForAsset(asset.name, asset.category).defaultSessions.length} جلسات مقدرة
                                                         </div>
                                                     </div>
 
@@ -239,12 +346,12 @@ export const ToothInteractionModal: React.FC<ToothInteractionModalProps> = ({
                                         </div>
                                     </div>
                                 ))}
-                                {Object.keys(groupedTreatments).length === 0 && (
-                                    <div className="text-center py-12 text-gray-500">لا توجد علاجات متاحة لهذه الفئة.</div>
-                                )}
                             </div>
 
-                            <div className="flex justify-end pt-6 border-t mt-4 sticky bottom-0 bg-gray-50/95 backdrop-blur-sm p-4 border-t-gray-200 -mx-6 -mb-6">
+                            <div className="flex justify-between items-center pt-6 border-t mt-4 sticky bottom-0 bg-gray-50/95 backdrop-blur-sm p-4 border-t-gray-200 -mx-6 -mb-6">
+                                <Button variant="ghost" onClick={() => setActiveTab('general')}>
+                                    السابق
+                                </Button>
                                 <Button
                                     onClick={() => setActiveTab('confirm')}
                                     disabled={!formData.selectedAssetId}
@@ -265,7 +372,7 @@ export const ToothInteractionModal: React.FC<ToothInteractionModalProps> = ({
                                     <div className="bg-blue-50/50 p-6 border-b border-blue-100">
                                         <h3 className="text-lg font-bold flex items-center gap-2 text-blue-900">
                                             <FileText className="w-5 h-5 text-blue-600" />
-                                            ملخص الخطة العلاجية ({toothNumbers.length} أسنان)
+                                            ملخص الخطة العلاجية
                                         </h3>
                                     </div>
 
@@ -284,11 +391,8 @@ export const ToothInteractionModal: React.FC<ToothInteractionModalProps> = ({
                                                 </div>
                                             </div>
                                             <div className="text-left">
-                                                <p className="text-sm text-gray-500 mb-1 font-medium">تكلفة السن الواحد</p>
+                                                <p className="text-sm text-gray-500 mb-1 font-medium">التكلفة التقديرية</p>
                                                 <p className="font-bold text-xl text-blue-600 font-mono">{formatCurrency(formData.customCost)}</p>
-                                                {toothNumbers.length > 1 && (
-                                                    <p className="text-xs font-bold text-indigo-700 mt-1">الإجمالي: {formatCurrency(formData.customCost * toothNumbers.length)}</p>
-                                                )}
                                             </div>
                                         </div>
 
@@ -324,7 +428,7 @@ export const ToothInteractionModal: React.FC<ToothInteractionModalProps> = ({
 
                                         <div className="space-y-4">
                                             <div>
-                                                <label className="block text-xs font-bold text-gray-600 mb-1.5">تعديل التكلفة (للسن الواحد)</label>
+                                                <label className="block text-xs font-bold text-gray-600 mb-1.5">تعديل التكلفة</label>
                                                 <div className="relative">
                                                     <input
                                                         type="number"
@@ -381,7 +485,7 @@ export const ToothInteractionModal: React.FC<ToothInteractionModalProps> = ({
                                         className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg shadow-green-100 py-3 text-lg font-bold rounded-xl transform transition-all hover:-translate-y-1"
                                     >
                                         <CheckCircle className="w-5 h-5 ml-2" />
-                                        اعتماد وتوليد الخطط ({toothNumbers.length})
+                                        اعتماد الخطة العلاجية
                                     </Button>
 
                                     <Button variant="ghost" onClick={() => setActiveTab('treatment')} className="w-full text-gray-500">

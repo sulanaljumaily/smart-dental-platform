@@ -25,8 +25,6 @@ export interface SupplierOrder {
         name: string;
         phone: string;
         address: string;
-        governorate?: string;
-        city?: string;
         rating: number;
     };
 }
@@ -199,9 +197,7 @@ export const useSupplierOrders = () => {
                 customer: {
                     name: o.user_name || 'Client',
                     phone: o.shipping_address?.phone || '',
-                    address: typeof o.shipping_address === 'string' ? o.shipping_address : o.shipping_address?.address || '',
-                    governorate: typeof o.shipping_address === 'object' ? o.shipping_address?.governorate : undefined,
-                    city: typeof o.shipping_address === 'object' ? o.shipping_address?.city : undefined,
+                    address: o.shipping_address?.address || '',
                     rating: 5.0
                 }
             }));

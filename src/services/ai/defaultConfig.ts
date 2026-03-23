@@ -6,7 +6,7 @@ export const DEFAULT_AI_CONFIGS: Record<string, AIAgentConfig> = {
         name: 'محلل الصور الطبية (Medical Image Analyst)',
         description: 'متخصص في تحليل صور الأشعة والصور السريرية للكشف عن التسوسات وأمراض اللثة.',
         provider: 'openai',
-        model: 'gpt-4o',
+        model: 'gpt-4-vision-preview',
         isActive: true,
         temperature: 0.2,
         systemRules: `You are an expert dental radiologist and oral pathologist.
@@ -21,7 +21,7 @@ export const DEFAULT_AI_CONFIGS: Record<string, AIAgentConfig> = {
         name: 'المساعد الطبي للطبيب (Doctor Assistant)',
         description: 'مساعد ذكي للطبيب للمساعدة في التشخيص، خطط العلاج، وإدارة العيادة.',
         provider: 'anthropic',
-        model: 'claude-3-5-sonnet-20240620',
+        model: 'claude-3-opus',
         isActive: true,
         temperature: 0.7,
         systemRules: `You are a helpful AI assistant for a dentist.
@@ -36,7 +36,7 @@ export const DEFAULT_AI_CONFIGS: Record<string, AIAgentConfig> = {
         name: 'المساعد الذكي للمريض (Patient Smart Guide)',
         description: 'بوت دردشة للمرضى للإجابة على الأسئلة العامة وحجز المواعيد.',
         provider: 'openai',
-        model: 'gpt-4o-mini',
+        model: 'gpt-3.5-turbo',
         isActive: true,
         temperature: 0.5,
         systemRules: `You are a friendly and empathetic dental health guide for patients.

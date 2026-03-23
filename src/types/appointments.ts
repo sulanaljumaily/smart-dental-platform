@@ -8,7 +8,6 @@ export interface Doctor {
   email?: string;
   schedule?: WeeklySchedule;
   isActive: boolean;
-  avatar?: string;
 }
 
 export interface WeeklySchedule {
@@ -23,7 +22,7 @@ export interface DaySchedule {
   breakEnd?: string;   // "13:00"
 }
 
-export type AppointmentType =
+export type AppointmentType = 
   | 'consultation'      // استشارة
   | 'treatment'         // علاج
   | 'followup'          // متابعة
@@ -35,7 +34,7 @@ export type AppointmentType =
   | 'orthodontics'     // تقويم
   | 'surgery';         // جراحة
 
-export type AppointmentStatus =
+export type AppointmentStatus = 
   | 'scheduled'         // مجدول
   | 'confirmed'         // مؤكد
   | 'completed'         // مكتمل
@@ -43,14 +42,12 @@ export type AppointmentStatus =
   | 'noshow'           // لم يحضر
   | 'delayed'          // متأخر
   | 'rescheduled'      // مؤجل
-  | 'inprogress'       // جاري التنفيذ
-  | 'pending';         // معلق (للطلبات الأونلاين)
+  | 'inprogress';      // جاري التنفيذ
 
 export type AppointmentDuration = 15 | 30 | 45 | 60 | 90 | 120;
 
 export interface Appointment {
   id: string;
-  clinicId: string;     // Added
   patientId: string;
   patientName: string;
   patientPhone: string;
@@ -58,7 +55,6 @@ export interface Appointment {
   doctorName: string;
   date: string;           // "2025-11-08"
   startTime: string;      // "14:30"
-  time: string;           // Added Compatibility Alias for startTime
   endTime: string;        // "15:30"
   duration: AppointmentDuration; // in minutes
   type: AppointmentType;
@@ -67,32 +63,31 @@ export interface Appointment {
   description?: string;   // وصف الموعد
   notes?: string;         // ملاحظات الطبيب
   priority: 'low' | 'normal' | 'high' | 'urgent';
-
+  
   // معلومات إضافية
   createdAt: string;
   createdBy: string;
   updatedAt?: string;
   updatedBy?: string;
-
+  
   // للمواعيد المتكررة
   isRecurring?: boolean;
   recurringPattern?: RecurringPattern;
   parentAppointmentId?: string; // للمواعيد المتكررة
-
+  
   // التذكيرات والإشعارات
   reminders?: AppointmentReminder[];
   notifications?: AppointmentNotification[];
-
+  
   // التكلفة والدفع
   estimatedCost?: number;
   actualCost?: number;
-  cost?: number;          // Added Compatibility Alias
   paymentStatus?: 'pending' | 'paid' | 'partial' | 'refunded';
-
+  
   // سبب الإلغاء أو التأجيل
   cancellationReason?: string;
   rescheduleReason?: string;
-
+  
   // معلومات الحضور
   checkInTime?: string;
   checkOutTime?: string;

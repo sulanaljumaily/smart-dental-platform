@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import { Product, Supplier, Brand, PromotionalCard } from '../types';
 import { toast } from 'sonner';
@@ -63,7 +63,6 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         loading: true,
         error: null
     });
-    const mountedRef = useRef(true);
 
     // --- Cart State ---
     const [cart, setCart] = useState<CartItem[]>(() => {
@@ -122,18 +121,14 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             try {
                 const { data } = await supabase.from('brands').select('*');
                 if (data) brandsData = data;
-            } catch (e: any) {
-                if (e?.name !== 'AbortError' && !e?.message?.includes('AbortError')) console.warn('Brands fetch failed', e);
-            }
+            } catch (e) { console.warn('Brands fetch failed', e); }
 
             // 4. Fetch Promos (Optional - Likely Missing)
             let promosData: any[] = [];
             try {
                 const { data } = await supabase.from('promotional_cards').select('*').eq('active', true);
                 if (data) promosData = data;
-            } catch (e: any) {
-                if (e?.name !== 'AbortError' && !e?.message?.includes('AbortError')) console.warn('Promos fetch failed', e);
-            }
+            } catch (e) { console.warn('Promos fetch failed', e); }
 
             // 5. Fetch Favorites (Optional - Likely Missing)
             let favoritesData: any[] = [];
@@ -143,9 +138,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                     const { data } = await supabase.from('favorites').select('product_id').eq('user_id', user.id);
                     if (data) favoritesData = data;
                 }
-            } catch (e: any) {
-                if (e?.name !== 'AbortError' && !e?.message?.includes('AbortError')) console.warn('Favorites fetch failed', e);
-            }
+            } catch (e) { console.warn('Favorites fetch failed', e); }
 
             // Mock Response structure to reuse existing logic
             const productsResponse = productsResult;
@@ -179,18 +172,15 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             if (!suppliersResponse.error && suppliersResponse.data?.length) {
                 const dbSuppliers = suppliersResponse.data.map(s => ({
                     id: s.id,
-                    name: s.name,
+                    name: s.name, // Changed to name
                     description: s.description || '',
                     rating: Number(s.rating),
                     reviews: 0,
                     totalProducts: 0,
-                    location: s.address || s.location || 'بغداد',
-                    address: s.address || '',
-                    governorate: s.governorate || s.city || 'بغداد',
-                    phone: s.phone || '',
-                    email: s.email || s.contact_email || '',
-                    logo: s.logo || s.image_url || '',
-                    logo_url: s.logo || s.image_url || '',
+                    location: s.location || s.address || 'بغداد',
+                    governorate: s.city || 'بغداد',
+                    phone: s.phone,
+                    email: s.contact_email,
                     verified: s.is_verified || false,
                     trusted: false,
                     joinedDate: s.created_at,
@@ -233,9 +223,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                     }));
                 mergedProducts = dbProducts;
             } else {
-                if (productsResponse.error && !productsResponse.error?.message?.includes('AbortError')) {
-                    console.error('Error fetching products from DB:', productsResponse.error);
-                }
+                console.error('Error fetching products from DB:', productsResponse.error);
                 mergedProducts = [];
             }
 
@@ -268,23 +256,18 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             });
 
         } catch (err: any) {
-            if (err?.name === 'AbortError' || err?.message?.includes('AbortError')) return;
-            if (mountedRef.current) {
-                console.error('Context Fetch Error:', err);
-                setState(prev => ({
-                    ...prev,
-                    loading: false,
-                    products: [],
-                    error: err.message
-                }));
-            }
+            console.error('Context Fetch Error:', err);
+            setState(prev => ({
+                ...prev,
+                loading: false,
+                products: [],
+                error: err.message
+            }));
         }
     };
 
     useEffect(() => {
-        mountedRef.current = true;
         fetchStoreData();
-        return () => { mountedRef.current = false; };
     }, []);
 
     // 2. Persist Cart & Wishlist

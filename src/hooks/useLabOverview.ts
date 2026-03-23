@@ -171,7 +171,7 @@ export const useLabOverview = () => {
             const mappedRecentOrders: RecentOrder[] = orders.slice(0, 5).map(o => ({
                 id: o.id.slice(0, 8),
                 patientName: o.patient_name,
-                clinicName: (o.clinic as any)?.name || 'عيادة غير محددة',
+                clinicName: o.clinic?.name || 'عيادة غير محددة',
                 workType: o.service_name,
                 status: o.status as any,
                 date: o.created_at,

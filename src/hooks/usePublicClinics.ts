@@ -27,8 +27,7 @@ export const usePublicClinics = () => {
                         return {
                             id: c.id.toString(),
                             name: c.name,
-                            address: c.address || '',
-                            governorate: c.governorate || '',
+                            address: c.address || 'العنوان غير محدد',
                             phone: c.phone || '',
                             location: c.latitude && c.longitude
                                 ? { lat: Number(c.latitude) + jitterLat, lng: Number(c.longitude) + jitterLng }
@@ -44,7 +43,7 @@ export const usePublicClinics = () => {
                             owner_id: c.owner_id,
                             settings: c.settings || {},
                             isFeatured: c.is_featured || false,
-                            isDigitalBookingEnabled: c.is_digital_booking || false,
+                            isDigitalBookingEnabled: c.is_digital_booking || false
                         };
                     });
                     setClinics(mapped);

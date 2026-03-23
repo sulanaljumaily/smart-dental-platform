@@ -78,180 +78,98 @@ export const MedicalServicesSection: React.FC = () => {
 /* Sub-components */
 
 const AIStatsView = () => {
-    const [stats, setStats] = useState<{ clinics: any[], visitors: any[] }>({ clinics: [], visitors: [] });
-    const [loading, setLoading] = useState(true);
-    const [activeSubTab, setActiveSubTab] = useState<'clinics' | 'visitors'>('clinics');
-
-    useEffect(() => {
-        loadStats();
-    }, []);
-
-    const loadStats = async () => {
-        setLoading(true);
-        try {
-            const data = await aiService.getUsageStats();
-            setStats(data);
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Calculate Totals
-    const totalClinicRequests = stats.clinics.reduce((acc, curr) => acc + curr.used, 0);
-    const totalVisitorRequests = stats.visitors.reduce((acc, curr) => acc + curr.requests, 0);
-    const totalRequests = totalClinicRequests + totalVisitorRequests;
-    const activeClinics = stats.clinics.length;
+    // Mock Data for AI Stats
+    const stats = [
+        { id: 1, clinic: "عيادة الشفاء", doctor: "د. أحمد", plan: "Premium", used: 145, limit: "∞", lastUse: "منذ 2 دقيقة" },
+        { id: 2, clinic: "مركز الابتسامة", doctor: "د. سارة", plan: "Basic", used: 48, limit: 50, lastUse: "منذ 1 ساعة" },
+        { id: 3, clinic: "عيادة النور", doctor: "د. محمد", plan: "Basic", used: 12, limit: 50, lastUse: "أمس" },
+        { id: 4, clinic: "مركز بغداد", doctor: "د. علي", plan: "Premium", used: 850, limit: "∞", lastUse: "منذ 5 دقائق" },
+        { id: 5, clinic: "عيادة دجلة", doctor: "د. نور", plan: "Premium", used: 32, limit: "∞", lastUse: "اليوم" },
+    ];
 
     return (
         <div className="space-y-6 animate-in fade-in">
-            {/* Global Stats Cards */}
+            {/* Global Stats */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                    <p className="text-gray-500 text-xs mb-1">إجمالي الطلبات (الكلي)</p>
-                    <h3 className="text-2xl font-bold text-gray-900">{totalRequests}</h3>
-                </div>
-                <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                    <p className="text-gray-500 text-xs mb-1">طلبات الزوار (Public)</p>
-                    <h3 className="text-2xl font-bold text-blue-600">{totalVisitorRequests}</h3>
+                    <p className="text-gray-500 text-xs mb-1">إجمالي الطلبات (اليوم)</p>
+                    <h3 className="text-2xl font-bold text-gray-900">1,245</h3>
                 </div>
                 <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
                     <p className="text-gray-500 text-xs mb-1">العيادات النشطة (AI)</p>
-                    <h3 className="text-2xl font-bold text-purple-600">{activeClinics}</h3>
+                    <h3 className="text-2xl font-bold text-purple-600">42</h3>
                 </div>
                 <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                    <p className="text-gray-500 text-xs mb-1">متوسط الاستجابة</p>
-                    <h3 className="text-2xl font-bold text-green-600">~1.5s</h3>
+                    <p className="text-gray-500 text-xs mb-1">التكلفة التقديرية</p>
+                    <h3 className="text-2xl font-bold text-gray-900">$12.50</h3>
+                </div>
+                <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                    <p className="text-gray-500 text-xs mb-1">متوسط وقت الاستجابة</p>
+                    <h3 className="text-2xl font-bold text-green-600">1.2s</h3>
                 </div>
             </div>
 
-            {/* Sub Tabs */}
-            <div className="flex gap-2 border-b border-gray-200 pb-1">
-                <button
-                    onClick={() => setActiveSubTab('clinics')}
-                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeSubTab === 'clinics' ? 'bg-white border-b-2 border-purple-600 text-purple-600' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                    استهلاك العيادات
-                </button>
-                <button
-                    onClick={() => setActiveSubTab('visitors')}
-                    className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeSubTab === 'visitors' ? 'bg-white border-b-2 border-purple-600 text-purple-600' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                    استهلاك الزوار (Public)
-                </button>
-            </div>
-
-            {/* Sub Content */}
-            {activeSubTab === 'clinics' ? (
-                <Card className="overflow-hidden border border-gray-100 shadow-sm rounded-b-2xl rounded-tr-2xl">
-                    <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                        <h3 className="font-bold text-gray-900">قائمة العيادات المستهلكة للخدمة</h3>
-                        <Button variant="outline" size="sm" onClick={loadStats} className="bg-white">
-                            تحديث البيانات
+            {/* Usage Table */}
+            <Card className="overflow-hidden border border-gray-100 shadow-sm rounded-2xl">
+                <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                    <h3 className="font-bold text-gray-900">استهلاك العيادات للذكاء الاصطناعي</h3>
+                    <div className="flex gap-2">
+                        <Button variant="outline" size="sm" className="bg-white">
+                            تصدير التقرير
                         </Button>
                     </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-right">
-                            <thead className="bg-gray-50 text-gray-500 text-xs font-semibold uppercase">
-                                <tr>
-                                    <th className="px-6 py-4">العيادة</th>
-                                    <th className="px-6 py-4">الباقة</th>
-                                    <th className="px-6 py-4">الاستهلاك / الحد</th>
-                                    <th className="px-6 py-4">آخر نشاط</th>
-                                    <th className="px-6 py-4">الحالة</th>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-right">
+                        <thead className="bg-gray-50 text-gray-500 text-xs font-semibold uppercase">
+                            <tr>
+                                <th className="px-6 py-4">العيادة</th>
+                                <th className="px-6 py-4">الباقة</th>
+                                <th className="px-6 py-4">الاستهلاك / الحد</th>
+                                <th className="px-6 py-4">آخر نشاط</th>
+                                <th className="px-6 py-4">الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {stats.map((item) => (
+                                <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
+                                    <td className="px-6 py-4">
+                                        <div>
+                                            <div className="font-bold text-gray-900">{item.clinic}</div>
+                                            <div className="text-xs text-gray-500">{item.doctor}</div>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className={`px-2 py-1 rounded-lg text-xs font-bold ${item.plan === 'Premium' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'}`}>
+                                            {item.plan}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                                <div
+                                                    className={`h-full ${item.plan === 'Premium' ? 'bg-purple-500' : (item.used > 40 ? 'bg-red-500' : 'bg-blue-500')}`}
+                                                    style={{ width: item.limit === '∞' ? '10%' : `${(item.used / Number(item.limit)) * 100}%` }}
+                                                />
+                                            </div>
+                                            <span className="text-sm font-medium">
+                                                {item.used} <span className="text-gray-400">/ {item.limit}</span>
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-gray-600">{item.lastUse}</td>
+                                    <td className="px-6 py-4">
+                                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700`}>
+                                            <CheckCircle className="w-3 h-3" />
+                                            نشط
+                                        </span>
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {loading ? (
-                                    <tr><td colSpan={5} className="text-center py-8">جاري تحميل البيانات...</td></tr>
-                                ) : stats.clinics.length === 0 ? (
-                                    <tr><td colSpan={5} className="text-center py-8 text-gray-500">لا توجد بيانات استهلاك للعيادات حتى الآن</td></tr>
-                                ) : (
-                                    stats.clinics.map((item: any) => (
-                                        <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
-                                            <td className="px-6 py-4">
-                                                <div>
-                                                    <div className="font-bold text-gray-900">{item.clinic}</div>
-                                                    <div className="text-xs text-gray-500">{item.doctor}</div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className={`px-2 py-1 rounded-lg text-xs font-bold ${item.plan === 'premium' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'}`}>
-                                                    {item.plan}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden">
-                                                        <div
-                                                            className={`h-full ${item.plan === 'premium' ? 'bg-purple-500' : (item.used > 40 ? 'bg-red-500' : 'bg-blue-500')}`}
-                                                            style={{ width: item.limit === '∞' ? '10%' : `${Math.min((item.used / Number(item.limit)) * 100, 100)}%` }}
-                                                        />
-                                                    </div>
-                                                    <span className="text-sm font-medium">
-                                                        {item.used} <span className="text-gray-400">/ {item.limit}</span>
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-sm text-gray-600">{item.lastUse}</td>
-                                            <td className="px-6 py-4">
-                                                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700`}>
-                                                    <CheckCircle className="w-3 h-3" />
-                                                    نشط
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </Card>
-            ) : (
-                <Card className="overflow-hidden border border-gray-100 shadow-sm rounded-b-2xl rounded-tr-2xl">
-                    <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                        <h3 className="font-bold text-gray-900">سجل استهلاك الزوار (غير المسجلين)</h3>
-                        <Button variant="outline" size="sm" onClick={loadStats} className="bg-white">
-                            تحديث البيانات
-                        </Button>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-right">
-                            <thead className="bg-gray-50 text-gray-500 text-xs font-semibold uppercase">
-                                <tr>
-                                    <th className="px-6 py-4">التاريخ</th>
-                                    <th className="px-6 py-4">الخدمة</th>
-                                    <th className="px-6 py-4">عدد الطلبات</th>
-                                    <th className="px-6 py-4">Tokens المستهلكة</th>
-                                    <th className="px-6 py-4">عدد المستخدمين</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {loading ? (
-                                    <tr><td colSpan={4} className="text-center py-8">جاري تحميل البيانات...</td></tr>
-                                ) : stats.visitors.length === 0 ? (
-                                    <tr><td colSpan={5} className="text-center py-8 text-gray-500">لا توجد بيانات استهلاك للزوار حتى الآن</td></tr>
-                                ) : (
-                                    stats.visitors.map((item: any, idx) => (
-                                        <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
-                                            <td className="px-6 py-4 text-gray-900 font-medium">{item.date}</td>
-                                            <td className="px-6 py-4">
-                                                <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold">
-                                                    {item.agent === 'patient_assistant' ? 'المساعد الذكي للمريض' : item.agent}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 font-mono">{item.requests}</td>
-                                            <td className="px-6 py-4 font-mono text-gray-600">{item.tokens}</td>
-                                            <td className="px-6 py-4 font-mono text-gray-900">{item.users || 1}</td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </Card>
-            )}
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </Card>
         </div>
     );
 };
@@ -276,7 +194,7 @@ const AIConfigManager = () => {
         if (!selectedAgentId) return;
         setIsSaving(true);
         try {
-            await aiService.updateConfig(selectedAgentId as any, editForm);
+            aiService.updateConfig(selectedAgentId as any, editForm);
             setConfigs(aiService.getConfigs()); // Refresh
             alert('تم حفظ الإعدادات بنجاح');
         } catch (error) {
@@ -376,68 +294,29 @@ const AIConfigManager = () => {
                                 </div>
 
                                 <div className="space-y-6">
+                                    {/* Provider & Model */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">مزود الخدمة (Provider)</label>
                                             <select
                                                 value={editForm.provider}
-                                                onChange={e => {
-                                                    const provider = e.target.value as any;
-                                                    let defaultModel = '';
-                                                    if (provider === 'openai') defaultModel = 'gpt-4o';
-                                                    if (provider === 'anthropic') defaultModel = 'claude-3-5-sonnet-20240620';
-                                                    if (provider === 'google') defaultModel = 'gemini-1.5-pro';
-                                                    if (provider === 'deepseek') defaultModel = 'deepseek-chat';
-
-                                                    setEditForm(prev => ({ ...prev, provider, model: defaultModel }));
-                                                }}
+                                                onChange={e => setEditForm(prev => ({ ...prev, provider: e.target.value as any }))}
                                                 className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none"
                                             >
-                                                <option value="openai">OpenAI</option>
-                                                <option value="anthropic">Anthropic</option>
-                                                <option value="google">Google</option>
-                                                <option value="deepseek">DeepSeek</option>
+                                                <option value="mock">محاكاة (Mock - للتجربة)</option>
+                                                <option value="openai">OpenAI (GPT-4/Turbo)</option>
+                                                <option value="anthropic">Anthropic (Claude 3)</option>
+                                                <option value="gemini">Google Gemini</option>
                                             </select>
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">موديل الذكاء الاصطناعي</label>
-                                            <select
+                                            <input
+                                                type="text"
                                                 value={editForm.model}
                                                 onChange={e => setEditForm(prev => ({ ...prev, model: e.target.value }))}
                                                 className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none"
-                                            >
-                                                {/* Dynamic Options based on Provider */}
-                                                {editForm.provider === 'openai' && (
-                                                    <>
-                                                        <option value="gpt-4o">GPT-4o (Latest)</option>
-                                                        <option value="gpt-4o-mini">GPT-4o mini</option>
-                                                        <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                                                    </>
-                                                )}
-                                                {editForm.provider === 'anthropic' && (
-                                                    <>
-                                                        <option value="claude-3-5-sonnet-20240620">Claude 3.5 Sonnet</option>
-                                                        <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku</option>
-                                                        <option value="claude-3-opus-20240229">Claude 3 Opus</option>
-                                                        <option value="claude-4">Claude 4 (Preview)</option>
-                                                    </>
-                                                )}
-                                                {editForm.provider === 'google' && (
-                                                    <>
-                                                        <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                                                        <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-                                                        <option value="gemini-pro">Gemini Pro 1.0</option>
-                                                    </>
-                                                )}
-                                                {editForm.provider === 'deepseek' && (
-                                                    <>
-                                                        <option value="deepseek-chat">DeepSeek V3 (Chat)</option>
-                                                        <option value="deepseek-coder">DeepSeek Coder</option>
-                                                    </>
-                                                )}
-
-                                                <option value="custom">مخصص (أخرى)</option>
-                                            </select>
+                                            />
                                         </div>
                                     </div>
 
@@ -534,48 +413,14 @@ const FeaturedClinicsManager = () => {
     const [selectedClinicDetails, setSelectedClinicDetails] = useState<any>(null);
 
     useEffect(() => {
-        const loadClinicsWithSubs = async () => {
-            if (allClinics) {
-                // 1. Get Owner IDs
-                const ownerIds = allClinics.map(c => c.owner_id).filter(Boolean);
-
-                // 2. Fetch Subscriptions
-                const { data: subscriptions } = await supabase
-                    .from('user_subscriptions')
-                    .select(`
-                        user_id,
-                        plan_id,
-                        status,
-                        subscription_plans (name, name_en)
-                    `)
-                    .in('user_id', ownerIds)
-                    .in('status', ['active', 'trialing']);
-
-                // 3. Merge Data
-                const mergedClinics = allClinics.map(clinic => {
-                    const sub = subscriptions?.find(s => s.user_id === clinic.owner_id);
-                    let planName = 'غير مشترك';
-
-                    if (sub?.subscription_plans) {
-                        const rawSp = sub.subscription_plans;
-                        const sp: any = Array.isArray(rawSp) ? rawSp[0] : rawSp;
-
-                        if (sp) {
-                            planName = sp.name || sp.name_en || 'غير مشترك';
-                        }
-                    }
-
-                    return {
-                        ...clinic,
-                        subscription_plan: planName // Override/Set the plan name directly
-                    };
-                });
-
-                setClinics(mergedClinics);
-            }
-        };
-
-        loadClinicsWithSubs();
+        if (allClinics) {
+            // Filter: Only Verified Clinics
+            // In a real scenario, you might want to show ONLY Featured clinics here, 
+            // and have an "Add" button to select from others. 
+            // But based on user request "Star icon next to Eye icon", it implies a list where you can toggle it.
+            // So we show all VERIFIED clinics.
+            setClinics(allClinics);
+        }
     }, [allClinics]);
 
     const handleToggleFeatured = async (clinicId: string, currentStatus: boolean) => {
@@ -740,7 +585,7 @@ const FeaturedClinicsManager = () => {
                                     <td className="px-6 py-4 text-sm text-gray-600">
                                         <span className="flex items-center gap-1">
                                             <MapPin className="w-3 h-3 text-gray-400" />
-                                            {clinic.governorate && clinic.address ? `${clinic.governorate}، ${clinic.address}` : clinic.governorate || clinic.address || 'غير محدد'}
+                                            {clinic.city || clinic.governorate || 'غير محدد'}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4">

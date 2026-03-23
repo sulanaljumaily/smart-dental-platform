@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowRight, MapPin, Phone, Clock, Star, Building2, Filter, Search, Heart, Stethoscope, Shield, Award } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
-import { formatLocation } from '../../utils/location';
 import { useClinics } from '../../hooks/useClinics';
 import { supabase } from '../../lib/supabase';
 
@@ -417,9 +416,7 @@ export const EmergencyCentersPage: React.FC = () => {
                           <h4 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-green-600 transition-colors">{clinic.name}</h4>
                           <div className="flex items-center gap-2 text-gray-500 text-sm mb-4">
                             <MapPin className="w-4 h-4 text-gray-400" />
-                            <span>
-                              {formatLocation(clinic.governorate, clinic.address)}
-                            </span>
+                            <span>{clinic.address}</span>
                           </div>
                         </div>
                       </div>

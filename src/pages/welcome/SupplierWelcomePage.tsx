@@ -12,9 +12,7 @@ import {
   Globe,
   PieChart,
   MoveRight,
-  DollarSign,
-  Settings,
-  UserCircle
+  DollarSign
 } from 'lucide-react';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
@@ -88,31 +86,16 @@ export const SupplierWelcomePage: React.FC = () => {
           </div>
 
           {/* 2. Store Management (Large Feature) */}
-          <div className="col-span-1 md:col-span-1 md:row-span-2 bg-white rounded-3xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 group border border-gray-100 hover:border-orange-100 relative overflow-hidden">
+          <div className="col-span-1 md:col-span-1 md:row-span-2 bg-white rounded-3xl p-8 shadow-xl border border-gray-100 hover:border-orange-100 relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-orange-50 rounded-bl-[4rem] z-0 transition-transform group-hover:scale-110"></div>
             <div className="relative z-10 flex flex-col h-full">
-              <div className="w-14 h-14 bg-orange-100 rounded-2xl flex items-center justify-center text-orange-600 mb-4 group-hover:rotate-6 transition-transform">
+              <div className="w-14 h-14 bg-orange-100 rounded-2xl flex items-center justify-center text-orange-600 mb-6 group-hover:rotate-6 transition-transform">
                 <Store className="w-7 h-7" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">متجر إلكتروني متكامل</h3>
-              <p className="text-gray-500 text-sm leading-relaxed mb-4 flex-grow">
-                مركز متكامل لإدارة متجرك الإلكتروني: اعرض منتجاتك، أدر مخزونك، وتابع طلباتك ومبيعاتك
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">متجر إلكتروني متكامل</h3>
+              <p className="text-gray-500 leading-relaxed mb-6 flex-grow">
+                واجهة احترافية لعرض منتجاتك، إدارة مخزونك، وتلقي الطلبات أوتوماتيكياً.
               </p>
-              <div className="space-y-2 mb-4">
-                {[
-                  'واجهة احترافية لعرض المنتجات للعيادات و معامل الاسنان',
-                  'نظام إدارة المخزون وتنبيهات النقص التلقائية',
-                  'استقبال الطلبات وإدارتها لحظياً وبشكل مؤتمت'
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm text-gray-700 bg-gray-50 p-2 rounded-xl border border-gray-100">
-                    <div className={`w-2 h-2 rounded-full ${i === 0 ? 'bg-orange-500' :
-                      i === 1 ? 'bg-blue-500' :
-                        i === 2 ? 'bg-purple-500' : 'bg-green-500'
-                      }`} />
-                    {item}
-                  </div>
-                ))}
-              </div>
               <div className="mt-auto">
                 <div className="flex -space-x-2 space-x-reverse overflow-hidden mb-4">
                   {[1, 2, 3, 4].map((i) => (
@@ -126,7 +109,7 @@ export const SupplierWelcomePage: React.FC = () => {
           </div>
 
           {/* 3. Global Reach (Span 2) */}
-          <div className="col-span-1 md:col-span-2 bg-gray-900 rounded-3xl p-6 text-white relative overflow-hidden group">
+          <div className="col-span-1 md:col-span-2 bg-gray-900 rounded-3xl p-8 text-white relative overflow-hidden group">
             {/* Map Background Illustration (Abstract) */}
             <div className="absolute inset-0 opacity-20">
               <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-blue-500 rounded-full animate-ping"></div>
@@ -134,136 +117,75 @@ export const SupplierWelcomePage: React.FC = () => {
               <div className="absolute bottom-1/3 left-1/3 w-2 h-2 bg-green-500 rounded-full animate-ping delay-150"></div>
             </div>
 
-            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6 h-full">
-              <div className="max-w-2xl">
-                <div className="flex items-center gap-4 mb-3">
-                  <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-blue-400">
-                    <Globe className="w-7 h-7" />
-                  </div>
-                  <h3 className="text-2xl font-bold">وصول أوسع للعملاء</h3>
-                </div>
-                <p className="text-gray-400 text-sm leading-relaxed line-clamp-2 md:line-clamp-none">
-                  ريادة رقمية تتخطى الحدود: ضاعف حجم مبيعاتك بالوصول المباشر إلى آلاف العيادات ومعامل الأسنان في كافة محافظات العراق. عزز هوية علامتك التجارية وانخرط في المجتمع الطبي، وكن أول من يعلم بأحدث الدورات والندوات العلمية لتضمن تواجدك في طليعة المجهزين الطبيين الموثوقين.
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between h-full">
+              <div className="max-w-md">
+                <Globe className="w-12 h-12 text-blue-400 mb-4" />
+                <h3 className="text-2xl font-bold mb-2">وصول أوسع للعملاء</h3>
+                <p className="text-gray-400 leading-relaxed">
+                  تجاوز الحدود الجغرافية. اعرض منتجاتك أمام آلاف العيادات والمراكز الطبية في جميع محافظات العراق بضغطة زر.
                 </p>
               </div>
-              <div className="mt-4 md:mt-0 bg-gray-800/50 p-4 rounded-2xl border border-gray-700 flex items-center justify-center shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center">
-                    <TrendingUp className="w-5 h-5 text-green-400" />
+              <div className="mt-6 md:mt-0 bg-gray-800 p-4 rounded-2xl border border-gray-700">
+                <div className="flex items-center gap-4 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-green-500/20 text-green-500 flex items-center justify-center">
+                    <DollarSign className="w-5 h-5" />
                   </div>
-                  <div className="font-bold text-lg text-white">ضاعف مبيعاتك</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 4. Order Management (Large Feature) */}
-          <div className="col-span-1 md:col-span-1 md:row-span-2 bg-white rounded-3xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 group border border-gray-100 hover:border-blue-100 relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-32 h-32 bg-blue-50 rounded-br-[4rem] z-0 transition-transform group-hover:scale-110"></div>
-            <div className="relative z-10 flex flex-col h-full">
-              <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600 mb-4 group-hover:rotate-6 transition-transform">
-                <Package className="w-7 h-7" />
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">إدارة الطلبات</h3>
-              <p className="text-gray-500 text-sm leading-relaxed mb-4 flex-grow">
-                نظام دقيق لتتبع وإدارة الطلبات يربط متجرك بالعيادات والمعامل مباشرة، مع أتمتة كاملة لإشعارات التحديث والحالات.
-              </p>
-              <div className="space-y-2 mb-4">
-                {[
-                  'ادارة حالة كل طلب بسهولة  (تحضير، شحن، تسليم)',
-                  'تحديثات فورية وإشعارات تلقائية للعملاء',
-                  'إدارة مرتجعات منظمة وتواصل مباشر مع المشتري'
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm text-gray-700 bg-gray-50 p-2 rounded-xl border border-gray-100">
-                    <div className={`w-2 h-2 rounded-full ${i === 0 ? 'bg-blue-500' :
-                      i === 1 ? 'bg-cyan-500' :
-                        i === 2 ? 'bg-indigo-500' : 'bg-teal-500'
-                      }`} />
-                    {item}
+                  <div>
+                    <div className="text-xs text-gray-400">مبيعات اليوم</div>
+                    <div className="font-bold text-lg text-white">+ 4,500,000 د.ع</div>
                   </div>
-                ))}
-              </div>
-              <div className="mt-auto bg-blue-50/50 p-4 rounded-2xl border border-blue-100">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-blue-600">كفاءة العمل</span>
-                  <span className="text-xs font-black text-blue-700">+98%</span>
                 </div>
-                <div className="w-full bg-blue-200/50 h-1.5 rounded-full mt-2 overflow-hidden">
-                  <div className="bg-blue-500 h-full w-[98%]"></div>
+                <div className="text-xs text-green-400 flex items-center gap-1">
+                  <TrendingUp className="w-3 h-3" />
+                  <span>ارتفاع بنسبة 25%</span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* 5. Finance & Reports (Small Light Card) */}
-          <div className="col-span-1 bg-white rounded-3xl p-6 shadow-lg border border-gray-100 hover:border-orange-200 transition-all group">
-            <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center text-orange-600 mb-4 group-hover:scale-110 transition-transform">
-              <TrendingUp className="w-6 h-6" />
+          {/* 4. Order Management (Small) */}
+          <div className="col-span-1 bg-white rounded-3xl p-6 shadow-lg border border-gray-100 hover:border-blue-200 transition-all group">
+            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 mb-4 group-hover:scale-110 transition-transform">
+              <Package className="w-6 h-6" />
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">المالية و التقارير</h3>
-            <p className="text-gray-500 text-sm mb-4">رؤية بانورامية لنمو مبيعاتك: تتبع لحظي للإيرادات مع إحصائيات دقيقة لأكثر المنتجات طلباً، وتحديد العيادات ومعامل الأسنان الأكثر نشاطاً.</p>
-            <div className="flex items-end gap-1 h-8 mt-2">
-              {[40, 70, 50, 90, 60].map((h, i) => (
-                <div key={i} style={{ height: `${h}%` }} className="flex-1 bg-orange-100 rounded-t-sm group-hover:bg-orange-500 transition-colors"></div>
-              ))}
-            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">إدارة الطلبات</h3>
+            <p className="text-gray-500 text-sm">تتبع حالات الشحن والتوصيل لحظياً.</p>
           </div>
 
-          {/* 6. Product Management (Small Light Card) */}
-          <div className="col-span-1 bg-white rounded-3xl p-6 shadow-lg border border-gray-100 hover:border-blue-200 transition-all group relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-50/50 rounded-full blur-2xl"></div>
+          {/* 5. Sales Reports (Span 1) */}
+          <div className="col-span-1 bg-gradient-to-br from-slate-800 to-black rounded-3xl p-6 text-white shadow-lg relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full blur-2xl"></div>
             <div className="relative z-10">
-              <Settings className="w-10 h-10 mb-4 text-indigo-600" />
-              <h3 className="text-xl font-bold text-gray-900 mb-2">إدارة المنتجات</h3>
-              <p className="text-gray-500 text-sm mb-4">تحكم ذكي بمتجرك: تتبع دقيق للمخزون، مراقبة عدد المشاهدات والمبيعات لكل منتج، مع سهولة إطلاق العروض والتخفيضات.</p>
-              <div className="mt-4">
-                <div className="flex items-center justify-between text-[10px] font-bold text-gray-400 mb-1.5">
-                  <span>تغطية المخزون</span>
-                  <span className="text-indigo-600">92%</span>
-                </div>
-                <div className="flex gap-1 h-1">
-                  {[...Array(18)].map((_, i) => (
-                    <div key={i} className={`flex-1 rounded-full ${i < 16 ? 'bg-indigo-500' : 'bg-gray-200'}`}></div>
-                  ))}
-                </div>
+              <PieChart className="w-10 h-10 mb-4 text-orange-400" />
+              <h3 className="text-xl font-bold mb-2">تقارير المبيعات</h3>
+              <p className="text-gray-400 text-sm mb-4">حلل أداء منتجاتك الأكثر مبيعاً.</p>
+              <div className="flex gap-1 h-1 bg-gray-700 rounded-full overflow-hidden">
+                <div className="w-1/3 bg-orange-500"></div>
+                <div className="w-1/4 bg-blue-500"></div>
+                <div className="w-full bg-gray-600"></div>
               </div>
             </div>
           </div>
 
-          {/* 7. Profile Management (Small Light Card) */}
-          <div className="col-span-1 bg-white rounded-3xl p-6 shadow-lg border border-gray-100 hover:border-violet-200 transition-all group relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-violet-50/50 rounded-full blur-2xl"></div>
-            <div className="relative z-10">
-              <UserCircle className="w-10 h-10 mb-4 text-violet-600" />
-              <h3 className="text-xl font-bold text-gray-900 mb-2">الملف الشخصي</h3>
-              <p className="text-gray-500 text-sm mb-4"> اعرض و أدر ملفك التجاري بشكل احترافي أمام الأطباء والمعامل لبناء الثقة وجذب الشركاء</p>
-              <div className="flex -space-x-1 space-x-reverse">
-                <div className="w-6 h-6 rounded-full bg-violet-100 border border-white"></div>
-                <div className="w-6 h-6 rounded-full bg-violet-200 border border-white"></div>
-                <div className="w-6 h-6 rounded-full bg-violet-300 border border-white"></div>
+          {/* 6. Jobs & Hiring (Span 2) */}
+          <div className="col-span-1 md:col-span-2 bg-white rounded-3xl p-8 shadow-xl border border-gray-100 flex flex-col md:flex-row items-center gap-8 group">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-bold">جديد</span>
               </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">نشر الوظائف</h3>
+              <p className="text-gray-500">هل تبحث عن مندوبين أو موظفين؟ أعلن عن شواغرك واستقبل السير الذاتية مباشرة عبر المنصة.</p>
+            </div>
+            <div className="w-16 h-16 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform shadow-sm">
+              <Briefcase className="w-8 h-8" />
             </div>
           </div>
 
-          {/* 8. Flash Chat (Small) */}
-          <div className="col-span-1 bg-gradient-to-br from-teal-400 to-cyan-500 rounded-3xl p-6 text-white text-center flex flex-col items-center justify-center shadow-lg hover:shadow-teal-200/50 transition-shadow">
-            <MessageCircle className="w-10 h-10 mb-3 text-white/90" />
-            <h3 className="font-bold text-lg mb-1">محادثات فورية</h3>
-            <p className="text-white/80 text-xs text-center leading-relaxed">تواصل مباشر مع الأطباء والمعامل حول استفسارات المنتجات والطلبات لضمان خدمة عملاء متميزة.</p>
-          </div>
-
-          {/* 8. Community & Communication (Small) */}
-          <div className="col-span-1 bg-gradient-to-br from-orange-400 to-red-500 rounded-3xl p-6 text-white text-center flex flex-col items-center justify-center shadow-lg hover:shadow-orange-200/50 transition-shadow">
-            <MessageCircle className="w-10 h-10 mb-3 text-white/90" />
-            <h3 className="font-bold text-lg mb-1">المجتمع الطبي والتعليم</h3>
-            <p className="text-white/80 text-xs leading-relaxed">عزز حضورك المهني بالمشاركة في المجتمع؛ واعرض أحدث منتجاتك مباشرة للأطباء والمعامل، وابقَ على اطلاع بأحدث الندوات والدورات العلمية كطريق إضافي لزيادة مبيعاتك.</p>
-          </div>
-
-          {/* 8. Jobs & Hiring (Small) */}
-          <div className="col-span-1 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl p-6 text-white text-center flex flex-col items-center justify-center shadow-lg hover:shadow-emerald-200/50 transition-shadow">
-            <Briefcase className="w-10 h-10 mb-3 text-white/90" />
-            <h3 className="font-bold text-lg mb-1">الوظائف والتوظيف</h3>
-            <p className="text-white/80 text-xs leading-relaxed">أعلن عن شواغر المندوبين والموظفين واستقبل السير الذاتية مباشرة.</p>
+          {/* 7. Community (Small) */}
+          <div className="col-span-1 bg-orange-50 rounded-3xl p-6 border border-orange-100 flex flex-col items-center justify-center text-center hover:bg-orange-100 transition-colors cursor-pointer">
+            <MessageCircle className="w-10 h-10 text-orange-500 mb-3" />
+            <h3 className="font-bold text-gray-900 mb-1">تواصل مباشر</h3>
+            <p className="text-gray-500 text-xs">دردشة فورية مع العملاء</p>
           </div>
 
 

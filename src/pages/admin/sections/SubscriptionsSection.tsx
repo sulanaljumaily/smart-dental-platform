@@ -83,12 +83,8 @@ export const SubscriptionsSection: React.FC = () => {
       sortable: true,
       render: (value, record) => (
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white font-bold overflow-hidden">
-            {record.avatar_url ? (
-              <img src={record.avatar_url} alt={value || ''} className="w-full h-full object-cover" />
-            ) : (
-              value ? value.charAt(0) : '?'
-            )}
+          <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white font-bold">
+            {value ? value.charAt(0) : '?'}
           </div>
           <div>
             <div className="font-semibold">{value}</div>

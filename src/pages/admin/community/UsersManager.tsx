@@ -101,12 +101,8 @@ export const UsersManager: React.FC = () => {
                             <tr key={doctor.id} className="hover:bg-gray-50/50 transition-colors">
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold overflow-hidden">
-                                            {doctor.avatar_url ? (
-                                                <img src={doctor.avatar_url} alt={doctor.full_name} className="w-full h-full object-cover" />
-                                            ) : (
-                                                doctor.full_name?.[0]
-                                            )}
+                                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
+                                            {doctor.full_name?.[0]}
                                         </div>
                                         <div>
                                             <h4 className="font-bold text-gray-900 text-sm">{doctor.full_name}</h4>

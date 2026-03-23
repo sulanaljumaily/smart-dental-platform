@@ -7,11 +7,11 @@ export interface Laboratory {
     id: string; // UUID from Supabase
     lab_name: string;
     owner_name?: string;
+    city?: string;
     address: string;
     phone: string;
-    governorate?: string;
     email?: string;
-    rating: number;
+    rating?: number;
     description?: string;
     specialties: string[];
     is_verified?: boolean;
@@ -75,7 +75,7 @@ export const useLabs = (options?: { clinicId?: string }) => {
                         lab_name: l.name,
                         address: l.address,
                         phone: l.phone,
-                        governorate: 'Local',
+                        city: 'Local',
                         rating: 0,
                         is_custom: true, // Marker for UI
                         specialties: l.specialties || []
@@ -117,7 +117,7 @@ export const useLabs = (options?: { clinicId?: string }) => {
                     lab_name: customData.name,
                     address: customData.address,
                     phone: customData.phone,
-                    governorate: 'Local',
+                    city: 'Local',
                     rating: 0,
                     is_custom: true, // Marker
                     specialties: customData.specialties || []

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { CheckCircle, Clock, ChevronDown, ChevronUp, AlertCircle, Lock, Wand2, DollarSign } from 'lucide-react';
+import { CheckCircle, Clock, ChevronDown, ChevronUp, AlertCircle, Lock, Wand2 } from 'lucide-react';
 import { Button } from '../common/Button';
 import { ClinicalSchemas, FormField } from '../../types/clinical-schemas';
 import { TreatmentPlan, TreatmentSession } from '../../types/treatment';
@@ -8,16 +8,12 @@ interface TreatmentSessionManagerProps {
     plan: TreatmentPlan;
     onUpdateSession: (planId: string, sessionId: string, data: any) => void;
     onCompleteSession: (planId: string, sessionId: string, cost?: number) => void;
-    onAddPayment?: (planId: string, sessionId: string) => void;
-    isReadOnly?: boolean; // New prop
 }
 
 export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = ({
     plan,
     onUpdateSession,
-    onCompleteSession,
-    onAddPayment,
-    isReadOnly = false // Default false
+    onCompleteSession
 }) => {
     // Local state to manage immediate UI updates for responsiveness
     // We initialize this from the prop 'plan' initially
@@ -49,7 +45,7 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
 
     // --- Smart Sync Logic ---
     useEffect(() => {
-        if (plan.type !== 'endo' || isReadOnly) return; // Disable sync in read-only
+        if (plan.type !== 'endo') return;
 
         const sessions = localSessions;
         const accessSession = sessions.find(s => s.schemaId === 'endo_access');
@@ -161,12 +157,11 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
             });
         }
 
-    }, [plan.type, expandedSession, localSessions, isReadOnly]); // Run when data changes too (Reactive Sync)
+    }, [plan.type, expandedSession, localSessions]); // Run when data changes too (Reactive Sync)
 
 
     // Handle local field change (Immediate UI update)
     const handleLocalChange = (sessionId: string, fieldId: string, value: any) => {
-        if (isReadOnly) return;
         setLocalSessions(prev => prev.map(session => {
             if (session.id !== sessionId) return session;
             return {
@@ -182,7 +177,6 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
     // Propagate changes to parent on Blur or specific events
     // For Selects/Toggles, we can do it immediately after local set
     const persistChange = (sessionId: string, fieldId: string, value: any) => {
-        if (isReadOnly) return;
         // Get the *latest* data from localSessions state for this session might be tricky inside closure
         // So we construct data combining current (potentially stale in closure) with new value
         // Better approach: Find session in current localSessions
@@ -216,8 +210,7 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
                         <div className="relative">
                             <input
                                 type={field.type}
-                                disabled={isReadOnly}
-                                className={`w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all ${isReadOnly ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
+                                className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                                 placeholder={field.placeholder}
                                 value={safeValue}
                                 onChange={(e) => handleLocalChange(session.id, field.id, e.target.value)}
@@ -238,8 +231,7 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
                             {field.label} {field.required && <span className="text-red-500">*</span>}
                         </label>
                         <select
-                            disabled={isReadOnly}
-                            className={`w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white ${isReadOnly ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
+                            className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                             value={safeValue}
                             onChange={(e) => {
                                 handleLocalChange(session.id, field.id, e.target.value);
@@ -258,13 +250,12 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
                     <div key={field.id} className="flex items-center gap-2 mt-6 bg-white p-2 border rounded-lg">
                         <input
                             type="checkbox"
-                            disabled={isReadOnly}
                             checked={!!safeValue}
                             onChange={(e) => {
                                 handleLocalChange(session.id, field.id, e.target.checked);
                                 persistChange(session.id, field.id, e.target.checked);
                             }}
-                            className={`w-4 h-4 text-blue-600 rounded focus:ring-blue-500 ${isReadOnly ? 'cursor-not-allowed opacity-50' : ''}`}
+                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                         />
                         <label className="text-sm font-medium text-gray-700 select-none">
                             {field.label}
@@ -285,7 +276,6 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
                 };
 
                 const addRow = () => {
-                    if (isReadOnly) return;
                     const newRow: any = {};
                     columns.forEach(col => newRow[col.id] = col.type === 'number' ? 0 : '');
                     const newRows = [...rows, newRow];
@@ -294,7 +284,6 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
                 };
 
                 const removeRow = (rowIndex: number) => {
-                    if (isReadOnly) return;
                     const newRows = rows.filter((_: any, i: number) => i !== rowIndex);
                     handleLocalChange(session.id, field.id, newRows);
                     persistChange(session.id, field.id, newRows);
@@ -321,14 +310,14 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
                                             {columns.map(col => (
                                                 <th key={col.id} className="px-4 py-2 font-medium text-gray-500 whitespace-nowrap">{col.label}</th>
                                             ))}
-                                            {!isReadOnly && <th className="w-10"></th>}
+                                            <th className="w-10"></th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
                                         {rows.length === 0 && (
                                             <tr>
                                                 <td colSpan={columns.length + 1} className="p-4 text-center text-gray-400 text-xs">
-                                                    لا توجد بيانات. {isReadOnly ? '' : 'اضغط على "إضافة" للبدء.'}
+                                                    لا توجد بيانات. اضغط على "إضافة" للبدء.
                                                 </td>
                                             </tr>
                                         )}
@@ -338,8 +327,7 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
                                                     <td key={col.id} className="p-2 min-w-[80px]">
                                                         {col.type === 'select' ? (
                                                             <select
-                                                                disabled={isReadOnly}
-                                                                className={`w-full p-1.5 border border-gray-200 rounded text-sm bg-transparent focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none ${isReadOnly ? 'cursor-not-allowed opacity-75' : ''}`}
+                                                                className="w-full p-1.5 border border-gray-200 rounded text-sm bg-transparent focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none"
                                                                 value={row[col.id] || ''}
                                                                 onChange={(e) => updateRow(rowIndex, col.id, e.target.value)}
                                                             >
@@ -351,8 +339,7 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
                                                         ) : (
                                                             <input
                                                                 type={col.type}
-                                                                disabled={isReadOnly}
-                                                                className={`w-full p-1.5 border border-gray-200 rounded text-sm bg-transparent focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none ${isReadOnly ? 'cursor-not-allowed opacity-75' : ''}`}
+                                                                className="w-full p-1.5 border border-gray-200 rounded text-sm bg-transparent focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none"
                                                                 value={row[col.id]}
                                                                 placeholder="-"
                                                                 onChange={(e) => updateRow(rowIndex, col.id, e.target.value)}
@@ -360,31 +347,27 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
                                                         )}
                                                     </td>
                                                 ))}
-                                                {!isReadOnly && (
-                                                    <td className="p-2 text-center">
-                                                        <button
-                                                            onClick={() => removeRow(rowIndex)}
-                                                            className="text-red-400 hover:text-red-600 transition-opacity p-1"
-                                                        >
-                                                            <CheckCircle className="w-4 h-4 rotate-45" />
-                                                        </button>
-                                                    </td>
-                                                )}
+                                                <td className="p-2 text-center">
+                                                    <button
+                                                        onClick={() => removeRow(rowIndex)}
+                                                        className="text-red-400 hover:text-red-600 transition-opacity p-1"
+                                                    >
+                                                        <CheckCircle className="w-4 h-4 rotate-45" />
+                                                    </button>
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             </div>
-                            {!isReadOnly && (
-                                <div className="p-2 border-t bg-gray-50">
-                                    <button
-                                        onClick={addRow}
-                                        className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
-                                    >
-                                        <ChevronDown className="w-3 h-3" /> إضافة صف جديد
-                                    </button>
-                                </div>
-                            )}
+                            <div className="p-2 border-t bg-gray-50">
+                                <button
+                                    onClick={addRow}
+                                    className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-50 transition-colors"
+                                >
+                                    <ChevronDown className="w-3 h-3" /> إضافة صف جديد
+                                </button>
+                            </div>
                         </div>
                     </div>
                 );
@@ -427,21 +410,12 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
             {localSessions.map((session, index) => {
                 const isCompleted = session.status === 'completed';
                 const isNext = session.status === 'pending' && (index === 0 || localSessions[index - 1].status === 'completed');
-                const isLockedSelection = session.status === 'pending' && !isNext && !isReadOnly;
-
-                // If isReadOnly, we might want to allow expanding any session to view it?
-                // Or stick to the logic that you can see what was done.
-                // Assuming isReadOnly allows navigating all sessions to see history.
-                const isDisabled = isLockedSelection;
-
-                // Override lock for ReadOnly to allow viewing? 
-                // Let's allow expanding any session in ReadOnly mode to see details
-                const canExpand = isReadOnly || !isDisabled;
+                const isLocked = session.status === 'pending' && !isNext;
 
                 return (
                     <div
                         key={session.id}
-                        className={`relative z-10 transition-all duration-300 ${isDisabled ? 'opacity-60 grayscale' : ''}`}
+                        className={`relative z-10 transition-all duration-300 ${isLocked ? 'opacity-60 grayscale' : ''}`}
                     >
                         <div
                             className={`border rounded-xl overflow-hidden transition-all duration-300 bg-white ${isCompleted ? 'border-green-200 shadow-sm' :
@@ -455,7 +429,7 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
                                     isNext ? 'bg-blue-50/30' :
                                         'bg-white'
                                     }`}
-                                onClick={() => canExpand && toggleSession(session.id)}
+                                onClick={() => !isLocked && toggleSession(session.id)}
                             >
                                 <div className="flex items-center gap-4">
                                     <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shadow-sm border-2 ${isCompleted ? 'bg-green-500 border-green-600 text-white' :
@@ -469,72 +443,59 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
                                             <h4 className={`font-bold text-base ${isCompleted ? 'text-green-900' : 'text-gray-900'}`}>
                                                 {session.title}
                                             </h4>
-                                            {isDisabled && <Lock className="w-3 h-3 text-gray-400" />}
+                                            {isLocked && <Lock className="w-3 h-3 text-gray-400" />}
                                         </div>
-                                        {isCompleted && <span className="text-green-600 font-bold">تم الإكمال</span>}
+                                        <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                                            <span className="flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded text-gray-600 font-medium">
+                                                <Clock className="w-3 h-3" /> {session.duration} دقيقة
+                                            </span>
+                                            {isCompleted && <span className="text-green-600 font-bold">تم الإكمال</span>}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div className="flex items-center gap-3">
-                                {!isCompleted && !isDisabled && onAddPayment && !isReadOnly && (
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onAddPayment(plan.id, session.id);
-                                        }}
-                                        className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 h-8 px-2"
-                                        title="تسجيل دفعة مالية"
-                                    >
-                                        <DollarSign className="w-4 h-4" />
-                                        <span className="hidden sm:inline mr-1 text-xs">دفعة</span>
-                                    </Button>
-                                )}
-
-                                {canExpand && (
+                                {!isLocked && (
                                     <div className={`transition-transform duration-300 ${expandedSession === session.id ? 'rotate-180' : ''}`}>
                                         <ChevronDown className="w-5 h-5 text-gray-400" />
                                     </div>
                                 )}
                             </div>
+
+                            {/* Body */}
+                            {expandedSession === session.id && !isLocked && (
+                                <div className="px-4 pb-5 pt-2 animate-in slide-in-from-top-2 border-t border-gray-100">
+                                    {renderDynamicForm(session)}
+
+                                    {!isCompleted && (
+                                        <div className="mt-6 flex justify-end gap-3">
+                                            <Button
+                                                variant='outline'
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    // Force save logic here if needed, though we reactively save now
+                                                }}
+                                            >
+                                                حفظ مؤقت
+                                            </Button>
+                                            <Button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const estimatedSessionCost = 50000;
+                                                    onCompleteSession(plan.id, session.id, estimatedSessionCost);
+                                                }}
+                                                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-200 px-8 py-2.5 h-auto text-sm font-bold rounded-lg transform hover:-translate-y-0.5 transition-all"
+                                            >
+                                                <CheckCircle className="w-4 h-4 ml-2" />
+                                                إكمال الجلسة وتوثيق البيانات
+                                            </Button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
-
-                        {/* Body */}
-                        {expandedSession === session.id && canExpand && (
-                            <div className="px-4 pb-5 pt-2 animate-in slide-in-from-top-2 border-t border-gray-100">
-                                {renderDynamicForm(session)}
-
-                                {!isCompleted && !isReadOnly && (
-                                    <div className="mt-6 flex justify-end gap-3">
-                                        <Button
-                                            variant='outline'
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                // Force save logic here if needed, though we reactively save now
-                                            }}
-                                        >
-                                            حفظ مؤقت
-                                        </Button>
-                                        <Button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                const estimatedSessionCost = 50000;
-                                                onCompleteSession(plan.id, session.id, estimatedSessionCost);
-                                            }}
-                                            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-200 px-8 py-2.5 h-auto text-sm font-bold rounded-lg transform hover:-translate-y-0.5 transition-all"
-                                        >
-                                            <CheckCircle className="w-4 h-4 ml-2" />
-                                            إكمال الجلسة وتوثيق البيانات
-                                        </Button>
-                                    </div>
-                                )}
-                            </div>
-                        )}
                     </div>
                 );
             })}
-        </div >
+        </div>
     );
 };

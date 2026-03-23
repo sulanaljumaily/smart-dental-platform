@@ -409,7 +409,7 @@ export const ServicesPage: React.FC = () => {
                 <div
                   key={method.id}
                   className="relative group cursor-pointer overflow-hidden rounded-3xl border-2 border-transparent bg-white hover:border-purple-200 shadow-xl shadow-gray-200/50 transition-all duration-300 hover:scale-[1.02]"
-                  onClick={() => navigate(method.id === 'ai' ? '/diagnosis/ai' : '/smart')}
+                  onClick={() => navigate(`/diagnosis/${method.id}`)}
                 >
                   <div className="p-8">
                     <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-6 bg-purple-100 text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors">

@@ -48,10 +48,10 @@ export const useCurrentClinic = () => {
                 .eq('user_id', user!.id)
                 .single();
 
-            if (memberParams && (memberParams as any).clinic) {
+            if (memberParams && memberParams.clinic) {
                 setClinic({
                     id: memberParams.clinic_id.toString(),
-                    name: (memberParams as any).clinic.name,
+                    name: memberParams.clinic.name,
                     role: memberParams.role as any
                 });
                 return;

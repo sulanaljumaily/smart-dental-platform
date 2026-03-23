@@ -61,7 +61,6 @@ export const LabFinanceSection: React.FC = () => {
   const [editingPriceItem, setEditingPriceItem] = useState<PriceItem | null>(null);
   const [priceSearchTerm, setPriceSearchTerm] = useState('');
   const [selectedPriceCategory, setSelectedPriceCategory] = useState('all');
-  const [txFilter, setTxFilter] = useState<'all' | 'paid' | 'unpaid'>('all');
 
   // New Service Form State
   const [newService, setNewService] = useState<Partial<LabService>>({
@@ -129,13 +128,6 @@ export const LabFinanceSection: React.FC = () => {
       item.description?.toLowerCase().includes(priceSearchTerm.toLowerCase());
     const matchesCategory = selectedPriceCategory === 'all' || item.category === selectedPriceCategory;
     return matchesSearch && matchesCategory;
-  });
-
-  const filteredTx = transactions.filter(t => {
-    if (t.type === 'settlement') return txFilter === 'all';
-    if (txFilter === 'all') return true;
-    if (txFilter === 'paid') return t.payment_status === 'paid';
-    return t.payment_status !== 'paid';
   });
 
   if (financeLoading || servicesLoading) {
@@ -230,13 +222,13 @@ export const LabFinanceSection: React.FC = () => {
               </div>
             </div>
 
-            {/* Unpaid Orders Stats */}
+            {/* Avg Order Value */}
             <div className="relative overflow-hidden rounded-[2rem] p-6 border border-amber-100 bg-gradient-to-br from-amber-50 to-amber-100/50 hover:shadow-lg transition-all group">
-              <AlertCircle className="absolute -bottom-4 -left-4 w-32 h-32 text-amber-500/10 rotate-12 group-hover:scale-110 transition-transform" strokeWidth={1.5} />
+              <TrendingUp className="absolute -bottom-4 -left-4 w-32 h-32 text-amber-500/10 rotate-12 group-hover:scale-110 transition-transform" strokeWidth={1.5} />
               <div className="relative z-10">
-                <p className="text-amber-600/80 font-medium text-sm mb-1">الطلبات الغير مسددة</p>
-                <h3 className="text-3xl font-bold text-amber-900 mb-2 truncate" dir="ltr">{formatCurrency(stats.unpaidValue)}</h3>
-                <p className="text-xs text-amber-600 font-bold">عدد الطلبات: {stats.unpaidCount}</p>
+                <p className="text-amber-600/80 font-medium text-sm mb-1">متوسط قيمة الطلب</p>
+                <h3 className="text-3xl font-bold text-amber-900 mb-2 truncate" dir="ltr">{formatCurrency(stats.averageOrderValue)}</h3>
+                <p className="text-xs text-amber-600">لكل طلب</p>
               </div>
             </div>
           </div>
@@ -252,20 +244,11 @@ export const LabFinanceSection: React.FC = () => {
                   </div>
                   <h3 className="font-bold text-gray-900">آخر العمليات</h3>
                 </div>
-                <select
-                  value={txFilter}
-                  onChange={(e) => setTxFilter(e.target.value as any)}
-                  className="bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                >
-                  <option value="all">جميع الطلبات</option>
-                  <option value="paid">المسددة</option>
-                  <option value="unpaid">الغير مسددة</option>
-                </select>
               </div>
               <div className="p-6">
-                {filteredTx.length > 0 ? (
+                {transactions.length > 0 ? (
                   <div className="space-y-3">
-                    {filteredTx.slice(0, 10).map(t => (
+                    {transactions.slice(0, 5).map(t => (
                       <div key={t.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
                         <div className="flex items-center gap-3">
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center ${t.type === 'income' ? 'bg-green-100 text-green-600' : t.type === 'settlement' ? 'bg-purple-100 text-purple-600' : 'bg-red-100 text-red-600'}`}>

@@ -26,7 +26,7 @@ import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { LaboratoryOverview } from './LaboratoryOverview';
 import { LaboratoryRequests } from './LaboratoryRequests';
-import { LabMessagesSection } from './sections/LabMessagesSection';
+import { LaboratoryMessages } from './LaboratoryMessages';
 import { LaboratorySupport } from './LaboratorySupport';
 import { LaboratoryProfile } from './LaboratoryProfile';
 import { LabOrdersSection } from './sections/LabOrdersSection';
@@ -384,7 +384,7 @@ export const DentalLabCenter: React.FC = () => {
       case 'lab-management':
         return <LabManagementPanel />;
       case 'messages':
-        return <LabMessagesSection />;
+        return <LaboratoryMessages />;
       case 'support':
         return <LaboratorySupport />;
       case 'profile':
