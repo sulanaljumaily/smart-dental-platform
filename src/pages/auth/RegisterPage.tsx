@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { UserPlus, Mail, Lock, User, Phone, CheckCircle, Building, Stethoscope, Package, TestTube, Settings } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePlatform } from '../../contexts/PlatformContext';
 import { Card } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
@@ -10,6 +11,7 @@ import { Button } from '../../components/common/Button';
 export const RegisterPage: React.FC = () => {
   const { t } = useLanguage();
   const { register, login } = useAuth();
+  const { settings } = usePlatform();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -19,7 +21,7 @@ export const RegisterPage: React.FC = () => {
     phone: '',
     password: '',
     confirmPassword: '',
-    accountType: 'doctor' as 'doctor' | 'supplier' | 'laboratory' | 'admin',
+    accountType: '' as 'doctor' | 'supplier' | 'laboratory' | '',
     agreeToTerms: false
   });
 
@@ -61,6 +63,10 @@ export const RegisterPage: React.FC = () => {
 
     if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'كلمتا المرور غير متطابقتين';
+    }
+
+    if (!formData.accountType) {
+      newErrors.accountType = 'يرجى اختيار نوع الحساب لتتمكن من التسجيل';
     }
 
     if (!formData.agreeToTerms) {
@@ -121,36 +127,70 @@ export const RegisterPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary via-primary-dark to-blue-900 flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl my-8">
-        <div className="p-8 space-y-6">
-          {/* Logo */}
-          <div className="text-center">
-            <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary-dark rounded-2xl mx-auto mb-4 flex items-center justify-center">
-              <span className="text-white font-bold text-2xl">S</span>
+    <>
+      <Header />
+      <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-primary via-primary-dark to-blue-900 flex items-center justify-center p-4">
+        <Card className="w-full max-w-2xl my-8">
+          <div className="p-8 space-y-6">
+            {/* Logo */}
+            <div className="text-center">
+              {settings.logo_url ? (
+                <img src={settings.logo_url} alt="Logo" className="w-24 h-24 mx-auto mb-4 object-contain rounded-3xl" />
+              ) : (
+                <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary-dark rounded-2xl mx-auto mb-4 flex items-center justify-center">
+                  <span className="text-white font-bold text-2xl">S</span>
+                </div>
+              )}
+              <h1 className="text-2xl font-bold text-gray-900">إنشاء حساب جديد</h1>
+              <p className="text-gray-600 mt-2">كن جزءاً من منصتنا اليوم</p>
             </div>
             <h1 className="text-2xl font-bold text-gray-900">إنشاء حساب جديد</h1>
             <p className="text-gray-600 mt-2">انضم إلى SMART اليوم</p>
           </div>
 
-          {/* Account Type Selector */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              نوع الحساب
-            </label>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              <button
-                type="button"
-                onClick={() => handleInputChange('accountType', 'doctor')}
-                className={`p-4 rounded-lg border-2 transition-all ${formData.accountType === 'doctor'
-                  ? 'border-primary bg-primary/10'
-                  : 'border-gray-200 hover:border-primary/50'
-                  }`}
-              >
-                <Stethoscope className="w-8 h-8 mx-auto mb-2 text-primary" />
-                <p className="font-medium text-gray-900">طبيب أسنان</p>
-                <p className="text-xs text-gray-500 mt-1">للأطباء المتخصصين</p>
-              </button>
+            {/* Account Type Selector */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                اختر نوع الحساب الذي تريد إنشاءه
+              </label>
+              <div className="flex gap-2 p-1 bg-gray-100/60 rounded-xl mb-4 border border-gray-200/50">
+                <button
+                  type="button"
+                  onClick={() => handleInputChange('accountType', 'doctor')}
+                  className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-bold transition-all duration-300 flex items-center justify-center gap-2 transform active:scale-95 ${formData.accountType === 'doctor'
+                    ? 'bg-blue-50 text-blue-700 shadow-sm border border-blue-200 scale-[1.02]'
+                    : 'text-gray-500 hover:bg-white hover:shadow-sm hover:text-blue-600 border border-transparent'
+                    }`}
+                >
+                  <Stethoscope className={`w-4 h-4 transition-colors ${formData.accountType === 'doctor' ? 'text-blue-600' : 'text-gray-400'}`} />
+                  <span>طبيب</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleInputChange('accountType', 'supplier')}
+                  className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-bold transition-all duration-300 flex items-center justify-center gap-2 transform active:scale-95 ${formData.accountType === 'supplier'
+                    ? 'bg-emerald-50 text-emerald-700 shadow-sm border border-emerald-200 scale-[1.02]'
+                    : 'text-gray-500 hover:bg-white hover:shadow-sm hover:text-emerald-600 border border-transparent'
+                    }`}
+                >
+                  <Package className={`w-4 h-4 transition-colors ${formData.accountType === 'supplier' ? 'text-emerald-600' : 'text-gray-400'}`} />
+                  <span>مورد</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleInputChange('accountType', 'laboratory')}
+                  className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-bold transition-all duration-300 flex items-center justify-center gap-2 transform active:scale-95 ${formData.accountType === 'laboratory'
+                    ? 'bg-purple-50 text-purple-700 shadow-sm border border-purple-200 scale-[1.02]'
+                    : 'text-gray-500 hover:bg-white hover:shadow-sm hover:text-purple-600 border border-transparent'
+                    }`}
+                >
+                  <TestTube className={`w-4 h-4 transition-colors ${formData.accountType === 'laboratory' ? 'text-purple-600' : 'text-gray-400'}`} />
+                  <span>مختبر</span>
+                </button>
+              </div>
+            </div>
 
               <button
                 type="button"
@@ -160,12 +200,10 @@ export const RegisterPage: React.FC = () => {
                   : 'border-gray-200 hover:border-primary/50'
                   }`}
               >
-                <Package className="w-8 h-8 mx-auto mb-2 text-primary" />
-                <p className="font-medium text-gray-900">مورد</p>
-                <p className="text-xs text-gray-500 mt-1">لموردي المعدات الطبية</p>
-              </button>
-
-              <button
+                <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
+                {loadingProvider === 'google' ? 'جاري التحويل...' : 'Google'}
+              </Button>
+              <Button
                 type="button"
                 onClick={() => handleInputChange('accountType', 'laboratory')}
                 className={`p-4 rounded-lg border-2 transition-all ${formData.accountType === 'laboratory'
@@ -173,23 +211,9 @@ export const RegisterPage: React.FC = () => {
                   : 'border-gray-200 hover:border-primary/50'
                   }`}
               >
-                <TestTube className="w-8 h-8 mx-auto mb-2 text-primary" />
-                <p className="font-medium text-gray-900">مختبر أسنان</p>
-                <p className="text-xs text-gray-500 mt-1">للمختبرات الطبية</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleInputChange('accountType', 'admin')}
-                className={`p-4 rounded-lg border-2 transition-all ${formData.accountType === 'admin'
-                  ? 'border-primary bg-primary/10'
-                  : 'border-gray-200 hover:border-primary/50'
-                  }`}
-              >
-                <Settings className="w-8 h-8 mx-auto mb-2 text-primary" />
-                <p className="font-medium text-gray-900">إدارة المنصة</p>
-                <p className="text-xs text-gray-500 mt-1">لمالك النظام</p>
-              </button>
+                <img src="https://www.svgrepo.com/show/354981/facebook-option.svg" alt="Facebook" className="w-5 h-5 brightness-0 invert" />
+                {loadingProvider === 'facebook' ? 'جاري التحويل...' : 'Facebook'}
+              </Button>
             </div>
           </div>
 
@@ -285,50 +309,37 @@ export const RegisterPage: React.FC = () => {
                   <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>
                 )}
               </div>
+              {errors.agreeToTerms && (
+                <p className="text-red-500 text-xs">{errors.agreeToTerms}</p>
+              )}
+
+              {/* Account Type Error Warning */}
+              {errors.accountType && (
+                <p className="text-red-600 text-center font-bold text-sm bg-red-50 p-2 rounded-lg border border-red-200 animate-pulse">
+                  ⚠️ {errors.accountType}
+                </p>
+              )}
+
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                variant={errors.accountType ? "outline" : "primary"}
+                className={`w-full flex items-center justify-center gap-2 ${errors.accountType ? 'border-red-500 text-red-600 hover:bg-red-50 bg-white' : ''}`}
+                disabled={loading || !!loadingProvider}
+              >
+                <UserPlus className="w-5 h-5" />
+                {loading ? 'جاري إنشاء الحساب...' : 'إنشاء حساب'}
+              </Button>
+            </form>
+
+            {/* Login Link */}
+            <div className="text-center text-sm text-gray-600">
+              لديك حساب بالفعل؟{' '}
+              <Link to="/login" className="text-primary font-medium hover:underline">
+                تسجيل الدخول
+              </Link>
             </div>
 
-            {/* Terms Agreement */}
-            <div className="flex items-start gap-2">
-              <input
-                type="checkbox"
-                id="agreeToTerms"
-                checked={formData.agreeToTerms}
-                onChange={(e) => handleInputChange('agreeToTerms', e.target.checked)}
-                className="mt-1 w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
-              />
-              <label htmlFor="agreeToTerms" className="text-sm text-gray-700">
-                أوافق على{' '}
-                <Link to="/terms-of-service" className="text-primary hover:underline" target="_blank">
-                  الشروط والأحكام
-                </Link>
-                {' '}و{' '}
-                <Link to="/privacy-policy" className="text-primary hover:underline" target="_blank">
-                  سياسة الخصوصية
-                </Link>
-              </label>
-            </div>
-            {errors.agreeToTerms && (
-              <p className="text-red-500 text-xs">{errors.agreeToTerms}</p>
-            )}
-
-            {/* Submit Button */}
-            <Button
-              type="submit"
-              variant="primary"
-              className="w-full flex items-center justify-center gap-2"
-              disabled={loading}
-            >
-              <UserPlus className="w-5 h-5" />
-              {loading ? 'جاري إنشاء الحساب...' : 'إنشاء حساب'}
-            </Button>
-          </form>
-
-          {/* Login Link */}
-          <div className="text-center text-sm text-gray-600">
-            لديك حساب بالفعل؟{' '}
-            <Link to="/login" className="text-primary font-medium hover:underline">
-              تسجيل الدخول
-            </Link>
           </div>
 
           {/* Quick Links */}
