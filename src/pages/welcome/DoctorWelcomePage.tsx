@@ -17,9 +17,7 @@ import {
   ListTodo,
   Activity,
   Map,
-  Link as LinkIcon,
-  Briefcase,
-  ShoppingBag
+  Link as LinkIcon
 } from 'lucide-react';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
@@ -119,10 +117,10 @@ export const DoctorWelcomePage: React.FC = () => {
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-3">إدارة العيادات</h3>
               <p className="text-gray-500 leading-relaxed mb-6 flex-grow">
-                تحكم كامل في عياداتك: المواعيد-المرضى-الطاقم-الاصول المادية-معامل الأسنان الموارد من لوحة تحكم واحدة متكاملة
+                تحكم كامل في فروع عياداتك، الموظفين، والموارد من لوحة تحكم واحدة متكاملة.
               </p>
               <div className="space-y-3">
-                {['تعد د العيادات : لوحة تحكم خاصة بكل عيادة', 'إدارة أنواع العلاج-المخزون-الاجهزة-الايرادات-الصرفيات', 'إدارة صلاحيات و سجل نشاط  الطاقم في كل عيادة'].map((item, i) => (
+                {['تعداد الفروع', 'إدارة المخزون', 'صلاحيات الموظفين'].map((item, i) => (
                   <div key={i} className="flex items-center gap-2 text-sm text-gray-700 bg-gray-50 p-2 rounded-xl">
                     <CheckCircle className="w-4 h-4 text-green-500" />
                     {item}
@@ -142,7 +140,7 @@ export const DoctorWelcomePage: React.FC = () => {
                 </div>
                 <h3 className="text-2xl font-bold mb-2">نظام حجوزات ذكي</h3>
                 <p className="text-indigo-100 leading-relaxed">
-                  نظم مواعيد المراجعين و ربط كل موعد مع الطبيب المعالج ، مع نظام تنبيهات تلقائي لضمان سهولة و انسيابية في العمل
+                  نظم مواعيد مرضاك بدقة، مع نظام تنبيهات تلقائي لضمان حضور المرضى في الموعد.
                 </p>
               </div>
               <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10 w-full md:w-auto min-w-[200px]">
@@ -164,7 +162,7 @@ export const DoctorWelcomePage: React.FC = () => {
               <Stethoscope className="w-6 h-6" />
             </div>
             <h3 className="text-xl font-bold text-gray-900 mb-2">التشخيص الذكي</h3>
-            <p className="text-gray-500 text-sm mb-4">مساعد ذكي لتحليل الصور واقتراح التشخيصات بناءً على الأعراض، مع ميزة تصميم الابتسامة (DSD) لاستعراض النتائج المتوقعة بدقة.</p>
+            <p className="text-gray-500 text-sm mb-4">مساعد ذكي يقترح التشخيصات بناءً على الأعراض.</p>
             <div className="w-full h-1 bg-gray-100 rounded-full overflow-hidden">
               <div className="h-full bg-purple-500 w-3/4"></div>
             </div>
@@ -177,7 +175,7 @@ export const DoctorWelcomePage: React.FC = () => {
               <TrendingUp className="w-6 h-6" />
             </div>
             <h3 className="text-xl font-bold text-gray-900 mb-2">تقارير مالية</h3>
-            <p className="text-gray-500 text-sm mb-4">تتبع دقيق للإيرادات والمصروفات مع إحصائيات مالية شاملة للأطباء والمراجعين والمعامل، ومتابعة الأجور المستحقة لضمان استدامة عيادتك.</p>
+            <p className="text-gray-500 text-sm mb-4">تتبع الإيرادات، المصروفات، والأرباح لحظة بلحظة.</p>
             <div className="flex items-end gap-1 h-8 mt-2">
               {[40, 70, 50, 90, 60].map((h, i) => (
                 <div key={i} style={{ height: `${h}%` }} className="flex-1 bg-green-100 rounded-t-sm group-hover:bg-green-500 transition-colors"></div>
@@ -193,7 +191,7 @@ export const DoctorWelcomePage: React.FC = () => {
                   <Users className="w-6 h-6 text-blue-400" />
                 </div>
                 <h3 className="text-2xl font-bold mb-2">سجلات مرضى إلكترونية</h3>
-                <p className="text-gray-400 max-w-sm">سجل إلكتروني متكامل لكل مريض يشمل التاريخ المرضي، الخطط العلاجية، الأرشيف، والمالية، مع تتبع دقيق للجلسات والأجور المستحقة في الخطط الجارية.</p>
+                <p className="text-gray-400 max-w-sm">ملف كامل لكل مريض: التاريخ المرضي، الخطط العلاجية، الأشعة، والمدفوعات.</p>
               </div>
               <div className="hidden md:block">
                 <Shield className="w-24 h-24 text-gray-800" />
@@ -201,21 +199,14 @@ export const DoctorWelcomePage: React.FC = () => {
             </div>
             <div className="mt-8 flex gap-3">
               <span className="px-3 py-1 bg-gray-800 rounded-lg text-xs text-gray-300 border border-gray-700">تشفير تام</span>
-              <span className="px-3 py-1 bg-gray-800 rounded-lg text-xs text-gray-300 border border-gray-700">ملف المريض</span>
-              <span className="px-3 py-1 bg-gray-800 rounded-lg text-xs text-gray-300 border border-gray-700">خطط العلاج</span>
-              <span className="px-3 py-1 bg-gray-800 rounded-lg text-xs text-gray-300 border border-gray-700">الخدمات الذكية</span>
-              <span className="px-3 py-1 bg-gray-800 rounded-lg text-xs text-gray-300 border border-gray-700">الارشيف</span>
-              <span className="px-3 py-1 bg-gray-800 rounded-lg text-xs text-gray-300 border border-gray-700">المالية</span>
+              <span className="px-3 py-1 bg-gray-800 rounded-lg text-xs text-gray-300 border border-gray-700">نسخ احتياطي</span>
             </div>
           </div>
 
-          {/* Feature 10: Special Clinic Link */}
-          <div className="col-span-1 bg-white rounded-3xl p-6 shadow-lg border border-gray-100 hover:border-indigo-200 transition-all group">
-            <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 mb-4 group-hover:scale-110 transition-transform">
-              <LinkIcon className="w-6 h-6" />
-            </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">رابط خاص للعيادة</h3>
-            <p className="text-gray-500 text-sm">احصل على رابط مباشر خاص لعيادتك لمشاركته مع المراجعين وتسهيل الحجز الرقمي، مع إمكانية إدارة بروفايل العيادة بالكامل (الشعار، الغلاف، المواعيد، والموقع).</p>
+          <div className="col-span-1 bg-gradient-to-br from-orange-400 to-red-500 rounded-3xl p-6 text-white text-center flex flex-col items-center justify-center shadow-lg hover:shadow-orange-200/50 transition-shadow">
+            <MessageCircle className="w-10 h-10 mb-3 text-white/90" />
+            <h3 className="font-bold text-lg mb-1">مجتمع الأطباء</h3>
+            <p className="text-white/80 text-xs">تواصل، شارك الخبرات، واستفد</p>
           </div>
 
           {/* Feature 7: Tasks & Reminders */}
@@ -224,7 +215,7 @@ export const DoctorWelcomePage: React.FC = () => {
               <ListTodo className="w-6 h-6" />
             </div>
             <h3 className="text-xl font-bold text-gray-900 mb-2">المهام والتذكيرات</h3>
-            <p className="text-gray-500 text-sm">نظام ذكي لإدارة و توكيل مهام العيادة وتذكير بالمواعيد الهامة بين طاقم العيادة </p>
+            <p className="text-gray-500 text-sm">نظام ذكي لإدارة مهام العيادة وتذكيرك بالمواعيد الهامة.</p>
           </div>
 
           {/* Feature 8: Lab Tracking */}
@@ -232,8 +223,8 @@ export const DoctorWelcomePage: React.FC = () => {
             <div className="w-12 h-12 bg-teal-100 rounded-xl flex items-center justify-center text-teal-600 mb-4 group-hover:scale-110 transition-transform">
               <Activity className="w-6 h-6" />
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">مختبرات و معامل الأسنان</h3>
-            <p className="text-gray-500 text-sm">نظام متكامل لتتبع حالات المختبر خطوة بخطوة؛ تواصل مع أفضل معامل الأسنان الموثوقة، وتابع الإحصائيات المالية والحالات (المنجزة، المتأخرة، والمرجعة) بكل سلاسة.</p>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">تتبع المختبر</h3>
+            <p className="text-gray-500 text-sm">اربط عيادتك بالمختبرات وتتبع حالة التركيبات خطوة بخطوة.</p>
           </div>
 
           {/* Feature 9: Map Visibility */}
@@ -241,29 +232,17 @@ export const DoctorWelcomePage: React.FC = () => {
             <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 mb-4 group-hover:scale-110 transition-transform">
               <Map className="w-6 h-6" />
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">خريطة العيادات القريبة</h3>
-            <p className="text-gray-500 text-sm">عزز تواجدك برؤية عيادتك على الخريطة التفاعلية والخدمات الطبية، مع ظهور ذكي أسفل المقالات التعليمية لسهولة الوصول إليك.</p>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">الخريطة التفاعلية</h3>
+            <p className="text-gray-500 text-sm">اعرض موقع عيادتك على الخريطة ليسهل على المرضى الوصول إليك.</p>
           </div>
 
-          {/* Feature 6: Medical Community */}
-          <div className="col-span-1 bg-gradient-to-br from-orange-400 to-red-500 rounded-3xl p-6 text-white text-center flex flex-col items-center justify-center shadow-lg hover:shadow-orange-200/50 transition-shadow">
-            <MessageCircle className="w-10 h-10 mb-3 text-white/90" />
-            <h3 className="font-bold text-lg mb-1">المجتمع الطبي والتعليم</h3>
-            <p className="text-white/80 text-sm leading-relaxed">تواصل مع زملائك، شارك الخبرات، وتصفح أبرز الندوات والدورات والمصادر العلمية والنماذج التعليمية ثلاثية الأبعاد.</p>
-          </div>
-
-          {/* Feature 11: Jobs & Vacancies */}
-          <div className="col-span-1 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl p-6 text-white text-center flex flex-col items-center justify-center shadow-lg hover:shadow-emerald-200/50 transition-shadow">
-            <Briefcase className="w-10 h-10 mb-3 text-white/90" />
-            <h3 className="font-bold text-lg mb-1">الوظائف والتوظيف</h3>
-            <p className="text-white/80 text-sm leading-relaxed">نظام متكامل وآمن للتوظيف؛ أعلن عن شواغر في عيادتك أو ابحث عن فرص عمل، مع إدارة كاملة لطلبات التوظيف والسير الذاتية.</p>
-          </div>
-
-          {/* Feature 12: Medical Store */}
-          <div className="col-span-1 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-3xl p-6 text-white text-center flex flex-col items-center justify-center shadow-lg hover:shadow-blue-200/50 transition-shadow">
-            <ShoppingBag className="w-10 h-10 mb-3 text-white/90" />
-            <h3 className="font-bold text-lg mb-1">المتجر الطبي</h3>
-            <p className="text-white/80 text-sm leading-relaxed">تسوق من أرقى الموردين الموثوقين بخصومات حصرية، مع نظام تنبيهات ذكي لنقص المخزون وسهولة تامة في طلب المستلزمات الطبية.</p>
+          {/* Feature 10: Booking Link */}
+          <div className="col-span-1 bg-white rounded-3xl p-6 shadow-lg border border-gray-100 hover:border-indigo-200 transition-all group">
+            <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 mb-4 group-hover:scale-110 transition-transform">
+              <LinkIcon className="w-6 h-6" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">رابط حجز خاص</h3>
+            <p className="text-gray-500 text-sm">رابط مباشر خاص بعيادتك لمشاركته مع المرضى للحجز الرقمي.</p>
           </div>
 
           {/* CTA Banner (Full Width) */}

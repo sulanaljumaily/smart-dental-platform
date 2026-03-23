@@ -1,20 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { UserPlus, Mail, Lock, User, Phone, CheckCircle, Building, Stethoscope, Package, TestTube, Settings, MapPin, Eye, EyeOff } from 'lucide-react';
+import { UserPlus, Mail, Lock, User, Phone, CheckCircle, Building, Stethoscope, Package, TestTube, Settings } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { usePlatform } from '../../contexts/PlatformContext';
 import { Card } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
-import { IRAQI_GOVERNORATES } from '../../utils/location';
-import { Header } from '../../components/layout/Header';
-import { supabase } from '../../lib/supabase';
 
 export const RegisterPage: React.FC = () => {
   const { t } = useLanguage();
   const { register, login } = useAuth();
-  const { settings } = usePlatform();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -22,25 +17,19 @@ export const RegisterPage: React.FC = () => {
     fullName: '',
     email: '',
     phone: '',
-    governorate: 'بغداد',
-    address: '',
     password: '',
     confirmPassword: '',
-    accountType: '' as 'doctor' | 'supplier' | 'laboratory' | '',
+    accountType: 'doctor' as 'doctor' | 'supplier' | 'laboratory' | 'admin',
     agreeToTerms: false
   });
 
   const [loading, setLoading] = useState(false);
-  const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [registrationSuccess, setRegistrationSuccess] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // تحديث نوع الحساب بناءً على query parameter
   useEffect(() => {
     const type = searchParams.get('type');
-    if (type && ['doctor', 'supplier', 'laboratory'].includes(type)) {
+    if (type && ['doctor', 'supplier', 'laboratory', 'admin'].includes(type)) {
       setFormData(prev => ({ ...prev, accountType: type as any }));
     }
   }, [searchParams]);
@@ -60,8 +49,8 @@ export const RegisterPage: React.FC = () => {
 
     if (!formData.phone.trim()) {
       newErrors.phone = 'رقم الهاتف مطلوب';
-    } else if (!/^\d{10}$/.test(formData.phone)) {
-      newErrors.phone = 'رقم الهاتف يجب أن يتكون من 10 أرقام (بدون الصفر بالبداية)';
+    } else if (!/^\+964\d{10}$/.test(formData.phone)) {
+      newErrors.phone = 'رقم الهاتف يجب أن يبدأ بـ +964 ويتبعه 10 أرقام';
     }
 
     if (!formData.password) {
@@ -72,10 +61,6 @@ export const RegisterPage: React.FC = () => {
 
     if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'كلمتا المرور غير متطابقتين';
-    }
-
-    if (!formData.accountType) {
-      newErrors.accountType = 'يرجى اختيار نوع الحساب لتتمكن من التسجيل';
     }
 
     if (!formData.agreeToTerms) {
@@ -96,19 +81,32 @@ export const RegisterPage: React.FC = () => {
     setLoading(true);
 
     try {
-      await register(
-        formData.email,
-        formData.password,
-        formData.fullName,
-        formData.accountType as any,
-        `+964${formData.phone}`
-      );
+      // محاكاة عملية التسجيل
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
-      // Show success screen instead of redirecting immediately
-      setRegistrationSuccess(true);
+      // بعد التسجيل الناجح، تسجيل الدخول تلقائياً
+      await login(formData.email, formData.password, formData.accountType);
+
+      // التوجيه إلى المركز المناسب
+      switch (formData.accountType) {
+        case 'doctor':
+          navigate('/doctor');
+          break;
+        case 'supplier':
+          navigate('/supplier');
+          break;
+        case 'laboratory':
+          navigate('/laboratory');
+          break;
+        case 'admin':
+          navigate('/admin');
+          break;
+        default:
+          navigate('/');
+      }
     } catch (error) {
       console.error('Registration error:', error);
-      alert('حدث خطأ أثناء التسجيل. سجل الدخول إذا كان حسابك موجوداً، أو حاول مرة أخرى.');
+      alert('حدث خطأ أثناء التسجيل. حاول مرة أخرى.');
     } finally {
       setLoading(false);
     }
@@ -122,365 +120,225 @@ export const RegisterPage: React.FC = () => {
     }
   };
 
-  const handleOAuthLogin = async (provider: 'google' | 'facebook', selectedRole: string) => {
-    try {
-      setLoadingProvider(provider);
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: window.location.origin,
-        }
-      });
-      if (error) throw error;
-    } catch (err: any) {
-      console.error(err);
-      alert('فشل الدخول بحساب التواصل الاجتماعي');
-    } finally {
-      setLoadingProvider(null);
-    }
-  };
-
-  if (registrationSuccess) {
-    return (
-      <>
-        <Header />
-        <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-primary via-primary-dark to-blue-900 flex items-center justify-center p-4">
-          <Card className="w-full max-w-md my-8 text-center p-8 shadow-2xl">
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Mail className="w-10 h-10 text-green-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">إنشاء الحساب ناجح!</h2>
-            <div className="bg-blue-50 text-blue-800 p-4 rounded-lg mb-6 text-right">
-              <p className="font-medium mb-2">الخطوة التالية:</p>
-              <p className="text-sm">
-                لقد أرسلنا رسالة تأكيد إلى بريدك الإلكتروني:
-                <br />
-                <strong className="block mt-1 text-center" dir="ltr">{formData.email}</strong>
-              </p>
-              <p className="text-sm mt-3 border-t border-blue-200 pt-3">
-                يرجى التحقق من بريدك (وصندوق الرسائل غير المرغوب فيها Spam) والضغط على رابط التفعيل لتتمكن من تسجيل الدخول.
-              </p>
-            </div>
-            <Button
-              onClick={() => navigate('/login')}
-              className="w-full"
-              variant="primary"
-            >
-              الانتقال لصفحة تسجيل الدخول
-            </Button>
-          </Card>
-        </div>
-      </>
-    );
-  }
-
   return (
-    <>
-      <Header />
-      <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-primary via-primary-dark to-blue-900 flex items-center justify-center p-4">
-        <Card className="w-full max-w-2xl my-8">
-          <div className="p-8 space-y-6">
-            {/* Logo */}
-            <div className="text-center">
-              {settings.logo_url ? (
-                <img src={settings.logo_url} alt="Logo" className="w-24 h-24 mx-auto mb-4 object-contain rounded-3xl" />
-              ) : (
-                <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary-dark rounded-2xl mx-auto mb-4 flex items-center justify-center">
-                  <span className="text-white font-bold text-2xl">S</span>
-                </div>
-              )}
-              <h1 className="text-2xl font-bold text-gray-900">إنشاء حساب جديد</h1>
-              <p className="text-gray-600 mt-2">كن جزءاً من منصتنا اليوم</p>
+    <div className="min-h-screen bg-gradient-to-br from-primary via-primary-dark to-blue-900 flex items-center justify-center p-4">
+      <Card className="w-full max-w-2xl my-8">
+        <div className="p-8 space-y-6">
+          {/* Logo */}
+          <div className="text-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary-dark rounded-2xl mx-auto mb-4 flex items-center justify-center">
+              <span className="text-white font-bold text-2xl">S</span>
             </div>
+            <h1 className="text-2xl font-bold text-gray-900">إنشاء حساب جديد</h1>
+            <p className="text-gray-600 mt-2">انضم إلى SMART اليوم</p>
+          </div>
 
-            {/* Account Type Selector */}
+          {/* Account Type Selector */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              نوع الحساب
+            </label>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              <button
+                type="button"
+                onClick={() => handleInputChange('accountType', 'doctor')}
+                className={`p-4 rounded-lg border-2 transition-all ${formData.accountType === 'doctor'
+                  ? 'border-primary bg-primary/10'
+                  : 'border-gray-200 hover:border-primary/50'
+                  }`}
+              >
+                <Stethoscope className="w-8 h-8 mx-auto mb-2 text-primary" />
+                <p className="font-medium text-gray-900">طبيب أسنان</p>
+                <p className="text-xs text-gray-500 mt-1">للأطباء المتخصصين</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleInputChange('accountType', 'supplier')}
+                className={`p-4 rounded-lg border-2 transition-all ${formData.accountType === 'supplier'
+                  ? 'border-primary bg-primary/10'
+                  : 'border-gray-200 hover:border-primary/50'
+                  }`}
+              >
+                <Package className="w-8 h-8 mx-auto mb-2 text-primary" />
+                <p className="font-medium text-gray-900">مورد</p>
+                <p className="text-xs text-gray-500 mt-1">لموردي المعدات الطبية</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleInputChange('accountType', 'laboratory')}
+                className={`p-4 rounded-lg border-2 transition-all ${formData.accountType === 'laboratory'
+                  ? 'border-primary bg-primary/10'
+                  : 'border-gray-200 hover:border-primary/50'
+                  }`}
+              >
+                <TestTube className="w-8 h-8 mx-auto mb-2 text-primary" />
+                <p className="font-medium text-gray-900">مختبر أسنان</p>
+                <p className="text-xs text-gray-500 mt-1">للمختبرات الطبية</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleInputChange('accountType', 'admin')}
+                className={`p-4 rounded-lg border-2 transition-all ${formData.accountType === 'admin'
+                  ? 'border-primary bg-primary/10'
+                  : 'border-gray-200 hover:border-primary/50'
+                  }`}
+              >
+                <Settings className="w-8 h-8 mx-auto mb-2 text-primary" />
+                <p className="font-medium text-gray-900">إدارة المنصة</p>
+                <p className="text-xs text-gray-500 mt-1">لمالك النظام</p>
+              </button>
+            </div>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Full Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                اختر نوع الحساب الذي تريد إنشاءه
+                <User className="w-4 h-4 inline ml-1" />
+                الاسم الكامل
               </label>
-              <div className="flex gap-2 p-1 bg-gray-100/60 rounded-xl mb-4 border border-gray-200/50">
-                <button
-                  type="button"
-                  onClick={() => handleInputChange('accountType', 'doctor')}
-                  className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-bold transition-all duration-300 flex items-center justify-center gap-2 transform active:scale-95 ${formData.accountType === 'doctor'
-                    ? 'bg-blue-50 text-blue-700 shadow-sm border border-blue-200 scale-[1.02]'
-                    : 'text-gray-500 hover:bg-white hover:shadow-sm hover:text-blue-600 border border-transparent'
-                    }`}
-                >
-                  <Stethoscope className={`w-4 h-4 transition-colors ${formData.accountType === 'doctor' ? 'text-blue-600' : 'text-gray-400'}`} />
-                  <span>طبيب</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleInputChange('accountType', 'supplier')}
-                  className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-bold transition-all duration-300 flex items-center justify-center gap-2 transform active:scale-95 ${formData.accountType === 'supplier'
-                    ? 'bg-emerald-50 text-emerald-700 shadow-sm border border-emerald-200 scale-[1.02]'
-                    : 'text-gray-500 hover:bg-white hover:shadow-sm hover:text-emerald-600 border border-transparent'
-                    }`}
-                >
-                  <Package className={`w-4 h-4 transition-colors ${formData.accountType === 'supplier' ? 'text-emerald-600' : 'text-gray-400'}`} />
-                  <span>مورد</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleInputChange('accountType', 'laboratory')}
-                  className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-bold transition-all duration-300 flex items-center justify-center gap-2 transform active:scale-95 ${formData.accountType === 'laboratory'
-                    ? 'bg-purple-50 text-purple-700 shadow-sm border border-purple-200 scale-[1.02]'
-                    : 'text-gray-500 hover:bg-white hover:shadow-sm hover:text-purple-600 border border-transparent'
-                    }`}
-                >
-                  <TestTube className={`w-4 h-4 transition-colors ${formData.accountType === 'laboratory' ? 'text-purple-600' : 'text-gray-400'}`} />
-                  <span>مختبر</span>
-                </button>
-              </div>
+              <Input
+                type="text"
+                value={formData.fullName}
+                onChange={(e) => handleInputChange('fullName', e.target.value)}
+                placeholder="أدخل اسمك الكامل"
+                className={errors.fullName ? 'border-red-500' : ''}
+              />
+              {errors.fullName && (
+                <p className="text-red-500 text-xs mt-1">{errors.fullName}</p>
+              )}
             </div>
 
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <Button
-                type="button"
-                variant="outline"
-                className="flex items-center justify-center gap-2 bg-white"
-                onClick={() => handleOAuthLogin('google', formData.accountType)}
-                disabled={loading || !!loadingProvider}
-              >
-                <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
-                {loadingProvider === 'google' ? 'جاري التحويل...' : 'Google'}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="flex items-center justify-center gap-2 bg-[#1877F2] text-white hover:bg-[#1865F2]"
-                onClick={() => handleOAuthLogin('facebook', formData.accountType)}
-                disabled={loading || !!loadingProvider}
-              >
-                <img src="https://www.svgrepo.com/show/354981/facebook-option.svg" alt="Facebook" className="w-5 h-5 brightness-0 invert" />
-                {loadingProvider === 'facebook' ? 'جاري التحويل...' : 'Facebook'}
-              </Button>
-            </div>
-
-            <div className="flex items-center gap-4 text-gray-500 text-sm">
-              <span className="flex-1 h-px bg-gray-200"></span>
-              أو أنشئ باستخدام البريد الإلكتروني
-              <span className="flex-1 h-px bg-gray-200"></span>
-            </div>
-
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Full Name */}
+            {/* Email & Phone */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <User className="w-4 h-4 inline ml-1" />
-                  الاسم الكامل
+                  <Mail className="w-4 h-4 inline ml-1" />
+                  البريد الإلكتروني
                 </label>
                 <Input
-                  type="text"
-                  value={formData.fullName}
-                  onChange={(e) => handleInputChange('fullName', e.target.value)}
-                  placeholder="أدخل اسمك الكامل"
-                  className={errors.fullName ? 'border-red-500' : ''}
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  placeholder="example@email.com"
+                  className={errors.email ? 'border-red-500' : ''}
                 />
-                {errors.fullName && (
-                  <p className="text-red-500 text-xs mt-1">{errors.fullName}</p>
+                {errors.email && (
+                  <p className="text-red-500 text-xs mt-1">{errors.email}</p>
                 )}
               </div>
 
-              {/* Email & Phone */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <Mail className="w-4 h-4 inline ml-1" />
-                    البريد الإلكتروني
-                  </label>
-                  <Input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
-                    placeholder="example@email.com"
-                    className={errors.email ? 'border-red-500' : ''}
-                  />
-                  {errors.email && (
-                    <p className="text-red-500 text-xs mt-1">{errors.email}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <Phone className="w-4 h-4 inline ml-1" />
-                    رقم الهاتف
-                  </label>
-                  <div className="flex" dir="ltr">
-                    <div className="flex items-center justify-center gap-2 px-4 bg-gray-50 border border-gray-300 rounded-s-lg border-e-0 text-gray-600 font-medium">
-                      <img src="https://flagcdn.com/w20/iq.png" alt="Iraq" className="w-5" />
-                      <span dir="ltr">+964</span>
-                    </div>
-                    <input
-                      type="tel"
-                      dir="ltr"
-                      value={formData.phone}
-                      onChange={(e) => {
-                        let val = e.target.value.replace(/\D/g, '');
-                        // Remove leading zero if present
-                        if (val.startsWith('0')) {
-                          val = val.substring(1);
-                        }
-                        if (val.length <= 10) {
-                          handleInputChange('phone', val);
-                        }
-                      }}
-                      placeholder="77x xxx xxxx"
-                      className={`flex-1 min-w-0 px-4 py-2 border ${errors.phone ? 'border-red-500' : 'border-gray-300'} rounded-e-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all`}
-                    />
-                  </div>
-                  {errors.phone && (
-                    <p className="text-red-500 text-xs mt-1 text-right">{errors.phone}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Governorate & Address */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <MapPin className="w-4 h-4 inline ml-1" />
-                    المحافظة
-                  </label>
-                  <select
-                    value={formData.governorate}
-                    onChange={(e) => handleInputChange('governorate', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white text-gray-900"
-                  >
-                    {IRAQI_GOVERNORATES.map(gov => (
-                      <option key={gov} value={gov}>{gov}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <MapPin className="w-4 h-4 inline ml-1" />
-                    العنوان (اختياري)
-                  </label>
-                  <Input
-                    type="text"
-                    value={formData.address}
-                    onChange={(e) => handleInputChange('address', e.target.value)}
-                    placeholder="شارع، حي، منطقة..."
-                  />
-                </div>
-              </div>
-
-              {/* Password & Confirm Password */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <Lock className="w-4 h-4 inline ml-1" />
-                    كلمة المرور
-                  </label>
-                  <div className="relative">
-                    <Input
-                      type={showPassword ? 'text' : 'password'}
-                      value={formData.password}
-                      onChange={(e) => handleInputChange('password', e.target.value)}
-                      placeholder="••••••••"
-                      className={errors.password ? 'border-red-500' : ''}
-                      dir="ltr"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 p-1"
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                  {errors.password && (
-                    <p className="text-red-500 text-xs mt-1">{errors.password}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <Lock className="w-4 h-4 inline ml-1" />
-                    تأكيد كلمة المرور
-                  </label>
-                  <div className="relative">
-                    <Input
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      value={formData.confirmPassword}
-                      onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                      placeholder="••••••••"
-                      className={errors.confirmPassword ? 'border-red-500' : ''}
-                      dir="ltr"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 p-1"
-                    >
-                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                  {errors.confirmPassword && (
-                    <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Terms Agreement */}
-              <div className="flex items-start gap-2">
-                <input
-                  type="checkbox"
-                  id="agreeToTerms"
-                  checked={formData.agreeToTerms}
-                  onChange={(e) => handleInputChange('agreeToTerms', e.target.checked)}
-                  className="mt-1 w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
-                />
-                <label htmlFor="agreeToTerms" className="text-sm text-gray-700">
-                  أوافق على{' '}
-                  <Link to="/terms-of-service" className="text-primary hover:underline" target="_blank">
-                    الشروط والأحكام
-                  </Link>
-                  {' '}و{' '}
-                  <Link to="/privacy-policy" className="text-primary hover:underline" target="_blank">
-                    سياسة الخصوصية
-                  </Link>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Phone className="w-4 h-4 inline ml-1" />
+                  رقم الهاتف
                 </label>
+                <Input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => handleInputChange('phone', e.target.value)}
+                  placeholder="+964 770 123 4567"
+                  className={errors.phone ? 'border-red-500' : ''}
+                />
+                {errors.phone && (
+                  <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
+                )}
               </div>
-              {errors.agreeToTerms && (
-                <p className="text-red-500 text-xs">{errors.agreeToTerms}</p>
-              )}
-
-              {/* Account Type Error Warning */}
-              {errors.accountType && (
-                <p className="text-red-600 text-center font-bold text-sm bg-red-50 p-2 rounded-lg border border-red-200 animate-pulse">
-                  ⚠️ {errors.accountType}
-                </p>
-              )}
-
-              {/* Submit Button */}
-              <Button
-                type="submit"
-                variant={errors.accountType ? "outline" : "primary"}
-                className={`w-full flex items-center justify-center gap-2 ${errors.accountType ? 'border-red-500 text-red-600 hover:bg-red-50 bg-white' : ''}`}
-                disabled={loading || !!loadingProvider}
-              >
-                <UserPlus className="w-5 h-5" />
-                {loading ? 'جاري إنشاء الحساب...' : 'إنشاء حساب'}
-              </Button>
-            </form>
-
-            {/* Login Link */}
-            <div className="text-center text-sm text-gray-600">
-              لديك حساب بالفعل؟{' '}
-              <Link to="/login" className="text-primary font-medium hover:underline">
-                تسجيل الدخول
-              </Link>
             </div>
 
+            {/* Password & Confirm Password */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Lock className="w-4 h-4 inline ml-1" />
+                  كلمة المرور
+                </label>
+                <Input
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
+                  placeholder="••••••••"
+                  className={errors.password ? 'border-red-500' : ''}
+                />
+                {errors.password && (
+                  <p className="text-red-500 text-xs mt-1">{errors.password}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Lock className="w-4 h-4 inline ml-1" />
+                  تأكيد كلمة المرور
+                </label>
+                <Input
+                  type="password"
+                  value={formData.confirmPassword}
+                  onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                  placeholder="••••••••"
+                  className={errors.confirmPassword ? 'border-red-500' : ''}
+                />
+                {errors.confirmPassword && (
+                  <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Terms Agreement */}
+            <div className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                id="agreeToTerms"
+                checked={formData.agreeToTerms}
+                onChange={(e) => handleInputChange('agreeToTerms', e.target.checked)}
+                className="mt-1 w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+              />
+              <label htmlFor="agreeToTerms" className="text-sm text-gray-700">
+                أوافق على{' '}
+                <Link to="/terms-of-service" className="text-primary hover:underline" target="_blank">
+                  الشروط والأحكام
+                </Link>
+                {' '}و{' '}
+                <Link to="/privacy-policy" className="text-primary hover:underline" target="_blank">
+                  سياسة الخصوصية
+                </Link>
+              </label>
+            </div>
+            {errors.agreeToTerms && (
+              <p className="text-red-500 text-xs">{errors.agreeToTerms}</p>
+            )}
+
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              variant="primary"
+              className="w-full flex items-center justify-center gap-2"
+              disabled={loading}
+            >
+              <UserPlus className="w-5 h-5" />
+              {loading ? 'جاري إنشاء الحساب...' : 'إنشاء حساب'}
+            </Button>
+          </form>
+
+          {/* Login Link */}
+          <div className="text-center text-sm text-gray-600">
+            لديك حساب بالفعل؟{' '}
+            <Link to="/login" className="text-primary font-medium hover:underline">
+              تسجيل الدخول
+            </Link>
           </div>
-        </Card>
-      </div>
-    </>
+
+          {/* Quick Links */}
+          <div className="pt-4 border-t text-center space-y-2">
+            <Link to="/" className="block text-sm text-gray-600 hover:text-primary">
+              العودة للصفحة الرئيسية
+            </Link>
+          </div>
+        </div>
+      </Card>
+    </div>
   );
 };

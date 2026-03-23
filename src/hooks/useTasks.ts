@@ -33,21 +33,22 @@ export const useTasks = (clinicId?: string) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (user && clinicId) {
+        if (user) {
             fetchTasks();
 
+            // Subscribe to realtime changes
             const subscription = supabase
-                .channel('clinic_tasks_changes')
+                .channel('tasks_changes')
                 .on(
                     'postgres_changes',
                     {
                         event: '*',
                         schema: 'public',
-                        table: 'clinic_tasks',
-                        filter: clinicId !== 'all' ? `clinic_id=eq.${clinicId}` : undefined
+                        table: 'tasks'
                     },
                     (payload) => {
-                        fetchTasks();
+                        console.log('Realtime update:', payload);
+                        fetchTasks(); // Simple refresh strategy
                     }
                 )
                 .subscribe();
@@ -62,15 +63,18 @@ export const useTasks = (clinicId?: string) => {
         setLoading(true);
         try {
             let query = supabase
-                .from('clinic_tasks')
-                .select(`
-                    *,
-                    assigned_staff:assigned_to ( id, name )
-                `)
+                .from('tasks')
+                .select('*')
                 .order('due_date', { ascending: true });
 
             if (clinicId && clinicId !== 'all') {
-                query = query.eq('clinic_id', clinicId);
+                // Filter by clinic scope (JSONB) or simpler check if we added clinic_id column
+                // Since we migrated with clinic_scope, we use the JSON contains operator
+                // query = query.contains('clinic_scope', { ids: [clinicId] }); 
+                // OR simpler if we rely on the migration adding 'clinic_id' to tasks? 
+                // Migration 20260205 added `clinic_scope` JSONB. 
+                // Let's assume for now we filter by the JSON field.
+                query = query.or(`clinic_scope->>ids.cs.{${clinicId}},clinic_scope->>type.eq.all`);
             }
 
             const { data, error } = await query;
@@ -78,27 +82,26 @@ export const useTasks = (clinicId?: string) => {
             if (error) throw error;
 
             if (data) {
-                const mapped: Task[] = data.map((t: any) => ({
+                const mapped: Task[] = data.map(t => ({
                     id: t.id,
-                    type: 'task', // Default as schema doesn't have type yet, or we can use description/title conventions
+                    type: t.type as any,
                     title: t.title,
                     description: t.description || '',
                     status: t.status as any,
                     priority: t.priority as any,
-                    category: 'إدارية', // Default
-                    date: t.due_date ? t.due_date.split('T')[0] : '',
-                    time: t.due_date ? new Date(t.due_date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '00:00',
-                    duration: 30,
-                    creatorId: t.created_by,
-                    creatorName: 'مستخدم',
+                    category: t.category as any,
+                    date: t.due_date,
+                    time: t.due_time || '00:00',
+                    duration: t.duration || 30,
+                    creatorId: t.creator_id,
+                    creatorName: 'مستخدم', // Placeholder - in real app would join profiles
                     creatorRole: 'admin',
-                    clinicScope: { type: 'specific', ids: [t.clinic_id?.toString()], names: [] },
-                    assignedScope: t.assigned_staff
-                        ? { type: 'specific', ids: [t.assigned_staff.id.toString()], names: [t.assigned_staff.name] }
-                        : { type: 'all' },
-                    subtasks: [],
-                    progress: t.status === 'completed' ? 100 : 0,
-                    tags: [],
+                    clinicScope: t.clinic_scope || { type: 'all' },
+                    assignedScope: t.assigned_scope || { type: 'all' },
+                    subtasks: t.subtasks || [],
+                    progress: t.status === 'completed' ? 100 : (t.status === 'in_progress' ? 50 : 0),
+                    tags: t.tags || [],
+                    notes: t.notes,
                     lastUpdated: t.updated_at
                 }));
                 setTasks(mapped);
@@ -113,33 +116,27 @@ export const useTasks = (clinicId?: string) => {
 
     const addTask = async (task: Partial<Task>) => {
         try {
-            // Map frontend Task to DB
-            const assignedToId = task.assignedScope?.type === 'specific' && task.assignedScope.ids?.[0]
-                ? parseInt(task.assignedScope.ids[0])
-                : null;
-
-            // Determine Clinic ID: Context takes precedence unless 'all', then look at task scope
-            let targetClinicId: number | null = null;
-            if (clinicId && clinicId !== 'all') {
-                targetClinicId = parseInt(clinicId);
-            } else if (task.clinicScope?.type === 'specific' && task.clinicScope.ids?.[0]) {
-                targetClinicId = parseInt(task.clinicScope.ids[0]);
-            }
-
-            const { error } = await supabase.from('clinic_tasks').insert({
-                clinic_id: targetClinicId,
+            const { error } = await supabase.from('tasks').insert({
                 title: task.title,
                 description: task.description,
-                assigned_to: assignedToId,
+                type: task.type || 'task',
                 status: task.status || 'pending',
                 priority: task.priority || 'medium',
-                due_date: task.date ? `${task.date}T${task.time || '00:00'}:00` : null,
-                created_by: user?.id
+                category: task.category,
+                due_date: task.date,
+                due_time: task.time,
+                duration: task.duration,
+                clinic_scope: task.clinicScope,
+                assigned_scope: task.assignedScope,
+                subtasks: task.subtasks,
+                tags: task.tags,
+                notes: task.notes,
+                creator_id: user?.id
             });
 
             if (error) throw error;
             toast.success('تم إضافة المهمة بنجاح');
-            fetchTasks();
+            fetchTasks(); // Optimistic update would be better but this is safe
         } catch (err) {
             console.error('Error adding task:', err);
             toast.error('فشل إضافة المهمة');
@@ -148,19 +145,16 @@ export const useTasks = (clinicId?: string) => {
 
     const updateTask = async (id: string, updates: Partial<Task>) => {
         try {
+            // Map frontend keys to DB keys
             const dbUpdates: any = {};
             if (updates.status) dbUpdates.status = updates.status;
             if (updates.title) dbUpdates.title = updates.title;
             if (updates.description) dbUpdates.description = updates.description;
-            if (updates.priority) dbUpdates.priority = updates.priority;
-
-            if (updates.date || updates.time) {
-                // Would need to merge date/time if only one provided, for now assume simple update
-                // This might need more robust handling if only updating time
-            }
+            if (updates.date) dbUpdates.due_date = updates.date;
+            if (updates.time) dbUpdates.due_time = updates.time;
 
             const { error } = await supabase
-                .from('clinic_tasks')
+                .from('tasks')
                 .update({
                     ...dbUpdates,
                     updated_at: new Date().toISOString()
@@ -168,6 +162,7 @@ export const useTasks = (clinicId?: string) => {
                 .eq('id', id);
 
             if (error) throw error;
+            // toast.success('تم تحديث المهمة');
             fetchTasks();
         } catch (err) {
             console.error('Error updating task:', err);
@@ -177,7 +172,7 @@ export const useTasks = (clinicId?: string) => {
 
     const deleteTask = async (id: string) => {
         try {
-            const { error } = await supabase.from('clinic_tasks').delete().eq('id', id);
+            const { error } = await supabase.from('tasks').delete().eq('id', id);
             if (error) throw error;
             toast.success('تم حذف المهمة');
             fetchTasks();

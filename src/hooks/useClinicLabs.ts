@@ -6,8 +6,7 @@ import { toast } from 'sonner';
 export interface ClinicLab {
     id: string;
     name: string;
-    address: string;      // Street address only
-    governorate?: string; // Parsed from stored 'Governorate - Street' format
+    address: string;
     phone: string;
     specialties: string[];
     isCustom: boolean;
@@ -34,7 +33,6 @@ export interface ClinicLab {
     delegates?: any[];
     establishmentYear?: number;
     licenseNumber?: string;
-    user_id?: string;
 }
 
 export const useClinicLabs = (clinicId: string) => {
@@ -45,16 +43,20 @@ export const useClinicLabs = (clinicId: string) => {
         try {
             setLoading(true);
 
-            // 1. Fetch Platform Labs from dental_laboratories (with profile avatar as logo fallback)
+            // 1. Fetch Platform Labs
+            // We use 'dental_laboratories' which should be readable by authenticated users via RLS
+            // Remove strict filter for now to see if data exists at all
             const { data: platformLabs, error: platformError } = await supabase
                 .from('dental_laboratories')
-                .select('*, profiles:user_id(avatar_url)');
+                .select('*');
+            // .eq('account_status', 'active'); // Re-enable if stats is strictly enforced
 
             if (platformError) {
-                console.warn('Error fetching platform labs:', platformError);
+                console.warn('Error fetching platform labs (likely RLS or missing table):', platformError);
             }
 
-            // 2. Fetch Custom/Manual Labs for this clinic
+            // 2. Fetch Custom Labs (Manual)
+            // Handle error gracefully if table doesn't exist yet
             let customLabs: any[] = [];
             try {
                 const { data, error } = await supabase
@@ -63,7 +65,7 @@ export const useClinicLabs = (clinicId: string) => {
                     .eq('clinic_id', clinicId);
 
                 if (error) {
-                    console.warn('Could not fetch custom labs:', error);
+                    console.warn('Could not fetch custom labs (likely missing table):', error);
                 } else {
                     customLabs = data || [];
                 }
@@ -71,50 +73,57 @@ export const useClinicLabs = (clinicId: string) => {
                 console.warn('Error querying clinic_custom_labs');
             }
 
-            // 3. Fetch Favorited Platform Labs from clinic_lab_favorites
-            // Custom labs are always shown (auto-favorite)
-            // Platform labs only show when explicitly favorited
+            // 3. Fetch Saved Favorites
+            // Try 'doctor_saved_labs' based on Auth User first (migration 012)
             let favoriteIds = new Set<string>();
-            try {
-                const { data: clinicFavs } = await supabase
-                    .from('clinic_lab_favorites')
-                    .select('lab_id')
-                    .eq('clinic_id', clinicId);
 
-                if (clinicFavs) {
-                    clinicFavs.forEach(f => { if (f.lab_id) favoriteIds.add(f.lab_id); });
+            const { data: { user } } = await supabase.auth.getUser();
+
+            if (user) {
+                const { data: favorites, error: favError } = await supabase
+                    .from('doctor_saved_labs')
+                    .select('lab_id')
+                    .eq('doctor_id', user.id);
+
+                if (!favError && favorites) {
+                    favorites.forEach(f => favoriteIds.add(f.lab_id));
+                } else if (favError) {
+                    // Fallback: try clinic_lab_favorites
+                    const { data: clinicFavs } = await supabase
+                        .from('clinic_lab_favorites')
+                        .select('lab_id')
+                        .eq('clinic_id', clinicId);
+
+                    if (clinicFavs) {
+                        clinicFavs.forEach(f => favoriteIds.add(f.lab_id));
+                    }
                 }
-            } catch (e) {
-                console.warn('Error fetching favorites:', e);
             }
 
-            const formattedPlatformLabs: ClinicLab[] = (platformLabs || []).map((lab: any) => {
-                return {
-                    id: lab.id,
-                    name: lab.name || lab.lab_name,
-                    address: lab.address?.trim() || '',
-                    governorate: lab.governorate?.trim() || '',
-                    phone: lab.phone?.trim() || '',
-                    specialties: [],
-                    isCustom: false,
-                    isFavorite: favoriteIds.has(lab.id),
-                    rating: lab.rating,
-                    isVerified: lab.is_active || false,
-                    logo: lab.logo_url || lab.profiles?.avatar_url || undefined,
-                    reviewCount: 0,
-                    price: { panoramic: 0, periapical: 0, bitewing: 0, occlusal: 0, coneBeam: 0, gumAnalysis: 0 },
-                    isAccredited: lab.is_accredited || false,
-                    workingHours: lab.working_hours || '09:00 - 17:00',
-                    responseTime: lab.response_time || '24h',
-                    services: [],
-                    delegates: [],
-                    establishmentYear: lab.establishment_year ? parseInt(lab.establishment_year) : undefined,
-                    licenseNumber: lab.license_number || undefined,
-                    user_id: lab.user_id
-                };
-            });
+            const formattedPlatformLabs: ClinicLab[] = (platformLabs || []).map((lab: any) => ({
+                id: lab.id,
+                name: lab.name || lab.lab_name, // Handle potential column name differences
+                address: lab.address || '',
+                phone: lab.phone || '',
+                specialties: [], // TODO: relationships
+                isCustom: false,
+                isFavorite: favoriteIds.has(lab.id) || (lab.user_id && favoriteIds.has(lab.user_id)),
+                rating: lab.rating,
+                isVerified: lab.is_active || false, // Map is_active to isVerified
+                reviewCount: 0,
+                price: { panoramic: 0, periapical: 0, bitewing: 0, occlusal: 0, coneBeam: 0, gumAnalysis: 0 },
+                isAccredited: lab.is_active || false,
+                workingHours: lab.working_hours || '09:00 - 17:00',
+                responseTime: lab.response_time || '24h',
+                services: [],
+                delegates: [],
+                // Additional lab info
+                establishmentYear: lab.establishment_year ? parseInt(lab.establishment_year) : (lab.established_at ? new Date(lab.established_at).getFullYear() : undefined),
+                licenseNumber: lab.license_number || undefined,
+                // Pass user_id for favorite toggling if needed
+                user_id: lab.user_id
+            }));
 
-            // Custom labs are always favorited (auto-shown in saved section)
             const formattedCustomLabs: ClinicLab[] = (customLabs || []).map((lab: any) => ({
                 id: lab.id,
                 name: lab.name,
@@ -122,7 +131,7 @@ export const useClinicLabs = (clinicId: string) => {
                 phone: lab.phone,
                 specialties: lab.specialties || [],
                 isCustom: true,
-                isFavorite: true, // Always shown in saved section
+                isFavorite: true, // Always favorite/saved if it's custom
                 reviewCount: 0,
                 price: { panoramic: 0, periapical: 0, bitewing: 0, occlusal: 0, coneBeam: 0, gumAnalysis: 0 },
                 isAccredited: false,
@@ -167,34 +176,72 @@ export const useClinicLabs = (clinicId: string) => {
 
     const toggleFavorite = async (labId: string) => {
         try {
-            const lab = labs.find(l => l.id === labId);
-            if (!lab) return;
-
-            // Custom labs cannot be unfavorited (they are always shown)
-            if (lab.isCustom) {
-                toast.error('المعامل اليدوية تظهر دائماً في المحفوظة');
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                toast.error('يجب تسجيل الدخول');
                 return;
             }
 
+            const lab = labs.find(l => l.id === labId);
+            if (!lab) return;
+
             const isFav = lab.isFavorite;
+            const targetIdForProfile = (lab as any).user_id; // Check if user_id exists (Platform Lab)
 
             if (isFav) {
-                // Remove from clinic_lab_favorites
-                const { error } = await supabase
-                    .from('clinic_lab_favorites')
+                // Remove from both potential tables
+                // 1. Remove from doctor_saved_labs (references profile/user_id)
+                if (targetIdForProfile) {
+                    await supabase.from('doctor_saved_labs')
+                        .delete()
+                        .match({ doctor_id: user.id, lab_id: targetIdForProfile });
+                }
+
+                // 2. Remove from clinic_lab_favorites (references lab table id)
+                await supabase.from('clinic_lab_favorites')
                     .delete()
                     .match({ clinic_id: clinicId, lab_id: labId });
 
-                if (error) throw error;
-                toast.success('تمت الإزالة من المحفوظة');
-            } else {
-                // Add to clinic_lab_favorites
-                const { error } = await supabase
-                    .from('clinic_lab_favorites')
-                    .insert({ clinic_id: clinicId, lab_id: labId });
+                // 3. Fallback: try removing by ID from doctor_saved_labs just in case it was saved that way previously
+                await supabase.from('doctor_saved_labs')
+                    .delete()
+                    .match({ doctor_id: user.id, lab_id: labId });
 
-                if (error && error.code !== '23505') throw error; // ignore duplicate
-                toast.success('تمت الإضافة للمحفوظة');
+                toast.success('تمت الإزالة من المفضلة');
+            } else {
+                // Try adding to doctor_saved_labs first (most reliable per schema if we have user_id)
+                let addedToDoctor = false;
+
+                if (targetIdForProfile) {
+                    const { error: docError } = await supabase
+                        .from('doctor_saved_labs')
+                        .insert({ doctor_id: user.id, lab_id: targetIdForProfile });
+
+                    if (!docError) addedToDoctor = true;
+                    else console.warn('Failed to add user_id to doctor_saved_labs', docError);
+                }
+
+                // If platform lab but failed to add to doctor_saved_labs OR if it's a custom lab (no user_id)
+                // Try adding to clinic_lab_favorites (using ID)
+                if (!addedToDoctor) {
+                    const { error: clinicError } = await supabase
+                        .from('clinic_lab_favorites')
+                        .insert({ clinic_id: clinicId, lab_id: labId });
+
+                    if (clinicError && !addedToDoctor) {
+                        // Last resort: try adding the raw ID to doctor_saved_labs (maybe it allows it?)
+                        const { error: finalError } = await supabase
+                            .from('doctor_saved_labs')
+                            .insert({ doctor_id: user.id, lab_id: labId });
+
+                        if (finalError) {
+                            console.error('All save attempts failed', finalError);
+                            toast.error('لم نتمكن من حفظ المختبر');
+                            return;
+                        }
+                    }
+                }
+                toast.success('تمت الإضافة للمفضلة');
             }
 
             await fetchLabs();

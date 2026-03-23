@@ -4,19 +4,12 @@ export interface AIAgentConfig {
     id: AIAgentType;
     name: string;
     description: string;
-    provider: 'openai' | 'anthropic' | 'google' | 'deepseek' | 'banana' | 'mock';
+    provider: 'openai' | 'anthropic' | 'gemini' | 'mock';
     apiKey?: string;
     model: string;
     isActive: boolean;
     systemRules: string; // The "Rules" the user requested
     temperature: number;
-}
-
-export interface AIAnalysisMetadata {
-    isMock: boolean;
-    provider: string;
-    model?: string;
-    processingTime?: number;
 }
 
 export interface AIAnalysisResult {
@@ -28,7 +21,6 @@ export interface AIAnalysisResult {
     }>;
     summary: string;
     recommendation: string;
-    metadata?: AIAnalysisMetadata;
     // Optional compatibility fields if needed elsewhere
     diagnosis?: string;
     confidence?: number;

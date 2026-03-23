@@ -68,23 +68,6 @@ export const NewEnhancedLabDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [notificationCount] = useState(5);
-  const [isSuspended, setIsSuspended] = useState(false);
-  const [suspensionChecked, setSuspensionChecked] = useState(false);
-
-  // Check suspension status on mount
-  useEffect(() => {
-    const checkSuspension = async () => {
-      if (!user?.id) return;
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('banned')
-        .eq('id', user.id)
-        .single();
-      setIsSuspended(profile?.banned === true);
-      setSuspensionChecked(true);
-    };
-    checkSuspension();
-  }, [user?.id]);
 
   // جلب إحصائيات لوحة التحكم
   const fetchDashboardStats = async () => {
@@ -399,34 +382,6 @@ export const NewEnhancedLabDashboard: React.FC = () => {
         return null;
     }
   };
-
-  // Show suspension notice if account is suspended
-  if (suspensionChecked && isSuspended) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6" dir="rtl">
-        <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 text-center border-2 border-red-100">
-          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <span className="text-4xl">🚫</span>
-          </div>
-          <h1 className="text-2xl font-bold text-red-700 mb-3">حسابك معلق</h1>
-          <p className="text-gray-600 mb-2">تم تعليق حساب مختبرك من قِبل إدارة المنصة.</p>
-          <p className="text-gray-500 text-sm mb-6">
-            لن يظهر حسابك في قائمة معامل الأسنان للعيادات أو في المجتمع الطبي حتى يتم رفع التعليق.
-          </p>
-          <div className="bg-gray-50 rounded-2xl p-4 text-sm text-gray-600 text-right space-y-1 mb-6">
-            <p><span className="font-bold">للاستفسار:</span> تواصل مع الدعم الفني</p>
-            <p><span className="font-bold">البريد:</span> support@smartdental.com</p>
-          </div>
-          <button
-            onClick={() => { logout(); navigate('/'); }}
-            className="w-full py-3 px-6 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 transition-colors"
-          >
-            تسجيل الخروج
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   if (loading) {
     return (

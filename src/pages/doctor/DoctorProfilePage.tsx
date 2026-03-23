@@ -15,9 +15,6 @@ import { useClinics } from '../../hooks/useClinics';
 import { usePatients } from '../../hooks/usePatients';
 import { useTransactions } from '../../hooks/useTransactions';
 import { supabase } from '../../lib/supabase';
-import { IRAQI_GOVERNORATES } from '../../utils/location';
-import { toast } from 'sonner';
-import { SocialBadges } from '../../components/auth/SocialBadges';
 
 const SubscriptionCard: React.FC = () => {
   const navigate = useNavigate();
@@ -146,7 +143,6 @@ const SubscriptionCard: React.FC = () => {
 export const DoctorProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Real Data Hooks
   const { clinics } = useClinics();
@@ -168,85 +164,23 @@ export const DoctorProfilePage: React.FC = () => {
 
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState({
-    name: user?.name || '',
-    email: user?.email || '',
-    phone: user?.phone || '',
-    governorate: 'بغداد',
-    address: '',
-    specialization: isStaff ? 'طاقم عيادة' : 'طب الأسنان التجميلي',
+    name: user?.name || 'د. أحمد محمد',
+    email: user?.email || 'ahmed@clinic.com',
+    phone: user?.phone || '+964 770 123 4567',
+    address: 'بغداد، العراق',
+    specialization: isStaff ? 'طاقم عيادة' : 'طب الأسنان التجميلي', // Dynamic
     experience: '5 سنوات',
     license: 'رقم الترخيص: DT-12345',
     bio: isStaff ? 'موظف في عيادة النور التخصصية' : 'طبيب أسنان متخصص في التجميل والزراعة مع خبرة 10 سنوات',
   });
 
-  // Load profile location from Supabase
-  useEffect(() => {
-    const loadProfile = async () => {
-      if (!user?.id) return;
-      const { data } = await supabase.from('profiles').select('governorate, address, phone, full_name').eq('id', user.id).single();
-      if (data) {
-        setProfileData(prev => ({
-          ...prev,
-          name: data.full_name || prev.name,
-          phone: data.phone || prev.phone,
-          governorate: data.governorate || 'بغداد',
-          address: data.address || '',
-        }));
-      }
-    };
-    loadProfile();
-  }, [user?.id]);
-
-  const handleSave = async () => {
-    if (user?.id) {
-      await supabase.from('profiles').update({
-        governorate: profileData.governorate,
-        address: profileData.address,
-        phone: profileData.phone,
-      }).eq('id', user.id);
-    }
+  const handleSave = () => {
+    // Ideally call API to update profile
     setIsEditing(false);
   };
 
   const handleCancel = () => {
     setIsEditing(false);
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user?.id) return;
-
-    try {
-      const fileExt = file.name.split('.').pop();
-      const filePath = `${user.id}/${Date.now()}.${fileExt}`;
-
-      // 1. Upload
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file, { upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      // 2. Get Public URL
-      const { data: urlData } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
-      const publicUrl = urlData.publicUrl;
-
-      // 3. Update Profile table
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: publicUrl })
-        .eq('id', user.id);
-
-      if (updateError) throw updateError;
-
-      toast.success('تم تحديث الصورة الشخصية بنجاح');
-      window.location.reload(); 
-    } catch (err: any) {
-      console.error('Upload error:', err);
-    }
   };
 
   const [activeTab, setActiveTab] = useState<'overview' | 'subscriptions' | 'security'>('overview');
@@ -363,36 +297,21 @@ export const DoctorProfilePage: React.FC = () => {
                         </div>
                       )}
                     </div>
-                    <button 
-                      onClick={() => fileInputRef.current?.click()}
-                      className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                    >
-                      <Camera className="w-8 h-8 text-white" />
-                    </button>
+                    {isEditing && (
+                      <button className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Camera className="w-8 h-8 text-white" />
+                      </button>
+                    )}
                   </div>
 
                   <h2 className="text-xl font-bold text-gray-900 mb-1">{profileData.name}</h2>
-                  <p className="text-gray-500 text-sm mb-2">{profileData.specialization}</p>
-                  
-                  <div className="mb-4">
-                    <SocialBadges />
-                  </div>
+                  <p className="text-gray-500 text-sm mb-4">{profileData.specialization}</p>
 
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    تغيير الصورة
-                  </Button>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                  />
+                  {isEditing && (
+                    <Button variant="outline" size="sm" className="w-full">
+                      تغيير الصورة
+                    </Button>
+                  )}
                 </div>
               </Card>
 
@@ -474,32 +393,12 @@ export const DoctorProfilePage: React.FC = () => {
                     </label>
                     <input type="tel" value={profileData.phone} onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })} disabled={!isEditing} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50" />
                   </div>
-                  {/* Governorate + Address */}
-                  <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /> المحافظة</div>
-                      </label>
-                      {isEditing ? (
-                        <select
-                          value={profileData.governorate}
-                          onChange={(e) => setProfileData({ ...profileData, governorate: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                        >
-                          {IRAQI_GOVERNORATES.map(gov => (
-                            <option key={gov} value={gov}>{gov}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input type="text" value={profileData.governorate} disabled className="w-full px-4 py-2 border border-gray-300 rounded-lg disabled:bg-gray-50" />
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /> العنوان (اختياري)</div>
-                      </label>
-                      <input type="text" value={profileData.address} onChange={(e) => setProfileData({ ...profileData, address: e.target.value })} disabled={!isEditing} placeholder="شارع، حي، منطقة..." className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50" />
-                    </div>
+                  {/* Address */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /> العنوان</div>
+                    </label>
+                    <input type="text" value={profileData.address} onChange={(e) => setProfileData({ ...profileData, address: e.target.value })} disabled={!isEditing} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50" />
                   </div>
                   {/* Bio */}
                   <div className="md:col-span-2">

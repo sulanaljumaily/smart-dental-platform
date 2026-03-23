@@ -138,17 +138,13 @@ export const SupplierDetailModal: React.FC<SupplierDetailModalProps> = ({
                     {activeTab === 'profile' && (
                         <div className="space-y-6">
                             <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl">
-                                <div className="w-16 h-16 bg-white rounded-lg border flex items-center justify-center text-2xl font-bold text-gray-400 overflow-hidden">
-                                    {supplier.logo ? (
-                                        <img src={supplier.logo} alt={supplier.companyName} className="w-full h-full object-cover" />
-                                    ) : (
-                                        supplier.companyName?.charAt(0) || supplier.name?.charAt(0) || '?'
-                                    )}
+                                <div className="w-16 h-16 bg-white rounded-lg border flex items-center justify-center text-2xl font-bold text-gray-400">
+                                    {supplier.companyName?.charAt(0) || supplier.name?.charAt(0) || '?'}
                                 </div>
                                 <div>
                                     <h3 className="text-xl font-bold text-gray-900">{supplier.companyName}</h3>
                                     <div className="flex items-center gap-2 text-gray-500 text-sm mt-1">
-                                        <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {supplier.location || supplier.governorate || supplier.address || ''}</span>
+                                        <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {supplier.location || 'بغداد, العراق'}</span>
                                         <span className="w-1 h-1 bg-gray-300 rounded-full" />
                                         <span>نوع: {supplier.category}</span>
                                     </div>

@@ -10,7 +10,6 @@ import { HomePage } from './pages/public/HomePage';
 import { ServicesPage } from './pages/public/ServicesPage';
 import { ArticleDetailPage } from './pages/public/ArticleDetailPage';
 import { DiagnosisDetailPage } from './pages/public/DiagnosisDetailPage';
-import { SmartDiagnosisPage } from './pages/public/SmartDiagnosisPage';
 
 // Emergency Pages
 import { DentalEmergencyPage } from './pages/emergency/DentalEmergencyPage';
@@ -112,15 +111,8 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requiredRole?: strin
     return <Navigate to="/login" replace />;
   }
 
-  if (requiredRole) {
-    // Special handling: 'staff' can access 'doctor' routes
-    if (requiredRole === 'doctor' && (user?.role === 'doctor' || user?.role === 'staff')) {
-      return <>{children}</>;
-    }
-
-    if (user?.role !== requiredRole) {
-      return <Navigate to="/" replace />;
-    }
+  if (requiredRole && user?.role !== requiredRole) {
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;
@@ -135,8 +127,6 @@ function AppContent() {
           <Route path="/" element={<HomePage />} />
           <Route path="/services" element={<ServicesPage />} />
           <Route path="/article/:id" element={<ArticleDetailPage />} />
-          <Route path="/diagnosis/ai" element={<SmartDiagnosisPage />} />
-          <Route path="/smart" element={<DiagnosisDetailPage />} />
           <Route path="/diagnosis/:id" element={<DiagnosisDetailPage />} />
           <Route path="/booking" element={<BookingPage />} />
 
@@ -309,7 +299,6 @@ function AppContent() {
   );
 }
 
-import { CompleteRegistrationModal } from './components/auth/CompleteRegistrationModal';
 import { StoreProvider } from './context/StoreContext';
 import { CommunityProvider } from './contexts/CommunityContext';
 import { PlatformProvider } from './contexts/PlatformContext';
@@ -318,7 +307,6 @@ function App() {
   return (
     <LanguageProvider>
       <AuthProvider>
-        <CompleteRegistrationModal />
         <StoreProvider>
           <CommunityProvider>
             <PlatformProvider>

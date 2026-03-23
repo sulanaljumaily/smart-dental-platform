@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { Database } from '@/lib/supabase/types';
-import { DoctorLabChat } from '@/components/lab/DoctorLabChat';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -57,28 +56,14 @@ type Order = {
   doctor_phone?: string;
   clinic_name?: string;
   clinic_phone?: string;
-  clinic_governorate?: string;
-  clinic_city?: string;
-  clinic_id?: number;
+  clinic_address?: string;
   service_name: string;
   status: string;
   priority: 'low' | 'normal' | 'high' | 'urgent';
   order_date: string;
   estimated_completion_date?: string;
   assigned_representative_name?: string;
-  pickup_delegate_id?: string;
-  pickup_delegate_name?: string;
-  pickup_delegate_phone?: string;
-  delivery_delegate_id?: string;
-  delivery_delegate_name?: string;
-  delivery_delegate_phone?: string;
   total_amount: number;
-};
-
-type Delegate = {
-  id: string;
-  name: string;
-  phone: string;
 };
 
 type OrderStats = {
@@ -106,46 +91,6 @@ export default function EnhancedOrderManagement() {
   const [newStatus, setNewStatus] = useState('');
   const [statusNotes, setStatusNotes] = useState('');
   const [showOrderDetails, setShowOrderDetails] = useState(false);
-  const [showChatDialog, setShowChatDialog] = useState(false);
-  const [delegates, setDelegates] = useState<Delegate[]>([]);
-  const [selectedDelegateId, setSelectedDelegateId] = useState<string>('');
-  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-
-  // جلب المندوبين
-  useEffect(() => {
-    const fetchDelegates = async () => {
-      if (!user) return;
-      try {
-        // Try direct match first, then linked lab
-        const { data: labData } = await supabase
-          .from('dental_laboratories')
-          .select('id')
-          .or(`id.eq.${user.id},user_id.eq.${user.id}`)
-          .maybeSingle();
-
-        const labId = labData?.id || user.id;
-        const { data, error } = await supabase
-          .from('dental_lab_representatives')
-          .select('id, full_name, phone, status')
-          .eq('laboratory_id', labId);
-
-        if (error) {
-          console.error('Supabase error fetching delegates:', error);
-        }
-
-        if (data) {
-          setDelegates(data.map((d: any) => ({
-            id: d.id,
-            name: d.full_name || 'مندوب',
-            phone: d.phone || ''
-          })));
-        }
-      } catch (e) {
-        console.error('Error fetching delegates', e);
-      }
-    };
-    fetchDelegates();
-  }, [user]);
 
   // جلب الطلبات
   const fetchOrders = async () => {
@@ -153,15 +98,15 @@ export default function EnhancedOrderManagement() {
     try {
       setLoading(true);
 
-      // 1. Get Lab ID from User ID - try all possible link columns
+      // 1. Get Lab ID from User ID
       const { data: labData, error: labError } = await supabase
         .from('dental_laboratories')
         .select('id')
-        .or(`id.eq.${user.id},user_id.eq.${user.id}`)
-        .maybeSingle();
+        .eq('user_id', user.id)
+        .single();
 
       if (labError || !labData) {
-        console.error('Lab not found for user:', user.id, labError);
+        console.error('Lab not found for user:', user.id);
         return;
       }
 
@@ -188,61 +133,17 @@ export default function EnhancedOrderManagement() {
         });
       }
 
-      // جلب الطلبات - Direct query instead of RPC to avoid PGRST203 overloading error
+      // جلب الطلبات
       const statusFilter = filterStatus === 'all' ? null : filterStatus;
       console.log('Fetching Orders for Lab:', realLabId, 'Status:', statusFilter);
 
-      let ordersQuery = supabase
-        .from('dental_lab_orders')
-        .select(`
-          *,
-          clinic:clinics(name, phone, governorate)
-        `)
-        .eq('laboratory_id', realLabId)
-        .order('created_at', { ascending: false });
-
-      if (statusFilter) {
-        ordersQuery = ordersQuery.eq('status', statusFilter);
-      }
-
-      const { data: ordersData, error: ordersError } = await ordersQuery;
-
-      if (ordersError) throw ordersError;
-
-      // Map to Order type
-      const mappedOrders: Order[] = (ordersData || []).map((o: any) => {
-        // Find delegate phones from loaded delegates
-        const pickupDel = delegates.find(d => d.id === o.pickup_delegate_id);
-        const deliveryDel = delegates.find(d => d.id === o.delivery_delegate_id);
-
-        return {
-          order_id: o.id,
-          order_number: o.order_number || '',
-          patient_name: o.patient_name || '',
-          doctor_name: o.doctor_name || o.staff_name || '',
-          doctor_phone: o.doctor_phone || '',
-          clinic_name: o.clinic?.name || '',
-          clinic_phone: o.clinic?.phone || '',
-          clinic_governorate: o.clinic?.governorate || '',
-          clinic_city: '',
-          clinic_id: o.clinic_id,
-          service_name: o.service_name || '',
-          status: o.status || 'pending',
-          priority: o.priority || 'normal',
-          order_date: o.created_at,
-          estimated_completion_date: o.expected_delivery_date,
-          assigned_representative_name: o.pickup_delegate_name || o.delegate_name,
-          pickup_delegate_id: o.pickup_delegate_id,
-          pickup_delegate_name: o.pickup_delegate_name,
-          pickup_delegate_phone: pickupDel?.phone || '',
-          delivery_delegate_id: o.delivery_delegate_id,
-          delivery_delegate_name: o.delivery_delegate_name,
-          delivery_delegate_phone: deliveryDel?.phone || '',
-          total_amount: o.final_amount || o.price || 0
-        };
+      const { data: ordersData, error: ordersError } = await supabase.rpc('get_orders_by_status', {
+        p_lab_id: realLabId,
+        p_status: statusFilter
       });
 
-      setOrders(mappedOrders);
+      if (ordersError) throw ordersError;
+      setOrders(ordersData || []);
 
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -255,9 +156,7 @@ export default function EnhancedOrderManagement() {
   const updateOrderStatus = async () => {
     if (!selectedOrder || !newStatus) return;
 
-    setIsUpdatingStatus(true);
     try {
-      // Update status via RPC
       const { error } = await supabase.rpc('update_order_status', {
         p_order_id: selectedOrder.order_id,
         p_status_changed_by: user?.id,
@@ -268,49 +167,13 @@ export default function EnhancedOrderManagement() {
 
       if (error) throw error;
 
-      // If a delegate was selected, save it to the order based on the status phase
-      if (selectedDelegateId) {
-        const delegate = delegates.find(d => d.id === selectedDelegateId);
-        if (delegate) {
-          // Determine if this is a pickup phase or delivery phase
-          const isPickupPhase = ['ready_for_pickup', 'collected', 'in_progress', 'returned'].includes(newStatus);
-          const isDeliveryPhase = ['ready_for_delivery', 'delivered'].includes(newStatus);
-
-          let updateData: any = {};
-
-          if (isPickupPhase) {
-            updateData.pickup_delegate_id = selectedDelegateId;
-            updateData.pickup_delegate_name = delegate.name;
-          } else if (isDeliveryPhase) {
-            updateData.delivery_delegate_id = selectedDelegateId;
-            updateData.delivery_delegate_name = delegate.name;
-          } else {
-            // Default to pickup if neither is obvious
-            updateData.pickup_delegate_id = selectedDelegateId;
-            updateData.pickup_delegate_name = delegate.name;
-          }
-
-          // Also set the old ones for compatibility for now to avoid breaking other views
-          updateData.delegate_id = selectedDelegateId;
-          updateData.delegate_name = delegate.name;
-
-          await supabase
-            .from('dental_lab_orders')
-            .update(updateData)
-            .eq('id', selectedOrder.order_id);
-        }
-      }
-
       setShowStatusDialog(false);
       setSelectedOrder(null);
       setNewStatus('');
       setStatusNotes('');
-      setSelectedDelegateId('');
       fetchOrders();
     } catch (error) {
       console.error('Error updating order status:', error);
-    } finally {
-      setIsUpdatingStatus(false);
     }
   };
 
@@ -325,15 +188,6 @@ export default function EnhancedOrderManagement() {
     setSelectedOrder(order);
     setNewStatus(order.status);
     setStatusNotes('');
-
-    // Auto-select the correct delegate based on the current status
-    const isDeliveryPhase = ['ready_for_delivery', 'delivered'].includes(order.status);
-    if (isDeliveryPhase) {
-      setSelectedDelegateId(order.delivery_delegate_id || '');
-    } else {
-      setSelectedDelegateId(order.pickup_delegate_id || '');
-    }
-
     setShowStatusDialog(true);
   };
 
@@ -342,7 +196,7 @@ export default function EnhancedOrderManagement() {
     const statusMap: { [key: string]: string } = {
       'pending': 'في الانتظار',
       'confirmed': 'تم التأكيد',
-      'in_progress': 'قيد العمل',
+      'in_progress': 'جاري العمل',
       'ready_for_pickup': 'جاهز للاستلام',
       'collected': 'تم الاستلام',
       'in_lab': 'في المختبر',
@@ -400,7 +254,7 @@ export default function EnhancedOrderManagement() {
     const descriptionMap: { [key: string]: string } = {
       'pending': 'الطلب في انتظار المراجعة والتأكيد',
       'confirmed': 'تم تأكيد الطلب وسيتم البدء في العمل عليه',
-      'in_progress': 'قيد العمل على الطلب حالياً',
+      'in_progress': 'جاري العمل على الطلب حالياً',
       'ready_for_pickup': 'الطلب جاهز للاستلام من المختبر',
       'collected': 'تم استلام الطلب من المختبر',
       'in_lab': 'الطلب قيد المعالجة في المختبر',
@@ -465,7 +319,7 @@ export default function EnhancedOrderManagement() {
             delay={50}
           />
           <BentoStatCard
-            title="قيد العمل"
+            title="جاري العمل"
             value={stats.in_progress_orders}
             icon={Activity}
             color="orange"
@@ -532,7 +386,7 @@ export default function EnhancedOrderManagement() {
               <SelectItem value="all">جميع الحالات</SelectItem>
               <SelectItem value="pending">في الانتظار</SelectItem>
               <SelectItem value="confirmed">تم التأكيد</SelectItem>
-              <SelectItem value="in_progress">قيد العمل</SelectItem>
+              <SelectItem value="in_progress">جاري العمل</SelectItem>
               <SelectItem value="ready_for_pickup">جاهز للاستلام</SelectItem>
               <SelectItem value="ready_for_delivery">جاهز للتوصيل</SelectItem>
               <SelectItem value="completed">مكتمل</SelectItem>
@@ -597,14 +451,10 @@ export default function EnhancedOrderManagement() {
                                   <span dir="ltr">{order.clinic_phone}</span>
                                 </div>
                               )}
-                              {(order.clinic_governorate || order.clinic_city) && (
+                              {order.clinic_address && (
                                 <div className="flex items-center gap-1">
                                   <MapPin className="h-3 w-3 text-gray-400" />
-                                  <span>
-                                    {order.clinic_governorate}
-                                    {order.clinic_governorate && order.clinic_city ? '، ' : ''}
-                                    {order.clinic_city}
-                                  </span>
+                                  <span>{order.clinic_address}</span>
                                 </div>
                               )}
                             </div>
@@ -629,16 +479,10 @@ export default function EnhancedOrderManagement() {
                               <div className="flex items-center gap-1">
                                 <span className="font-bold text-gray-900">#{order.order_number}</span>
                               </div>
-                              {order.pickup_delegate_name && (
-                                <div className="flex items-center gap-1 bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded-md text-xs font-medium">
-                                  <Truck className="h-3 w-3" />
-                                  <span title="مندوب الاستلام">{order.pickup_delegate_name}</span>
-                                </div>
-                              )}
-                              {order.delivery_delegate_name && (
-                                <div className="flex items-center gap-1 bg-cyan-50 text-cyan-700 px-1.5 py-0.5 rounded-md text-xs font-medium">
-                                  <Truck className="h-3 w-3" />
-                                  <span title="مندوب التوصيل">{order.delivery_delegate_name}</span>
+                              {order.assigned_representative_name && (
+                                <div className="flex items-center gap-1">
+                                  <User className="h-3 w-3" />
+                                  {order.assigned_representative_name}
                                 </div>
                               )}
                               <div className="flex items-center gap-1 ml-auto">
@@ -677,7 +521,7 @@ export default function EnhancedOrderManagement() {
 
       {/* نافذة تغيير الحالة */}
       <Dialog open={showStatusDialog} onOpenChange={setShowStatusDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>تغيير حالة الطلب</DialogTitle>
             <DialogDescription>
@@ -692,9 +536,9 @@ export default function EnhancedOrderManagement() {
               <SelectContent>
                 <SelectItem value="pending">في الانتظار</SelectItem>
                 <SelectItem value="confirmed">تم التأكيد</SelectItem>
+                <SelectItem value="in_progress">جاري العمل</SelectItem>
                 <SelectItem value="ready_for_pickup">جاهز للاستلام</SelectItem>
                 <SelectItem value="collected">تم الاستلام</SelectItem>
-                <SelectItem value="in_progress">قيد العمل</SelectItem>
                 <SelectItem value="in_lab">في المختبر</SelectItem>
                 <SelectItem value="ready_for_delivery">جاهز للتوصيل</SelectItem>
                 <SelectItem value="delivered">تم التوصيل</SelectItem>
@@ -703,45 +547,6 @@ export default function EnhancedOrderManagement() {
                 <SelectItem value="cancelled">ملغي</SelectItem>
               </SelectContent>
             </Select>
-
-            {/* Delegate Selection */}
-            {['ready_for_pickup', 'collected', 'ready_for_delivery', 'delivered'].includes(newStatus) && (
-              <div className="space-y-2 border-t pt-4">
-                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                  <Truck className="w-4 h-4 text-purple-500" />
-                  {['ready_for_delivery', 'delivered'].includes(newStatus) ? 'اختيار مندوب التوصيل' : 'اختيار مندوب الاستلام'}
-                </label>
-                {delegates.length === 0 ? (
-                  <p className="text-xs text-gray-400 bg-gray-50 p-3 rounded-lg border border-dashed text-center">لا يوجد مناديب مسجلين</p>
-                ) : (
-                  <div className="grid gap-2 max-h-40 overflow-y-auto">
-                    {delegates.map(del => (
-                      <button
-                        key={del.id}
-                        type="button"
-                        onClick={() => setSelectedDelegateId(selectedDelegateId === del.id ? '' : del.id)}
-                        className={`flex items-center justify-between p-3 rounded-xl border text-right transition-all ${selectedDelegateId === del.id
-                          ? 'border-purple-500 bg-purple-50 ring-2 ring-purple-100'
-                          : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
-                          }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
-                            <User className="w-4 h-4 text-purple-600" />
-                          </div>
-                          <div>
-                            <div className="font-medium text-gray-900 text-sm">{del.name}</div>
-                            {del.phone && <div className="text-xs text-gray-500" dir="ltr">{del.phone}</div>}
-                          </div>
-                        </div>
-                        {selectedDelegateId === del.id && <CheckCircle className="w-5 h-5 text-purple-600" />}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
             <Textarea
               placeholder="ملاحظات إضافية (اختياري)"
               value={statusNotes}
@@ -753,8 +558,8 @@ export default function EnhancedOrderManagement() {
             <Button variant="outline" onClick={() => setShowStatusDialog(false)}>
               إلغاء
             </Button>
-            <Button onClick={updateOrderStatus} disabled={!newStatus || isUpdatingStatus}>
-              {isUpdatingStatus ? 'جاري الحفظ...' : 'حفظ التغييرات'}
+            <Button onClick={updateOrderStatus} disabled={!newStatus}>
+              حفظ التغييرات
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -791,11 +596,7 @@ export default function EnhancedOrderManagement() {
                       </div>
                       <div>
                         <label className="text-xs font-medium text-gray-500">العنوان</label>
-                        <p className="font-medium text-gray-900">
-                          {selectedOrder.clinic_governorate}
-                          {selectedOrder.clinic_governorate && selectedOrder.clinic_city ? '، ' : ''}
-                          {selectedOrder.clinic_city || '-'}
-                        </p>
+                        <p className="font-medium text-gray-900">{selectedOrder.clinic_address || '-'}</p>
                       </div>
                     </div>
                   </div>
@@ -838,86 +639,11 @@ export default function EnhancedOrderManagement() {
                   </div>
                 </div>
 
-                {/* معلومات المندوبين */}
-                {(selectedOrder.pickup_delegate_name || selectedOrder.delivery_delegate_name) && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* مندوب الاستلام */}
-                    {selectedOrder.pickup_delegate_name && (
-                      <div className="bg-purple-50 p-4 rounded-lg border border-purple-100 flex flex-col justify-between">
-                        <h4 className="font-semibold text-purple-800 mb-3 flex items-center gap-2">
-                          <Truck className="w-4 h-4" />
-                          مندوب الاستلام (من العيادة)
-                        </h4>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-purple-200 flex items-center justify-center">
-                              <User className="w-5 h-5 text-purple-700" />
-                            </div>
-                            <div>
-                              <p className="font-bold text-gray-900">{selectedOrder.pickup_delegate_name}</p>
-                              {selectedOrder.pickup_delegate_phone && (
-                                <p className="text-sm text-gray-500" dir="ltr">{selectedOrder.pickup_delegate_phone}</p>
-                              )}
-                            </div>
-                          </div>
-                          {selectedOrder.pickup_delegate_phone && (
-                            <a
-                              href={`tel:${selectedOrder.pickup_delegate_phone}`}
-                              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 text-sm rounded-lg font-medium transition-colors shadow-sm"
-                            >
-                              <Phone className="w-3.5 h-3.5" />
-                              اتصال
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* مندوب التوصيل */}
-                    {selectedOrder.delivery_delegate_name && (
-                      <div className="bg-cyan-50 p-4 rounded-lg border border-cyan-100 flex flex-col justify-between">
-                        <h4 className="font-semibold text-cyan-800 mb-3 flex items-center gap-2">
-                          <Truck className="w-4 h-4" />
-                          مندوب التوصيل (للعيادة)
-                        </h4>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-cyan-200 flex items-center justify-center">
-                              <User className="w-5 h-5 text-cyan-700" />
-                            </div>
-                            <div>
-                              <p className="font-bold text-gray-900">{selectedOrder.delivery_delegate_name}</p>
-                              {selectedOrder.delivery_delegate_phone && (
-                                <p className="text-sm text-gray-500" dir="ltr">{selectedOrder.delivery_delegate_phone}</p>
-                              )}
-                            </div>
-                          </div>
-                          {selectedOrder.delivery_delegate_phone && (
-                            <a
-                              href={`tel:${selectedOrder.delivery_delegate_phone}`}
-                              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 text-sm rounded-lg font-medium transition-colors shadow-sm"
-                            >
-                              <Phone className="w-3.5 h-3.5" />
-                              اتصال
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
                 <div className="flex gap-2 pt-4 border-t border-gray-100">
                   <Button className="flex-1" variant="outline" onClick={() => openStatusDialog(selectedOrder)}>
                     تغيير الحالة
                   </Button>
-                  <Button
-                    className="flex-1 bg-blue-600 hover:bg-blue-700"
-                    onClick={() => {
-                      setShowChatDialog(true);
-                      setShowOrderDetails(false);
-                    }}
-                  >
+                  <Button className="flex-1 bg-blue-600 hover:bg-blue-700">
                     <MessageCircle className="h-4 w-4 ml-2" />
                     محادثة مع العيادة
                   </Button>
@@ -929,28 +655,6 @@ export default function EnhancedOrderManagement() {
                 </Button>
               </DialogFooter>
             </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* نافذة محادثة مع العيادة */}
-      <Dialog open={showChatDialog} onOpenChange={setShowChatDialog}>
-        <DialogContent className="max-w-2xl p-0 overflow-hidden">
-          <DialogHeader className="p-4 border-b">
-            <DialogTitle className="flex items-center gap-2">
-              <MessageCircle className="h-5 w-5 text-blue-600" />
-              محادثة مع: {selectedOrder?.clinic_name || 'العيادة'}
-            </DialogTitle>
-            <DialogDescription>
-              بخصوص الطلب #{selectedOrder?.order_number}
-            </DialogDescription>
-          </DialogHeader>
-          {selectedOrder && (
-            <DoctorLabChat
-              orderId={selectedOrder.order_id}
-              labName={selectedOrder.clinic_name || 'العيادة'}
-              onClose={() => setShowChatDialog(false)}
-            />
           )}
         </DialogContent>
       </Dialog>

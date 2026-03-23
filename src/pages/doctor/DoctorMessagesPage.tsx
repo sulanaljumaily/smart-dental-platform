@@ -1,26 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Send, Paperclip, MoreVertical, User, Building2, MessageCircle, Plus, ChevronLeft, Users } from 'lucide-react';
+import { Search, Send, Paperclip, MoreVertical, User, Building2, MessageCircle, Plus, ChevronLeft } from 'lucide-react';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
 import { Modal } from '../../components/common/Modal';
 import { useCommunity } from '../../hooks/useCommunity';
+import { Friend } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useStaff } from '../../hooks/useStaff';
 import { useDoctorContext } from '../../contexts/DoctorContext';
 import { useLocation } from 'react-router-dom';
 import { useMessages } from '../../hooks/useMessages';
-import { useClinicChat } from '../../hooks/useClinicChat';
 
 export const DoctorMessagesPage: React.FC = () => {
   const { user } = useAuth();
-  const { selectedClinicId, clinics } = useDoctorContext();
+  const { selectedClinicId } = useDoctorContext();
   const { staff } = useStaff(selectedClinicId === 'all' ? '' : selectedClinicId || '');
 
-  // Custom Hooks
-  const { conversations, loading: messagesLoading, sendMessage: sendDirectMessage } = useMessages();
-  const { messages: clinicMessages, loading: chatLoading, sendMessage: sendClinicMessage } = useClinicChat(selectedClinicId);
+  // Custom Hook
+  const { conversations, loading, sendMessage } = useMessages();
 
-  const [selectedConversationId, setSelectedConversationId] = useState<string | null>('clinic-team');
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [messageText, setMessageText] = useState('');
   const [showNewMessageModal, setShowNewMessageModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,22 +31,27 @@ export const DoctorMessagesPage: React.FC = () => {
   useEffect(() => {
     if (location.state?.startConversationWith) {
       const targetUser = location.state.startConversationWith;
+      // Start flow (in real app, would check if conv exists or open empty state)
       setSelectedConversationId(targetUser.id);
     }
   }, [location.state]);
 
-  const handleSendMessage = async () => {
-    if (!messageText.trim()) return;
-
-    let success = false;
-    if (selectedConversationId === 'clinic-team') {
-      success = await sendClinicMessage(messageText);
-    } else if (selectedConversationId) {
-      success = await sendDirectMessage(selectedConversationId, messageText);
+  // Set initial conversation
+  useEffect(() => {
+    if (!selectedConversationId && conversations.length > 0) {
+      setSelectedConversationId(conversations[0]?.id);
     }
+  }, [conversations, selectedConversationId]);
 
-    if (success) {
-      setMessageText('');
+
+  const activeConversation = conversations.find(c => c.id === selectedConversationId);
+
+  const handleSendMessage = async () => {
+    if (messageText.trim() && selectedConversationId) {
+      const success = await sendMessage(selectedConversationId, messageText);
+      if (success) {
+        setMessageText('');
+      }
     }
   };
 
@@ -57,8 +61,26 @@ export const DoctorMessagesPage: React.FC = () => {
     setSearchTerm('');
   };
 
-  // Combine Clinic Chat with other conversations
-  const currentClinicName = clinics.find(c => c.id === selectedClinicId)?.name || 'العيادة';
+  const getRoleIcon = (role: string) => {
+    switch (role) {
+      case 'staff': return <User className="w-4 h-4" />;
+      case 'clinic': return <Building2 className="w-4 h-4" />;
+      case 'admin': return <Building2 className="w-4 h-4" />;
+      default: return <User className="w-4 h-4" />;
+    }
+  };
+
+  const getRoleColor = (role: string) => {
+    switch (role) {
+      case 'staff': return 'bg-blue-100 text-blue-800';
+      case 'clinic': return 'bg-green-100 text-green-800';
+      case 'admin': return 'bg-gray-800 text-white';
+      case 'doctor': return 'bg-purple-100 text-purple-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  if (loading) return <div className="p-12 text-center">جاري تحميل الرسائل...</div>;
 
   return (
     <div className="space-y-6">
@@ -97,40 +119,11 @@ export const DoctorMessagesPage: React.FC = () => {
                 type="text"
                 placeholder="بحث..."
                 className="w-full pr-10 pl-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 focus:bg-white transition-colors"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
 
             {/* Conversation Items */}
             <div className="space-y-2 overflow-y-auto flex-1 custom-scrollbar">
-              {/* Clinic Team Fixed Item */}
-              {selectedClinicId !== 'all' && (
-                <button
-                  onClick={() => setSelectedConversationId('clinic-team')}
-                  className={`w-full p-3 rounded-lg text-right transition-all duration-200 ${selectedConversationId === 'clinic-team'
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
-                    : 'hover:bg-gray-50 text-gray-700 bg-blue-50/50 border border-blue-100'
-                    }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border-2 border-white/20 bg-blue-100 text-blue-600`}>
-                      <Users className="w-5 h-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className={`font-semibold text-sm truncate ${selectedConversationId === 'clinic-team' ? 'text-white' : 'text-gray-900'}`}>
-                          فريق {currentClinicName}
-                        </p>
-                      </div>
-                      <p className={`text-xs truncate ${selectedConversationId === 'clinic-team' ? 'text-white/80' : 'text-gray-500'}`}>
-                        محادثة جماعية للطاقم
-                      </p>
-                    </div>
-                  </div>
-                </button>
-              )}
-
               {conversations.length > 0 ? conversations.map((conv) => (
                 <button
                   key={conv.id}
@@ -162,9 +155,7 @@ export const DoctorMessagesPage: React.FC = () => {
                   </div>
                 </button>
               )) : (
-                conversations.length === 0 && selectedClinicId === 'all' && (
-                  <div className="text-center py-10 text-gray-400">لا توجد محادثات</div>
-                )
+                <div className="text-center py-10 text-gray-400">لا توجد محادثات</div>
               )}
             </div>
           </div>
@@ -172,18 +163,16 @@ export const DoctorMessagesPage: React.FC = () => {
 
         {/* Chat Area */}
         <Card className="md:col-span-2 border-gray-200 shadow-sm overflow-hidden">
-          {selectedConversationId ? (
+          {activeConversation ? (
             <div className="flex flex-col h-[600px]">
               {/* Chat Header */}
               <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white">
                 <div className="flex items-center gap-3">
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center bg-gray-100`}>
-                    {selectedConversationId === 'clinic-team' ? <Users className="w-6 h-6 text-blue-600" /> : <User className="w-6 h-6 text-gray-600" />}
+                    <User className="w-6 h-6 text-gray-600" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-gray-900">
-                      {selectedConversationId === 'clinic-team' ? `فريق ${currentClinicName}` : conversations.find(c => c.id === selectedConversationId)?.partnerName || 'مستخدم'}
-                    </h3>
+                    <h3 className="font-bold text-gray-900">{activeConversation.partnerName}</h3>
                   </div>
                 </div>
                 <Button variant="ghost" size="sm" className="hover:bg-gray-100">
@@ -193,29 +182,23 @@ export const DoctorMessagesPage: React.FC = () => {
 
               {/* Messages */}
               <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-gray-50/50">
-                {(selectedConversationId === 'clinic-team' ? clinicMessages : conversations.find(c => c.id === selectedConversationId)?.messages || []).map((msg: any, idx: number) => (
+                {activeConversation.messages.map((msg: any, idx: number) => (
                   <div key={idx} className={`flex gap-3 ${msg.isMe ? 'justify-end' : ''}`}>
                     {!msg.isMe && (
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-gray-200 text-xs font-bold text-gray-600`}>
-                        {msg.senderName ? msg.senderName.charAt(0) : <User className="w-4 h-4" />}
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-gray-200`}>
+                        <User className="w-4 h-4 text-gray-600" />
                       </div>
                     )}
                     <div className="flex-1 max-w-md">
-                      {!msg.isMe && selectedConversationId === 'clinic-team' && (
-                        <p className="text-[10px] text-gray-500 mb-1 mr-1">{msg.senderName} ({msg.senderRole === 'owner' ? 'المالك' : 'طاقم'})</p>
-                      )}
                       <div className={`${msg.isMe ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-tl-none' : 'bg-white border border-gray-100 rounded-tr-none'} shadow-sm rounded-2xl p-4`}>
                         <p className={`${msg.isMe ? 'text-white' : 'text-gray-900'} leading-relaxed`}>{msg.content}</p>
                       </div>
                       <p className={`text-xs text-gray-500 mt-1 ${msg.isMe ? 'mr-2 text-left' : 'ml-2'}`}>
-                        {new Date(msg.timestamp || msg.createdAt).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(msg.timestamp).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>
                   </div>
                 ))}
-                {(selectedConversationId === 'clinic-team' && clinicMessages.length === 0) && (
-                  <div className="text-center py-10 text-gray-400">ابدأ المحادثة مع فريق العيادة</div>
-                )}
               </div>
 
               {/* Message Input */}

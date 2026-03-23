@@ -5,7 +5,6 @@ import { supabase } from '../../lib/supabase';
 // import { mockSuppliers } from '../../data/mock/store';
 import { Button } from '../../components/common/Button';
 import { BottomNavigation } from '../../components/layout/BottomNavigation';
-import { formatLocation } from '../../utils/location';
 
 export default function SuppliersPage() {
     const navigate = useNavigate();
@@ -59,7 +58,7 @@ export default function SuppliersPage() {
 
         // 1. City Filter
         if (selectedCity !== 'all') {
-            result = result.filter(s => s.governorate === selectedCity);
+            result = result.filter(s => s.city === selectedCity);
         }
 
         // 2. Sorting
@@ -173,12 +172,8 @@ export default function SuppliersPage() {
                                 className="group relative bg-white rounded-3xl p-5 border border-slate-100 hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden flex flex-col"
                             >
                                 <div className="flex items-start justify-between mb-4">
-                                    <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center overflow-hidden group-hover:scale-110 transition-transform duration-300">
-                                        {supplier.logo_url ? (
-                                            <img src={supplier.logo_url} alt={supplier.name} className="w-full h-full object-cover" />
-                                        ) : (
-                                            <Store className="w-8 h-8 text-indigo-600" />
-                                        )}
+                                    <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center p-2 group-hover:scale-110 transition-transform duration-300">
+                                        <Store className="w-8 h-8 text-indigo-600" />
                                     </div>
                                     <div className="flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100">
                                         <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
@@ -195,7 +190,7 @@ export default function SuppliersPage() {
                                     <div className="space-y-2 mt-auto">
                                         <div className="flex items-center gap-2 text-xs text-slate-400">
                                             <MapPin className="w-3.5 h-3.5" />
-                                            <span className="line-clamp-1">{formatLocation(supplier.governorate, supplier.address) || 'العراق'}</span>
+                                            <span className="line-clamp-1">{supplier.city || 'العراق'}</span>
                                         </div>
                                     </div>
                                 </div>

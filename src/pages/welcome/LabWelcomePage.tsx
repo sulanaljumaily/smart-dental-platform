@@ -15,9 +15,7 @@ import {
     MoveRight,
     FlaskConical,
     PackageCheck,
-    Bike,
-    Briefcase,
-    ShoppingBag
+    Bike
 } from 'lucide-react';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
@@ -112,12 +110,12 @@ export const LabWelcomePage: React.FC = () => {
                             <div className="w-14 h-14 bg-teal-100 rounded-2xl flex items-center justify-center text-teal-600 mb-6 group-hover:rotate-6 transition-transform">
                                 <Microscope className="w-7 h-7" />
                             </div>
-                            <h3 className="text-2xl font-bold text-gray-900 mb-3">إدارة الطلبات</h3>
+                            <h3 className="text-2xl font-bold text-gray-900 mb-3">تتبع الحالات</h3>
                             <p className="text-gray-500 leading-relaxed mb-6 flex-grow">
-                                نظام متكامل ودقيق لتتبع وإدارة الطلبات يربط المعمل بالعيادة بشكل مباشر، مع إحصائيات شاملة تغطي كافة الطلبات (المكتملة، الجديدة، المتأخرة، والغير مسددة).
+                                نظام تتبع دقيق يربط الطبيب بالمعمل. تابع حالة كل طلبية لحظة بلحظة لضمان التسليم في الموعد.
                             </p>
                             <div className="space-y-3">
-                                {['استلام الطلبات الجديدة من العيادات بشكل متزامن', 'تغيير حالة كل طلب وتحديثها فورياً لدى العيادة', 'إرسال إشعارات تلقائية عند كل تحديث في حالة الطلب', 'إحصائيات ذكية لمراقبة الإنتاج والتحصيل المالي'].map((item, i) => (
+                                {['تم استلام الطلب', 'جاري العمل', 'في الطريق', 'جاهزة للتسليم'].map((item, i) => (
                                     <div key={i} className="flex items-center gap-2 text-sm text-gray-700 bg-gray-50 p-2 rounded-xl border border-gray-100">
                                         <div className={`w-2 h-2 rounded-full ${i === 0 ? 'bg-blue-500' :
                                             i === 1 ? 'bg-orange-500' :
@@ -140,7 +138,7 @@ export const LabWelcomePage: React.FC = () => {
                                 </div>
                                 <h3 className="text-2xl font-bold mb-2">طلبات إلكترونية</h3>
                                 <p className="text-cyan-100 leading-relaxed">
-                                    استقبل طلبات العيادات بتفاصيل كاملة (الألوان، المواد، الملاحظات...) بشكل متزامن و سلس من العيادات .
+                                    استقبل طلبات العيادات بتفاصيل كاملة (الألوان، المواد، الملاحظات) دون أخطاء الهاتف والورق.
                                 </p>
                             </div>
                             <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10 w-full md:w-auto min-w-[200px]">
@@ -161,8 +159,8 @@ export const LabWelcomePage: React.FC = () => {
                         <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600 mb-4 group-hover:scale-110 transition-transform">
                             <TrendingUp className="w-6 h-6" />
                         </div>
-                        <h3 className="text-xl font-bold text-gray-900 mb-2">إحصائيات مالية شاملة</h3>
-                        <p className="text-gray-500 text-sm mb-4">إجمالي الإيرادات - الطلبات الغير مسدد-إدارة قائمة الخدمات والأسعار</p>
+                        <h3 className="text-xl font-bold text-gray-900 mb-2">فواتير تلقائية</h3>
+                        <p className="text-gray-500 text-sm mb-4">إصدار فواتير شهرية للعيادات ومتابعة الدفعات.</p>
                         <div className="flex items-end gap-1 h-8 mt-2">
                             {[40, 70, 50, 90, 60].map((h, i) => (
                                 <div key={i} style={{ height: `${h}%` }} className="flex-1 bg-emerald-100 rounded-t-sm group-hover:bg-emerald-500 transition-colors"></div>
@@ -175,8 +173,8 @@ export const LabWelcomePage: React.FC = () => {
                         <div className="w-12 h-12 bg-cyan-100 rounded-xl flex items-center justify-center text-cyan-600 mb-4 group-hover:scale-110 transition-transform">
                             <Bike className="w-6 h-6" />
                         </div>
-                        <h3 className="text-xl font-bold text-gray-900 mb-2">أدارة المندوبين</h3>
-                        <p className="text-gray-500 text-sm mb-4">نظام ذكي لإدارة وتتبع المندوبين وجهازية العمل؛ جدولة استلام وتسليم الطلبات من وإلى العيادات بدقة، مع إحصائيات شاملة لكل مندوب تتبع سجل نشاطه وإنتاجيته.</p>
+                        <h3 className="text-xl font-bold text-gray-900 mb-2">حالة المندوبين</h3>
+                        <p className="text-gray-500 text-sm mb-4">تتبع موقع المندوبين، وجدولة استلام وتسليم الحالات.</p>
                         <div className="flex items-center gap-2 mt-auto">
                             <span className="relative flex h-2 w-2">
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
@@ -194,7 +192,7 @@ export const LabWelcomePage: React.FC = () => {
                                     <Users className="w-6 h-6 text-teal-400" />
                                 </div>
                                 <h3 className="text-2xl font-bold mb-2">شبكة عيادات واسعة</h3>
-                                <p className="text-gray-400 max-w-sm">وسع نطاق وصولك وتواصل مع مئات العيادات لزيادة مبيعاتك؛ أدر ملفك التعريفي الاحترافي للبروز أمام الأطباء، وتواصل معهم مباشرة مع ميزة المشاركة في المجتمع الموحد للأطباء والموردين.</p>
+                                <p className="text-gray-400 max-w-sm">ارتبط بمئات العيادات في منطقتك. اسمح للأطباء باكتشاف معملك وطلب خدماتك.</p>
                             </div>
                             <div className="hidden md:block">
                                 <Shield className="w-24 h-24 text-gray-800" />
@@ -206,28 +204,7 @@ export const LabWelcomePage: React.FC = () => {
                     <div className="col-span-1 bg-gradient-to-br from-teal-400 to-cyan-500 rounded-3xl p-6 text-white text-center flex flex-col items-center justify-center shadow-lg hover:shadow-teal-200/50 transition-shadow">
                         <MessageCircle className="w-10 h-10 mb-3 text-white/90" />
                         <h3 className="font-bold text-lg mb-1">محادثات فورية</h3>
-                        <p className="text-white/80 text-xs text-center leading-relaxed">تواصل مع الطبيب مباشرة حول الحالات والعمليات المختبرية لضمان أفضل النتائج.</p>
-                    </div>
-
-                    {/* Feature 7: Medical Community */}
-                    <div className="col-span-1 bg-gradient-to-br from-orange-400 to-red-500 rounded-3xl p-6 text-white text-center flex flex-col items-center justify-center shadow-lg hover:shadow-orange-200/50 transition-shadow">
-                        <MessageCircle className="w-10 h-10 mb-3 text-white/90" />
-                        <h3 className="font-bold text-lg mb-1">المجتمع الطبي والتعليم</h3>
-                        <p className="text-white/80 text-sm leading-relaxed">تواصل مع زملائك، شارك الخبرات، وتصفح أبرز الندوات والدورات والمصادر العلمية والنماذج التعليمية ثلاثية الأبعاد.</p>
-                    </div>
-
-                    {/* Feature 8: Jobs & Vacancies */}
-                    <div className="col-span-1 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl p-6 text-white text-center flex flex-col items-center justify-center shadow-lg hover:shadow-emerald-200/50 transition-shadow">
-                        <Briefcase className="w-10 h-10 mb-3 text-white/90" />
-                        <h3 className="font-bold text-lg mb-1">الوظائف والتوظيف</h3>
-                        <p className="text-white/80 text-sm leading-relaxed">نظام متكامل وآمن للتوظيف؛ أعلن عن شواغر في معملك أو ابحث عن فنيين محترفين، مع إدارة كاملة لطلبات التوظيف والسير الذاتية.</p>
-                    </div>
-
-                    {/* Feature 9: Medical Store */}
-                    <div className="col-span-1 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-3xl p-6 text-white text-center flex flex-col items-center justify-center shadow-lg hover:shadow-blue-200/50 transition-shadow">
-                        <ShoppingBag className="w-10 h-10 mb-3 text-white/90" />
-                        <h3 className="font-bold text-lg mb-1">المتجر الطبي</h3>
-                        <p className="text-white/80 text-sm leading-relaxed">تسوق من أرقى الموردين الموثوقين بخصومات حصرية، مع نظام تنبيهات ذكي لنقص المخزون وسهولة تامة في طلب المستلزمات الطبية.</p>
+                        <p className="text-white/80 text-xs">تواصل مع الطبيب مباشرة حول الحالات</p>
                     </div>
 
                     {/* CTA Banner (Full Width) */}

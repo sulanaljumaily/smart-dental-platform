@@ -20,7 +20,6 @@ export interface Supplier {
     joinDate: string;
     description?: string;
     documents?: string[];
-    logo?: string;
 }
 
 export function useAdminSuppliers() {
@@ -37,8 +36,7 @@ export function useAdminSuppliers() {
                 .from('suppliers')
                 .select(`
                     *,
-                    products:products(count),
-                    profile:profiles(avatar_url, full_name, phone, banned)
+                    products:products(count)
                 `)
                 .order('created_at', { ascending: false });
 
@@ -46,32 +44,25 @@ export function useAdminSuppliers() {
 
             if (data) {
                 // Map data from snake_case DB to camelCase Interface
-                const mapped: Supplier[] = data.map((s: any) => {
-                    const profileData = Array.isArray(s.profile) ? s.profile[0] : s.profile;
-                    const isBanned = profileData?.banned === true;
-                    // Derive status: suspended if banned, approved if verified, pending otherwise
-                    const status: Supplier['status'] = isBanned ? 'suspended' : (s.is_verified ? 'approved' : 'pending');
-                    return {
-                        id: s.id,
-                        companyName: s.name || 'Unknown Company',
-                        ownerName: s.contact_person || s.owner_name || profileData?.full_name || 'غير محدد',
-                        email: s.email || '',
-                        phoneNumber: s.phone || s.phone_number || profileData?.phone || 'N/A',
-                        category: s.category || 'General',
-                        location: s.address || s.location || 'Baghdad',
-                        status,
-                        commissionPercentage: s.commission_percentage || 0,
-                        totalSales: s.total_sales || 0,
-                        pendingCommission: s.pending_commission || 0,
-                        rating: s.rating || 5,
-                        ordersCount: s.orders_count || 0,
-                        productsCount: s.products ? s.products[0]?.count : (s.supplier_products ? s.supplier_products[0]?.count : 0),
-                        joinDate: s.created_at || new Date().toISOString(),
-                        description: s.description,
-                        documents: s.documents || [],
-                        logo: s.logo || profileData?.avatar_url || undefined
-                    };
-                });
+                const mapped: Supplier[] = data.map((s: any) => ({
+                    id: s.id,
+                    companyName: s.name || 'Unknown Company',
+                    ownerName: s.contact_person || s.owner_name || 'N/A',
+                    email: s.email || '',
+                    phoneNumber: s.phone || s.phone_number || 'N/A',
+                    category: s.category || 'General',
+                    location: s.address || s.location || 'Baghdad',
+                    status: s.is_verified ? 'approved' : 'pending', // Derived from is_verified (status column doesn't exist)
+                    commissionPercentage: s.commission_percentage || 0,
+                    totalSales: s.total_sales || 0,
+                    pendingCommission: s.pending_commission || 0,
+                    rating: s.rating || 5,
+                    ordersCount: s.orders_count || 0,
+                    productsCount: s.products ? s.products[0]?.count : (s.supplier_products ? s.supplier_products[0]?.count : 0),
+                    joinDate: s.created_at || new Date().toISOString(),
+                    description: s.description,
+                    documents: s.documents || []
+                }));
                 setSuppliers(mapped);
             } else {
                 setSuppliers([]);
@@ -109,22 +100,15 @@ export function useAdminSuppliers() {
         try {
             setSuppliers(prev => prev.map(s => s.id === supplierId ? { ...s, status } : s));
 
-            const isSuspending = status === 'suspended';
-            const isApproved = status === 'approved';
+            // Map status to is_verified boolean (status column doesn't exist in DB)
+            const is_verified = status === 'approved';
 
-            // Update suppliers.is_verified
-            const { error: supErr } = await supabase
+            const { error } = await supabase
                 .from('suppliers')
-                .update({ is_verified: isApproved })
+                .update({ is_verified })
                 .eq('id', supplierId);
 
-            // Update profiles.banned (suspend = ban, approve = unban)
-            const { error: profErr } = await supabase
-                .from('profiles')
-                .update({ banned: isSuspending })
-                .eq('id', supplierId);
-
-            if (supErr || profErr) throw supErr || profErr;
+            if (error) throw error;
             return true;
         } catch (err) {
             console.error('Error updating status:', err);

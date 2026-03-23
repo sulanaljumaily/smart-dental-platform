@@ -1,7 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { useClinics } from './useClinics';
 import { toast } from 'sonner';
 
 export interface Notification {
@@ -22,65 +21,58 @@ export interface Notification {
 
 export const useNotifications = () => {
     const { user } = useAuth();
-    const { clinics } = useClinics();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(true);
     const [updates, setUpdates] = useState<any[]>([]);
-    const mountedRef = useRef(true);
 
     useEffect(() => {
-        mountedRef.current = true;
         if (!user) return;
 
         fetchNotifications();
         fetchUpdates();
 
-        // Real-time subscription - Filtered by user_id
+        // Real-time subscription
         const channel = supabase
-            .channel(`notifications_${user.id}`)
+            .channel('notifications_changes')
             .on(
                 'postgres_changes',
                 {
                     event: '*',
                     schema: 'public',
                     table: 'notifications',
-                    filter: `user_id=eq.${user.id}`
+                    filter: `user_id=eq.${user.id}` // Only listen for my notifications
                 },
                 (payload) => {
-                    if (!mountedRef.current) return;
-                    handleRealtimeUpdate(payload);
+                    if (payload.eventType === 'INSERT') {
+                        // Optimistically map, we might miss clinic name initially unless we fetch it
+                        const newNotif = mapDbNotification(payload.new);
+                        setNotifications(prev => [newNotif, ...prev]);
+                        // Trigger re-fetch to get clinic name details if needed
+                        if (payload.new.clinic_id) fetchNotifications();
+
+                        toast(newNotif.title, {
+                            description: newNotif.description,
+                        });
+                    } else if (payload.eventType === 'UPDATE') {
+                        setNotifications(prev => prev.map(n =>
+                            n.id === payload.new.id ? mapDbNotification(payload.new) : n
+                        ));
+                    } else if (payload.eventType === 'DELETE') {
+                        setNotifications(prev => prev.filter(n => n.id !== payload.old.id));
+                    }
                 }
-            );
-
-        // Additional subscriptions for clinics if needed
-        // For simplicity and to avoid too many channels, we rely on the fact that 
-        // most clinic notifications should also be sent to the user_id of the clinic members.
-        // If they are ONLY sent to clinic_id, we'd need more filters.
-        // However, standard RLS handles visibility, but real-time 'filter' is limited to simple eq.
-
-        channel.subscribe();
+            )
+            .subscribe();
 
         return () => {
-            mountedRef.current = false;
-            supabase.removeChannel(channel);
+            // Safe cleanup
+            if (channel && typeof channel.unsubscribe === 'function') {
+                channel.unsubscribe().catch(console.error);
+            } else {
+                supabase.removeChannel(channel);
+            }
         };
-    }, [user, clinics]);
-
-    const handleRealtimeUpdate = (payload: any) => {
-        if (payload.eventType === 'INSERT') {
-            const newNotif = mapDbNotification(payload.new);
-            setNotifications(prev => [newNotif, ...prev]);
-            toast(newNotif.title, {
-                description: newNotif.description,
-            });
-        } else if (payload.eventType === 'UPDATE') {
-            setNotifications(prev => prev.map(n =>
-                n.id === payload.new.id ? mapDbNotification(payload.new) : n
-            ));
-        } else if (payload.eventType === 'DELETE') {
-            setNotifications(prev => prev.filter(n => n.id !== payload.old.id));
-        }
-    };
+    }, [user]);
 
     const fetchUpdates = async () => {
         try {
@@ -90,14 +82,13 @@ export const useNotifications = () => {
                 .eq('is_published', true)
                 .order('release_date', { ascending: false });
 
-            if (!mountedRef.current) return;
             if (error) {
+                // Ignore error if table doesn't exist yet in real DB, but log it
                 console.warn('Could not fetch system updates');
                 return;
             }
             setUpdates(data || []);
-        } catch (err: any) {
-            if (err?.name === 'AbortError' || err?.message?.includes('AbortError')) return;
+        } catch (err) {
             console.warn('Error fetching updates:', err);
         }
     };
@@ -105,40 +96,27 @@ export const useNotifications = () => {
     const fetchNotifications = async () => {
         try {
             setLoading(true);
-            const clinicIds = clinics.map(c => c.id);
-
-            let query = supabase
+            const { data, error } = await supabase
                 .from('notifications')
                 .select(`
                     *,
                     clinic:clinics(name)
                 `)
-                .order('created_at', { ascending: false });
+                .order('created_at', { ascending: false })
+                .limit(50);
 
-            // Construct OR filter: user_id = my_id OR clinic_id IN (my_clinics)
-            let filterStr = `user_id.eq.${user?.id}`;
-            if (clinicIds.length > 0) {
-                filterStr += `,clinic_id.in.(${clinicIds.join(',')})`;
-            }
-
-            query = query.or(filterStr);
-
-            const { data, error } = await query.limit(50);
-
-            if (!mountedRef.current) return;
             if (error) throw error;
 
             const mapped = (data || []).map((record: any) => ({
                 ...mapDbNotification(record),
-                clinicName: record.clinic?.name
+                clinicName: record.clinic?.name // Map the joined name
             }));
 
             setNotifications(mapped);
-        } catch (error: any) {
-            if (error?.name === 'AbortError' || error?.message?.includes('AbortError')) return;
-            if (mountedRef.current) console.error('Error fetching notifications:', error);
+        } catch (error) {
+            console.error('Error fetching notifications:', error);
         } finally {
-            if (mountedRef.current) setLoading(false);
+            setLoading(false);
         }
     };
 

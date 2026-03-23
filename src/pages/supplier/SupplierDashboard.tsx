@@ -26,23 +26,6 @@ export const SupplierDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [isSuspended, setIsSuspended] = useState(false);
-  const [suspensionChecked, setSuspensionChecked] = useState(false);
-
-  // Check suspension status on mount
-  useEffect(() => {
-    const checkSuspension = async () => {
-      if (!user?.id) return;
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('banned')
-        .eq('id', user.id)
-        .single();
-      setIsSuspended(profile?.banned === true);
-      setSuspensionChecked(true);
-    };
-    checkSuspension();
-  }, [user?.id]);
 
   // Sync with URL
   useEffect(() => {
@@ -159,34 +142,6 @@ export const SupplierDashboard: React.FC = () => {
     }
   };
 
-  // Show a suspension notice if account is suspended
-  if (suspensionChecked && isSuspended) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6" dir="rtl">
-        <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 text-center border-2 border-red-100">
-          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <span className="text-4xl">🚫</span>
-          </div>
-          <h1 className="text-2xl font-bold text-red-700 mb-3">حسابك معلق</h1>
-          <p className="text-gray-600 mb-2">تم تعليق حساب شركتك من قِبل إدارة المنصة.</p>
-          <p className="text-gray-500 text-sm mb-6">
-            لن يظهر حسابك أو منتجاتك في المتجر أو المجتمع الطبي حتى يتم رفع التعليق.
-          </p>
-          <div className="bg-gray-50 rounded-2xl p-4 text-sm text-gray-600 text-right space-y-1 mb-6">
-            <p><span className="font-bold">للاستفسار:</span> تواصل مع الدعم الفني</p>
-            <p><span className="font-bold">البريد:</span> support@smartdental.com</p>
-          </div>
-          <button
-            onClick={() => { logout(); navigate('/'); }}
-            className="w-full py-3 px-6 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 transition-colors"
-          >
-            تسجيل الخروج
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 text-right font-sans" dir="rtl">
       {/* Top Navigation Bar */}
@@ -236,12 +191,8 @@ export const SupplierDashboard: React.FC = () => {
                   onClick={() => setShowUserMenu(!showUserMenu)}
                   className="flex items-center gap-2 p-2 rounded-xl bg-white/60 hover:bg-white transition-all ring-1 ring-transparent hover:ring-gray-200"
                 >
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-sm overflow-hidden">
-                    {user?.avatar ? (
-                      <img src={user.avatar} alt={user?.name || 'S'} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-white font-bold text-sm">{user?.name?.[0]?.toUpperCase() || 'S'}</span>
-                    )}
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-sm">
+                    <span className="text-white font-bold text-sm">{user?.name?.[0]?.toUpperCase() || 'S'}</span>
                   </div>
                   <span className="hidden md:block text-sm font-medium text-gray-700">{user?.name || 'مورد'}</span>
                   <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${showUserMenu ? 'rotate-180' : ''}`} />

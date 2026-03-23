@@ -91,7 +91,7 @@ export const NotificationPopover: React.FC = () => {
 
             {/* Popover Content */}
             {isOpen && (
-                <div className="absolute top-12 left-0 md:left-auto md:right-0 w-80 md:w-96 bg-white rounded-3xl shadow-xl border border-gray-100 z-50 overflow-hidden transform transition-all duration-200 origin-top-right">
+                <div className="absolute top-12 left-0 w-80 md:w-96 bg-white rounded-3xl shadow-xl border border-gray-100 z-50 overflow-hidden">
                     <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50 backdrop-blur-sm">
                         <h3 className="font-bold text-gray-900">الإشعارات</h3>
                         {unreadCount > 0 && (

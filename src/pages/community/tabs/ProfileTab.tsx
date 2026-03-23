@@ -1,6 +1,5 @@
 import React from 'react';
 import { useCommunity } from '../../../hooks/useCommunity';
-import { useCommunityContext } from '../../../contexts/CommunityContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import {
     Bookmark, Calendar, MessageSquare,
@@ -12,49 +11,64 @@ import { Card } from '../../../components/common/Card';
 
 export const ProfileTab: React.FC = () => {
     const { savedItems, groups, friends } = useCommunity();
-    const { notifications, markAllNotificationsAsRead, markNotificationAsRead } = useCommunityContext();
     const { user } = useAuth();
     const navigate = useNavigate();
     const [showNotifications, setShowNotifications] = React.useState(false);
 
-    // Defensive check
-    const safeNotifications = Array.isArray(notifications) ? notifications : [];
-    const unreadCount = safeNotifications.filter(n => !n.isRead).length;
-
     // Notification Type Definition
-    const handleNotificationClick = (notif: any) => {
-        markNotificationAsRead(notif.id);
-        if (notif.link) {
-            navigate(notif.link);
+    type NotificationType = 'like' | 'comment' | 'follow' | 'message' | 'course' | 'webinar' | 'reply' | 'group_approval';
+
+    interface CommunityNotification {
+        id: string;
+        type: NotificationType;
+        title: string;
+        message: string;
+        time: string;
+        read: boolean;
+        targetId?: string; // ID of post, user, course, etc.
+        avatar?: string;
+    }
+
+    // Interactive Handler
+    const handleNotificationClick = (notif: CommunityNotification) => {
+        switch (notif.type) {
+            case 'like':
+            case 'comment':
+            case 'reply':
+                navigate(`/community/posts/${notif.targetId}`); // Go to Post
+                break;
+            case 'follow':
+                navigate(`/community/user/${notif.targetId}`); // Go to User Profile
+                break;
+            case 'message':
+                navigate(`/community/messages/${notif.targetId}`); // Go to Messages
+                break;
+            case 'course':
+                navigate(`/community/courses/${notif.targetId}`); // Go to Course
+                break;
+            case 'webinar':
+                navigate(`/community/webinars/${notif.targetId}`); // Go to Webinar
+                break;
+            case 'group_approval':
+                navigate(`/community/groups/${notif.targetId}`); // Go to Group
+                break;
+            default:
+                break; // Do nothing
         }
         setShowNotifications(false);
     };
 
-    const getIcon = (type: string) => {
-        switch (type) {
-            case 'like': return <Award className="w-5 h-5" />;
-            case 'comment': return <MessageSquare className="w-5 h-5" />;
-            case 'follow': return <UserPlus className="w-5 h-5" />;
-            case 'course_new':
-            case 'webinar_new': return <BookOpen className="w-5 h-5" />;
-            case 'group_request':
-            case 'group_approve': return <CheckCircle className="w-5 h-5" />;
-            default: return <Bell className="w-5 h-5" />;
-        }
-    };
-
-    const getIconBg = (type: string) => {
-        switch (type) {
-            case 'like': return 'bg-red-50 text-red-500';
-            case 'comment': return 'bg-blue-50 text-blue-500';
-            case 'follow': return 'bg-green-50 text-green-500';
-            case 'course_new':
-            case 'webinar_new': return 'bg-indigo-50 text-indigo-500';
-            case 'group_request':
-            case 'group_approve': return 'bg-purple-50 text-purple-500';
-            default: return 'bg-gray-100 text-gray-500';
-        }
-    };
+    // Enhanced Mock Data
+    const notifications: CommunityNotification[] = [
+        { id: '1', type: 'like', title: 'إعجاب جديد', message: 'حصل منشورك على 150 إعجاب', time: 'منذ 5 دقائق', read: false, targetId: 'post-123', avatar: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=100' },
+        { id: '2', type: 'comment', title: 'تعليق جديد', message: 'علق د. أحمد علي: "معلومات قيمة جداً شكراً لك"', time: 'منذ 15 دقيقة', read: false, targetId: 'post-123', avatar: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=100' },
+        { id: '3', type: 'follow', title: 'متابع جديد', message: 'لقد تابعك د. سارة محمد', time: 'منذ ساعة', read: true, targetId: 'user-456', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100' },
+        { id: '4', type: 'message', title: 'رسالة جديدة', message: 'رسالة من د. علي: "هل يمكنك إرسال الملف؟"', time: 'منذ ساعتين', read: true, targetId: 'convo-789', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100' },
+        { id: '5', type: 'course', title: 'دورة مقترحة', message: 'دورة جديدة قد تهمك: "تقنيات زراعة الأسنان المتقدمة"', time: 'أمس', read: false, targetId: 'course-101', avatar: undefined },
+        { id: '6', type: 'webinar', title: 'ندوة قادمة', message: 'ندوة جديدة قد تهمك: "مستقبل طب الأسنان الرقمي"', time: 'أمس', read: false, targetId: 'web-202', avatar: undefined },
+        { id: '7', type: 'reply', title: 'رد على تعليق', message: 'ورد رد على تعليقك في منشور د. ياسر', time: 'منذ يومين', read: true, targetId: 'post-999', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100' },
+        { id: '8', type: 'group_approval', title: 'موافقة انضمام', message: 'تمت الموافقة على انضمامك لمجموعة "أطباء كربلاء"', time: 'منذ 3 أيام', read: true, targetId: 'group-555', avatar: undefined },
+    ];
 
     // Stats
     const activeGroups = groups.filter(g => g.isJoined).length;
@@ -78,9 +92,7 @@ export const ProfileTab: React.FC = () => {
                         className="p-3 bg-white rounded-xl shadow-sm border border-gray-100 hover:bg-gray-50 transition-colors relative z-50"
                     >
                         <Bell className="w-5 h-5 text-gray-600" />
-                        {unreadCount > 0 && (
-                            <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-                        )}
+                        <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
                     </button>
 
                     {/* Notifications Popup - Fixed Mobile Positioning */}
@@ -105,52 +117,44 @@ export const ProfileTab: React.FC = () => {
                             >
                                 <div className="flex justify-between items-center mb-4">
                                     <h3 className="font-bold text-gray-900">إشعارات المجتمع</h3>
-                                    {unreadCount > 0 && (
-                                        <button
-                                            onClick={() => markAllNotificationsAsRead()}
-                                            className="text-xs text-blue-600 hover:underline"
-                                        >
-                                            تحديد الكل كمقروء
-                                        </button>
-                                    )}
+                                    <button className="text-xs text-blue-600 hover:underline">تحديد الكل كمقروء</button>
                                 </div>
 
                                 <div className="space-y-2 max-h-[400px] overflow-y-auto mb-4 scrollbar-thin scrollbar-thumb-gray-200">
-                                    {safeNotifications.length > 0 ? (
-                                        safeNotifications.map((notif) => (
-                                            <div
-                                                key={notif.id}
-                                                onClick={() => handleNotificationClick(notif)}
-                                                className={`flex gap-3 items-start p-3 rounded-xl transition-all cursor-pointer hover:bg-gray-50 ${!notif.isRead ? 'bg-blue-50/50' : 'bg-white'}`}
-                                            >
-                                                {/* Icon/Avatar */}
-                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border border-gray-100 overflow-hidden ${!notif.isRead ? 'ring-2 ring-blue-100' : ''}`}>
-                                                    {notif.actorAvatar ? (
-                                                        <img src={notif.actorAvatar} alt="" className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        // Fallback Icons based on type
-                                                        <div className={`w-full h-full flex items-center justify-center ${getIconBg(notif.type)}`}>
-                                                            {getIcon(notif.type)}
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-sm text-gray-900 font-bold leading-tight mb-0.5">{notif.title}</p>
-                                                    <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">{notif.content}</p>
-                                                    <p className="text-[10px] text-gray-400 mt-1.5 flex items-center gap-1">
-                                                        {new Date(notif.createdAt).toLocaleDateString('ar-EG')}
-                                                        {!notif.isRead && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 block" />}
-                                                    </p>
-                                                </div>
+                                    {notifications.map((notif) => (
+                                        <div
+                                            key={notif.id}
+                                            onClick={() => handleNotificationClick(notif)}
+                                            className={`flex gap-3 items-start p-3 rounded-xl transition-all cursor-pointer hover:bg-gray-50 ${!notif.read ? 'bg-blue-50/50' : 'bg-white'}`}
+                                        >
+                                            {/* Icon/Avatar */}
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border border-gray-100 overflow-hidden ${!notif.read ? 'ring-2 ring-blue-100' : ''}`}>
+                                                {notif.avatar ? (
+                                                    <img src={notif.avatar} alt="" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    // Fallback Icons based on type
+                                                    <div className={`w-full h-full flex items-center justify-center ${notif.type === 'like' ? 'bg-red-50 text-red-500' :
+                                                        notif.type === 'course' ? 'bg-indigo-50 text-indigo-500' :
+                                                            notif.type === 'webinar' ? 'bg-purple-50 text-purple-500' :
+                                                                notif.type === 'group_approval' ? 'bg-green-50 text-green-500' : 'bg-gray-100 text-gray-500'
+                                                        }`}>
+                                                        {notif.type === 'like' && <Award className="w-5 h-5" />}
+                                                        {(notif.type === 'course' || notif.type === 'webinar') && <BookOpen className="w-5 h-5" />}
+                                                        {notif.type === 'group_approval' && <CheckCircle className="w-5 h-5" />}
+                                                    </div>
+                                                )}
                                             </div>
-                                        ))
-                                    ) : (
-                                        <div className="p-8 text-center text-gray-400">
-                                            <Bell className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                                            <p className="text-sm">لا توجد إشعارات جديدة</p>
+
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm text-gray-900 font-bold leading-tight mb-0.5">{notif.title}</p>
+                                                <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">{notif.message}</p>
+                                                <p className="text-[10px] text-gray-400 mt-1.5 flex items-center gap-1">
+                                                    {notif.time}
+                                                    {!notif.read && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 block" />}
+                                                </p>
+                                            </div>
                                         </div>
-                                    )}
+                                    ))}
                                 </div>
 
                                 <button

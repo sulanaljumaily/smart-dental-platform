@@ -1,36 +1,35 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
+// Force Real DB - Disable Mock Fallback
+const isMock = false;
+
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase Environment Variables! Check .env file.')
+  console.error('Missing Supabase Environment Variables!')
+  // Don't throw here to avoid crashing entire bundle on load, but log heavily
 }
 
-// Use globalThis to survive Vite HMR (prevents duplicate clients on hot-reload)
-const GLOBAL_KEY = '__supabase_client__' as const
+let client
 
-if (!(globalThis as any)[GLOBAL_KEY]) {
-  (globalThis as any)[GLOBAL_KEY] = createClient(
-    supabaseUrl || '',
-    supabaseAnonKey || '',
-    {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        // CRITICAL FIX: Bypass navigator.locks which causes AbortError storms
-        // navigator.locks.request() fails with "signal is aborted without reason"
-        // in React Strict Mode, Vite HMR, or when stale browser locks exist.
-        // This passthrough lock is safe for single-tab apps.
-        lock: async (name: string, acquireTimeout: number, fn: () => Promise<any>) => {
-          return await fn()
-        },
-      }
-    }
-  )
+// Always try to create client
+try {
+  if (supabaseUrl && supabaseAnonKey) {
+    client = createClient(supabaseUrl, supabaseAnonKey)
+  }
+} catch (error) {
+  console.error('Supabase client creation failed:', error)
 }
 
-export const supabase: SupabaseClient = (globalThis as any)[GLOBAL_KEY]
+if (client) {
+  // Already created
+} else {
+  // Final attempt or fallback to null (which will cause errors in app, prompting fix of env vars)
+  console.warn('Supabase client not initialized. Check environment variables.');
+}
+
+export const supabase = client || createClient(supabaseUrl || '', supabaseAnonKey || '');
 
 // Export tables type helper if needed
-export type Tables = any;
+export type Tables = any; 

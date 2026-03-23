@@ -9,91 +9,20 @@ export interface AIAnalysis {
     id: string;
     image_url: string;
     status: 'processing' | 'completed' | 'failed';
-    analysis_result: AIAnalysisResult | null;
+    result_json: AIAnalysisResult | null;
     created_at: string;
     patient_id?: number;
 }
 
-export const useAIAnalysis = (patientId?: string, clinicId?: number) => {
+export const useAIAnalysis = (patientId?: string) => {
     const { user } = useAuth();
     const [history, setHistory] = useState<AIAnalysis[]>([]);
     const [uploading, setUploading] = useState(false);
     const [analyzing, setAnalyzing] = useState(false);
 
-    const [credits, setCredits] = useState<string>('...');
-
     useEffect(() => {
-        if (user) {
-            fetchHistory();
-            fetchCredits();
-        }
-    }, [user, patientId, clinicId]);
-
-    const fetchCredits = async () => {
-        if (!user) return;
-        try {
-            // Validate if user is owner or staff to find clinic_id
-            let targetClinicId = clinicId;
-
-            if (!targetClinicId) {
-                // Check Owner
-                const { data: ownedClinic } = await supabase.from('clinics').select('id').eq('owner_id', user.id).single();
-                if (ownedClinic) {
-                    targetClinicId = ownedClinic.id;
-                } else {
-                    // Check Staff
-                    const { data: staffMember } = await supabase.from('staff').select('clinic_id').eq('auth_user_id', user.id).single();
-                    if (staffMember) targetClinicId = staffMember.clinic_id;
-                }
-            }
-
-            if (!targetClinicId) {
-                setCredits('غير معرف');
-                return;
-            }
-
-            // Get Subscription limits
-            const { data: clinic } = await supabase.from('clinics').select('owner_id').eq('id', targetClinicId).single();
-            if (!clinic) return;
-
-            const { data: sub } = await supabase
-                .from('user_subscriptions')
-                .select('subscription_plans(limits)')
-                .eq('user_id', clinic.owner_id)
-                .in('status', ['active', 'trialing'])
-                .single();
-
-            let maxAi = 0;
-            const plan = Array.isArray(sub?.subscription_plans) ? sub.subscription_plans[0] : sub?.subscription_plans;
-
-            if (plan?.limits) {
-                const limits = typeof plan.limits === 'string' ? JSON.parse(plan.limits) : plan.limits;
-                maxAi = (limits as any).max_ai ?? 0;
-            }
-
-            if (maxAi === -1) {
-                setCredits('غير محدود');
-                return;
-            }
-
-            // Count usage (Daily)
-            const startOfDay = new Date();
-            startOfDay.setHours(0, 0, 0, 0);
-
-            const { count } = await supabase
-                .from('ai_usage_logs')
-                .select('*', { count: 'exact', head: true })
-                .eq('clinic_id', targetClinicId)
-                .gte('created_at', startOfDay.toISOString());
-
-            const used = count || 0;
-            setCredits(`${maxAi - used} / ${maxAi}`);
-
-        } catch (e) {
-            console.error('Failed to fetch credits', e);
-            setCredits('غير متاح');
-        }
-    };
+        if (user) fetchHistory();
+    }, [user, patientId]);
 
     const fetchHistory = async () => {
         if (!user) return;
@@ -101,6 +30,7 @@ export const useAIAnalysis = (patientId?: string, clinicId?: number) => {
         let query = supabase
             .from('ai_analyses')
             .select('*')
+            .eq('doctor_id', user.id)
             .order('created_at', { ascending: false });
 
         if (patientId) {
@@ -116,34 +46,19 @@ export const useAIAnalysis = (patientId?: string, clinicId?: number) => {
         }
     };
 
-    const resolveClinicId = async (): Promise<number | undefined> => {
-        if (clinicId) return clinicId;
-
-        // Check Owner
-        const { data: ownedClinic } = await supabase.from('clinics').select('id').eq('owner_id', user?.id).single();
-        if (ownedClinic) return ownedClinic.id;
-
-        // Check Staff
-        const { data: staffMember } = await supabase.from('staff').select('clinic_id').eq('auth_user_id', user?.id).single();
-        if (staffMember) return staffMember.clinic_id;
-
-        return undefined;
-    };
-
     const saveAnalysisToHistory = async (imageUrl: string, status: 'processing' | 'completed', result?: AIAnalysisResult, overridePatientId?: number) => {
         if (!user) return null;
 
         const targetPatientId = overridePatientId || (patientId ? parseInt(patientId) : undefined);
-        const resolvedClinicId = await resolveClinicId();
 
         const { data, error } = await supabase
             .from('ai_analyses')
             .insert({
-                clinic_id: resolvedClinicId,
+                doctor_id: user.id,
                 image_url: imageUrl,
                 status: status,
                 patient_id: targetPatientId,
-                analysis_result: result || null
+                result_json: result || null
             })
             .select()
             .single();
@@ -159,16 +74,17 @@ export const useAIAnalysis = (patientId?: string, clinicId?: number) => {
             // 1. Upload Image to Storage
             const filename = `ai/${user.id}/${Date.now()}_${file.name}`;
             const { error: uploadError } = await supabase.storage
-                .from('patient-docs')
+                .from('lab-attachments')
                 .upload(filename, file);
 
             if (uploadError) throw uploadError;
 
-            const { data: { publicUrl } } = supabase.storage.from('patient-docs').getPublicUrl(filename);
+            const { data: { publicUrl } } = supabase.storage.from('lab-attachments').getPublicUrl(filename);
             setUploading(false);
             setAnalyzing(true);
 
             // 2. Create DB Entry (Processing)
+            // Note: Since we fixed the mock insert to support chaining, .select().single() works.
             const analysisEntry = await saveAnalysisToHistory(publicUrl, 'processing', undefined, overridePatientId);
 
             // Update UI immediately
@@ -177,8 +93,7 @@ export const useAIAnalysis = (patientId?: string, clinicId?: number) => {
             }
 
             // 3. Trigger AI Service Analysis
-            const resolvedClinicId = await resolveClinicId();
-            const result = await aiService.analyzeImage(publicUrl, undefined, undefined, resolvedClinicId);
+            const result = await aiService.analyzeImage(publicUrl);
 
             // 4. Update DB Entry (Completed)
             if (analysisEntry) {
@@ -198,9 +113,6 @@ export const useAIAnalysis = (patientId?: string, clinicId?: number) => {
                         ? { ...item, status: 'completed', result_json: result }
                         : item
                 ));
-
-                // Refresh credits after usage
-                fetchCredits();
             }
 
             toast.success('تم اكتمال التحليل بنجاح');
@@ -221,11 +133,8 @@ export const useAIAnalysis = (patientId?: string, clinicId?: number) => {
         setAnalyzing(true);
         try {
             const targetPatientId = patientId ? parseInt(patientId) : undefined;
-            const resolvedClinicId = await resolveClinicId();
 
             // 1. Create DB Entry (Processing)
-            // saveAnalysisToHistory resolves clinicId internally, so we don't need to pass it unless we want to override?
-            // Actually my previous edit made saveAnalysisToHistory call resolveClinicId.
             const analysisEntry = await saveAnalysisToHistory(url, 'processing', undefined, targetPatientId);
 
             if (analysisEntry) {
@@ -233,7 +142,7 @@ export const useAIAnalysis = (patientId?: string, clinicId?: number) => {
             }
 
             // 2. Trigger AI Service Analysis
-            const result = await aiService.analyzeImage(url, undefined, undefined, resolvedClinicId);
+            const result = await aiService.analyzeImage(url);
 
             // 3. Update DB
             if (analysisEntry) {
@@ -241,7 +150,7 @@ export const useAIAnalysis = (patientId?: string, clinicId?: number) => {
                     .from('ai_analyses')
                     .update({
                         status: 'completed',
-                        analysis_result: result
+                        result_json: result
                     })
                     .eq('id', analysisEntry.id);
 
@@ -249,11 +158,9 @@ export const useAIAnalysis = (patientId?: string, clinicId?: number) => {
 
                 setHistory(prev => prev.map(item =>
                     item.id === analysisEntry.id
-                        ? { ...item, status: 'completed', analysis_result: result }
+                        ? { ...item, status: 'completed', result_json: result }
                         : item
                 ));
-
-                fetchCredits();
             }
 
             toast.success('تم تحليل الصورة من الأرشيف');
@@ -268,46 +175,12 @@ export const useAIAnalysis = (patientId?: string, clinicId?: number) => {
         }
     };
 
-    const deleteAnalysis = async (id: string, imageUrl?: string) => {
-        if (!user) return;
-        try {
-            // 1. Delete from DB
-            const { error } = await supabase
-                .from('ai_analyses')
-                .delete()
-                .eq('id', id);
-
-            if (error) throw error;
-
-            // 2. Remove from Local State
-            setHistory(prev => prev.filter(item => item.id !== id));
-
-            toast.success('تم حذف السجل بنجاح');
-
-            // 3. Optional: Delete from Storage if needed (TODO)
-            if (imageUrl) {
-                try {
-                    // Extract path from public URL if possible, or just ignore for now as RLS might block
-                    // Storage deletion is often tricky with RLS.
-                } catch (e) {
-                    console.warn('Failed to delete image from storage', e);
-                }
-            }
-
-        } catch (error: any) {
-            console.error('Delete failed:', error);
-            toast.error('فشل حذف السجل');
-        }
-    };
-
     return {
         history,
         uploading,
         analyzing,
         analyzeImage,
         analyzeExistingImage,
-        deleteAnalysis,
-        refresh: () => { fetchHistory(); fetchCredits(); },
-        credits
+        refresh: fetchHistory
     };
 };

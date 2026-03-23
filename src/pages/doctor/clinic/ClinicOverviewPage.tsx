@@ -141,7 +141,7 @@ export const ClinicOverviewPage: React.FC<ClinicOverviewPageProps> = ({ clinicId
   const displayClinic = {
     // Priority: Real Data -> Default Fallback
     name: realClinic.name || 'العيادة',
-    address: realClinic.governorate ? `${realClinic.governorate}${realClinic.address ? `، ${realClinic.address}` : ''}` : (realClinic.address || ''),
+    address: realClinic.address || '',
     phone: realClinic.phone || '',
     totalPatients: totalPatients,
     dailyAppointments: dailyAppointments,
