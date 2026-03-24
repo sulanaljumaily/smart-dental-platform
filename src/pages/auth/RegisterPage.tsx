@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { UserPlus, Mail, Lock, User, Phone, CheckCircle, Building, Stethoscope, Package, TestTube, Settings } from 'lucide-react';
+import { UserPlus, Mail, Lock, User, Phone, Stethoscope, Package, TestTube } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePlatform } from '../../contexts/PlatformContext';
 import { Card } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
+import { Header } from '../../components/layout/Header';
 
 export const RegisterPage: React.FC = () => {
   const { t } = useLanguage();
-  const { register, login } = useAuth();
+  const { login } = useAuth();
   const { settings } = usePlatform();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -104,9 +105,6 @@ export const RegisterPage: React.FC = () => {
         case 'laboratory':
           navigate('/laboratory');
           break;
-        case 'admin':
-          navigate('/admin');
-          break;
         default:
           navigate('/');
       }
@@ -142,11 +140,8 @@ export const RegisterPage: React.FC = () => {
                 </div>
               )}
               <h1 className="text-2xl font-bold text-gray-900">إنشاء حساب جديد</h1>
-              <p className="text-gray-600 mt-2">كن جزءاً من منصتنا اليوم</p>
+              <p className="text-gray-600 mt-2">انضم إلى SMART اليوم</p>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">إنشاء حساب جديد</h1>
-            <p className="text-gray-600 mt-2">انضم إلى SMART اليوم</p>
-          </div>
 
             {/* Account Type Selector */}
             <div>
@@ -190,134 +185,129 @@ export const RegisterPage: React.FC = () => {
                   <span>مختبر</span>
                 </button>
               </div>
-            </div>
-
-              <button
-                type="button"
-                onClick={() => handleInputChange('accountType', 'supplier')}
-                className={`p-4 rounded-lg border-2 transition-all ${formData.accountType === 'supplier'
-                  ? 'border-primary bg-primary/10'
-                  : 'border-gray-200 hover:border-primary/50'
-                  }`}
-              >
-                <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
-                {loadingProvider === 'google' ? 'جاري التحويل...' : 'Google'}
-              </Button>
-              <Button
-                type="button"
-                onClick={() => handleInputChange('accountType', 'laboratory')}
-                className={`p-4 rounded-lg border-2 transition-all ${formData.accountType === 'laboratory'
-                  ? 'border-primary bg-primary/10'
-                  : 'border-gray-200 hover:border-primary/50'
-                  }`}
-              >
-                <img src="https://www.svgrepo.com/show/354981/facebook-option.svg" alt="Facebook" className="w-5 h-5 brightness-0 invert" />
-                {loadingProvider === 'facebook' ? 'جاري التحويل...' : 'Facebook'}
-              </Button>
-            </div>
-          </div>
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Full Name */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <User className="w-4 h-4 inline ml-1" />
-                الاسم الكامل
-              </label>
-              <Input
-                type="text"
-                value={formData.fullName}
-                onChange={(e) => handleInputChange('fullName', e.target.value)}
-                placeholder="أدخل اسمك الكامل"
-                className={errors.fullName ? 'border-red-500' : ''}
-              />
-              {errors.fullName && (
-                <p className="text-red-500 text-xs mt-1">{errors.fullName}</p>
-              )}
-            </div>
-
-            {/* Email & Phone */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Mail className="w-4 h-4 inline ml-1" />
-                  البريد الإلكتروني
-                </label>
-                <Input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  placeholder="example@email.com"
-                  className={errors.email ? 'border-red-500' : ''}
-                />
-                {errors.email && (
-                  <p className="text-red-500 text-xs mt-1">{errors.email}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Phone className="w-4 h-4 inline ml-1" />
-                  رقم الهاتف
-                </label>
-                <Input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
-                  placeholder="+964 770 123 4567"
-                  className={errors.phone ? 'border-red-500' : ''}
-                />
-                {errors.phone && (
-                  <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Password & Confirm Password */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Lock className="w-4 h-4 inline ml-1" />
-                  كلمة المرور
-                </label>
-                <Input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => handleInputChange('password', e.target.value)}
-                  placeholder="••••••••"
-                  className={errors.password ? 'border-red-500' : ''}
-                />
-                {errors.password && (
-                  <p className="text-red-500 text-xs mt-1">{errors.password}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Lock className="w-4 h-4 inline ml-1" />
-                  تأكيد كلمة المرور
-                </label>
-                <Input
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                  placeholder="••••••••"
-                  className={errors.confirmPassword ? 'border-red-500' : ''}
-                />
-                {errors.confirmPassword && (
-                  <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>
-                )}
-              </div>
-              {errors.agreeToTerms && (
-                <p className="text-red-500 text-xs">{errors.agreeToTerms}</p>
-              )}
-
-              {/* Account Type Error Warning */}
               {errors.accountType && (
                 <p className="text-red-600 text-center font-bold text-sm bg-red-50 p-2 rounded-lg border border-red-200 animate-pulse">
                   {errors.accountType}
                 </p>
+              )}
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Full Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <User className="w-4 h-4 inline ml-1" />
+                  الاسم الكامل
+                </label>
+                <Input
+                  type="text"
+                  value={formData.fullName}
+                  onChange={(e) => handleInputChange('fullName', e.target.value)}
+                  placeholder="أدخل اسمك الكامل"
+                  className={errors.fullName ? 'border-red-500' : ''}
+                />
+                {errors.fullName && (
+                  <p className="text-red-500 text-xs mt-1">{errors.fullName}</p>
+                )}
+              </div>
+
+              {/* Email & Phone */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Mail className="w-4 h-4 inline ml-1" />
+                    البريد الإلكتروني
+                  </label>
+                  <Input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    placeholder="example@email.com"
+                    className={errors.email ? 'border-red-500' : ''}
+                  />
+                  {errors.email && (
+                    <p className="text-red-500 text-xs mt-1">{errors.email}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Phone className="w-4 h-4 inline ml-1" />
+                    رقم الهاتف
+                  </label>
+                  <Input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                    placeholder="+964 770 123 4567"
+                    className={errors.phone ? 'border-red-500' : ''}
+                  />
+                  {errors.phone && (
+                    <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Password & Confirm Password */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Lock className="w-4 h-4 inline ml-1" />
+                    كلمة المرور
+                  </label>
+                  <Input
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => handleInputChange('password', e.target.value)}
+                    placeholder="••••••••"
+                    className={errors.password ? 'border-red-500' : ''}
+                  />
+                  {errors.password && (
+                    <p className="text-red-500 text-xs mt-1">{errors.password}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Lock className="w-4 h-4 inline ml-1" />
+                    تأكيد كلمة المرور
+                  </label>
+                  <Input
+                    type="password"
+                    value={formData.confirmPassword}
+                    onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                    placeholder="••••••••"
+                    className={errors.confirmPassword ? 'border-red-500' : ''}
+                  />
+                  {errors.confirmPassword && (
+                    <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Terms Agreement */}
+              <div className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  id="agreeToTerms"
+                  checked={formData.agreeToTerms}
+                  onChange={(e) => handleInputChange('agreeToTerms', e.target.checked)}
+                  className="mt-1"
+                />
+                <label htmlFor="agreeToTerms" className="text-sm text-gray-600">
+                  أوافق على{' '}
+                  <Link to="/terms" className="text-primary hover:underline">
+                    الشروط والأحكام
+                  </Link>{' '}
+                  و{' '}
+                  <Link to="/privacy" className="text-primary hover:underline">
+                    سياسة الخصوصية
+                  </Link>
+                </label>
+              </div>
+              {errors.agreeToTerms && (
+                <p className="text-red-500 text-xs">{errors.agreeToTerms}</p>
               )}
 
               {/* Submit Button */}
@@ -325,7 +315,7 @@ export const RegisterPage: React.FC = () => {
                 type="submit"
                 variant={errors.accountType ? "outline" : "primary"}
                 className={`w-full flex items-center justify-center gap-2 ${errors.accountType ? 'border-red-500 text-red-600 hover:bg-red-50 bg-white' : ''}`}
-                disabled={loading || !!loadingProvider}
+                disabled={loading}
               >
                 <UserPlus className="w-5 h-5" />
                 {loading ? 'جاري إنشاء الحساب...' : 'إنشاء حساب'}
@@ -340,16 +330,15 @@ export const RegisterPage: React.FC = () => {
               </Link>
             </div>
 
+            {/* Quick Links */}
+            <div className="pt-4 border-t text-center space-y-2">
+              <Link to="/" className="block text-sm text-gray-600 hover:text-primary">
+                العودة للصفحة الرئيسية
+              </Link>
+            </div>
           </div>
-
-          {/* Quick Links */}
-          <div className="pt-4 border-t text-center space-y-2">
-            <Link to="/" className="block text-sm text-gray-600 hover:text-primary">
-              العودة للصفحة الرئيسية
-            </Link>
-          </div>
-        </div>
-      </Card>
-    </div>
+        </Card>
+      </div>
+    </>
   );
 };
