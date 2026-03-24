@@ -316,7 +316,7 @@ export const RegisterPage: React.FC = () => {
               {/* Account Type Error Warning */}
               {errors.accountType && (
                 <p className="text-red-600 text-center font-bold text-sm bg-red-50 p-2 rounded-lg border border-red-200 animate-pulse">
-                  ⚠️ {errors.accountType}
+                  {errors.accountType}
                 </p>
               )}
 
