@@ -13,7 +13,7 @@ import { supabase } from '../../lib/supabase';
 
 export const RegisterPage: React.FC = () => {
   const { t } = useLanguage();
-  const { register, login } = useAuth();
+  const { login } = useAuth();
   const { settings } = usePlatform();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -190,7 +190,7 @@ export const RegisterPage: React.FC = () => {
                 </div>
               )}
               <h1 className="text-2xl font-bold text-gray-900">إنشاء حساب جديد</h1>
-              <p className="text-gray-600 mt-2">كن جزءاً من منصتنا اليوم</p>
+              <p className="text-gray-600 mt-2">انضم إلى SMART اليوم</p>
             </div>
 
             {/* Account Type Selector */}
@@ -463,7 +463,7 @@ export const RegisterPage: React.FC = () => {
                 type="submit"
                 variant={errors.accountType ? "outline" : "primary"}
                 className={`w-full flex items-center justify-center gap-2 ${errors.accountType ? 'border-red-500 text-red-600 hover:bg-red-50 bg-white' : ''}`}
-                disabled={loading || !!loadingProvider}
+                disabled={loading}
               >
                 <UserPlus className="w-5 h-5" />
                 {loading ? 'جاري إنشاء الحساب...' : 'إنشاء حساب'}
@@ -478,6 +478,12 @@ export const RegisterPage: React.FC = () => {
               </Link>
             </div>
 
+            {/* Quick Links */}
+            <div className="pt-4 border-t text-center space-y-2">
+              <Link to="/" className="block text-sm text-gray-600 hover:text-primary">
+                العودة للصفحة الرئيسية
+              </Link>
+            </div>
           </div>
         </Card>
       </div>
