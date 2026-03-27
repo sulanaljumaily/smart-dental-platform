@@ -28,6 +28,7 @@ import { RegisterPage } from './pages/auth/RegisterPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { PrivacyPolicyPage } from './pages/auth/PrivacyPolicyPage';
 import { TermsOfServicePage } from './pages/auth/TermsOfServicePage';
+import { CompleteRegistrationModal } from './components/auth/CompleteRegistrationModal';
 
 // Doctor Pages
 import { DoctorDashboard } from './pages/doctor/DoctorDashboard';
@@ -311,6 +312,8 @@ function App() {
           <CommunityProvider>
             <PlatformProvider>
               <AppContent />
+              {/* Modal to complete registration for OAuth users without role */}
+              <CompleteRegistrationModal />
             </PlatformProvider>
           </CommunityProvider>
         </StoreProvider>
