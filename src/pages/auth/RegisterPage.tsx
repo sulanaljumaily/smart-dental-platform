@@ -96,7 +96,7 @@ export const RegisterPage: React.FC = () => {
     setLoading(true);
 
     try {
-      await register(
+      await authContext.register(
         formData.email,
         formData.password,
         formData.fullName,
