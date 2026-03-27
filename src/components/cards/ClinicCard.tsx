@@ -5,6 +5,8 @@ import { Clinic } from '../../types';
 import { Button } from '../common/Button';
 import { useLanguage } from '../../contexts/LanguageContext';
 
+import { formatLocation } from '../../utils/location';
+
 interface ClinicCardProps {
   clinic: Clinic;
   expandable?: boolean;
@@ -65,7 +67,9 @@ export const ClinicCard: React.FC<ClinicCardProps> = ({ clinic, expandable = fal
             </h3>
             <div className="flex items-center gap-1.5 text-xs text-gray-500">
               <MapPin className="w-3.5 h-3.5" />
-              <span className="line-clamp-1">{clinic.address}</span>
+              <span className="line-clamp-1">
+                {formatLocation(clinic.governorate, clinic.address)}
+              </span>
             </div>
           </div>
         </div>

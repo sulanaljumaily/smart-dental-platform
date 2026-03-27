@@ -26,6 +26,7 @@ export interface TreatmentPlan {
   id?: string;
   patient_id: string;
   tooth_number: number;
+  tooth_numbers?: number[];
   tooth_type: string;
   overall_status: 'healthy' | 'needs_treatment' | 'in_progress' | 'completed' | 'post_treatment' | 'failed';
   status: 'planned' | 'started' | 'in_progress' | 'completed' | 'failed' | 'on_hold' | 'cancelled';
@@ -216,7 +217,7 @@ export const ToothService = {
         .rpc('get_patient_teeth_stats', { patient_uuid: patientId });
 
       if (error) throw error;
-      
+
       return data?.[0] || {
         total: 0,
         healthy: 0,
@@ -665,13 +666,13 @@ export const TreatmentPlanApi = {
     try {
       // الحصول على جميع الأسنان
       const teeth = await ToothService.getPatientTeeth(patientId);
-      
+
       // الحصول على جميع الخطط العلاجية
       const treatmentPlans = await TreatmentPlanService.getPatientTreatmentPlans(patientId);
-      
+
       // دمج البيانات
       const teethWithPlans = teeth.map(tooth => {
-        const plan = treatmentPlans.find(p => 
+        const plan = treatmentPlans.find(p =>
           p.tooth_number === tooth.tooth_number
         );
         return {
@@ -695,8 +696,8 @@ export const TreatmentPlanApi = {
 
   // تحديث حالة السن وخطة العلاج
   async updateToothAndPlan(
-    patientId: string, 
-    toothNumber: number, 
+    patientId: string,
+    toothNumber: number,
     updates: {
       tooth?: Partial<ToothData>;
       treatmentPlan?: Partial<TreatmentPlan>;
@@ -718,10 +719,10 @@ export const TreatmentPlanApi = {
       // تحديث أو إنشاء خطة العلاج إذا وجدت
       if (updates.treatmentPlan) {
         const existingPlans = await TreatmentPlanService.getTreatmentPlansForTooth(
-          patientId, 
+          patientId,
           toothNumber
         );
-        
+
         if (existingPlans.length > 0) {
           // تحديث الخطة الموجودة
           updatedPlan = await TreatmentPlanService.updateTreatmentPlan(
@@ -774,7 +775,7 @@ export const TreatmentPlanApi = {
         TreatmentPhaseService.getTreatmentPhases(planId),
         TreatmentSessionService.getTreatmentSessions(planId)
       ]);
-      
+
       const tasksResults = await Promise.all(phases.map(phase => TreatmentTaskService.getTreatmentTasks(phase.id!)));
       const tasks = tasksResults.flat() as TreatmentTask[];
 

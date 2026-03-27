@@ -20,11 +20,15 @@ export const BookingPage: React.FC = () => {
     const [step, setStep] = useState(1);
     const [selectedDate, setSelectedDate] = useState<string>('');
     const [selectedTime, setSelectedTime] = useState<string>('');
+    const [timePeriod, setTimePeriod] = useState<'morning' | 'evening'>('morning');
     const [patientData, setPatientData] = useState({
         name: '',
         phone: '',
         email: '',
-        notes: ''
+        notes: '',
+        age: '',
+        gender: '',
+        province: ''
     });
 
     // Clinic Data State
@@ -54,10 +58,56 @@ export const BookingPage: React.FC = () => {
         if (clinicId) fetchClinic();
     }, [clinicId]);
 
-    // Mock available slots
-    const availableSlots = [
-        '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM',
-        '04:00 PM', '04:30 PM', '05:00 PM', '05:30 PM'
+    // Dynamic available slots from working hours
+    const availableSlots = React.useMemo(() => {
+        let start = '09:00';
+        let end = '18:00';
+
+        if (clinicData?.working_hours && typeof clinicData.working_hours === 'string') {
+            // Handle expected format "09:00 - 17:00" or similar
+            const parts = clinicData.working_hours.split('-');
+            if (parts.length === 2) {
+                start = parts[0].trim();
+                end = parts[1].trim();
+            }
+        }
+
+        const slots = [];
+        const parseTime = (timeStr: string) => {
+            const [h, m] = timeStr.split(':').map(Number);
+            return h * 60 + (m || 0);
+        };
+
+        const startTime = parseTime(start);
+        const endTime = parseTime(end);
+
+        for (let time = startTime; time < endTime; time += 30) {
+            const hours = Math.floor(time / 60);
+            const mins = time % 60;
+            slots.push(`${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`);
+        }
+        return slots;
+    }, [clinicData?.working_hours]);
+
+    const formatTime12h = (time24: string): string => {
+        if (!time24) return '';
+        const [hoursStr, minutesStr] = time24.split(':');
+        let hours = parseInt(hoursStr, 10);
+        const suffix = hours >= 12 ? 'م' : 'ص';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        return `${hours}:${minutesStr} ${suffix}`;
+    };
+
+    const filteredSlots = availableSlots.filter(slot => {
+        const hour = parseInt(slot.split(':')[0]);
+        return timePeriod === 'morning' ? hour < 12 : hour >= 12;
+    });
+
+    const IRAQI_PROVINCES = [
+        'بغداد', 'البصرة', 'نينوى', 'أربيل', 'النجف', 'كربلاء', 'بابل', 
+        'الأنبار', 'ديالى', 'ذي قار', 'كركوك', 'صلاح الدين', 'المثنى', 
+        'ميسان', 'القادسية', 'واسط', 'دهوك', 'السليمانية'
     ];
 
     // Mock next 7 days
@@ -90,14 +140,14 @@ export const BookingPage: React.FC = () => {
             const { error } = await supabase.from('appointments').insert({
                 clinic_id: parseInt(clinicId || '1'),
                 patient_name: patientData.name,
-                doctor_id: doctorId || null, // Optional
+                staff_id: doctorId ? Number(doctorId) : null, // Optional
                 doctor_name: 'غير محدد', // Default for online booking until assigned
                 appointment_date: formattedDate,
                 appointment_time: selectedTime,
                 type: 'كشف عام (أونلاين)',
                 treatment_type: 'كشف عام (أونلاين)', // Required by DB
                 status: 'pending', // Online Request
-                notes: `حجز إلكتروني - ${patientData.notes}`,
+                notes: `حجز إلكتروني - ${patientData.notes}\n\nبيانات إضافية:\nالعمر: ${patientData.age}\nالجنس: ${patientData.gender === 'male' ? 'ذكر' : 'أنثى'}\nالمحافظة: ${patientData.province}`,
                 phone_number: patientData.phone,
                 cost: 0
             });
@@ -239,10 +289,34 @@ export const BookingPage: React.FC = () => {
                                 })}
                             </div>
 
+                            {/* Time Period Tabs */}
+                            {selectedDate && (
+                                <div className="flex border-b border-gray-200 bg-gray-50 rounded-lg mb-4">
+                                    <button
+                                        onClick={() => setTimePeriod('morning')}
+                                        className={`flex-1 py-3 px-4 text-center font-medium transition-all ${timePeriod === 'morning'
+                                            ? 'border-b-2 border-primary text-primary bg-primary/5 font-bold'
+                                            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                                            }`}
+                                    >
+                                        الفترة الصباحية
+                                    </button>
+                                    <button
+                                        onClick={() => setTimePeriod('evening')}
+                                        className={`flex-1 py-3 px-4 text-center font-medium transition-all ${timePeriod === 'evening'
+                                            ? 'border-b-2 border-primary text-primary bg-primary/5 font-bold'
+                                            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                                            }`}
+                                    >
+                                        الفترة المسائية
+                                    </button>
+                                </div>
+                            )}
+
                             {/* Time Selection */}
                             {selectedDate && (
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 animate-in fade-in">
-                                    {availableSlots.map((slot, idx) => (
+                                    {filteredSlots.map((slot, idx) => (
                                         <button
                                             key={idx}
                                             onClick={() => setSelectedTime(slot)}
@@ -251,9 +325,14 @@ export const BookingPage: React.FC = () => {
                                                 : 'border-gray-200 hover:border-primary hover:text-primary'
                                                 }`}
                                         >
-                                            {slot}
+                                            {formatTime12h(slot)}
                                         </button>
                                     ))}
+                                </div>
+                            )}
+                            {selectedDate && filteredSlots.length === 0 && (
+                                <div className="text-center py-6 text-gray-500 text-sm">
+                                    لا توجد أوقات متاحة في هذه الفترة.
                                 </div>
                             )}
                         </div>
@@ -305,6 +384,48 @@ export const BookingPage: React.FC = () => {
                                     />
                                 </div>
                             </div>
+
+                            {/* New Dropdowns Grid */}
+                            <div className="grid grid-cols-3 gap-3">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">العمر</label>
+                                    <select
+                                        value={patientData.age}
+                                        onChange={e => setPatientData({ ...patientData, age: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none bg-white"
+                                    >
+                                        <option value="">اختر</option>
+                                        {Array.from({ length: 90 }, (_, i) => i + 5).map(age => (
+                                            <option key={age} value={age}>{age}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">الجنس</label>
+                                    <select
+                                        value={patientData.gender}
+                                        onChange={e => setPatientData({ ...patientData, gender: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none bg-white"
+                                    >
+                                        <option value="">اختر</option>
+                                        <option value="male">ذكر</option>
+                                        <option value="female">أنثى</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">المحافظة</label>
+                                    <select
+                                        value={patientData.province}
+                                        onChange={e => setPatientData({ ...patientData, province: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none bg-white text-sm"
+                                    >
+                                        <option value="">اختر</option>
+                                        {IRAQI_PROVINCES.map(prov => (
+                                            <option key={prov} value={prov}>{prov}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">ملاحظات إضافية (اختياري)</label>
                                 <textarea
@@ -324,7 +445,7 @@ export const BookingPage: React.FC = () => {
                                 عودة
                             </Button>
                             <Button
-                                disabled={!patientData.name || !patientData.phone || submitting}
+                                disabled={!patientData.name || !patientData.phone || !patientData.age || !patientData.gender || !patientData.province || submitting}
                                 onClick={handleBook}
                                 size="lg"
                                 className="px-8"

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   DollarSign, TrendingUp, TrendingDown, Calendar, Download,
   CreditCard, Wallet, RefreshCcw, Receipt, BarChart3,
-  PieChart, ArrowUpRight, ArrowDownRight, Filter
+  PieChart, ArrowUpRight, ArrowDownRight, Filter, CheckCircle2
 } from 'lucide-react';
 import { Card } from '../../components/common/Card';
 import { BentoStatCard } from '../../components/dashboard/BentoStatCard';
@@ -14,12 +14,10 @@ export const SupplierFinancePage: React.FC = () => {
   const { stats: financialStats, revenueData, expenses, transactions: recentTransactions, loading } = useSupplierFinance();
 
   const [timeframe, setTimeframe] = useState<'week' | 'month' | 'quarter' | 'year'>('month');
-  const [activeTab, setActiveTab] = useState<'overview' | 'revenue' | 'expenses' | 'returns' | 'fees'>('overview');
+  const [activeTab, setActiveTab] = useState<'revenue' | 'returns' | 'fees'>('revenue');
 
   const tabs = [
-    { id: 'overview', label: 'نظرة عامة', icon: BarChart3 },
     { id: 'revenue', label: 'الإيرادات', icon: TrendingUp },
-    { id: 'expenses', label: 'المصروفات', icon: TrendingDown },
     { id: 'returns', label: 'المرجعات', icon: RefreshCcw },
     { id: 'fees', label: 'رسوم المنصة', icon: CreditCard }
   ];
@@ -76,8 +74,8 @@ export const SupplierFinancePage: React.FC = () => {
       {/* Financial Overview Cards - Bento Style */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <BentoStatCard
-          title="إيرادات الشهر"
-          value={`${(financialStats.monthlyRevenue / 1000000).toFixed(1)}M`}
+          title="إجمالي الإيرادات"
+          value={(financialStats.totalRevenue).toLocaleString() + ' د.ع'}
           icon={DollarSign}
           color="green"
           trend="up"
@@ -86,32 +84,32 @@ export const SupplierFinancePage: React.FC = () => {
         />
 
         <BentoStatCard
-          title="صافي الربح"
-          value={`${(financialStats.netProfit / 1000000).toFixed(1)}M`}
+          title="إيرادات هذا الشهر"
+          value={(financialStats.monthlyRevenue).toLocaleString() + ' د.ع'}
           icon={Wallet}
           color="blue"
           trend="neutral"
-          trendValue="صافي"
+          trendValue="شهرياً"
           delay={200}
         />
 
         <BentoStatCard
-          title="مدفوعات معلقة"
-          value={`${(financialStats.pendingPayments / 1000).toFixed(0)}K`}
-          icon={Receipt}
-          color="orange"
+          title="الطلب المرجعة"
+          value={(financialStats.returns).toLocaleString() + ' د.ع'}
+          icon={RefreshCcw}
+          color="red"
           trend="neutral"
-          trendValue="متعلقة"
+          trendValue="مرتجعات"
           delay={300}
         />
 
         <BentoStatCard
-          title="رسوم المنصة"
-          value={`${(financialStats.platformFees / 1000).toFixed(0)}K`}
+          title="الرسوم المتعلقة"
+          value={(financialStats.pendingFees).toLocaleString() + ' د.ع'}
           icon={CreditCard}
-          color="purple"
+          color="orange"
           trend="neutral"
-          trendValue="شهرياً"
+          trendValue="معلقة"
           delay={400}
         />
       </div>
@@ -137,60 +135,7 @@ export const SupplierFinancePage: React.FC = () => {
         </div>
 
         <div className="p-6">
-          {/* Overview Tab */}
-          {activeTab === 'overview' && (
-            <div className="space-y-6">
-              {/* Revenue Chart */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">اتجاه الإيرادات</h3>
-                  <div className="space-y-3">
-                    {revenueData.slice(-4).map((item, index) => (
-                      <div key={item.month} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div>
-                          <p className="font-semibold text-gray-900">{item.month}</p>
-                          <p className="text-sm text-gray-600">{item.orders} طلب</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold text-green-600">
-                            {(item.amount / 1000000).toFixed(1)}M د.ع
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
 
-                {/* Expenses Breakdown */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">تفصيل المصروفات</h3>
-                  <div className="space-y-4">
-                    {expenses.map((expense) => (
-                      <div key={expense.category} className="flex items-center gap-4">
-                        <div className={`w-4 h-4 rounded-full ${expense.color}`}></div>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium text-gray-900">
-                              {expense.category}
-                            </span>
-                            <span className="text-sm font-bold text-gray-900">
-                              {(expense.amount / 1000).toFixed(0)}K د.ع
-                            </span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                              className={`h-2 rounded-full ${expense.color}`}
-                              style={{ width: `${expense.percentage}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Revenue Tab */}
           {activeTab === 'revenue' && (
@@ -236,39 +181,47 @@ export const SupplierFinancePage: React.FC = () => {
                   ))}
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* Other tabs content */}
-          {/* Other tabs content */}
-          {activeTab === 'expenses' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">توزيع المصروفات</h3>
-                  <div className="space-y-4">
-                    {expenses.map((expense) => (
-                      <div key={expense.category} className="flex items-center gap-4 bg-gray-50 p-3 rounded-lg">
-                        <div className={`w-3 h-3 rounded-full ${expense.color}`}></div>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="font-medium text-gray-900">{expense.category}</span>
-                            <span className="font-bold text-gray-900">{(expense.amount / 1000).toFixed(0)}K د.ع</span>
-                          </div>
-                          <div className="text-xs text-gray-500">{expense.percentage}% من الإجمالي</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+              {/* Completed Orders Table (Added) */}
+              <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
+                <div className="border-b border-gray-100 px-6 py-4 bg-gray-50/50 flex justify-between items-center">
+                  <h4 className="font-bold text-gray-900">سجل الطلبات المكتملة (تم توصيلها)</h4>
+                  <span className="text-xs bg-green-100 text-green-700 font-bold px-2.5 py-1 rounded-full">
+                    {recentTransactions.filter(t => t.type === 'إيراد' && t.status === 'مكتمل').length} مبيعات
+                  </span>
                 </div>
-                <div className="bg-red-50 p-6 rounded-xl border border-red-100">
-                  <h3 className="text-lg font-bold text-red-900 mb-2">إجمالي المصروفات</h3>
-                  <p className="text-3xl font-bold text-red-600 mb-4">{(financialStats.totalExpenses / 1000000).toFixed(2)}M د.ع</p>
-                  <p className="text-sm text-red-800">تشمل تكاليف التشغيل، الشحن، ورسوم المنصة.</p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-right">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="py-3 px-6 font-bold text-gray-600 text-sm">المعاملة</th>
+                        <th className="py-3 px-6 font-bold text-gray-600 text-sm">العميل</th>
+                        <th className="py-3 px-6 font-bold text-gray-600 text-sm">المبلغ</th>
+                        <th className="py-3 px-6 font-bold text-gray-600 text-sm">التاريخ</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {recentTransactions.filter(t => t.type === 'إيراد' && t.status === 'مكتمل').map(t => (
+                        <tr key={t.id} className="hover:bg-gray-50">
+                          <td className="py-3 px-6 font-semibold text-gray-900">{t.description}</td>
+                          <td className="py-3 px-6 text-gray-600">{t.customer}</td>
+                          <td className="py-3 px-6 font-bold text-green-600">{t.amount.toLocaleString()} د.ع</td>
+                          <td className="py-3 px-6 text-gray-500 text-sm">{formatDate(t.date)}</td>
+                        </tr>
+                      ))}
+                      {recentTransactions.filter(t => t.type === 'إيراد' && t.status === 'مكتمل').length === 0 && (
+                        <tr>
+                          <td colSpan={4} className="py-8 text-center text-gray-500">لا توجد مبيعات مكتملة حالياً</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
           )}
+
+  {/* Other tabs content */}
 
           {activeTab === 'returns' && (
             <div className="space-y-6">
@@ -335,26 +288,56 @@ export const SupplierFinancePage: React.FC = () => {
               </div>
 
               <div>
-                <h3 className="font-bold text-gray-900 mb-4">سجل التسويات والرسوم</h3>
-                <div className="bg-white border rounded-xl overflow-hidden">
-                  {recentTransactions.filter(t => t.type === 'رسوم' || t.type === 'تسوية').map(t => (
+                <h3 className="font-bold text-gray-900 mb-4">سجل التسويات</h3>
+                <div className="bg-white border rounded-xl overflow-hidden mb-6">
+                  {recentTransactions.filter(t => t.type === 'تسوية').map(t => (
                     <div key={t.id} className="flex justify-between items-center p-4 border-b last:border-0 hover:bg-gray-50">
                       <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${t.type === 'تسوية' ? 'bg-green-100 text-green-600' : 'bg-purple-100 text-purple-600'
-                          }`}>
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center bg-green-100 text-green-600">
                           <CreditCard className="w-4 h-4" />
                         </div>
                         <div>
                           <p className="font-bold text-gray-900">{t.description}</p>
-                          <p className="text-xs text-gray-500">{formatDate(t.date)}</p>
+                          <p className="text-xs text-gray-500">
+                            {formatDate(t.date)} | {new Date(t.date).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
                         </div>
                       </div>
-                      <span className={`font-bold flex items-center gap-1 ${t.type === 'تسوية' ? 'text-green-600' : 'text-red-600'
-                        }`} dir="ltr">
+                      <span className="font-bold flex items-center gap-1 text-green-600" dir="ltr">
                         {Math.abs(t.amount).toLocaleString()} IQD
                       </span>
                     </div>
                   ))}
+                  {recentTransactions.filter(t => t.type === 'تسوية').length === 0 && (
+                    <div className="p-4 text-center text-gray-500 text-sm">لا توجد تسويات مسجلة حالياً</div>
+                  )}
+                </div>
+
+                <h3 className="font-bold text-gray-900 mb-4">سجل نسبة الطلبات</h3>
+                <div className="bg-white border rounded-xl overflow-hidden">
+                  {recentTransactions.filter(t => t.type === 'رسوم').map(t => (
+                    <div key={t.id} className="flex justify-between items-center p-4 border-b last:border-0 hover:bg-gray-50">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center bg-purple-100 text-purple-600">
+                          <CreditCard className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-gray-900">{t.description}</p>
+                          <p className="text-xs text-gray-600">العميل: {t.customer}</p>
+                          <p className="text-xs text-gray-500">{formatDate(t.date)}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-red-600" dir="ltr">
+                          {Math.abs(t.amount).toLocaleString()} IQD
+                        </span>
+                        <CheckCircle2 className={`w-4 h-4 ${t.status === 'مكتمل' ? 'text-green-500' : 'text-yellow-500'}`} />
+                      </div>
+                    </div>
+                  ))}
+                  {recentTransactions.filter(t => t.type === 'رسوم').length === 0 && (
+                    <div className="p-4 text-center text-gray-500 text-sm">لا توجد رسوم مسجلة حالياً</div>
+                  )}
                 </div>
               </div>
             </div>
@@ -362,66 +345,6 @@ export const SupplierFinancePage: React.FC = () => {
         </div>
       </Card>
 
-      {/* Settlements Section (Renamed from Recent Transactions) */}
-      <Card>
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-              <Receipt className="w-5 h-5 text-green-500" />
-              التسويات وأحدث المعاملات
-            </h2>
-            <Button variant="ghost" size="sm" className="text-green-600">
-              عرض الكل
-            </Button>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="border-b">
-                <tr>
-                  <th className="text-right p-3 font-semibold text-gray-700">المعاملة</th>
-                  <th className="text-right p-3 font-semibold text-gray-700">العميل / المنصة</th>
-                  <th className="text-right p-3 font-semibold text-gray-700">المبلغ</th>
-                  <th className="text-right p-3 font-semibold text-gray-700">التاريخ</th>
-                  <th className="text-center p-3 font-semibold text-gray-700">الحالة</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentTransactions.map((transaction) => (
-                  <tr key={transaction.id} className="border-b hover:bg-gray-50">
-                    <td className="p-3">
-                      <div>
-                        <p className="font-semibold text-gray-900">{transaction.description}</p>
-                        <p className={`text-xs font-medium ${getTransactionColor(transaction.type)}`}>
-                          {transaction.type}
-                        </p>
-                      </div>
-                    </td>
-                    <td className="p-3">
-                      <p className="text-sm text-gray-700">{transaction.customer}</p>
-                    </td>
-                    <td className="p-3">
-                      <p className={`font-bold ${transaction.type === 'تسوية' ? 'text-green-600' : transaction.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {transaction.amount > 0 ? '+' : ''}{Math.abs(transaction.amount).toLocaleString()} د.ع
-                      </p>
-                    </td>
-                    <td className="p-3">
-                      <p className="text-sm text-gray-600">
-                        {formatDate(transaction.date)}
-                      </p>
-                    </td>
-                    <td className="p-3 text-center">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(transaction.status)}`}>
-                        {transaction.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </Card>
     </div>
   );
 };

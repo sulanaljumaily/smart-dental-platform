@@ -7,6 +7,8 @@ import { usePlatform } from '../../contexts/PlatformContext';
 import { Card } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
+import { Header } from '../../components/layout/Header';
+import { supabase } from '../../lib/supabase';
 
 export const LoginPage: React.FC = () => {
   const { t } = useLanguage();
@@ -18,6 +20,7 @@ export const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'doctor' | 'supplier' | 'laboratory' | 'admin'>('doctor');
   const [loading, setLoading] = useState(false);
+  const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
   const [loginMode, setLoginMode] = useState<'normal' | 'quick'>('normal');
 
   // Handle URL parameters to set role automatically
@@ -32,11 +35,12 @@ export const LoginPage: React.FC = () => {
   const { isAuthenticated, user: authUser } = useAuth(); // Destructure properly
   useEffect(() => {
     if (isAuthenticated && authUser) {
-      const targetRole = authUser.role || 'doctor';
+      const targetRole = authUser.role || 'newuser';
       if (targetRole === 'admin') navigate('/admin');
       else if (targetRole === 'supplier') navigate('/supplier');
       else if (targetRole === 'laboratory') navigate('/laboratory');
-      else navigate('/doctor');
+      else if (targetRole === 'doctor') navigate('/doctor');
+      // If targetRole is 'newuser' or missing, we stay so the CompleteRegistrationModal shows
     }
   }, [isAuthenticated, authUser, navigate]);
 
@@ -107,6 +111,24 @@ export const LoginPage: React.FC = () => {
       }
     } finally {
       if (loading) setLoading(false);
+    }
+  };
+
+  const handleOAuthLogin = async (provider: 'google' | 'facebook') => {
+    try {
+      setLoadingProvider(provider);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: window.location.origin,
+        }
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      console.error(err);
+      alert('فشل الدخول بحساب التواصل الاجتماعي');
+    } finally {
+      setLoadingProvider(null);
     }
   };
 

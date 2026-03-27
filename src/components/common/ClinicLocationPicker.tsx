@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { GoogleMap, Marker, useJsApiLoader, StandaloneSearchBox } from '@react-google-maps/api';
 import { MapPin, Loader2, Search, Navigation } from 'lucide-react';
 import { Button } from './Button';
@@ -7,14 +7,14 @@ import { toast } from 'sonner';
 interface ClinicLocationPickerProps {
     initialLat?: number;
     initialLng?: number;
-    onLocationSelect: (lat: number, lng: number) => void;
+    onLocationSelect: (lat: number, lng: number, governorate?: string, city?: string, address?: string) => void;
     readOnly?: boolean;
 }
 
 const containerStyle = {
     width: '100%',
     height: '100%',
-    borderRadius: '0.75rem' // using css class is better but this works for inline
+    borderRadius: '0.75rem'
 };
 
 const DEFAULT_CENTER = {
@@ -41,9 +41,17 @@ export const ClinicLocationPicker: React.FC<ClinicLocationPickerProps> = ({
     const [markerPosition, setMarkerPosition] = useState<google.maps.LatLngLiteral | null>(
         initialLat && initialLng ? { lat: initialLat, lng: initialLng } : null
     );
+    const geocoderRef = useRef<google.maps.Geocoder | null>(null);
+
+    // Initialize Geocoder
+    useEffect(() => {
+        if (isLoaded && !geocoderRef.current) {
+            geocoderRef.current = new google.maps.Geocoder();
+        }
+    }, [isLoaded]);
 
     // Sync state with props when clinic changes
-    React.useEffect(() => {
+    useEffect(() => {
         if (initialLat && initialLng) {
             const newPos = { lat: initialLat, lng: initialLng };
             setMarkerPosition(newPos);
@@ -61,6 +69,54 @@ export const ClinicLocationPicker: React.FC<ClinicLocationPickerProps> = ({
         setMap(null);
     }, []);
 
+    const extractAddressComponents = (results: google.maps.GeocoderResult[]) => {
+        if (!results || results.length === 0) return { governorate: '', city: '', address: '' };
+
+        const result = results[0];
+        let governorate = '';
+        let city = '';
+        let address = result.formatted_address;
+
+        result.address_components.forEach(component => {
+            const types = component.types;
+            if (types.includes('administrative_area_level_1')) {
+                governorate = component.long_name;
+            }
+            if (types.includes('locality') || types.includes('administrative_area_level_2')) {
+                // Prefer locality, fallback to admin area 2 (often district in some maps)
+                if (!city || types.includes('locality')) {
+                    city = component.long_name;
+                }
+            }
+        });
+
+        // Clean up Governorate (Remove 'Governorate' or 'Muhafazat')
+        governorate = governorate.replace(/Governorate|Muhafazat/gi, '').trim();
+
+        return { governorate, city, address };
+    };
+
+    const handleLocationSelect = useCallback((lat: number, lng: number) => {
+        const newPos = { lat, lng };
+        setMarkerPosition(newPos);
+
+        // Reverse Geocoding
+        if (geocoderRef.current) {
+            geocoderRef.current.geocode({ location: newPos }, (results, status) => {
+                if (status === 'OK' && results) {
+                    const { governorate, city, address } = extractAddressComponents(results);
+                    onLocationSelect(lat, lng, governorate, city, address);
+                    console.log('Geocoded:', { governorate, city, address });
+                } else {
+                    console.error('Geocoder failed due to: ' + status);
+                    onLocationSelect(lat, lng); // Fallback without address details
+                }
+            });
+        } else {
+            onLocationSelect(lat, lng);
+        }
+    }, [onLocationSelect]);
+
     const onPlacesChanged = () => {
         const places = searchBoxRef.current?.getPlaces();
         if (!places || places.length === 0) return;
@@ -68,15 +124,12 @@ export const ClinicLocationPicker: React.FC<ClinicLocationPickerProps> = ({
         const place = places[0];
         if (!place.geometry || !place.geometry.location) return;
 
-        const newPos = {
-            lat: place.geometry.location.lat(),
-            lng: place.geometry.location.lng()
-        };
+        const lat = place.geometry.location.lat();
+        const lng = place.geometry.location.lng();
 
-        setMarkerPosition(newPos);
-        map?.panTo(newPos);
+        map?.panTo({ lat, lng });
         map?.setZoom(15);
-        onLocationSelect(newPos.lat, newPos.lng);
+        handleLocationSelect(lat, lng);
         toast.success('تم تحديد الموقع من البحث');
     };
 
@@ -86,28 +139,19 @@ export const ClinicLocationPicker: React.FC<ClinicLocationPickerProps> = ({
 
     const handleMapClick = useCallback((e: google.maps.MapMouseEvent) => {
         if (readOnly || !e.latLng) return;
-
-        const newPos = {
-            lat: e.latLng.lat(),
-            lng: e.latLng.lng()
-        };
-
-        setMarkerPosition(newPos);
-        onLocationSelect(newPos.lat, newPos.lng);
-    }, [readOnly, onLocationSelect]);
+        handleLocationSelect(e.latLng.lat(), e.latLng.lng());
+    }, [readOnly, handleLocationSelect]);
 
     const getUserLocation = () => {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
-                    const pos = {
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude,
-                    };
-                    setMarkerPosition(pos);
-                    map?.panTo(pos);
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+
+                    map?.panTo({ lat, lng });
                     map?.setZoom(15);
-                    onLocationSelect(pos.lat, pos.lng);
+                    handleLocationSelect(lat, lng);
                     toast.success('تم تحديد موقعك الحالي');
                 },
                 () => {
@@ -144,9 +188,7 @@ export const ClinicLocationPicker: React.FC<ClinicLocationPickerProps> = ({
                         if (map && !readOnly) {
                             const center = map.getCenter();
                             if (center) {
-                                const newPos = { lat: center.lat(), lng: center.lng() };
-                                setMarkerPosition(newPos);
-                                onLocationSelect(newPos.lat, newPos.lng);
+                                handleLocationSelect(center.lat(), center.lng());
                             }
                         }
                     }}

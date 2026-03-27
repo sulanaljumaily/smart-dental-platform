@@ -1,6 +1,6 @@
 // أنواع البيانات للتطبيق
 
-export type UserRole = 'doctor' | 'supplier' | 'laboratory' | 'staff' | 'admin';
+export type UserRole = 'doctor' | 'supplier' | 'laboratory' | 'staff' | 'admin' | 'newuser';
 
 export interface User {
   id: string;
@@ -26,7 +26,6 @@ export interface User {
 export interface Clinic {
   id: string;
   name: string;
-  address: string;
   phone: string;
   location: {
     lat: number;
@@ -38,7 +37,8 @@ export interface Clinic {
   image?: string;
   description?: string;
   // Added based on usage
-  city?: string;
+  governorate?: string; // Added for location management
+  address?: string; // Added for unified location architecture
   email?: string;
   reviews?: number;
   owner_id?: string; // Links to Auth User
@@ -51,20 +51,24 @@ export interface Clinic {
   isDigitalBookingEnabled?: boolean;
 }
 
-export interface Appointment {
+export interface ClinicInvitation {
   id: string;
-  clinicId: string;
-  patientId: string;
-  patientName?: string;
-  doctorId: string;
-  doctorName?: string;
-  date: string;
-  time: string;
-  type: string;
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
-  notes?: string;
-  cost?: number;
+  clinicId: number;
+  staffId?: string;    // if set, accept → update this staff record instead of creating new
+  clinic?: Clinic;
+  email: string;
+  role: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  createdBy: string;
+  createdAt: string;
+  isStaffRecord?: boolean;
 }
+
+// Re-exporting from specific file to avoid duplication
+export * from './appointments';
+
+// Removing duplicate Appointment interface
+// export interface Appointment { ... } 
 
 export interface Patient {
   id: string;
@@ -107,6 +111,7 @@ export interface Staff {
   commission?: number;
   clinicId?: string;
   isActive?: boolean;
+  isLinkedAccount?: boolean;
 }
 
 export interface Product {
@@ -178,11 +183,13 @@ export interface Supplier {
   description: string;
   coverImage?: string;
   logo?: string;
+  logo_url?: string;
   rating: number;
   reviews: number;
   totalProducts: number;
   location: string;
   governorate: string;
+  address: string;
   phone: string;
   email: string;
   verified: boolean;
@@ -248,6 +255,8 @@ export interface SupplierOrder {
     phone: string;
     backupPhone?: string; // New
     address: string;
+    governorate?: string;
+    city?: string;
     avatar?: string;
   };
   items: SupplierOrderItem[];
@@ -361,6 +370,7 @@ export interface Transaction {
   staffId?: string;
   inventoryItemId?: string;
   treatmentId?: string;
+  sessionId?: string; // For linking to specific treatment sessions
   labRequestId?: string; // For linking to specific lab requests
   assistantId?: string; // For staff who assisted
   extraCost?: number; // Additional costs recorded
@@ -430,10 +440,10 @@ export interface Like {
 
 export interface Friendship {
   id: string;
-  userA: string;
-  userB: string;
+  user_id_1: string;
+  user_id_2: string;
   status: 'pending' | 'accepted' | 'blocked';
-  createdAt: string;
+  created_at: string;
 }
 
 export interface Enrollment {
@@ -509,6 +519,7 @@ export interface Group {
   image?: string;
   lastActive?: string;
   createdBy?: string;
+  privacy: 'public' | 'private';
 }
 
 export interface ScientificResource {

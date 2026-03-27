@@ -54,7 +54,7 @@ export const FeaturedDoctorsPage: React.FC = () => {
   const filteredDoctors = featuredClinics.filter(clinic => {
     // Mocking Doctor fields from Clinic data for display compatibility
     const specialty = clinic.specialties?.[0] || 'طب أسنان عام';
-    const city = clinic.address.split(' - ')[0] || 'بغداد'; // Simple heuristic
+    const city = clinic.governorate || 'بغداد'; // Simple heuristic
 
     const matchesSpecialty = selectedSpecialty === 'all' ||
       specialty === specialties.find(s => s.id === selectedSpecialty)?.name; // This might be loose, better to check includes
@@ -70,8 +70,8 @@ export const FeaturedDoctorsPage: React.FC = () => {
     id: clinic.id,
     name: clinic.name,
     specialty: clinic.specialties?.[0] || 'طبيب أسنان',
-    city: clinic.address.split(' - ')[0] || 'بغداد',
-    clinic: clinic.address, // Using address as clinic location name
+    city: clinic.governorate || 'بغداد',
+    clinic: clinic.governorate || 'بغداد', // Using governorate as location
     rating: clinic.rating || 5.0,
     reviews: 0,
     experience: 'غير محدد',

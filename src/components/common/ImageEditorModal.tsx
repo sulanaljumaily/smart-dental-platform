@@ -7,6 +7,7 @@ interface ImageEditorModalProps {
     onClose: () => void;
     imageUrl: string;
     onSave: (newUrl: string) => void;
+    onSaveCopy?: (newUrl: string) => void;
 }
 
 interface Point {
@@ -22,7 +23,7 @@ interface DrawPath {
     tool: 'brush' | 'eraser';
 }
 
-export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, onClose, imageUrl, onSave }) => {
+export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, onClose, imageUrl, onSave, onSaveCopy }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -249,6 +250,14 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, onCl
         }
     };
 
+    const handleSaveCopy = () => {
+        if (canvasRef.current && onSaveCopy) {
+            const newUrl = canvasRef.current.toDataURL('image/jpeg', 0.9);
+            onSaveCopy(newUrl);
+            onClose();
+        }
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -386,10 +395,18 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ isOpen, onCl
                     </div>
 
                     <div className="flex justify-center mt-2">
-                        <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 text-white min-w-[200px] shadow-lg shadow-blue-900/20">
-                            <Save className="w-4 h-4 ml-2" />
-                            حفظ الرسم والتعديلات
-                        </Button>
+                        <div className="flex gap-2">
+                            {onSaveCopy && (
+                                <Button onClick={handleSaveCopy} variant="outline" className="border-blue-600 text-blue-400 hover:bg-blue-900/20">
+                                    <Save className="w-4 h-4 ml-2" />
+                                    حفظ نسخة
+                                </Button>
+                            )}
+                            <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 text-white min-w-[120px] shadow-lg shadow-blue-900/20">
+                                <Save className="w-4 h-4 ml-2" />
+                                حفظ
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </div>

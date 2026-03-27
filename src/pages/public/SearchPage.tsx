@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Search, 
-  Filter, 
-  MapPin, 
-  Calendar, 
-  Star, 
+import {
+  Search,
+  Filter,
+  MapPin,
+  Calendar,
+  Star,
   Clock,
   ChevronRight,
   X,
@@ -25,7 +25,7 @@ export const SearchPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
-  
+
   const [filters, setFilters] = useState({
     type: 'all', // all, doctors, clinics, articles, services
     specialty: 'all',
@@ -148,41 +148,41 @@ export const SearchPage: React.FC = () => {
     }
 
     setIsLoading(true);
-    
+
     // محاكاة بحث
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
+
     let results: any[] = [];
-    
+
     // بحث في الأطباء
     mockSearchResults.doctors.forEach(doctor => {
       if (doctor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          doctor.specialty.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          doctor.clinic.toLowerCase().includes(searchQuery.toLowerCase())) {
+        doctor.specialty.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        doctor.clinic.toLowerCase().includes(searchQuery.toLowerCase())) {
         results.push({ ...doctor, type: 'doctor' });
       }
     });
-    
+
     // بحث في العيادات
     mockSearchResults.clinics.forEach(clinic => {
       if (clinic.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          clinic.address.toLowerCase().includes(searchQuery.toLowerCase())) {
+        clinic.address.toLowerCase().includes(searchQuery.toLowerCase())) {
         results.push({ ...clinic, type: 'clinic' });
       }
     });
-    
+
     // بحث في المقالات
     mockSearchResults.articles.forEach(article => {
       if (article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          article.excerpt.toLowerCase().includes(searchQuery.toLowerCase())) {
+        article.excerpt.toLowerCase().includes(searchQuery.toLowerCase())) {
         results.push({ ...article, type: 'article' });
       }
     });
-    
+
     // بحث في الخدمات
     mockSearchResults.services.forEach(service => {
       if (service.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          service.description.toLowerCase().includes(searchQuery.toLowerCase())) {
+        service.description.toLowerCase().includes(searchQuery.toLowerCase())) {
         results.push({ ...service, type: 'service' });
       }
     });
@@ -236,7 +236,7 @@ export const SearchPage: React.FC = () => {
                   placeholder="ابحث عن أطباء، عيادات، مقالات..."
                   className="w-full pr-14 pl-6 py-4 text-lg border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-right"
                 />
-                <Button 
+                <Button
                   type="submit"
                   className="absolute left-2 top-1/2 transform -translate-y-1/2"
                   size="sm"
@@ -258,7 +258,7 @@ export const SearchPage: React.FC = () => {
                 <SlidersHorizontal className="w-4 h-4 ml-2" />
                 المرشحات
               </Button>
-              
+
               <div className="flex items-center gap-4">
                 <span className="text-sm text-gray-600">
                   {searchResults.length} نتيجة
@@ -268,11 +268,10 @@ export const SearchPage: React.FC = () => {
                     <button
                       key={type.id}
                       onClick={() => setActiveFilter(type.id)}
-                      className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${
-                        activeFilter === type.id
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
+                      className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${activeFilter === type.id
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
                     >
                       {type.name}
                     </button>
@@ -298,7 +297,7 @@ export const SearchPage: React.FC = () => {
                       ))}
                     </select>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       المدينة
@@ -312,7 +311,7 @@ export const SearchPage: React.FC = () => {
                       ))}
                     </select>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       التقييم
@@ -363,7 +362,7 @@ export const SearchPage: React.FC = () => {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1 text-sm text-gray-500">
                             <MapPin className="w-4 h-4" />
-                            <span>{result.city}</span>
+                            <span>{result.governorate || result.address}</span>
                           </div>
                           <div className="flex gap-2">
                             <Button size="sm" variant="secondary">

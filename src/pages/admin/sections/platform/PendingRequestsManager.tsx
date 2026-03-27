@@ -268,8 +268,12 @@ export const PendingRequestsManager = () => {
                                     <tr key={req.id} className="hover:bg-gray-50/50 transition-colors">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
-                                                    {getTypeIcon(req.type)}
+                                                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
+                                                    {(req.logo_url || req.logo) ? (
+                                                        <img src={req.logo_url || req.logo} alt="" className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        getTypeIcon(req.type)
+                                                    )}
                                                 </div>
                                                 <div>
                                                     <div className="font-bold text-gray-900">{req.name || req.lab_name || req.companyName}</div>
@@ -368,7 +372,7 @@ export const PendingRequestsManager = () => {
                         handleApproveAccount(id, 'lab');
                         setModalType(null);
                     }}
-                    onClearCommission={() => { }}
+                    onClearCommission={async () => false}
                 />
             )}
 
@@ -381,7 +385,7 @@ export const PendingRequestsManager = () => {
                         handleApproveAccount(id, 'supplier');
                         setModalType(null);
                     }}
-                    onClearCommission={() => { }}
+                    onClearCommission={async () => false}
                     onApprove={() => handleApproveAccount(selectedRequest.id, 'supplier')}
                     onReject={() => { }}
                 />

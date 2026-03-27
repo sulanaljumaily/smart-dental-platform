@@ -17,7 +17,6 @@ export interface SupplierProfile {
     establishedYear: string;
     address: string;
     governorate: string;
-    city: string;
     postalCode: string;
     rating: number;
     totalReviews: number;
@@ -52,40 +51,33 @@ export const useSupplierProfile = () => {
             if (suppError) throw suppError;
 
             if (supplier) {
-                // Split contact person name
-                const contactParts = (supplier.contact_person || 'مدير النظام').split(' ');
-                const firstName = contactParts[0];
-                const lastName = contactParts.slice(1).join(' ') || '';
-
-                // Map DB to Profile
+                // Map DB to Profile — using actual column names
                 const mappedProfile: SupplierProfile = {
                     id: supplier.id,
-                    firstName: firstName,
-                    lastName: lastName,
-                    email: supplier.email,
-                    phone: supplier.phone,
-                    avatar: supplier.logo || `https://ui-avatars.com/api/?name=${supplier.name}&background=random`,
-                    companyName: supplier.name || 'Unknown Company',
+                    firstName: supplier.first_name || '',
+                    lastName: supplier.last_name || '',
+                    email: supplier.email || '',
+                    phone: supplier.phone || '',
+                    avatar: supplier.logo || supplier.logo_url || '',
+                    companyName: supplier.name || '',
                     companyDescription: supplier.description || '',
-                    // Fields not in DB yet, use defaults or placeholders
-                    businessLicense: 'LIC-' + supplier.id.slice(0, 8).toUpperCase(),
-                    taxNumber: 'TAX-' + supplier.id.slice(0, 8).toUpperCase(),
-                    website: supplier.website || '', // Website might be added to schema later
-                    establishedYear: '2020',
-                    address: supplier.location || supplier.address || 'العراق',
-                    governorate: 'بغداد',
-                    city: 'بغداد',
-                    postalCode: '10001',
+                    businessLicense: supplier.business_license || '',
+                    taxNumber: supplier.tax_number || '',
+                    website: supplier.website || '',
+                    establishedYear: supplier.established_year?.toString() || '',
+                    address: supplier.address || supplier.location || '',
+                    governorate: supplier.governorate || '',
+                    postalCode: '',
                     rating: supplier.rating || 5,
-                    totalReviews: 120, // Mock
-                    totalOrders: supplier.total_sales ? Math.floor(supplier.total_sales / 100000) : 50, // Estimate orders from sales
+                    totalReviews: 0,
+                    totalOrders: 0,
                     joinDate: supplier.created_at || new Date().toISOString(),
                     verified: supplier.is_verified || false,
-                    trusted: true
+                    trusted: true,
+                    settings: supplier.settings || { showPhone: true, showEmail: true, showAddress: true }
                 };
                 setProfile(mappedProfile);
             } else {
-                // Fallback if no supplier found (shouldn't happen in demo if seeded)
                 console.warn('No supplier found');
             }
 
@@ -102,17 +94,23 @@ export const useSupplierProfile = () => {
         try {
             setLoading(true);
 
-            // Map UI updates back to DB columns
+            // Map UI fields back to actual DB column names
             const dbUpdates: any = {};
 
-            if (updates.firstName || updates.lastName) {
-                dbUpdates.contact_person = `${updates.firstName || profile.firstName} ${updates.lastName || profile.lastName}`.trim();
-            }
+            if (updates.firstName !== undefined) dbUpdates.first_name = updates.firstName;
+            if (updates.lastName !== undefined) dbUpdates.last_name = updates.lastName;
             if (updates.companyName) dbUpdates.name = updates.companyName;
-            if (updates.companyDescription) dbUpdates.description = updates.companyDescription;
+            if (updates.companyDescription !== undefined) dbUpdates.description = updates.companyDescription;
             if (updates.phone) dbUpdates.phone = updates.phone;
             if (updates.email) dbUpdates.email = updates.email;
-            if (updates.address) dbUpdates.location = updates.address;
+            if (updates.address !== undefined) dbUpdates.address = updates.address;
+            if (updates.avatar) { dbUpdates.logo = updates.avatar; } // only `logo` column exists in suppliers table
+            if (updates.website !== undefined) dbUpdates.website = updates.website;
+            if (updates.taxNumber !== undefined) dbUpdates.tax_number = updates.taxNumber;
+            if (updates.businessLicense !== undefined) dbUpdates.business_license = updates.businessLicense;
+            if (updates.establishedYear !== undefined) dbUpdates.established_year = updates.establishedYear ? parseInt(updates.establishedYear) : null;
+            if (updates.governorate !== undefined) dbUpdates.governorate = updates.governorate;
+            if (updates.settings) dbUpdates.settings = updates.settings;
 
             // Only update if we have fields to update
             if (Object.keys(dbUpdates).length > 0) {
@@ -122,6 +120,18 @@ export const useSupplierProfile = () => {
                     .eq('id', profile.id);
 
                 if (error) throw error;
+
+                // Sync to profiles table
+                if (user?.id) {
+                    const profileSync: any = {};
+                    if (dbUpdates.logo) profileSync.avatar_url = dbUpdates.logo;
+                    if (dbUpdates.governorate) profileSync.governorate = dbUpdates.governorate;
+                    if (dbUpdates.address) profileSync.address = dbUpdates.address;
+                    if (dbUpdates.phone) profileSync.phone = dbUpdates.phone;
+                    if (Object.keys(profileSync).length > 0) {
+                        await supabase.from('profiles').update(profileSync).eq('id', user.id);
+                    }
+                }
             }
 
             // Update local state

@@ -234,11 +234,13 @@ export const OwnerDetailsModal: React.FC<OwnerDetailsModalProps> = ({
                                     <div className="flex flex-col md:flex-row gap-6">
                                         {/* Avatar & Basic Info */}
                                         <div className="w-full md:w-1/3 flex flex-col items-center text-center p-6 border border-gray-100 rounded-2xl bg-gray-50/50">
-                                            <div className="w-24 h-24 bg-white rounded-full border-4 border-white shadow-md flex items-center justify-center text-blue-600 font-bold text-3xl overflow-hidden mb-4">
+                                            <div className="w-24 h-24 bg-white rounded-full border-4 border-white shadow-md flex items-center justify-center text-blue-600 font-bold text-3xl overflow-hidden mb-4 relative">
                                                 {ownerData?.avatar_url ? (
-                                                    <img src={ownerData.avatar_url} alt="" className="w-full h-full object-cover" />
+                                                    <img src={ownerData.avatar_url} alt={ownerData?.full_name} className="w-full h-full object-cover" />
                                                 ) : (
-                                                    ownerData?.full_name?.charAt(0) || 'D'
+                                                    <div className="w-full h-full bg-blue-100 flex items-center justify-center">
+                                                        {ownerData?.full_name?.charAt(0) || 'D'}
+                                                    </div>
                                                 )}
                                             </div>
                                             <h3 className="text-xl font-bold text-gray-900">{ownerData?.full_name}</h3>
@@ -267,7 +269,7 @@ export const OwnerDetailsModal: React.FC<OwnerDetailsModalProps> = ({
                                                     <MapPin className="w-5 h-5 text-gray-400" />
                                                     <div>
                                                         <div className="text-xs text-gray-500">العنوان</div>
-                                                        <div className="font-medium">{ownerData?.city || 'بغداد'}</div>
+                                                        <div className="font-medium">{ownerData?.governorate || ownerData?.city || 'بغداد'}</div>
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
@@ -375,7 +377,7 @@ export const OwnerDetailsModal: React.FC<OwnerDetailsModalProps> = ({
                                                                 <h5 className="font-bold text-gray-900 text-lg">{clinic.name}</h5>
                                                                 <p className="text-xs text-gray-500 flex items-center gap-1">
                                                                     <MapPin className="w-3 h-3" />
-                                                                    {clinic.address}
+                                                                    {clinic.governorate && clinic.address ? `${clinic.governorate}، ${clinic.address}` : clinic.governorate || clinic.address || ''}
                                                                 </p>
                                                             </div>
                                                         </div>

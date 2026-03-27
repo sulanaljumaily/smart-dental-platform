@@ -9,7 +9,7 @@ import { Button } from '../common/Button';
 import { Card } from '../common/Card';
 import { Modal } from '../common/Modal';
 import { DoctorLabChat } from './DoctorLabChat';
-
+import { getLabs } from '../../data/mock/assets';
 
 interface LabCaseDetailsProps {
     caseId: string;
@@ -107,6 +107,9 @@ export const LabCaseDetails: React.FC<LabCaseDetailsProps> = ({ caseId, isOpen, 
                                 <p className="text-sm text-gray-500">
                                     المريض: <span className="font-medium text-gray-900">{caseData.patientName}</span> • المختبر: <span className="font-medium text-gray-900">{caseData.labName}</span>
                                 </p>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    تاريخ الطلب: <span className="font-medium text-gray-900">{caseData.createdAt || caseData.sentDate}</span> • المتوقع: <span className="font-medium text-indigo-600">{caseData.expectedDate}</span>
+                                </p>
                             </div>
                         </div>
                         {/* ... Same as before ... */}
@@ -159,16 +162,30 @@ export const LabCaseDetails: React.FC<LabCaseDetailsProps> = ({ caseId, isOpen, 
                                         <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 border-b pb-2">المواصفات الفنية</h3>
                                         <div className="grid grid-cols-2 gap-y-4 gap-x-8">
                                             <div>
-                                                <span className="text-xs text-gray-500 block">نوع العلاج</span>
-                                                <span className="font-medium">{caseData.treatmentType}</span>
+                                                <span className="text-xs text-gray-500 block">اسم الخدمة المطلوبة</span>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className="font-medium text-gray-900">
+                                                        {caseData.testType?.split(' - ')[0] || caseData.treatmentType || 'غير محدد'}
+                                                    </span>
+                                                    {caseData.price !== undefined && (
+                                                        <span className="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md text-sm border border-blue-100">
+                                                            {caseData.price.toLocaleString()} د.ع
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                             <div>
                                                 <span className="text-xs text-gray-500 block">رقم السن / المنطقة</span>
-                                                <span className="font-medium">{caseData.toothNumber || 'كامل الفم'}</span>
-                                            </div>
-                                            <div>
-                                                <span className="text-xs text-gray-500 block">نوع الفحص/العمل</span>
-                                                <span className="font-medium">{caseData.testType}</span>
+                                                <span className="font-medium mt-1 block">
+                                                    {(() => {
+                                                        const testParts = caseData.testType?.includes(' - ') ? caseData.testType.split(' - ').slice(1).join(' - ') : null;
+                                                        if (testParts) return testParts;
+                                                        const toothNums = caseData.tooth_numbers || caseData.toothNumbers || (caseData.tooth_number !== undefined ? [caseData.tooth_number] : (caseData.toothNumber !== undefined ? [caseData.toothNumber] : []));
+                                                        if (toothNums.length === 0 || (toothNums.length === 1 && toothNums[0] === 0)) return 'علاج عام';
+                                                        if (toothNums.length === 1) return `سن رقم: ${toothNums[0]}`;
+                                                        return `الأسنان: ${toothNums.join(', ')}`;
+                                                    })()}
+                                                </span>
                                             </div>
                                             <div>
                                                 <span className="text-xs text-gray-500 block">تاريخ التسليم المتوقع</span>
@@ -220,42 +237,99 @@ export const LabCaseDetails: React.FC<LabCaseDetailsProps> = ({ caseId, isOpen, 
                                                 <Building2 className="w-6 h-6 text-blue-600" />
                                             </div>
                                             <div className="flex-1">
-                                                <h4 className="font-bold text-gray-900 mb-1 flex items-center gap-2">
-                                                    {caseData.labName}
-                                                    {caseData.isAccredited && (
-                                                        <div className="bg-purple-100 p-0.5 rounded-full" title="مختبر معتمد">
-                                                            <CheckCircle className="w-4 h-4 text-purple-600" />
+                                                <div className="flex justify-between items-start mb-3">
+                                                    <div>
+                                                        <h4 className="font-bold text-gray-900 mb-1 flex items-center gap-2">
+                                                            {caseData.labName}
+                                                            {caseData.isAccredited && (
+                                                                <div className="bg-purple-100 p-0.5 rounded-full" title="مختبر معتمد">
+                                                                    <CheckCircle className="w-4 h-4 text-purple-600" />
+                                                                </div>
+                                                            )}
+                                                        </h4>
+                                                        <p className="text-sm text-gray-500">{caseData.labAddress || caseData.lab_address || 'العنوان غير متوفر'}</p>
+                                                    </div>
+                                                    {!isManualManagement && (
+                                                        <div className="flex gap-2">
+                                                            {(() => {
+                                                                const labPhone = caseData.contactInfo?.phone || caseData.lab_phone || getLabs().find(l => l.name === caseData.labName || l.id === caseData.laboratoryId)?.phone;
+                                                                return labPhone ? (
+                                                                    <a href={`tel:${labPhone}`} className="rounded-lg flex items-center justify-center font-medium transition-all duration-200 active:scale-95 bg-transparent text-gray-700 hover:bg-gray-100 border border-gray-300 px-3 h-8 text-xs">
+                                                                        <Phone className="w-3 h-3 ml-1" />
+                                                                        اتصال
+                                                                    </a>
+                                                                ) : (
+                                                                    <Button variant="outline" size="sm" className="h-8 text-xs" disabled>
+                                                                        <Phone className="w-3 h-3 ml-1" />
+                                                                        اتصال
+                                                                    </Button>
+                                                                );
+                                                            })()}
+                                                            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowChatModal(true)}>
+                                                                <MessageSquare className="w-3 h-3 ml-1" />
+                                                                مراسلة
+                                                            </Button>
                                                         </div>
                                                     )}
-                                                </h4>
-                                                <p className="text-sm text-gray-500 mb-3">{caseData.labAddress || 'العنوان غير متوفر'}</p>
+                                                </div>
 
                                                 {/* Delegate Info */}
-                                                {caseData.delegate_name && (
-                                                    <div className="flex items-center gap-2 mb-3 bg-purple-50 p-2 rounded-lg border border-purple-100">
-                                                        <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
-                                                            <Truck className="w-4 h-4" />
-                                                        </div>
-                                                        <div>
-                                                            <span className="text-xs text-purple-600 block font-bold">المندوب المسؤول</span>
-                                                            <span className="text-sm font-medium text-gray-900">{caseData.delegate_name}</span>
-                                                        </div>
+                                                {(caseData.pickup_delegate_name || caseData.delivery_delegate_name || caseData.delegate_name) && (
+                                                    <div className="flex flex-col gap-3 mb-3">
+                                                        {(caseData.pickup_delegate_name || (!caseData.delivery_delegate_name && caseData.delegate_name)) && (
+                                                            <div className="flex items-center gap-2 bg-purple-50 p-2 rounded-lg border border-purple-100">
+                                                                <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
+                                                                    <Truck className="w-4 h-4" />
+                                                                </div>
+                                                                <div className="flex-1">
+                                                                    <span className="text-xs text-purple-600 block font-bold">مندوب الاستلام</span>
+                                                                    <span className="text-sm font-medium text-gray-900">{caseData.pickup_delegate_name || caseData.delegate_name}</span>
+                                                                </div>
+                                                                {caseData.pickup_delegate_phone ? (
+                                                                    <a
+                                                                        href={`tel:${caseData.pickup_delegate_phone}`}
+                                                                        className="rounded-lg font-medium transition-all duration-200 active:scale-95 bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 px-3 py-1.5 text-xs flex items-center gap-1 shadow-sm h-8"
+                                                                    >
+                                                                        <Phone className="w-3 h-3 ml-1" />
+                                                                        اتصال
+                                                                    </a>
+                                                                ) : (
+                                                                    <Button variant="outline" size="sm" className="h-8 text-xs bg-white text-gray-400 border-gray-200 cursor-not-allowed" disabled>
+                                                                        <Phone className="w-3 h-3 ml-1" />
+                                                                        اتصال
+                                                                    </Button>
+                                                                )}
+                                                            </div>
+                                                        )}
+
+                                                        {caseData.delivery_delegate_name && (
+                                                            <div className="flex items-center gap-2 bg-cyan-50 p-2 rounded-lg border border-cyan-100">
+                                                                <div className="w-8 h-8 rounded-full bg-cyan-100 flex items-center justify-center text-cyan-600">
+                                                                    <Truck className="w-4 h-4" />
+                                                                </div>
+                                                                <div className="flex-1">
+                                                                    <span className="text-xs text-cyan-600 block font-bold">مندوب التوصيل</span>
+                                                                    <span className="text-sm font-medium text-gray-900">{caseData.delivery_delegate_name}</span>
+                                                                </div>
+                                                                {caseData.delivery_delegate_phone ? (
+                                                                    <a
+                                                                        href={`tel:${caseData.delivery_delegate_phone}`}
+                                                                        className="rounded-lg font-medium transition-all duration-200 active:scale-95 bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 px-3 py-1.5 text-xs flex items-center gap-1 shadow-sm h-8"
+                                                                    >
+                                                                        <Phone className="w-3 h-3 ml-1" />
+                                                                        اتصال
+                                                                    </a>
+                                                                ) : (
+                                                                    <Button variant="outline" size="sm" className="h-8 text-xs bg-white text-gray-400 border-gray-200 cursor-not-allowed" disabled>
+                                                                        <Phone className="w-3 h-3 ml-1" />
+                                                                        اتصال
+                                                                    </Button>
+                                                                )}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 )}
 
-                                                {!isManualManagement && (
-                                                    <div className="flex gap-2">
-                                                        <Button variant="outline" size="sm" className="h-8 text-xs">
-                                                            <Phone className="w-3 h-3 ml-1" />
-                                                            اتصال
-                                                        </Button>
-                                                        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowChatModal(true)}>
-                                                            <MessageSquare className="w-3 h-3 ml-1" />
-                                                            مراسلة
-                                                        </Button>
-
-                                                    </div>
-                                                )}
                                             </div>
                                         </div>
                                     </Card>
@@ -402,17 +476,6 @@ export const LabCaseDetails: React.FC<LabCaseDetailsProps> = ({ caseId, isOpen, 
                     {/* Footer Actions */}
                     <div className="p-4 border-t bg-white flex justify-end gap-3">
                         <Button variant="outline" onClick={onClose}>إغلاق</Button>
-
-                        {!isManualManagement && (
-                            <Button
-                                variant="outline"
-                                onClick={() => setShowChatModal(true)}
-                                className="mr-auto text-gray-600 border-gray-300"
-                            >
-                                <MessageSquare className="w-4 h-4 ml-2" />
-                                مراسلة المختبر
-                            </Button>
-                        )}
 
                         {/* Payment & Expense Workflow */}
                         <div className="flex-1 flex justify-start gap-2">

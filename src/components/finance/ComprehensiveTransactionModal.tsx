@@ -13,8 +13,10 @@ interface TransactionModalProps {
     type: 'income' | 'expense';
     clinicId?: string;
     preselectedPatientId?: string;
+    prefillData?: any; // For new entries with defaults
     onSave: (transactionData: any) => Promise<void>;
-    initialData?: any; // For editing
+    initialData?: any; // For editing existing entries
+    lockFields?: ('amount' | 'patient' | 'treatment')[]; // New prop to lock specific fields
 }
 
 export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
@@ -24,7 +26,9 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
     clinicId,
     preselectedPatientId,
     onSave,
-    initialData
+    initialData,
+    prefillData,
+    lockFields = [] // Default empty
 }) => {
     // Hooks
     const { staff } = useStaff(clinicId || '0');
@@ -67,7 +71,7 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
     useEffect(() => {
         if (isOpen) {
             if (initialData) {
-                // Populate for Edit Mode
+                // Poppyulate for Edit Mode (Existing Transaction)
                 setFormData({
                     amount: initialData.amount,
                     category: initialData.category,
@@ -76,7 +80,7 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                     doctorId: initialData.doctorId || '',
                     staffId: initialData.staffId || '',
                     inventoryItemId: initialData.inventoryItemId || '',
-                    itemName: '', // Hard to derive if not stored explicitly, assume description covers it or fetch
+                    itemName: '',
                     paymentMethod: initialData.paymentMethod || 'cash',
                     labId: initialData.labId || '',
                     labRequestId: initialData.labRequestId || '',
@@ -90,10 +94,26 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                     assetLifeYears: initialData.assetLifeYears || 5,
                     assetSalvageValue: initialData.assetSalvageValue || 0
                 });
-                // Set filters if needed
                 if (initialData.patientId) setPatientFilter(initialData.patientId);
+            } else if (prefillData) {
+                // New Entry Mode with Pre-filled Defaults (e.g., from Treatment Plan)
+                setFormData(prev => ({
+                    ...prev,
+                    patientId: prefillData.patientId || preselectedPatientId || '',
+                    doctorId: prefillData.doctorId || '',
+                    treatmentId: prefillData.treatmentId || '',
+                    amount: prefillData.amount || '',
+                    category: prefillData.category || (type === 'income' ? 'treatment' : 'other'),
+                    description: prefillData.description || '',
+                    // Reset others
+                    staffId: '', inventoryItemId: '', itemName: '',
+                    labId: '', labRequestId: '', paymentStatus: 'paid', extraCost: 0, assistantId: '',
+                    recordedById: ''
+                }));
+                // Set filters context if helpful
+                if (prefillData.patientId) setPatientFilter(prefillData.patientId);
             } else {
-                // Reset for New Entry
+                // Reset for New Entry (Blank)
                 setFormData(prev => ({
                     ...prev,
                     patientId: preselectedPatientId || '',
@@ -109,7 +129,7 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                 setDoctorFilter('');
             }
         }
-    }, [isOpen, type, preselectedPatientId, initialData]);
+    }, [isOpen, type, preselectedPatientId, initialData, prefillData]);
 
 
     // Derived Lab Orders based on Filters
@@ -238,8 +258,9 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                                 type="number"
                                 value={formData.amount}
                                 onChange={e => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
-                                className="w-full border rounded-lg p-2.5 text-right font-bold text-gray-900"
+                                className={`w-full border rounded-lg p-2.5 text-right font-bold text-gray-900 ${lockFields.includes('amount') ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''}`}
                                 placeholder="0.00"
+                                disabled={lockFields.includes('amount')}
                             />
                         </div>
                     </div>
@@ -276,8 +297,9 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">نوع العلاج</label>
                                     <select
-                                        className="w-full border rounded-lg p-2.5 text-right bg-white"
+                                        className={`w-full border rounded-lg p-2.5 text-right bg-white ${lockFields.includes('treatment') ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                                         value={formData.treatmentId || ''}
+                                        disabled={lockFields.includes('treatment')}
                                         onChange={e => {
                                             const tId = e.target.value;
                                             const treatment = treatments.find(t => t.id === tId);
@@ -289,6 +311,11 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                                         }}
                                     >
                                         <option value="">اختر العلاج...</option>
+                                        {formData.treatmentId && !treatments.some(t => t.id === formData.treatmentId) && (
+                                            <option value={formData.treatmentId}>
+                                                {formData.description ? formData.description.replace('إيراد علاج - ', '') : 'علاج خطة العمل'}
+                                            </option>
+                                        )}
                                         {treatments.filter(t => t.isActive).map(t => (
                                             <option key={t.id} value={t.id}>{t.name} - {t.basePrice.toLocaleString()} د.ع</option>
                                         ))}
@@ -314,10 +341,10 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">المريض</label>
                                     <select
-                                        className="w-full border rounded-lg p-2.5 text-right bg-white"
+                                        className={`w-full border rounded-lg p-2.5 text-right bg-white ${lockFields.includes('patient') ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                                         value={formData.patientId || ''}
                                         onChange={e => setFormData({ ...formData, patientId: e.target.value })}
-                                        disabled={!!preselectedPatientId} // Lock if preselected
+                                        disabled={!!preselectedPatientId || lockFields.includes('patient')} // Lock if preselected or explicit lock
                                     >
                                         <option value="">اختر المريض...</option>
                                         {patients.map(p => (

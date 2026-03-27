@@ -1,13 +1,16 @@
-import { useState, useEffect } from 'react';
-import { Appointment } from '../types';
+import { useState, useEffect, useRef } from 'react';
+import { Appointment } from '../types/appointments';
 import { supabase } from '../lib/supabase';
 
 export const useAppointments = (clinicId?: string) => {
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [loading, setLoading] = useState(true);
+    const mountedRef = useRef(true);
 
     useEffect(() => {
+        mountedRef.current = true;
         fetchAppointments();
+        return () => { mountedRef.current = false; };
     }, [clinicId]);
 
     const fetchAppointments = async () => {
@@ -16,11 +19,11 @@ export const useAppointments = (clinicId?: string) => {
             // First try with 'appointment_date' column (actual DB schema)
             let query = supabase
                 .from('appointments')
-                .select('*')
+                .select('*, staff:staff_id(full_name)') // Join with staff to get name
                 .order('appointment_date', { ascending: false })
                 .order('appointment_time', { ascending: false });
 
-            if (clinicId) {
+            if (clinicId && clinicId !== 'all') {
                 query = query.eq('clinic_id', clinicId);
             }
 
@@ -30,10 +33,10 @@ export const useAppointments = (clinicId?: string) => {
             if (error && error.code === '42703') {
                 query = supabase
                     .from('appointments')
-                    .select('*')
+                    .select('*, staff:staff_id(full_name)')
                     .order('created_at', { ascending: false }); // Fallback to created_at
 
-                if (clinicId) {
+                if (clinicId && clinicId !== 'all') {
                     query = query.eq('clinic_id', clinicId);
                 }
                 const result = await query;
@@ -48,21 +51,30 @@ export const useAppointments = (clinicId?: string) => {
                 clinicId: a.clinic_id?.toString(),
                 patientId: a.patient_id?.toString(),
                 patientName: a.patient_name,
-                doctorId: a.doctor_id?.toString(),
-                doctorName: a.doctor_name,
+                doctorId: a.staff_id?.toString(),
+                doctorName: a.doctor_name || a.staff?.full_name,
                 date: a.appointment_date || a.date,
-                time: a.appointment_time || a.time,
+                time: a.appointment_time || a.time || a.start_time, // Support multiple formats
+                startTime: a.start_time || a.appointment_time,
+                endTime: a.end_time,
+                duration: a.duration || 30,
                 type: a.type || a.appointment_type,
                 status: a.status,
+                title: a.title,
+                priority: a.priority || 'normal',
                 notes: a.notes,
-                cost: a.cost
+                cost: a.cost,
+                patientPhone: a.patient_phone || '',
+                createdAt: a.created_at || '',
+                createdBy: a.created_by || ''
             }));
 
             setAppointments(mappedAppointments);
         } catch (err: any) {
-            console.error('Error fetching appointments:', err);
+            if (err?.name === 'AbortError' || err?.message?.includes('AbortError')) return;
+            if (mountedRef.current) console.error('Error fetching appointments:', err);
         } finally {
-            setLoading(false);
+            if (mountedRef.current) setLoading(false);
         }
     };
 
@@ -71,16 +83,18 @@ export const useAppointments = (clinicId?: string) => {
             const newApt = {
                 clinic_id: clinicId || appointment.clinicId || '101',
                 patient_id: appointment.patientId,
-                // Map doctorId to appropriate column
-                staff_record_id: appointment.doctorId && !isNaN(Number(appointment.doctorId)) ? Number(appointment.doctorId) : null,
-                doctor_id: appointment.doctorId && isNaN(Number(appointment.doctorId)) ? appointment.doctorId : null,
-
+                staff_id: appointment.doctorId ? Number(appointment.doctorId) : null,
                 patient_name: appointment.patientName,
                 doctor_name: appointment.doctorName,
-                date: appointment.date,
-                time: appointment.time,
+                appointment_date: appointment.date,
+                appointment_time: appointment.startTime || appointment.time,
+                start_time: appointment.startTime || appointment.time,
+                end_time: appointment.endTime,
+                duration: appointment.duration,
                 type: appointment.type,
                 status: appointment.status || 'scheduled',
+                title: appointment.title,
+                priority: appointment.priority,
                 notes: appointment.notes,
                 cost: appointment.cost || 0
             };
@@ -96,12 +110,17 @@ export const useAppointments = (clinicId?: string) => {
     const updateAppointment = async (updatedAppointment: Appointment) => {
         try {
             const updates: any = {
-                date: updatedAppointment.date,
-                time: updatedAppointment.time,
+                appointment_date: updatedAppointment.date,
+                appointment_time: updatedAppointment.startTime || updatedAppointment.time,
+                start_time: updatedAppointment.startTime || updatedAppointment.time,
+                end_time: updatedAppointment.endTime,
+                duration: updatedAppointment.duration,
                 status: updatedAppointment.status,
+                type: updatedAppointment.type,
+                title: updatedAppointment.title,
+                priority: updatedAppointment.priority,
                 notes: updatedAppointment.notes
             };
-            // Add other fields if needed
 
             const { error } = await supabase.from('appointments').update(updates).eq('id', updatedAppointment.id);
             if (error) throw error;

@@ -3,6 +3,7 @@ import {
   Trash2, Plus, FileText, Phone, MapPin, Star, Clock, CheckCircle, Activity, Users, Send, Paperclip, Stethoscope, Search, Filter,
   Eye, Grid3X3, List, RefreshCw, Truck, X, MessageCircle, AlertTriangle, LayoutDashboard, Calendar, Shield
 } from 'lucide-react';
+import { DoctorLabChat } from '@/components/lab/DoctorLabChat';
 import { useNavigate } from 'react-router-dom';
 
 // Import Components
@@ -33,6 +34,7 @@ import { useClinics } from '../../../hooks/useClinics';
 import { useLabs } from '../../../hooks/useLabs';
 import { useFinance } from '../../../hooks/useFinance';
 import { supabase } from '../../../lib/supabase';
+import { formatLocation } from '../../../utils/location';
 
 interface ClinicLabPageProps {
   clinicId?: string;
@@ -129,18 +131,15 @@ export default function ClinicLabPage({ clinicId }: ClinicLabPageProps) {
   // Map LabOrder to DentalLabRequest for UI compatibility
   const requests = useMemo(() => {
     const mappedOrders = orders.map(order => {
-      // FORCE OVERRIDE: 
-      // All orders without a laboratory_id are "Private City Lab" (Manual/External).
-      // All orders WITH a laboratory_id are "Lights Dental Lab" (Platform).
-      // This strictly eliminates "External Lab" or any other legacy text.
       const isCustom = !order.laboratory_id;
-      const finalLabName = isCustom ? 'مختبر المدينة الخاص' : 'مختبر الأضواء للأسنان';
+      // Use real lab name from joined data, fallback to custom lab name
+      const finalLabName = order.lab_name || (isCustom ? (order.custom_lab_name || 'مختبر خاص') : 'مختبر منصة');
 
       return {
         id: order.id,
         patientName: order.patient_name,
-        patientId: order.patient_id || 'P-000', // Ensure patientId is present
-        doctorName: 'د. الحالي',
+        patientId: order.patient_id || 'P-000',
+        doctorName: order.doctor_name || 'غير محدد',
         testType: order.service_name,
         priority: order.priority as any,
         status: order.status as any,
@@ -149,12 +148,18 @@ export default function ClinicLabPage({ clinicId }: ClinicLabPageProps) {
         createdAt: new Date(order.order_date).toISOString().split('T')[0],
         sentDate: new Date(order.order_date).toISOString().split('T')[0],
         price: order.final_amount,
-        notes: '',
-        paymentStatus: ((order.paid_amount || 0) >= order.final_amount ? 'paid' : 'unpaid') as 'paid' | 'unpaid' | 'partial',
+        notes: order.notes,
+        paymentStatus: ((order.final_amount > 0 && (order.paid_amount || 0) >= order.final_amount) ? 'paid' : 'unpaid') as 'paid' | 'unpaid' | 'partial',
         paymentAmount: order.paid_amount || 0,
         clinicName: order.clinic_name || 'عيادتي',
         delegate_id: order.delegate_id,
         delegate_name: order.delegate_name,
+        pickup_delegate_id: order.pickup_delegate_id,
+        pickup_delegate_name: order.pickup_delegate_name,
+        pickup_delegate_phone: order.pickup_delegate_phone,
+        delivery_delegate_id: order.delivery_delegate_id,
+        delivery_delegate_name: order.delivery_delegate_name,
+        delivery_delegate_phone: order.delivery_delegate_phone,
         return_reason: order.return_reason,
         is_return_cycle: order.is_return_cycle,
         isCustomLab: isCustom,
@@ -215,21 +220,12 @@ export default function ClinicLabPage({ clinicId }: ClinicLabPageProps) {
     }
   };
 
-  const handleDeleteRequest = (id: string) => {
-    toast('هل أنت متأكد من حذف هذا الطلب؟', {
-      action: {
-        label: 'حذف',
-        onClick: async () => {
-          if (deleteOrder) {
-            await deleteOrder(id);
-          }
-        }
-      },
-      cancel: {
-        label: 'إلغاء',
-        onClick: () => { }
+  const handleDeleteRequest = async (id: string) => {
+    if (window.confirm('هل أنت متأكد من حذف هذا الطلب بشكل نهائي؟ لا يمكن التراجع عن هذا الإجراء.')) {
+      if (deleteOrder) {
+        await deleteOrder(id);
       }
-    });
+    }
   };
 
   const handleAddRequest = () => {
@@ -300,7 +296,7 @@ export default function ClinicLabPage({ clinicId }: ClinicLabPageProps) {
         }
       }
 
-      toast.success(`تم التقييم بنجاح! (${rating}/5)`);
+      toast.success(`تم التقييم بنجاح!(${rating} / 5)`);
       refresh();
     } catch (err) {
       console.error('Error rating order:', err);
@@ -317,7 +313,7 @@ export default function ClinicLabPage({ clinicId }: ClinicLabPageProps) {
         prefillData: {
           category: 'دفعات مختبر (طلب)',
           amount: request.price || 0,
-          description: `دفعة لطلب مختبر: ${request.testType} - ${request.patientName}`,
+          description: `دفعة لطلب مختبر: ${request.testType} - ${request.patientName} `,
           orderId: request.id,
           labName: request.labName,
           patientName: request.patientName,
@@ -356,7 +352,7 @@ export default function ClinicLabPage({ clinicId }: ClinicLabPageProps) {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleRefresh} className="flex items-center gap-2">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w - 4 h - 4 ${loading ? 'animate-spin' : ''} `} />
             تحديث
           </Button>
           <Button
@@ -502,43 +498,47 @@ export default function ClinicLabPage({ clinicId }: ClinicLabPageProps) {
           {savedLabsDisplay.map((lab) => (
             <div key={lab.id} className="group relative bg-white rounded-2xl border border-gray-100 hover:shadow-xl hover:border-blue-100 transition-all duration-300 overflow-hidden flex flex-col">
               {/* Card Header Background - Distinct for Custom */}
-              <div className={`absolute top-0 left-0 w-full h-24 opacity-50 group-hover:opacity-100 transition-opacity ${lab.isCustom
+              <div className={`absolute top - 0 left - 0 w - full h - 24 opacity - 50 group - hover: opacity - 100 transition - opacity ${lab.isCustom
                 ? 'bg-gradient-to-br from-gray-50 to-gray-100'
-                : 'bg-gradient-to-br from-blue-50 to-indigo-50/50'}`}
+                : 'bg-gradient-to-br from-blue-50 to-indigo-50/50'
+                } `}
               />
 
               <div className="p-5 relative z-10 flex-1 flex flex-col">
                 {/* Image & Badge Column */}
                 <div className="flex flex-col gap-2">
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-2xl shadow-sm group-hover:scale-105 transition-transform duration-300 ${lab.isCustom
-                    ? 'bg-gray-100 border border-gray-200 text-gray-500' // Custom Lab Image Style
-                    : 'bg-gradient-to-br from-blue-50 to-indigo-600 text-white shadow-blue-200' // Platform Lab Image Style
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-2xl shadow-sm group-hover:scale-105 transition-transform duration-300 overflow-hidden ${lab.isCustom
+                    ? 'bg-gray-100 border border-gray-200 text-gray-500'
+                    : 'bg-gradient-to-br from-blue-50 to-indigo-600 text-white shadow-blue-200'
                     }`}>
-                    {lab.name.charAt(0)}
+                    {lab.logo ? (
+                      <img src={lab.logo} alt={lab.name} className="w-full h-full object-cover" />
+                    ) : (
+                      lab.name.charAt(0)
+                    )}
                   </div>
 
-                  {/* Verified Badge (Below Image - Platform Only) */}
-                  {!lab.isCustom && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold border border-blue-200 w-fit">
-                      <CheckCircle className="w-3 h-3" />
-                      موثوق
-                    </span>
-                  )}
-
-                  {/* Manual Badge (Below Image - Custom Only - Optional but helpful for distinction) */}
-                  {lab.isCustom && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[10px] font-medium border border-gray-200 w-fit">
-                      يدوي
-                    </span>
-                  )}
+                  {/* Verified + Rating badges in one row */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {!lab.isCustom && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold border border-blue-200">
+                        <CheckCircle className="w-3 h-3" />
+                        موثوق
+                      </span>
+                    )}
+                    {lab.isCustom && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[10px] font-medium border border-gray-200">
+                        يدوي
+                      </span>
+                    )}
+                    {!lab.isCustom && (
+                      <div className="flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
+                        <Star className="w-3 h-3 text-amber-500 fill-current" />
+                        <span className="text-[10px] font-bold text-amber-700">{lab.rating || 4.5}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-
-                {!lab.isCustom && (
-                  <div className="flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100">
-                    <Star className="w-3.5 h-3.5 text-amber-500 fill-current" />
-                    <span className="text-xs font-bold text-amber-700">{lab.rating || 4.5}</span>
-                  </div>
-                )}
 
                 <div className="mb-4">
                   <h4 className="font-bold text-lg text-gray-900 flex items-center gap-1.5 mb-1 group-hover:text-blue-600 transition-colors">
@@ -655,7 +655,7 @@ export default function ClinicLabPage({ clinicId }: ClinicLabPageProps) {
             <div className="col-span-full py-12 text-center text-gray-500">لا توجد معامل متاحة</div>
           ) : (
             platformLabs
-              .filter(l => selectedGovernorate === 'all' || l.address.includes(selectedGovernorate))
+              .filter(l => selectedGovernorate === 'all' || l.governorate === selectedGovernorate)
               .map((lab) => (
                 <div key={lab.id} className="group relative bg-white rounded-2xl border border-gray-100 hover:shadow-xl hover:border-blue-100 transition-all duration-300 overflow-hidden flex flex-col">
                   <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-br from-blue-50 to-indigo-50/50 opacity-50 group-hover:opacity-100 transition-opacity" />
@@ -665,8 +665,12 @@ export default function ClinicLabPage({ clinicId }: ClinicLabPageProps) {
                   <div className="p-5 relative z-10 flex-1 flex flex-col">
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex flex-col gap-2">
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-blue-200 group-hover:scale-105 transition-transform duration-300">
-                          {lab.name.charAt(0)}
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-blue-200 group-hover:scale-105 transition-transform duration-300 overflow-hidden">
+                          {lab.logo ? (
+                            <img src={lab.logo} alt={lab.name} className="w-full h-full object-cover" />
+                          ) : (
+                            lab.name.charAt(0)
+                          )}
                         </div>
 
                         {/* Verified Badge Below Image */}
@@ -688,7 +692,8 @@ export default function ClinicLabPage({ clinicId }: ClinicLabPageProps) {
                         <CheckCircle className="w-4 h-4 text-blue-500" />
                       </h4>
                       <p className="text-xs text-gray-500 flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5" /> {lab.address}
+                        <MapPin className="w-3.5 h-3.5 shrink-0" />
+                        {formatLocation(lab.governorate, lab.address) || 'لم يُحدد الموقع'}
                       </p>
                     </div>
 
@@ -718,17 +723,17 @@ export default function ClinicLabPage({ clinicId }: ClinicLabPageProps) {
                       الملف
                     </Button>
                     <Button
-                      className={`flex-1 shadow-md transition-all duration-200 ${lab.isFavorite
+                      className={`flex - 1 shadow - md transition - all duration - 200 ${lab.isFavorite
                         ? 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200'
                         : 'bg-green-600 hover:bg-green-700 text-white border-green-600 hover:shadow-green-200'
-                        }`}
+                        } `}
                       size="sm"
                       onClick={() => handleSaveLabToFavorites(lab)}
                     >
                       {lab.isFavorite ? 'تم الإدراج' : 'حفظ'}
                       {lab.isFavorite ? <CheckCircle className="w-3.5 h-3.5 mr-1.5" /> : <Plus className="w-3.5 h-3.5 mr-1.5" />}
                     </Button>
-                    <Button className="flex-1 bg-gray-900 hover:bg-blue-600 transition-colors shadow-md" size="sm" onClick={handleAddRequest}>طلب</Button>
+                    <Button className="flex-1 bg-gray-900 hover:bg-blue-600 transition-colors shadow-md" size="sm" onClick={() => { setSelectedLabForOrder(lab); setShowAddOrderModal(true); }}>طلب</Button>
                   </div>
                 </div>
               )))}
@@ -749,12 +754,12 @@ export default function ClinicLabPage({ clinicId }: ClinicLabPageProps) {
         amount: caseData.price || 0,
         type: 'expense',
         category: 'lab', // Must match category in useFinance/DB
-        description: `طلبات مختبر (${expenseType}): ${caseData.testType} - المريض: ${caseData.patientName}`,
+        description: `طلبات مختبر(${expenseType}): ${caseData.testType} - المريض: ${caseData.patientName} `,
         date: new Date().toISOString().split('T')[0],
         paymentMethod: 'cash' // Default
       });
 
-      toast.success(`تم إضافة المصروف بنجاح:\nالقيمة: ${caseData.price?.toLocaleString()} د.ع`);
+      toast.success(`تم إضافة المصروف بنجاح: \nالقيمة: ${caseData.price?.toLocaleString()} د.ع`);
     } catch (err) {
       console.error('Failed to add expense:', err);
       toast.error('حدث خطأ أثناء إضافة المصروف');
@@ -770,21 +775,21 @@ export default function ClinicLabPage({ clinicId }: ClinicLabPageProps) {
         <div className="flex gap-6 border-b border-gray-100">
           <button
             onClick={() => setActiveSubTab('case-management')}
-            className={`pb-4 px-2 font-medium transition-colors relative ${activeSubTab === 'case-management' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`pb - 4 px - 2 font - medium transition - colors relative ${activeSubTab === 'case-management' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'} `}
           >
             طلبات معامل الاسنان
             {activeSubTab === 'case-management' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-t-full" />}
           </button>
           <button
             onClick={() => setActiveSubTab('saved-labs')}
-            className={`pb-4 px-2 font-medium transition-colors relative ${activeSubTab === 'saved-labs' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`pb - 4 px - 2 font - medium transition - colors relative ${activeSubTab === 'saved-labs' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'} `}
           >
             معامل الاسنان المحفوظة
             {activeSubTab === 'saved-labs' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-t-full" />}
           </button>
           <button
             onClick={() => setActiveSubTab('platform-labs')}
-            className={`pb-4 px-2 font-medium transition-colors relative ${activeSubTab === 'platform-labs' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`pb - 4 px - 2 font - medium transition - colors relative ${activeSubTab === 'platform-labs' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'} `}
           >
             معامل المنصة
             {activeSubTab === 'platform-labs' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-t-full" />}
@@ -818,14 +823,14 @@ export default function ClinicLabPage({ clinicId }: ClinicLabPageProps) {
                 const matchedLab = allLabs.find(l => l.isCustom && l.name === selectedRequestForDetails.labName);
                 if (matchedLab) {
                   return {
-                    labAddress: matchedLab.address,
+                    labAddress: formatLocation(matchedLab.governorate, matchedLab.address),
                     labContact: matchedLab.phone
                   };
                 }
               }
               return {
-                labAddress: 'العنوان المسجل',
-                labContact: '0770000000'
+                labAddress: 'لم يُحدد العنوان',
+                labContact: 'لم يُحدد الهاتف'
               };
             })(),
             remainingAmount: (selectedRequestForDetails.price || 0) - (selectedRequestForDetails.paymentAmount || 0),
@@ -849,12 +854,13 @@ export default function ClinicLabPage({ clinicId }: ClinicLabPageProps) {
         <Modal
           isOpen={!!selectedLabForProfile}
           onClose={() => setSelectedLabForProfile(null)}
-          title={`ملف المختبر: ${selectedLabForProfile.name}`}
+          title={`ملف المختبر: ${selectedLabForProfile.name} `}
           size="lg"
         >
           <LabProfileContent
             lab={selectedLabForProfile}
             clinicName={clinicName}
+            clinicId={clinicId || ''}
             onClose={() => setSelectedLabForProfile(null)}
             onRequest={() => {
               setSelectedLabForOrder(selectedLabForProfile);
@@ -894,6 +900,7 @@ export default function ClinicLabPage({ clinicId }: ClinicLabPageProps) {
 const LabProfileContent: React.FC<{
   lab: ClinicLab;
   clinicName: string;
+  clinicId: string;
   onClose: () => void;
   onRequest: () => void;
   onDelete: () => void;
@@ -902,7 +909,7 @@ const LabProfileContent: React.FC<{
   onUpdateStatus: (id: string, status: string, updates?: any) => void;
   onDeleteRequest: (id: string) => void;
   onAddOrder: () => void; // Added onAddOrder prop
-}> = ({ lab, clinicName, onClose, onRequest, onDelete, requests, onViewDetails, onUpdateStatus, onDeleteRequest, onAddOrder }) => {
+}> = ({ lab, clinicName, clinicId, onClose, onRequest, onDelete, requests, onViewDetails, onUpdateStatus, onDeleteRequest, onAddOrder }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'financial' | 'contact'>('overview');
 
   // Filter orders for this specific lab for the 'orders' tab
@@ -990,18 +997,30 @@ const LabProfileContent: React.FC<{
     <div className="space-y-6">
       {/* Header Info */}
       <div className="flex items-center gap-4 border-b pb-6">
-        <div className="w-20 h-20 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-700 font-bold text-3xl">
-          {lab.name.charAt(0)}
+        <div className="w-20 h-20 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-700 font-bold text-3xl overflow-hidden">
+          {lab.logo ? (
+            <img src={lab.logo} alt={lab.name} className="w-full h-full object-cover" />
+          ) : (
+            lab.name.charAt(0)
+          )}
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
             <h3 className="text-2xl font-bold text-gray-900">{lab.name}</h3>
             {lab.isAccredited && <CheckCircle className="w-6 h-6 text-blue-500 fill-white" />}
           </div>
-          <p className="text-gray-500 flex items-center gap-2">
-            <MapPin className="w-4 h-4" />
-            {lab.address}
-          </p>
+          <div className="flex items-center gap-6 mt-2">
+            <p className="text-gray-500 flex items-center gap-2">
+              <MapPin className="w-4 h-4" />
+              {formatLocation(lab.governorate, lab.address) || 'لم يُحدد الموقع'}
+            </p>
+            {lab.phone && (
+              <p className="text-gray-500 flex items-center gap-2">
+                <Phone className="w-4 h-4" />
+                <span dir="ltr" className="font-semibold">{lab.phone}</span>
+              </p>
+            )}
+          </div>
           {!lab.isCustom && (
             <div className="flex gap-4 mt-3">
               <div className="flex items-center gap-1 bg-yellow-50 px-3 py-1 rounded-full border border-yellow-200">
@@ -1040,7 +1059,7 @@ const LabProfileContent: React.FC<{
       <div className="flex gap-4 border-b border-gray-100">
         <button
           onClick={() => setActiveTab('overview')}
-          className={`pb-3 px-2 font-medium transition-colors relative ${activeTab === 'overview' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+          className={`pb - 3 px - 2 font - medium transition - colors relative ${activeTab === 'overview' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'} `}
         >
           نظرة عامة
           {activeTab === 'overview' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-t-full" />}
@@ -1050,7 +1069,7 @@ const LabProfileContent: React.FC<{
         {(lab.isFavorite || lab.isCustom) && (
           <button
             onClick={() => setActiveTab('orders')}
-            className={`pb-3 px-2 font-medium transition-colors relative ${activeTab === 'orders' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`pb - 3 px - 2 font - medium transition - colors relative ${activeTab === 'orders' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'} `}
           >
             الطلبات
             {activeTab === 'orders' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-t-full" />}
@@ -1061,7 +1080,7 @@ const LabProfileContent: React.FC<{
         {(lab.isFavorite || lab.isCustom) && (
           <button
             onClick={() => setActiveTab('financial')}
-            className={`pb-3 px-2 font-medium transition-colors relative ${activeTab === 'financial' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`pb - 3 px - 2 font - medium transition - colors relative ${activeTab === 'financial' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'} `}
           >
             المالية
             {activeTab === 'financial' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-t-full" />}
@@ -1072,7 +1091,7 @@ const LabProfileContent: React.FC<{
         {(!lab.isCustom && lab.isFavorite) && (
           <button
             onClick={() => setActiveTab('contact')}
-            className={`pb-3 px-2 font-medium transition-colors relative ${activeTab === 'contact' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`pb - 3 px - 2 font - medium transition - colors relative ${activeTab === 'contact' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'} `}
           >
             التواصل
             {activeTab === 'contact' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-t-full" />}
@@ -1159,9 +1178,9 @@ const LabProfileContent: React.FC<{
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${delegate.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
-                              }`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${delegate.status === 'active' ? 'bg-green-500' : 'bg-gray-400'}`} />
+                            <span className={`inline - flex items - center gap - 1.5 px - 2 py - 0.5 rounded - full text - xs font - medium ${delegate.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                              } `}>
+                              <span className={`w - 1.5 h - 1.5 rounded - full ${delegate.status === 'active' ? 'bg-green-500' : 'bg-gray-400'} `} />
                               {delegate.status === 'active' ? 'نشط' : 'غير متاح'}
                             </span>
                           </div>
@@ -1284,46 +1303,15 @@ const LabProfileContent: React.FC<{
         )}
 
         {activeTab === 'contact' && (
-          <div className="animate-in fade-in slide-in-from-bottom-2 h-[400px] flex flex-col bg-gray-50 border border-gray-200 rounded-xl overflow-hidden">
-            {/* Chat List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {/* Mock Welcome Message */}
-              <div className="flex justify-start">
-                <div className="bg-white border border-gray-200 text-gray-800 rounded-2xl rounded-tl-none p-3 max-w-[80%] shadow-sm">
-                  <p className="text-sm">مرحباً، كيف يمكننا مساعدتك اليوم في {lab.name}؟</p>
-                  <span className="text-[10px] text-gray-400 mt-1 block">10:00 ص</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Input Area */}
-            <div className="p-3 bg-white border-t border-gray-200">
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" className="h-10 w-10 p-0 rounded-xl text-gray-400 hover:text-blue-600 hover:bg-blue-50">
-                  <Paperclip className="w-5 h-5" />
-                </Button>
-                <input
-                  type="text"
-                  placeholder={`اكتب رسالة إلى ${lab.name}...`}
-                  className="flex-1 bg-gray-50 border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-100 outline-none transition-all"
-                />
-                <Button size="sm" className="rounded-xl px-4 bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-200">
-                  <Send className="w-4 h-4 ml-1" />
-                  إرسال
-                </Button>
-              </div>
-              <p className="text-[10px] text-gray-400 mt-2 text-center flex items-center justify-center gap-1">
-                <Stethoscope className="w-3 h-3" />
-                يتم إرسال الرسالة باسم <span className="font-bold text-gray-600">{clinicName}</span>
-              </p>
-            </div>
+          <div className="animate-in fade-in slide-in-from-bottom-2 h-[500px] flex flex-col bg-gray-50 border border-gray-200 rounded-xl overflow-hidden">
+            <DoctorLabChat labId={lab.id} labName={lab.name} labLogo={lab.logo} clinicId={clinicId} />
           </div>
         )}
 
       </div>
 
       {/* Footer Actions */}
-      <div className="flex gap-3 pt-6 border-t">
+      <div className="flex gap-3 pt-6 border-t flex-wrap sm:flex-nowrap">
         {lab.isCustom && (
           <Button variant="outline" className="flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300" onClick={onDelete}>
             <Trash2 className="w-4 h-4 ml-2" />
@@ -1333,6 +1321,15 @@ const LabProfileContent: React.FC<{
         <Button variant="outline" className="flex-1" onClick={onClose}>
           إغلاق
         </Button>
+        {lab.phone && (
+          <a
+            href={`tel:${lab.phone}`}
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 transition-colors border rounded-md shadow-sm text-sm font-medium bg-green-50 text-green-700 hover:bg-green-100 border-green-200"
+          >
+            <Phone className="w-4 h-4 ml-1" />
+            اتصال
+          </a>
+        )}
         <Button className="flex-1" onClick={onRequest}>
           طلب من هذا المختبر
         </Button>

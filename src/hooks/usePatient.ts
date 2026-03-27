@@ -69,7 +69,27 @@ export const usePatient = (patientId: string | undefined) => {
         // Prepare DB updates (map back to snake_case if needed, but for JSONB it's direct key)
         const dbUpdates: any = {};
         if (updates.name) dbUpdates.full_name = updates.name;
-        if (updates.medicalHistoryData) dbUpdates.medical_history_data = updates.medicalHistoryData;
+        if (updates.medicalHistoryData) {
+            dbUpdates.medical_history_data = updates.medicalHistoryData;
+
+            // Sync with legacy columns
+            if (updates.medicalHistoryData.allergies) {
+                dbUpdates.allergies = updates.medicalHistoryData.allergies;
+
+                // Construct text representation for medical_history column
+                // Combine allergies and conditions or just allergies? 
+                // Legacy system used medical_history primarily for alerts/history text.
+                // We'll join allergies for now to maintain visibility in legacy views.
+                // If conditions are also important, we might need a more complex join, 
+                // but for now, syncing allergies to history text ensures "Medical Alerts" are visible.
+                const alerts = [...(updates.medicalHistoryData.allergies || [])];
+                if (updates.medicalHistoryData.conditions) {
+                    // Optionally add conditions if they were part of the history text expectation
+                    // alerts.push(...updates.medicalHistoryData.conditions);
+                }
+                dbUpdates.medical_history = alerts.join(',');
+            }
+        }
         if (updates.notes) dbUpdates.notes = updates.notes;
 
         // Optimistic

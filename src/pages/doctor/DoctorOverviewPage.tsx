@@ -41,6 +41,48 @@ import { useTransactions } from '../../hooks/useTransactions';
 import { usePatients } from '../../hooks/usePatients';
 import { useDemoClinicData } from '../../hooks/useDemoClinicData';
 import { useDoctorSubscription } from '../../hooks/useDoctorSubscription';
+import { useLabOrders } from '../../hooks/useLabOrders';
+import { useStoreOrders } from '../../hooks/useStoreOrders';
+import { Package } from 'lucide-react';
+
+const formatTime12h = (time: string) => {
+    if (!time) return '';
+    const [hours, minutes] = time.split(':');
+    const h = parseInt(hours);
+    const ampm = h >= 12 ? 'مساءً' : 'صباحاً';
+    const h12 = h % 12 || 12;
+    return `${h12}:${minutes} ${ampm}`;
+};
+
+const getLabStatusConfig = (s: string) => {
+    const map: any = {
+        pending: { label: 'طلب جديد', color: 'bg-blue-50/80 text-blue-700 border-blue-200/50' },
+        waiting_for_representative: { label: 'بانتظار المندوب', color: 'bg-orange-50/80 text-orange-700 border-orange-200/50' },
+        representative_dispatched: { label: 'تم إرسال المندوب', color: 'bg-indigo-50/80 text-indigo-700 border-indigo-200/50' },
+        in_progress: { label: 'قيد العمل', color: 'bg-amber-50/80 text-amber-700 border-amber-200/50' },
+        completed: { label: 'مكتمل', color: 'bg-green-50/80 text-green-700 border-green-200/50' },
+        out_for_delivery: { label: 'جار التوصيل', color: 'bg-cyan-50/80 text-cyan-700 border-cyan-200/50' },
+        delivered: { label: 'تم التسليم', color: 'bg-emerald-50/80 text-emerald-700 border-emerald-200/50' },
+        returned: { label: 'مسترجع', color: 'bg-purple-50/80 text-purple-700 border-purple-200/50' },
+        rejected: { label: 'مرفوض', color: 'bg-red-50/80 text-red-700 border-red-200/50' },
+        cancelled: { label: 'ملغي', color: 'bg-rose-50/80 text-rose-700 border-rose-200/50' },
+        modification_requested: { label: 'طلب تعديل', color: 'bg-orange-50/80 text-orange-700 border-orange-200/50' }
+    };
+    return map[s] || { label: s, color: 'bg-gray-50/80 text-gray-600 border-gray-200/50' };
+};
+
+const getStoreStatusConfig = (s: string) => {
+    const map: any = {
+        pending: { label: 'معلق', color: 'bg-yellow-50/80 text-yellow-700 border-yellow-200/50' },
+        processing: { label: 'قيد التجهيز', color: 'bg-amber-50/80 text-amber-700 border-amber-200/50' },
+        shipped: { label: 'تم الشحن', color: 'bg-indigo-50/80 text-indigo-700 border-indigo-200/50' },
+        delivered: { label: 'تم التسليم', color: 'bg-emerald-50/80 text-emerald-700 border-emerald-200/50' },
+        cancelled: { label: 'ملغي', color: 'bg-rose-50/80 text-rose-700 border-rose-200/50' },
+        returned: { label: 'مسترجع', color: 'bg-purple-50/80 text-purple-700 border-purple-200/50' },
+        return_requested: { label: 'طلب إرجاع', color: 'bg-orange-50/80 text-orange-700 border-orange-200/50' }
+    };
+    return map[s] || { label: s, color: 'bg-gray-50/80 text-gray-600 border-gray-200/50' };
+};
 
 export const DoctorOverviewPage: React.FC = () => {
     const { t } = useLanguage();
@@ -48,7 +90,9 @@ export const DoctorOverviewPage: React.FC = () => {
     const { user } = useAuth();
     // Use Global Context
     const { clinics, loading: clinicsLoading, selectedClinicId } = useDoctorContext();
-    const { appointments } = useAppointments(); // Keep for today's appointments if hooked
+    const { appointments } = useAppointments(selectedClinicId); // Pass context ID
+    const { orders: labOrders } = useLabOrders({ clinicId: selectedClinicId });
+    const { orders: storeOrders } = useStoreOrders();
     const { patients } = usePatients();
 
     // --- Logic & Filtering ---
@@ -65,6 +109,11 @@ export const DoctorOverviewPage: React.FC = () => {
         // Owner Logic: Respect Selected Clinic ID
         if (!clinicId) return true; // Show global/system items (no clinic ID)
         return selectedClinicId === 'all' || selectedClinicId.toString() === clinicId.toString();
+    };
+
+    const getClinicName = (id?: string | number) => {
+        if (!id) return 'مركز عام';
+        return clinics.find(c => c.id.toString() === id.toString())?.name || 'عيادة عامة';
     };
 
     // --- Real Data Integration ---
@@ -140,36 +189,105 @@ export const DoctorOverviewPage: React.FC = () => {
         color: 'purple',
         clinicId: null,
         clinicName: 'النظام',
-        createdAt: u.release_date
+        createdAt: u.release_date,
+        metadata: undefined as any
     }));
 
-    const mappedNotifications = allNotifications.filter(n => isRelevant(n.clinicId)).map(n => {
-        let Icon = Bell;
-        let color = 'blue';
+    const mappedNotifications = allNotifications
+        .filter(n => isRelevant(n.clinicId) && n.type !== 'order_update' && !n.title.includes('طلبك') && !n.title.includes('تحديث حالة الطلب'))
+        .map(n => {
+            let Icon = Bell;
+            let color = 'blue';
 
-        if (n.type === 'appointment') { Icon = Calendar; color = 'blue'; }
-        if (n.type === 'alert' || n.type === 'reminder') { Icon = CircleAlert; color = 'orange'; }
-        if (n.type === 'message') { Icon = MessageCircle; color = 'green'; }
+            if (n.type === 'appointment') { Icon = Calendar; color = 'blue'; }
+            if (n.type === 'alert' || n.type === 'reminder') { Icon = CircleAlert; color = 'orange'; }
+            if (n.type === 'message') { Icon = MessageCircle; color = 'green'; }
 
-        // Logic to show clinic name if available
-        const clinicName = n.clinicName || clinics.find(c => c.id === n.clinicId)?.name || 'عيادة عامة';
+            // Logic to show clinic name if available
+            const clinicName = n.clinicName || clinics.find(c => c.id === n.clinicId)?.name || 'عيادة عامة';
+
+            return {
+                id: n.id,
+                type: n.type,
+                title: n.title,
+                description: n.description,
+                time: formatDate(n.createdAt),
+                icon: Icon,
+                color: color,
+                clinicId: n.clinicId,
+                clinicName: clinicName,
+                createdAt: n.createdAt,
+                metadata: undefined as any
+            };
+        });
+
+    const mappedAppointments = (appointments || []).map(a => {
+        const isOnline = (a.type as any) === 'كشف عام (أونلاين)' || a.title === 'كشف عام (أونلاين)' || a.doctorName === 'غير محدد' || !a.doctorName;
+        const Icon = Calendar;
 
         return {
-            id: n.id,
-            type: n.type,
-            title: n.title,
-            description: n.description,
-            time: formatDate(n.createdAt),
+            id: `apt-${a.id}`,
+            type: 'appointment',
+            title: isOnline ? 'موعد جديد (أونلاين)' : 'موعد جديد',
+            description: '', // Fallback
+            metadata: {
+                patientName: a.patientName,
+                doctorName: a.doctorName && a.doctorName !== 'غير محدد' ? a.doctorName : undefined,
+                date: a.date,
+                time: formatTime12h(a.time),
+            },
+            time: formatDate(a.createdAt || new Date().toISOString()),
             icon: Icon,
-            color: color,
-            clinicId: n.clinicId,
-            clinicName: clinicName,
-            createdAt: n.createdAt
+            color: 'blue' as const,
+            clinicId: a.clinicId,
+            clinicName: clinics.find(c => c.id === a.clinicId)?.name || 'عيادة عامة',
+            createdAt: a.createdAt || new Date().toISOString()
         };
     });
 
+    const mappedLabOrders = (labOrders || []).map(o => ({
+        id: `lab-order-${o.id}`,
+        type: 'order' as any,
+        title: 'طلب مختبر',
+        description: '',
+        metadata: {
+            orderType: 'lab',
+            targetName: o.lab_name || o.custom_lab_name || 'مختبر خارجي',
+            staffName: o.doctor_name || user?.name || 'طاقم العيادة',
+            patientName: o.patient_name || 'غير محدد',
+            doctorName: o.doctor_name,
+            statusInfo: getLabStatusConfig(o.status)
+        },
+        time: formatDate(o.order_date || new Date().toISOString()),
+        icon: Package,
+        color: 'green' as const,
+        clinicId: o.clinic_id,
+        clinicName: getClinicName(o.clinic_id),
+        createdAt: o.order_date || new Date().toISOString()
+    }));
+
+    const mappedStoreOrders = (storeOrders || []).map(o => ({
+        id: `store-order-${o.id}`,
+        type: 'order' as any,
+        title: 'طلب متجر',
+        description: '',
+        metadata: {
+            orderType: 'store',
+            targetName: o.supplierName || 'المتجر الإلكتروني',
+            staffName: user?.name || 'طاقم العيادة',
+            orderNumber: o.order_number,
+            statusInfo: getStoreStatusConfig(o.status)
+        },
+        time: formatDate(o.createdAt || new Date().toISOString()),
+        icon: Package,
+        color: 'yellow' as const,
+        clinicId: undefined,
+        clinicName: 'العيادة',
+        createdAt: o.createdAt || new Date().toISOString()
+    }));
+
     // Combine and Sort
-    const recentNotifications = [...mappedNotifications, ...mappedUpdates]
+    const recentNotifications = [...mappedNotifications, ...mappedAppointments, ...mappedLabOrders, ...mappedStoreOrders, ...mappedUpdates]
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .slice(0, 5);
 
@@ -190,29 +308,33 @@ export const DoctorOverviewPage: React.FC = () => {
         features: ['إدارة عيادة واحدة', 'عدد محدود من المرضى']
     };
 
+    const handleNotificationClick = (n: any) => {
+        const targetClinicId = n.clinicId || '1';
+
+        switch (n.type) {
+            case 'appointment':
+                navigate(`/doctor/clinic/${targetClinicId}?tab=appointments`);
+                break;
+            case 'order':
+                if (n.metadata?.orderType === 'lab') {
+                    navigate(`/doctor/clinic/${targetClinicId}?tab=labs`);
+                } else {
+                    navigate('/store/orders');
+                }
+                break;
+            default:
+                navigate('/doctor/notifications');
+                break;
+        }
+    };
+
     const { generateDemoClinicData, seeding } = useDemoClinicData();
 
     if (clinicsLoading) return <div className="p-8 text-center text-gray-500">جاري تحميل البيانات...</div>;
 
     return (
         <div className="space-y-6">
-            {/* Demo Data Generator */}
-            <div className="flex justify-end">
-                <button
-                    onClick={generateDemoClinicData}
-                    disabled={seeding}
-                    className="flex items-center gap-2 px-4 py-2 bg-yellow-100/50 text-yellow-700 rounded-xl border border-yellow-200 border-dashed hover:bg-yellow-100 transition-colors text-sm font-medium"
-                >
-                    {seeding ? (
-                        <>جاري التوليد...</>
-                    ) : (
-                        <>
-                            <Zap className="w-4 h-4" />
-                            توليد بيانات تجريبية (للاختبار)
-                        </>
-                    )}
-                </button>
-            </div>
+
 
             {/* 1. Stats Row */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -343,7 +465,7 @@ export const DoctorOverviewPage: React.FC = () => {
                                 recentNotifications.map((notification) => {
                                     const IconComponent = notification.icon;
                                     return (
-                                        <div key={notification.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100" onClick={() => navigate('/doctor/notifications')}>
+                                        <div key={notification.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100" onClick={() => handleNotificationClick(notification)}>
                                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${notification.color === 'blue' ? 'bg-blue-100' :
                                                 notification.color === 'green' ? 'bg-green-100' : 'bg-yellow-100'
                                                 } `}>
@@ -352,14 +474,76 @@ export const DoctorOverviewPage: React.FC = () => {
                                                     } `} />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <div className="flex items-center justify-between">
-                                                    <p className="font-medium text-gray-900 text-sm">{notification.title}</p>
+                                                <div className="flex items-center justify-between gap-2 flex-wrap w-full">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <p className="font-medium text-gray-900 text-sm">{notification.title}</p>
+                                                        {notification.type === 'appointment' && notification.metadata && (
+                                                            <div className="flex items-center gap-1 text-[10px] text-gray-500 bg-white/70 px-1.5 py-0.5 rounded border border-gray-100/50">
+                                                                <span>📅 {notification.metadata.date}</span>
+                                                                <span className="text-gray-300">•</span>
+                                                                <span dir="ltr">{notification.metadata.time}</span>
+                                                            </div>
+                                                        )}
+                                                        {notification.type === 'order' && notification.metadata?.statusInfo && (
+                                                            <div className={`flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border ${notification.metadata.statusInfo.color}`}>
+                                                                <span>{notification.metadata.statusInfo.label}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                     <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full border border-gray-200 whitespace-nowrap">
-                                                        {(notification as any).clinicName || (notification.clinicId?.toString() === '102' ? 'مركز الابتسامة الرقمي' : 'عيادة النور التخصصية')}
+                                                        {notification.clinicName}
                                                     </span>
                                                 </div>
                                                 <div className="text-xs text-gray-600 mt-1">
-                                                    <NotificationContent text={notification.description} />
+                                                    {notification.type === 'appointment' && notification.metadata ? (
+                                                        <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                                                            <span className="text-gray-500 text-xs flex-shrink-0">👤 المريض:</span>
+                                                            <span className="font-semibold text-gray-800 bg-white/80 px-1.5 py-0.5 rounded border border-gray-100/30">
+                                                                {notification.metadata.patientName}
+                                                            </span>
+
+                                                            {notification.metadata.doctorName && (
+                                                                <>
+                                                                    <span className="text-gray-300 text-xs">|</span>
+                                                                    <span className="text-gray-500 text-[10px] flex-shrink-0">👨‍⚕️ مع:</span>
+                                                                    <span className="bg-blue-50/80 text-blue-800 px-1.5 py-0.5 rounded border border-blue-100/20 text-[10px] font-semibold" dir="ltr">
+                                                                        {notification.metadata.doctorName}
+                                                                    </span>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    ) : notification.type === 'order' && notification.metadata ? (
+                                                        <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                                                            <span className="text-gray-500 text-[10px] flex-shrink-0">
+                                                                {notification.metadata.orderType === 'lab' ? 'اسم المختبر:' : 'بواسطة المتجر:'}
+                                                            </span>
+                                                            <span className="font-semibold text-gray-800 bg-white/80 px-1.5 py-0.5 rounded border border-gray-100/30">
+                                                                {notification.metadata.targetName}
+                                                            </span>
+
+                                                            {notification.metadata.orderType === 'lab' && notification.metadata.patientName && (
+                                                                <>
+                                                                    <span className="text-gray-300 text-xs">|</span>
+                                                                    <span className="text-gray-500 text-[10px] flex-shrink-0">للمريض:</span>
+                                                                    <span className="font-medium text-gray-800 bg-gray-50 px-1.5 py-0.5 rounded text-[10px]">
+                                                                        {notification.metadata.patientName}
+                                                                    </span>
+                                                                </>
+                                                            )}
+
+                                                            {notification.metadata.orderType === 'store' && notification.metadata.orderNumber && (
+                                                                <>
+                                                                    <span className="text-gray-300 text-xs">|</span>
+                                                                    <span className="text-gray-500 text-[10px] flex-shrink-0">رقم الطلب:</span>
+                                                                    <span className="text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded font-mono text-[10px]">
+                                                                        {notification.metadata.orderNumber}
+                                                                    </span>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <NotificationContent text={notification.description} />
+                                                    )}
                                                 </div>
                                                 <div className="flex items-center gap-2 mt-1">
                                                     <p className="text-xs text-gray-400">{notification.time}</p>
@@ -441,13 +625,13 @@ export const DoctorOverviewPage: React.FC = () => {
                         </div>
                         <div className="p-6">
                             <div className="space-y-4">
-                                <div className="space-y-4">
+                                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
                                     {lowStockLoading ? (
                                         <div className="text-center py-4 text-gray-500 text-sm">جاري تحميل الاقتراحات...</div>
                                     ) : filteredLowStock.length === 0 ? (
                                         <div className="text-center py-4 text-gray-500 text-sm">لا توجد نواقص في المخزون لهذه العيادة</div>
                                     ) : (
-                                        filteredLowStock.slice(0, 5).map((item) => (
+                                        filteredLowStock.map((item) => (
                                             <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer"
                                                 onClick={() => navigate(`/doctor/clinic/${(item as any).clinicId || '1'}?tab=inventory`)}
                                             >
@@ -497,7 +681,7 @@ export const DoctorOverviewPage: React.FC = () => {
                     </div>
                     <div className="p-6">
                         <div className="space-y-4">
-                            <div className="space-y-4">
+                            <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
                                 {activitiesLoading ? (
                                     <p className="text-center text-gray-500 py-4">جاري تحميل النشاطات...</p>
                                 ) : filteredActivities.map((activity) => (
@@ -518,10 +702,16 @@ export const DoctorOverviewPage: React.FC = () => {
                                             <div className="flex items-center justify-between">
                                                 <p className="font-medium text-gray-900 text-sm">{activity.title}</p>
                                                 <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-100 whitespace-nowrap">
-                                                    {(activity as any).clinicName || (activity.clinicId?.toString() === '102' ? 'مركز الابتسامة الرقمي' : 'عيادة النور التخصصية')}
+                                                    {getClinicName(activity.clinicId)}
                                                 </span>
                                             </div>
                                             <p className="text-xs text-gray-600 mt-1">{activity.description}</p>
+                                            {(activity as any).performedBy && (
+                                                <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
+                                                    <Users className="w-3.5 h-3.5 text-gray-400" />
+                                                    قِبل: {(activity as any).performedBy}
+                                                </p>
+                                            )}
                                             <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
                                         </div>
                                         <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />

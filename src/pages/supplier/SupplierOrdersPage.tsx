@@ -90,17 +90,17 @@ export const SupplierOrdersPage: React.FC = () => {
     }
   };
 
-  // Derived filters
-  const filteredOrders = orders.filter(order => {
-    // Filter by tab
-    if (activeTab === 'processing' && !['pending', 'processing', 'received'].includes(order.status)) return false;
-    // Note: 'received' is also part of processing flow logically before 'shipped'
-    if (activeTab === 'shipped' && order.status !== 'shipped') return false;
-    if (activeTab === 'completed' && order.status !== 'delivered') return false;
-    if (activeTab === 'returned' && !['returned', 'return_requested'].includes(order.status)) return false;
-    if (activeTab === 'cancelled' && order.status !== 'cancelled') return false;
+    // Derived filters
+    const filteredOrders = orders.filter(order => {
+        // Filter by tab
+        if (activeTab === 'pending' && order.status !== 'pending') return false;
+        if (activeTab === 'processing' && !['processing', 'received'].includes(order.status)) return false;
+        if (activeTab === 'shipped' && order.status !== 'shipped') return false;
+        if (activeTab === 'completed' && order.status !== 'delivered') return false;
+        if (activeTab === 'returned' && !['returned', 'return_requested'].includes(order.status)) return false;
+        if (activeTab === 'cancelled' && order.status !== 'cancelled') return false;
 
-    // Filter by search (mock checking customer name or ID)
+        // Filter by search (mock checking customer name or ID)
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       return order.id.includes(q) ||
@@ -164,10 +164,10 @@ export const SupplierOrdersPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="p-4 bg-blue-50 border-blue-100">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-500 rounded-lg text-white"><Eye className="w-5 h-5" /></div>
+            <div className="p-2 bg-blue-500 rounded-lg text-white"><FileText className="w-5 h-5" /></div>
             <div>
-              <p className="text-sm text-gray-500 font-bold">إجمالي المشاهدات</p>
-              <h3 className="text-xl font-bold text-gray-900">{platformStats?.monthlyViews || 0}</h3>
+              <p className="text-sm text-gray-500 font-bold">إجمالي الطلبات</p>
+              <h3 className="text-xl font-bold text-gray-900">{orders.length}</h3>
             </div>
           </div>
         </Card>
@@ -182,10 +182,10 @@ export const SupplierOrdersPage: React.FC = () => {
         </Card>
         <Card className="p-4 bg-emerald-50 border-emerald-100">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-emerald-500 rounded-lg text-white"><Building className="w-5 h-5" /></div>
+            <div className="p-2 bg-emerald-500 rounded-lg text-white"><CheckCircle className="w-5 h-5" /></div>
             <div>
-              <p className="text-sm text-gray-500 font-bold">العيادات النشطة</p>
-              <h3 className="text-xl font-bold text-gray-900">{platformStats?.totalClinics || 0}</h3>
+              <p className="text-sm text-gray-500 font-bold">الطلبات المكتملة</p>
+              <h3 className="text-xl font-bold text-gray-900">{orders.filter(o => ['delivered', 'تم التسليم', 'مكتمل'].includes(o.status)).length}</h3>
             </div>
           </div>
         </Card>
@@ -194,62 +194,13 @@ export const SupplierOrdersPage: React.FC = () => {
             <div className="p-2 bg-amber-500 rounded-lg text-white"><TrendingUp className="w-5 h-5" /></div>
             <div>
               <p className="text-sm text-gray-500 font-bold">المبيعات الشهرية</p>
-              <h3 className="text-xl font-bold text-gray-900">{orders.length} طلب</h3>
+              <h3 className="text-xl font-bold text-gray-900">{orders.filter(o => o.status !== 'cancelled').length} طلب</h3>
             </div>
           </div>
         </Card>
       </div>
 
-      {/* Tabs */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide px-4">
-          <button
-            onClick={() => setActiveTab('all')}
-            className={`px-4 py-3 font-medium text-sm whitespace-nowrap border-b-2 transition-colors ${activeTab === 'all' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-          >
-            جميع الطلبات
-          </button>
-          <button
-            onClick={() => setActiveTab('processing')}
-            className={`px-4 py-3 font-medium text-sm whitespace-nowrap border-b-2 transition-colors ${activeTab === 'processing' ? 'border-yellow-500 text-yellow-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-          >
-            جاري التجهيز
-            <span className="bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5 rounded-full mr-2">
-              {orders.filter(o => ['pending', 'processing'].includes(o.status)).length}
-            </span>
-          </button>
-          <button
-            onClick={() => setActiveTab('shipped')}
-            className={`px-4 py-3 font-medium text-sm whitespace-nowrap border-b-2 transition-colors ${activeTab === 'shipped' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-          >
-            تم الشحن
-          </button>
-          <button
-            onClick={() => setActiveTab('completed')}
-            className={`px-4 py-3 font-medium text-sm whitespace-nowrap border-b-2 transition-colors ${activeTab === 'completed' ? 'border-green-500 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-          >
-            مكتملة
-          </button>
-          <button
-            onClick={() => setActiveTab('returned')}
-            className={`px-4 py-3 font-medium text-sm whitespace-nowrap border-b-2 transition-colors ${activeTab === 'returned' ? 'border-red-500 text-red-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-          >
-            مرتجعة
-          </button>
-          <button
-            onClick={() => setActiveTab('cancelled')}
-            className={`px-4 py-3 font-medium text-sm whitespace-nowrap border-b-2 transition-colors ${activeTab === 'cancelled' ? 'border-gray-500 text-gray-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-          >
-            ملغية
-          </button>
-        </div>
-      </div>
+
 
       {/* Order Analytics (Top Products & Clinics) */}
       <div className="grid grid-cols-2 gap-4">
@@ -305,7 +256,60 @@ export const SupplierOrdersPage: React.FC = () => {
       </div>
 
       {/* Search & Stats */}
-      <Card>
+      <Card className="overflow-hidden">
+        <div className="border-b border-gray-100 px-2 bg-gray-50/50">
+          <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
+            <button
+              onClick={() => setActiveTab('all')}
+              className={`px-4 py-3 font-medium text-sm whitespace-nowrap border-b-2 transition-colors ${activeTab === 'all' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            >
+              جميع الطلبات
+            </button>
+            <button
+              onClick={() => setActiveTab('pending')}
+              className={`px-4 py-3 font-medium text-sm whitespace-nowrap border-b-2 transition-colors ${activeTab === 'pending' ? 'border-yellow-500 text-yellow-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            >
+              معلقة
+              <span className="bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5 rounded-full mr-2">
+                {orders.filter(o => o.status === 'pending').length}
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTab('processing')}
+              className={`px-4 py-3 font-medium text-sm whitespace-nowrap border-b-2 transition-colors ${activeTab === 'processing' ? 'border-orange-500 text-orange-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            >
+              جاري التجهيز
+              <span className="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full mr-2">
+                {orders.filter(o => ['processing', 'received'].includes(o.status)).length}
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTab('shipped')}
+              className={`px-4 py-3 font-medium text-sm whitespace-nowrap border-b-2 transition-colors ${activeTab === 'shipped' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            >
+              تم الشحن
+            </button>
+            <button
+              onClick={() => setActiveTab('completed')}
+              className={`px-4 py-3 font-medium text-sm whitespace-nowrap border-b-2 transition-colors ${activeTab === 'completed' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            >
+              مكتملة
+            </button>
+            <button
+              onClick={() => setActiveTab('returned')}
+              className={`px-4 py-3 font-medium text-sm whitespace-nowrap border-b-2 transition-colors ${activeTab === 'returned' ? 'border-red-500 text-red-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            >
+              مرتجعة
+            </button>
+            <button
+              onClick={() => setActiveTab('cancelled')}
+              className={`px-4 py-3 font-medium text-sm whitespace-nowrap border-b-2 transition-colors ${activeTab === 'cancelled' ? 'border-gray-500 text-gray-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            >
+              ملغية
+            </button>
+          </div>
+        </div>
+        
         <div className="p-4 flex flex-col sm:flex-row gap-4 justify-between items-center">
           <div className="relative w-full sm:w-96">
             <Search className="w-5 h-5 absolute right-3 top-2.5 text-gray-400" />
@@ -330,7 +334,7 @@ export const SupplierOrdersPage: React.FC = () => {
         {filteredOrders.length > 0 ? filteredOrders.map((order: any) => (
           <div key={order.id} className="group bg-white rounded-3xl border border-gray-100 p-6 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 relative overflow-hidden">
             {/* Decorative Side Accent */}
-            <div className={`absolute top-0 right-0 w-1.5 h-full ${order.status === 'pending' ? 'bg-yellow-400' : order.status === 'delivered' ? 'bg-green-500' : 'bg-blue-500'}`} />
+            <div className={`absolute top-0 right-0 w-1.5 h-full ${['pending', 'معلقة'].includes(order.status) ? 'bg-yellow-400' : ['delivered', 'تم التسليم', 'مكتمل'].includes(order.status) ? 'bg-green-500' : 'bg-blue-500'}`} />
 
             <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
 
@@ -380,7 +384,11 @@ export const SupplierOrdersPage: React.FC = () => {
                   <div className="sm:col-span-2">
                     <p className="text-xs font-bold text-gray-400 mb-1 flex items-center gap-1"><MapPin className="w-3 h-3" /> العنوان</p>
                     <div className="flex items-center gap-1">
-                      <p className="font-medium text-gray-900 leading-relaxed">{order.customer?.address || 'العنوان غير متوفر'}</p>
+                      <p className="font-medium text-gray-900 leading-relaxed">
+                        {order.customer?.governorate
+                          ? `${order.customer.governorate}${order.customer.city ? `، ${order.customer.city}` : ''} - ${order.customer.address}`
+                          : (order.customer?.address || 'العنوان غير متوفر')}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -613,7 +621,7 @@ export const SupplierOrdersPage: React.FC = () => {
                   )}
 
                   {/* DELIVERED -> Allow Return? Typically handled by Doctor request first */}
-                  {order.status === 'delivered' && (
+                  {['delivered', 'تم التسليم', 'مكتمل'].includes(order.status) && (
                     <div className="w-full text-center text-sm font-bold text-green-600 bg-green-50 py-2 rounded-lg border border-green-100">
                       تم تسليم الطلب بنجاح
                     </div>

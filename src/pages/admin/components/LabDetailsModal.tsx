@@ -125,8 +125,12 @@ export const LabDetailsModal: React.FC<LabDetailsModalProps> = ({
                         <div className="space-y-6">
                             {/* Header Card */}
                             <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
-                                <div className="w-16 h-16 bg-white rounded-lg border flex items-center justify-center text-blue-500 font-bold text-2xl">
-                                    {lab.name.charAt(0)}
+                                <div className="w-16 h-16 bg-white rounded-lg border flex items-center justify-center text-blue-500 font-bold text-2xl overflow-hidden">
+                                    {lab.logo ? (
+                                        <img src={lab.logo} alt={lab.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        lab.name.charAt(0)
+                                    )}
                                 </div>
                                 <div className="flex-1">
                                     <div className="flex justify-between items-start">

@@ -26,7 +26,7 @@ interface LabRequest {
   patientId: string;
   doctorName: string;
   testType: string;
-  priority: 'normal' | 'urgent' | 'emergency';
+  priority: 'low' | 'normal' | 'high' | 'urgent' | 'emergency';
   status: 'pending' | 'waiting_for_representative' | 'representative_dispatched' | 'in_progress' | 'in-progress' | 'completed' | 'out_for_delivery' | 'delivered' | 'returned' | 'cancelled' | 'rejected' | 'modification_requested';
   createdAt: string;
   expectedDelivery: string;
@@ -83,16 +83,35 @@ const getStatusConfig = (status: string) => {
         className: 'bg-green-100 text-green-800 border-green-200'
       };
     case 'out_for_delivery':
+    case 'ready_for_delivery':
       return {
         icon: Truck,
-        label: 'جارِ التوصيل',
+        label: 'جاهز للتوصيل',
         className: 'bg-indigo-100 text-indigo-800 border-indigo-200'
       };
     case 'delivered':
       return {
         icon: CheckCircle,
-        label: 'تم التسليم',
+        label: 'تم التوصيل',
         className: 'bg-emerald-100 text-emerald-800 border-emerald-200'
+      };
+    case 'ready_for_pickup':
+      return {
+        icon: Truck,
+        label: 'جاهز للاستلام',
+        className: 'bg-purple-100 text-purple-800 border-purple-200'
+      };
+    case 'collected':
+      return {
+        icon: CheckCircle,
+        label: 'تم الاستلام',
+        className: 'bg-teal-100 text-teal-800 border-teal-200'
+      };
+    case 'in_lab':
+      return {
+        icon: Stethoscope,
+        label: 'في المختبر',
+        className: 'bg-pink-100 text-pink-800 border-pink-200'
       };
     case 'returned':
       return {
@@ -303,9 +322,6 @@ export const LabRequestsTable: React.FC<LabRequestsTableProps> = ({
                 الإجراءات
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                الطلب
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                 المريض
               </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -469,9 +485,12 @@ export const LabRequestsTable: React.FC<LabRequestsTableProps> = ({
                                 </button>
                               )}
 
-                              {req.status !== 'completed' && req.status !== 'delivered' && (
+                              {req.status === 'pending' && (
                                 <button
-                                  onClick={() => onDelete?.(req.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDelete?.(req.id);
+                                  }}
                                   className="w-full text-right px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -484,11 +503,6 @@ export const LabRequestsTable: React.FC<LabRequestsTableProps> = ({
                       </div>
                     </div>
                   </td>
-                  {/* Order ID */}
-                  <td className="p-4">
-                    <span className="font-mono text-sm font-bold text-gray-700">#{req.id.slice(0, 8)}</span>
-                  </td>
-
                   {/* Patient Info */}
                   <td className="p-4">
                     <div className="flex items-center gap-3">
@@ -525,6 +539,7 @@ export const LabRequestsTable: React.FC<LabRequestsTableProps> = ({
                     )}>
                       {req.priority === 'emergency' && 'طارئ'}
                       {req.priority === 'urgent' && 'عاجل'}
+                      {req.priority === 'high' && 'عالي'}
                       {req.priority === 'normal' && 'عادي'}
                     </span>
                   </td>
@@ -571,13 +586,17 @@ export const LabRequestsTable: React.FC<LabRequestsTableProps> = ({
                             </button>
                           )}
                         </>
-                      ) : (
+                      ) : req.status === 'delivered' ? (
                         <button
                           onClick={() => onPaymentStatusChange?.(req.id, 'paid')}
                           className="px-3 py-1.5 text-xs font-bold rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors shadow-sm"
                         >
                           تسديد
                         </button>
+                      ) : (
+                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-600">
+                          غير مسدد
+                        </span>
                       )}
                     </div>
                   </td>

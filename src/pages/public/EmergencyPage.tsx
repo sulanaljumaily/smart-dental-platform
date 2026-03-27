@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { 
-  AlertCircle, 
-  Phone, 
-  MapPin, 
-  Clock, 
-  Heart, 
+import {
+  AlertCircle,
+  Phone,
+  MapPin,
+  Clock,
+  Heart,
   Activity,
   Zap,
   MessageCircle,
@@ -150,16 +150,15 @@ export const EmergencyPage: React.FC = () => {
             {/* Emergency Types */}
             <div className="lg:col-span-2 space-y-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">أنواع الطوارئ</h2>
-              
+
               {emergencyTypes.map((emergency) => (
-                <Card 
+                <Card
                   key={emergency.id}
                   hover
-                  className={`p-6 cursor-pointer transition-all ${
-                    selectedEmergency === emergency.id 
-                      ? `${getColorClasses(emergency.color, 'bg')} ${getColorClasses(emergency.color, 'border')} border-2` 
-                      : 'hover:shadow-lg'
-                  }`}
+                  className={`p-6 cursor-pointer transition-all ${selectedEmergency === emergency.id
+                    ? `${getColorClasses(emergency.color, 'bg')} ${getColorClasses(emergency.color, 'border')} border-2`
+                    : 'hover:shadow-lg'
+                    }`}
                   onClick={() => setSelectedEmergency(
                     selectedEmergency === emergency.id ? null : emergency.id
                   )}
@@ -171,11 +170,10 @@ export const EmergencyPage: React.FC = () => {
                     <div className="flex-1 text-right">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            emergency.severity === 'عالي' 
-                              ? 'bg-red-100 text-red-600' 
-                              : 'bg-orange-100 text-orange-600'
-                          }`}>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${emergency.severity === 'عالي'
+                            ? 'bg-red-100 text-red-600'
+                            : 'bg-orange-100 text-orange-600'
+                            }`}>
                             {emergency.severity}
                           </span>
                           <span className="text-sm text-gray-500 flex items-center gap-1">
@@ -186,7 +184,7 @@ export const EmergencyPage: React.FC = () => {
                       </div>
                       <h3 className="text-xl font-bold text-gray-900 mb-2">{emergency.title}</h3>
                       <p className="text-gray-600 mb-4">{emergency.description}</p>
-                      
+
                       {selectedEmergency === emergency.id && (
                         <div className="border-t pt-4">
                           <h4 className="font-semibold text-gray-900 mb-3">الإجراءات الفورية:</h4>
@@ -253,9 +251,8 @@ export const EmergencyPage: React.FC = () => {
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-gray-500">{clinic.distance}</span>
-                          <div className={`w-2 h-2 rounded-full ${
-                            clinic.isOpen ? 'bg-green-500' : 'bg-red-500'
-                          }`}></div>
+                          <div className={`w-2 h-2 rounded-full ${clinic.isOpen ? 'bg-green-500' : 'bg-red-500'
+                            }`}></div>
                         </div>
                         <div className="flex-1 text-right">
                           <h4 className="font-semibold text-gray-900 text-sm">{clinic.name}</h4>

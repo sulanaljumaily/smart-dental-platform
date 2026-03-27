@@ -5,7 +5,7 @@ import {
     ArrowRight, MapPin, Phone,
     UserPlus, Edit, CheckCircle, GraduationCap,
     Grid, Calendar, Shield, Users, User, X, MessageCircle, Loader2,
-    Camera, Save, Building2, Briefcase, Stethoscope
+    Camera, Save, Building2, Briefcase, Stethoscope, Star, UserMinus
 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { useCommunity } from '../../hooks/useCommunity';
@@ -16,11 +16,12 @@ import { NotificationPopover } from './components/NotificationPopover';
 import { PostDetailModal } from './components/PostDetailModal';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
+import { IRAQI_GOVERNORATES, formatLocation } from '../../utils/location';
 
 export const UserProfilePage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { posts, banUser, likePost, toggleSave, isSaved, reportPost, updatePost, deletePost } = useCommunity();
+    const { posts, banUser, likePost, toggleSave, isSaved, reportPost, updatePost, deletePost, users, followUser, unfollowUser, amIFollowing, toggleCloseFriend, isCloseFriend } = useCommunity();
     const { user: currentUser } = useAuth();
 
     // State
@@ -34,6 +35,7 @@ export const UserProfilePage: React.FC = () => {
     const [profileData, setProfileData] = useState<any>(null);
     const [stats, setStats] = useState({ followers: 0, following: 0, posts: 0 });
     const [loading, setLoading] = useState(true);
+    const [isFollowHover, setIsFollowHover] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editForm, setEditForm] = useState({
         full_name: '',
@@ -42,6 +44,7 @@ export const UserProfilePage: React.FC = () => {
         specialties: [] as string[],
         phone: '',
         address: '',
+        governorate: 'بغداد',
         university: '',
         graduation_year: ''
     });
@@ -52,6 +55,59 @@ export const UserProfilePage: React.FC = () => {
 
     const isMe = currentUser?.id === id || id === 'me';
     const targetUserId = isMe ? currentUser?.id : id;
+    const isFollowing = targetUserId ? amIFollowing(targetUserId) : false;
+
+    // Connections State
+    const [connections, setConnections] = useState<any[]>([]);
+    const [loadingConnections, setLoadingConnections] = useState(false);
+
+    // Fetch Connections when Modal Opens
+    useEffect(() => {
+        if (!showConnectionsModal || !targetUserId) return;
+
+        const fetchConnections = async () => {
+            setLoadingConnections(true);
+            try {
+                // Determine query based on mode
+                const isFollowers = showConnectionsModal === 'followers';
+                const columnToMatch = isFollowers ? 'following_id' : 'follower_id';
+                const columnToFetch = isFollowers ? 'follower_id' : 'following_id';
+
+                // 1. Get IDs from follows table
+                const { data: relations, error: relError } = await supabase
+                    .from('follows')
+                    .select(columnToFetch)
+                    .eq(columnToMatch, targetUserId);
+
+                if (relError) throw relError;
+
+                const userIds = relations.map((r: any) => r[columnToFetch]);
+
+                if (userIds.length === 0) {
+                    setConnections([]);
+                    return;
+                }
+
+                // 2. Get Profiles
+                const { data: profiles, error: profError } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .in('id', userIds);
+
+                if (profError) throw profError;
+
+                setConnections(profiles || []);
+
+            } catch (error) {
+                console.error('Error fetching connections:', error);
+                toast.error('حدث خطأ أثناء تحميل القائمة');
+            } finally {
+                setLoadingConnections(false);
+            }
+        };
+
+        fetchConnections();
+    }, [showConnectionsModal, targetUserId]);
 
     // Fetch Profile from Supabase
     useEffect(() => {
@@ -61,20 +117,32 @@ export const UserProfilePage: React.FC = () => {
                 setLoading(true);
 
                 // 1. Fetch Profile
+                console.log('Fetching profile for:', targetUserId);
                 const { data: profile, error } = await supabase
                     .from('profiles')
                     .select('*')
                     .eq('id', targetUserId)
                     .single();
 
+                if (error) {
+                    console.error('Error fetching profile detail:', error);
+                }
+
                 if (error && error.code !== 'PGRST116') throw error;
+                console.log('Fetched profile data:', profile);
                 setProfileData(profile);
 
+
                 // 2. Fetch Stats
-                const { count: friendsCount } = await supabase
-                    .from('friendships')
+                const { count: followersCount } = await supabase
+                    .from('follows')
                     .select('*', { count: 'exact', head: true })
-                    .or(`user_id_1.eq.${targetUserId},user_id_2.eq.${targetUserId}`);
+                    .eq('following_id', targetUserId);
+
+                const { count: followingCount } = await supabase
+                    .from('follows')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('follower_id', targetUserId);
 
                 const { count: postsCount } = await supabase
                     .from('community_posts')
@@ -82,8 +150,8 @@ export const UserProfilePage: React.FC = () => {
                     .eq('user_id', targetUserId);
 
                 setStats({
-                    followers: friendsCount || 0,
-                    following: friendsCount || 0,
+                    followers: followersCount || 0,
+                    following: followingCount || 0,
                     posts: postsCount || 0
                 });
 
@@ -194,6 +262,22 @@ export const UserProfilePage: React.FC = () => {
             {/* MASONRY GRID CONTAINER */}
             <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-4 auto-rows-min">
 
+                {/* Suspension Badge — Visible ONLY to account owner when banned */}
+                {isMe && displayUser.banned && (
+                    <div className="md:col-span-4 bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3">
+                        <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <span className="text-xl">🚫</span>
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-red-700 text-sm mb-1">حسابك معلق حالياً</h3>
+                            <p className="text-red-600 text-xs leading-relaxed">
+                                تم تعليق حسابك من قِبل إدارة المنصة. لا يظهر حسابك للمستخدمين الآخرين في المجتمع أو المتجر أو قائمة معامل الأسنان.
+                                للاستفسار تواصل مع الدعم: <span className="font-bold">support@smartdental.com</span>
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 {/* 1. IDENTITY CARD (Large - 2x2) */}
                 <div className="md:col-span-2 md:row-span-2 bg-white rounded-3xl p-6 shadow-sm flex flex-col justify-between relative overflow-hidden group">
                     {/* Decor */}
@@ -243,6 +327,7 @@ export const UserProfilePage: React.FC = () => {
                                         specialties: profileData?.specialties || [],
                                         phone: profileData?.phone || '',
                                         address: profileData?.address || '',
+                                        governorate: profileData?.governorate || 'بغداد',
                                         university: profileData?.university || '',
                                         graduation_year: profileData?.graduation_year?.toString() || ''
                                     });
@@ -264,8 +349,45 @@ export const UserProfilePage: React.FC = () => {
                                     <MessageCircle className="w-4 h-4 ml-2" />
                                     مراسلة
                                 </Button>
-                                <Button variant="outline" className="px-4 rounded-xl border-gray-200 hover:bg-gray-50 text-gray-700">
-                                    <UserPlus className="w-5 h-5" />
+                                <Button
+                                    onClick={() => {
+                                        if (!targetUserId) return;
+                                        if (isFollowing) {
+                                            unfollowUser(targetUserId);
+                                            setStats(prev => ({ ...prev, followers: Math.max(0, prev.followers - 1) }));
+                                        } else {
+                                            followUser(targetUserId);
+                                            setStats(prev => ({ ...prev, followers: prev.followers + 1 }));
+                                        }
+                                    }}
+                                    onMouseEnter={() => setIsFollowHover(true)}
+                                    onMouseLeave={() => setIsFollowHover(false)}
+                                    variant={isFollowing ? "outline" : "primary"}
+                                    className={`px-4 rounded-xl transition-all ${isFollowing
+                                        ? isFollowHover
+                                            ? 'bg-red-50 border-red-200 text-red-600'
+                                            : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                                        : 'text-white ' + theme.accent
+                                        }`}
+                                >
+                                    {isFollowing ? (
+                                        isFollowHover ? (
+                                            <div className="flex items-center gap-2">
+                                                <UserMinus className="w-5 h-5" />
+                                                <span className="text-xs font-bold">إلغاء المتابعة</span>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2">
+                                                <CheckCircle className="w-5 h-5 text-green-600" />
+                                                <span className="text-xs font-bold">متابع</span>
+                                            </div>
+                                        )
+                                    ) : (
+                                        <div className="flex items-center gap-2">
+                                            <UserPlus className="w-5 h-5" />
+                                            <span className="text-xs font-bold">متابعة</span>
+                                        </div>
+                                    )}
                                 </Button>
                                 {currentUser?.role === 'admin' && (
                                     <Button
@@ -281,34 +403,58 @@ export const UserProfilePage: React.FC = () => {
                                 )}
                             </>
                         )}
+                        {!isMe && isFollowing && (
+                            <Button
+                                onClick={() => targetUserId && toggleCloseFriend(targetUserId)}
+                                className={`px-3 rounded-xl border-2 ${isCloseFriend(targetUserId!) ? 'bg-yellow-50 border-yellow-400 text-yellow-500' : 'bg-white border-gray-100 text-gray-300 hover:text-yellow-400 hover:border-yellow-200'}`}
+                                title={isCloseFriend(targetUserId!) ? "صديق مقرب" : "إضافة للأصدقاء المقربين"}
+                            >
+                                <Star className={`w-6 h-6 ${isCloseFriend(targetUserId!) ? 'fill-current' : ''}`} />
+                            </Button>
+                        )}
                     </div>
                 </div>
 
-                {/* 2. STATS CARD 1 (Followers - 1x1) */}
-                <button
-                    onClick={() => setShowConnectionsModal('followers')}
-                    className="bg-white rounded-3xl p-6 shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md transition-shadow group"
-                >
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 transition-colors ${theme.bg} ${theme.text}`}>
-                        <Users className="w-6 h-6" />
-                    </div>
-                    <div className="text-3xl font-black text-gray-900 mb-1">{stats.followers}</div>
-                    <div className="text-sm text-gray-500 font-bold">صديق</div>
-                </button>
+                {/* STATS ROW (3 items side-by-side) */}
+                <div className="md:col-span-2 grid grid-cols-3 gap-3 h-fit">
+                    {/* 2. STATS CARD 1 (Followers) */}
+                    <button
+                        onClick={() => setShowConnectionsModal('followers')}
+                        className="bg-white rounded-2xl p-3 shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md transition-shadow group h-full"
+                    >
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-colors ${theme.bg} ${theme.text}`}>
+                            <Users className="w-5 h-5" />
+                        </div>
+                        <div className="text-xl font-black text-gray-900 mb-0.5">{stats.followers}</div>
+                        <div className="text-xs text-gray-500 font-bold">متابع</div>
+                    </button>
 
-                {/* 3. STATS CARD 2 (Posts Count - 1x1) */}
-                <button
-                    onClick={() => { }}
-                    className="bg-white rounded-3xl p-6 shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md transition-shadow group"
-                >
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 transition-colors ${theme.bg} ${theme.text}`}>
-                        <Grid className="w-6 h-6" />
-                    </div>
-                    <div className="text-3xl font-black text-gray-900 mb-1">{stats.posts}</div>
-                    <div className="text-sm text-gray-500 font-bold">منشور</div>
-                </button>
+                    {/* 3. STATS CARD 2 (Following) */}
+                    <button
+                        onClick={() => setShowConnectionsModal('following')}
+                        className="bg-white rounded-2xl p-3 shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md transition-shadow group h-full"
+                    >
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-colors ${theme.bg} ${theme.text}`}>
+                            <UserPlus className="w-5 h-5" />
+                        </div>
+                        <div className="text-xl font-black text-gray-900 mb-0.5">{stats.following}</div>
+                        <div className="text-xs text-gray-500 font-bold">يتابع</div>
+                    </button>
 
-                {/* 4. USER INFO (Wide - 2x1) */}
+                    {/* 4. STATS CARD 3 (Posts Count) */}
+                    <button
+                        onClick={() => { }}
+                        className="bg-white rounded-2xl p-3 shadow-sm flex flex-col items-center justify-center text-center hover:shadow-md transition-shadow group h-full"
+                    >
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-colors ${theme.bg} ${theme.text}`}>
+                            <Grid className="w-5 h-5" />
+                        </div>
+                        <div className="text-xl font-black text-gray-900 mb-0.5">{stats.posts}</div>
+                        <div className="text-xs text-gray-500 font-bold">منشور</div>
+                    </button>
+                </div>
+
+                {/* 5. USER INFO (Wide - 2x1) - Spanning remaining space if needed or just 2 cols */}
                 <div className="md:col-span-2 bg-white rounded-3xl p-6 shadow-sm flex flex-col justify-center">
                     <h3 className="text-gray-900 font-bold mb-4 flex items-center gap-2">
                         <User className="w-5 h-5 text-gray-400" />
@@ -318,7 +464,9 @@ export const UserProfilePage: React.FC = () => {
                         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl">
                             <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-gray-500 shadow-sm"><MapPin className="w-4 h-4" /></div>
-                                <span className="text-sm font-bold text-gray-700">{profileData?.address || profileData?.city || 'غير محدد'}</span>
+                                <span className="text-sm font-bold text-gray-700">
+                                    {formatLocation(profileData?.governorate, profileData?.address) || 'غير محدد'}
+                                </span>
                             </div>
                         </div>
                         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl">
@@ -415,32 +563,72 @@ export const UserProfilePage: React.FC = () => {
                 post={selectedPost}
             />
 
+
             {/* CONNECTIONS MODAL (Followers/Following) */}
             <Modal
                 isOpen={!!showConnectionsModal}
                 onClose={() => setShowConnectionsModal(null)}
                 title={showConnectionsModal === 'followers' ? 'المتابعون' : 'يتابع'}
             >
-                <div className="min-h-[400px]">
-                    {/* Mock Data for now - ideally this comes from hook */}
-                    <div className="flex flex-col gap-3">
-                        {[1, 2, 3, 4, 5].map(i => (
-                            <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
-                                        <User className="w-5 h-5" />
+                <div className="min-h-[400px] max-h-[60vh] overflow-y-auto pr-2">
+                    {loadingConnections ? (
+                        <div className="flex justify-center py-12">
+                            <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                        </div>
+                    ) : connections.length > 0 ? (
+                        <div className="flex flex-col gap-3">
+                            {connections.map(user => {
+                                const isFollowingUser = amIFollowing(user.id);
+                                const isMeInList = user.id === currentUser?.id;
+
+                                return (
+                                    <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                                        <button
+                                            onClick={() => {
+                                                setShowConnectionsModal(null);
+                                                navigate(`/community/user/${user.id}`);
+                                            }}
+                                            className="flex items-center gap-3 flex-1"
+                                        >
+                                            <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden border border-gray-100">
+                                                <img
+                                                    src={user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || 'User')}&background=random`}
+                                                    alt={user.full_name}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            </div>
+                                            <div className="text-right">
+                                                <h4 className="font-bold text-gray-900 text-sm">{user.full_name}</h4>
+                                                <p className="text-xs text-gray-500">{getRoleLabel(user.role)}</p>
+                                            </div>
+                                        </button>
+
+                                        {!isMeInList && (
+                                            <Button
+                                                size="sm"
+                                                variant={isFollowingUser ? 'outline' : 'primary'}
+                                                className={isFollowingUser ? 'border-gray-300 text-gray-600' : 'bg-blue-600 text-white'}
+                                                onClick={async (e) => {
+                                                    e.stopPropagation();
+                                                    if (isFollowingUser) {
+                                                        await unfollowUser(user.id);
+                                                    } else {
+                                                        await followUser(user.id);
+                                                    }
+                                                }}
+                                            >
+                                                {isFollowingUser ? 'إلغاء المتابعة' : 'متابعة'}
+                                            </Button>
+                                        )}
                                     </div>
-                                    <div className="text-right">
-                                        <h4 className="font-bold text-gray-900 text-sm">د. مستخدم {i}</h4>
-                                        <p className="text-xs text-gray-500">طبيب أسنان</p>
-                                    </div>
-                                </div>
-                                <Button size="sm" variant={showConnectionsModal === 'following' ? 'outline' : 'primary'}>
-                                    {showConnectionsModal === 'following' ? 'إلغاء المتابعة' : 'متابعة'}
-                                </Button>
-                            </div>
-                        ))}
-                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="text-center py-12 text-gray-400 font-bold">
+                            {showConnectionsModal === 'followers' ? 'لا يوجد متابعون بعد' : 'لا يتابع أحد بعد'}
+                        </div>
+                    )}
                 </div>
             </Modal>
 
@@ -559,17 +747,19 @@ export const UserProfilePage: React.FC = () => {
                         </div>
                     )}
 
-                    {/* Phone & Address - Common */}
+                    {/* Governorate & Address */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-1">الهاتف</label>
-                            <input
-                                type="text"
-                                value={editForm.phone}
-                                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                                className="w-full px-4 py-2.5 rounded-xl border border-gray-200"
-                                placeholder="07XX XXX XXXX"
-                            />
+                            <label className="block text-sm font-bold text-gray-700 mb-1">المحافظة</label>
+                            <select
+                                value={editForm.governorate}
+                                onChange={(e) => setEditForm({ ...editForm, governorate: e.target.value })}
+                                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white"
+                            >
+                                {IRAQI_GOVERNORATES.map(gov => (
+                                    <option key={gov} value={gov}>{gov}</option>
+                                ))}
+                            </select>
                         </div>
                         <div>
                             <label className="block text-sm font-bold text-gray-700 mb-1">العنوان</label>
@@ -578,7 +768,7 @@ export const UserProfilePage: React.FC = () => {
                                 value={editForm.address}
                                 onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
                                 className="w-full px-4 py-2.5 rounded-xl border border-gray-200"
-                                placeholder="المدينة، المنطقة"
+                                placeholder="حي، شارع..."
                             />
                         </div>
                     </div>
@@ -639,12 +829,31 @@ export const UserProfilePage: React.FC = () => {
                                     specialties: editForm.specialties,
                                     phone: editForm.phone,
                                     address: editForm.address,
+                                    governorate: editForm.governorate,
                                     university: editForm.university,
                                     graduation_year: editForm.graduation_year ? parseInt(editForm.graduation_year) : null,
                                     avatar_url: avatarUrl
                                 }).eq('id', targetUserId);
 
                                 if (error) throw error;
+
+                                // Sync to role-specific table
+                                if (profileData?.role === 'supplier') {
+                                    await supabase.from('suppliers').update({
+                                        logo: avatarUrl || undefined,
+                                        logo_url: avatarUrl || undefined, // keep both for compat
+                                        governorate: editForm.governorate,
+                                        address: editForm.address,
+                                        phone: editForm.phone,
+                                    }).eq('user_id', targetUserId);
+                                } else if (profileData?.role === 'lab' || profileData?.role === 'laboratory') {
+                                    await supabase.from('dental_laboratories').update({
+                                        logo_url: avatarUrl || undefined,
+                                        governorate: editForm.governorate,
+                                        address: editForm.address,
+                                        phone: editForm.phone,
+                                    }).eq('user_id', targetUserId);
+                                }
 
                                 // Refresh profile data
                                 const { data: updated } = await supabase.from('profiles').select('*').eq('id', targetUserId).single();

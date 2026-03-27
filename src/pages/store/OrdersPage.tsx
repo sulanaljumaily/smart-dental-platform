@@ -25,11 +25,14 @@ export const OrdersPage: React.FC = () => {
 
   const getStatusConfig = (status: string) => {
     switch (status) {
-      case 'delivered': return { color: 'text-emerald-600 bg-emerald-50 border-emerald-100', icon: CheckCircle, label: 'تم التسليم' };
-      case 'shipped': return { color: 'text-blue-600 bg-blue-50 border-blue-100', icon: Truck, label: 'تم الشحن' };
-      case 'processing': return { color: 'text-amber-600 bg-amber-50 border-amber-100', icon: Clock, label: 'قيد التجهيز' };
-      case 'cancelled': return { color: 'text-rose-600 bg-rose-50 border-rose-100', icon: XCircle, label: 'ملغي' };
-      case 'returned': return { color: 'text-purple-600 bg-purple-50 border-purple-100', icon: Package, label: 'مرتجع' };
+      case 'pending': return { color: 'text-yellow-600 bg-yellow-50 border-yellow-200', icon: Clock, label: 'معلق' };
+      case 'received': return { color: 'text-blue-600 bg-blue-50 border-blue-200', icon: CheckCircle, label: 'تم الاستلام' };
+      case 'processing': return { color: 'text-amber-600 bg-amber-50 border-amber-200', icon: Clock, label: 'قيد التجهيز' };
+      case 'shipped': return { color: 'text-indigo-600 bg-indigo-50 border-indigo-200', icon: Truck, label: 'تم الشحن' };
+      case 'delivered': return { color: 'text-emerald-600 bg-emerald-50 border-emerald-200', icon: CheckCircle, label: 'تم التسليم' };
+      case 'cancelled': return { color: 'text-rose-600 bg-rose-50 border-rose-200', icon: XCircle, label: 'ملغي' };
+      case 'returned': return { color: 'text-purple-600 bg-purple-50 border-purple-200', icon: Package, label: 'مرتجع' };
+      case 'return_requested': return { color: 'text-orange-600 bg-orange-50 border-orange-200', icon: Clock, label: 'طلب إرجاع' };
       default: return { color: 'text-slate-600 bg-slate-50 border-slate-100', icon: Package, label: status };
     }
   };
@@ -113,7 +116,25 @@ export const OrdersPage: React.FC = () => {
                           {status.label}
                         </div>
                       </div>
-                      <p className="text-xs text-slate-400 font-medium">{order.date}</p>
+                      <div className="flex flex-col gap-1 mt-1">
+                        {order.supplierName && (
+                          <div className="flex items-center gap-1 mt-1 text-xs font-bold">
+                            <div 
+                              className="text-blue-600 hover:underline cursor-pointer flex items-center gap-1"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (order.supplierId) navigate(`/store/supplier/${order.supplierId}`);
+                              }}
+                            >
+                              <span>{order.supplierName}</span>
+                            </div>
+                            {order.creatorName && (
+                              <span className="text-slate-400 font-medium">بواسطة ({order.creatorName})</span>
+                            )}
+                          </div>
+                        )}
+                        <p className="text-xs text-slate-400 font-medium">{order.date || order.createdAt}</p>
+                      </div>
                     </div>
                     <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
                       <ArrowRight className="w-5 h-5 -rotate-45 group-hover:rotate-180 transition-transform duration-500" />

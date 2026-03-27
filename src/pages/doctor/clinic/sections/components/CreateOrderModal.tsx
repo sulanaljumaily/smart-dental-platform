@@ -5,6 +5,7 @@ import { useLabOrders } from '../../../../../hooks/useLabOrders';
 import { usePatients } from '../../../../../hooks/usePatients';
 import { useClinicLabs } from '../../../../../hooks/useClinicLabs';
 import { useStaff } from '../../../../../hooks/useStaff';
+import { supabase } from '../../../../../lib/supabase';
 import { toast } from 'sonner';
 
 interface CreateOrderModalProps {
@@ -14,9 +15,10 @@ interface CreateOrderModalProps {
     lab?: any; // If set, context is "Ordering from Lab"
     patientId?: string; // If set, context is "Ordering for Patient"
     patientName?: string;
+    selectedPlanId?: string;
 }
 
-export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({ isOpen, onClose, clinicId, lab, patientId, patientName }) => {
+export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({ isOpen, onClose, clinicId, lab, patientId, patientName, selectedPlanId: initialPlanId }) => {
     const { createOrder } = useLabOrders({ clinicId });
     const { patients } = usePatients(clinicId);
     const { labs } = useClinicLabs(clinicId);
@@ -32,13 +34,61 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({ isOpen, onCl
     const [selectedPatientId, setSelectedPatientId] = useState<string>(patientId || '');
     const [selectedLabId, setSelectedLabId] = useState<string>(lab?.id || '');
 
+    // Dental Plan & Service State
+    const [patientPlans, setPatientPlans] = useState<any[]>([]);
+    const [selectedPlanId, setSelectedPlanId] = useState<string>(initialPlanId || '');
+    const [labServices, setLabServices] = useState<any[]>([]);
+    const [selectedServiceId, setSelectedServiceId] = useState<string>('');
+    const [manualPrice, setManualPrice] = useState<number>(0);
+    const [manualServiceName, setManualServiceName] = useState<string>('');
+
+    // Fetch Treatment Plans
+    useEffect(() => {
+        if (!selectedPatientId) {
+            setPatientPlans([]);
+            return;
+        }
+        const loadPlans = async () => {
+            const { data } = await supabase
+                .from('tooth_treatment_plans')
+                .select('*')
+                .eq('patient_id', selectedPatientId)
+                .neq('overall_status', 'completed')
+                .neq('overall_status', 'post_treatment');
+            setPatientPlans(data || []);
+        };
+        loadPlans();
+    }, [selectedPatientId]);
+
+    // Fetch Lab Services
+    useEffect(() => {
+        const targetLab = labs.find(l => l.id === selectedLabId) || lab;
+        if (!targetLab || targetLab.isCustom) {
+            setLabServices([]);
+            return;
+        }
+        const loadServices = async () => {
+            const { data } = await supabase
+                .from('lab_services')
+                .select('*')
+                .eq('lab_id', targetLab.id)
+                .eq('is_active', true);
+            setLabServices(data || []);
+        };
+        loadServices();
+    }, [selectedLabId, labs, lab]);
+
     // Reset state when modal opens
     useEffect(() => {
         if (isOpen) {
             setSelectedPatientId(patientId || '');
             setSelectedLabId(lab?.id || '');
+            setSelectedPlanId(initialPlanId || '');
+            setSelectedServiceId('');
+            setManualPrice(0);
+            setManualServiceName('');
         }
-    }, [isOpen, patientId, lab]);
+    }, [isOpen, patientId, lab, initialPlanId]);
 
     if (!isOpen) return null;
 
@@ -74,10 +124,49 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({ isOpen, onCl
             }
 
             if (!finalPatientName) {
-                alert('خطأ: لم يتم تحديد اسم المريض');
+                toast.error('لم يتم تحديد اسم المريض');
                 setLoading(false);
                 return;
             }
+
+            // --- Multi-Tooth Pricing Calculation ---
+            const selectedPlan = patientPlans.find(p => p.id === selectedPlanId);
+            const isCustomLab = targetLab.isCustom;
+            let finalServiceName = '';
+            let basePrice = 0;
+
+            if (isCustomLab) {
+                finalServiceName = manualServiceName;
+                basePrice = manualPrice;
+            } else {
+                const srv = labServices.find(s => s.id === selectedServiceId);
+                if (srv) {
+                    finalServiceName = srv.name;
+                    basePrice = Number(srv.base_price || 0);
+                }
+            }
+
+            if (!finalServiceName) {
+                toast.error('يرجى تحديد الخدمة المطلوبة أو إدخال إسم الخدمة');
+                setLoading(false);
+                return;
+            }
+
+            let quantity = 1;
+            let teethNote = 'علاج عام';
+
+            if (selectedPlan) {
+                if (selectedPlan.tooth_numbers && selectedPlan.tooth_numbers.length > 0) {
+                    quantity = selectedPlan.tooth_numbers.length;
+                    teethNote = `أسنان: ${selectedPlan.tooth_numbers.join(', ')} (العدد: ${quantity})`;
+                } else if (selectedPlan.tooth_number && selectedPlan.tooth_number !== 0) {
+                    quantity = 1;
+                    teethNote = `سن رقم: ${selectedPlan.tooth_number}`;
+                }
+            }
+
+            const totalPrice = basePrice * quantity;
+            finalServiceName = `${finalServiceName} - ${teethNote}`;
 
             await createOrder({
                 clinic_id: clinicId,
@@ -89,7 +178,8 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({ isOpen, onCl
                 custom_lab_id: targetLab.isCustom ? targetLab.id : null,
                 custom_lab_name: targetLab.isCustom ? targetLab.name : null,
 
-                service_name: formData.get('serviceName') as string,
+                service_name: finalServiceName,
+                price: totalPrice,
                 // Add Doctor / Staff Member
                 // User wants to use id from staff table (integer)
                 // We send both for compatibility
@@ -244,17 +334,87 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({ isOpen, onCl
                             </div>
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">نوع العمل / الخدمة</label>
-                            <div className="relative">
-                                <FileText className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                <input
-                                    name="serviceName"
+                        {/* Treatment Plan Dropdown */}
+                        <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">الخطة العلاجية المرتبطة</label>
+                            <select
+                                value={selectedPlanId}
+                                onChange={(e) => setSelectedPlanId(e.target.value)}
+                                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                            >
+                                <option value="">(اختياري) بدون خطة علاجية مرتبطة</option>
+                                {patientPlans.map(plan => {
+                                    const teeth = plan.tooth_numbers && plan.tooth_numbers.length > 0
+                                        ? `أسنان (${plan.tooth_numbers.join(', ')})`
+                                        : plan.tooth_number ? `سن (${plan.tooth_number})` : 'علاج عام';
+                                    return (
+                                        <option key={plan.id} value={plan.id}>
+                                            {plan.treatment_type || 'علاج'} - {teeth}
+                                        </option>
+                                    );
+                                })}
+                            </select>
+                            <p className="text-xs text-gray-500 mt-1">
+                                اختيار الخطة يحدد كمية الأسنان تلقائياً لحساب السعر الإجمالي للخدمة.
+                            </p>
+                        </div>
+
+                        {/* Lab Service Selection based on Lab Type */}
+                        <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">الخدمة المطلوبة</label>
+                            {!selectedLabId ? (
+                                <select disabled className="w-full px-4 py-2 border rounded-lg bg-gray-50 text-gray-500 appearance-none">
+                                    <option>الرجاء اختيار المختبر أولاً لعرض الخدمات...</option>
+                                </select>
+                            ) : (labs.find(l => l.id === selectedLabId) || lab)?.isCustom ? (
+                                <div className="grid grid-cols-2 gap-4">
+                                    <input
+                                        type="text"
+                                        value={manualServiceName}
+                                        onChange={(e) => setManualServiceName(e.target.value)}
+                                        required
+                                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                                        placeholder="اسم الخدمة (مختبر خارجي)..."
+                                    />
+                                    <div className="relative">
+                                        <input
+                                            type="number"
+                                            value={manualPrice || ''}
+                                            onChange={(e) => setManualPrice(Number(e.target.value))}
+                                            required
+                                            min="0"
+                                            className="w-full pr-10 pl-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                                            placeholder="سعر الوحدة..."
+                                        />
+                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">IQD</span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <select
+                                    value={selectedServiceId}
+                                    onChange={(e) => setSelectedServiceId(e.target.value)}
                                     required
-                                    className="w-full pr-10 pl-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                                    placeholder="مثال: طقم أسنان كامل"
-                                />
-                            </div>
+                                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                                >
+                                    <option value="">اختر اسم الخدمة من خدمات المعمل...</option>
+                                    {labServices.map(srv => {
+                                        // Calculate total based on quantity
+                                        let quantity = 1;
+                                        if (selectedPlanId) {
+                                            const plan = patientPlans.find(p => p.id === selectedPlanId);
+                                            if (plan && plan.tooth_numbers && plan.tooth_numbers.length > 0) {
+                                                quantity = plan.tooth_numbers.length;
+                                            }
+                                        }
+                                        const total = Number(srv.base_price || 0) * quantity;
+                                        return (
+                                            <option key={srv.id} value={srv.id}>
+                                                {srv.name} - السعر الفردي: {Number(srv.base_price || 0).toLocaleString()} (الإجمالي: {total.toLocaleString()} د.ع)
+                                            </option>
+                                        );
+                                    })}
+                                </select>
+                            )}
                         </div>
 
                         <div>
