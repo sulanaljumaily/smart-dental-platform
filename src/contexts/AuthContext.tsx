@@ -34,13 +34,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   });
 
   // Build user from auth metadata (fallback)
+  // For OAuth users without a profile, role will be null or 'newuser' to trigger CompleteRegistrationModal
   const buildUserFromMeta = (userId: string, email: string, meta?: any): User => ({
     id: userId,
     email: email,
-    name: meta?.full_name || email.split('@')[0],
-    role: (meta?.role as UserRole) || null,
+    name: meta?.full_name || meta?.name || email.split('@')[0],
+    role: (meta?.role as UserRole) || 'newuser',
     phone: meta?.phone || '',
-    avatar: ''
+    avatar: meta?.avatar_url || meta?.picture || ''
   });
 
   const fetchProfile = useCallback(async (userId: string, email: string) => {

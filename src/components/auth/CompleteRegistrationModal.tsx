@@ -15,8 +15,15 @@ export const CompleteRegistrationModal: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Only show if user is authenticated but has no role yet (or defaulted to 'newuser' by database trigger)
-  if (!isAuthenticated || !user || (user.role && user.role !== 'newuser')) {
+  // Only show if user is authenticated but has no role yet (null or 'newuser')
+  // This happens when users sign in via OAuth (Google/Facebook) for the first time
+  if (!isAuthenticated || !user) {
+    return null;
+  }
+  
+  // If user has a valid role (not null and not 'newuser'), don't show the modal
+  const validRoles = ['doctor', 'supplier', 'laboratory', 'admin'];
+  if (user.role && validRoles.includes(user.role)) {
     return null;
   }
 
