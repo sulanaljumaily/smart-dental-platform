@@ -13,7 +13,8 @@ import { supabase } from '../../lib/supabase';
 
 export const RegisterPage: React.FC = () => {
   const { t } = useLanguage();
-  const { register, login } = useAuth();
+  const authContext = useAuth();
+  const { login } = authContext;
   const { settings } = usePlatform();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -96,7 +97,7 @@ export const RegisterPage: React.FC = () => {
     setLoading(true);
 
     try {
-      await register(
+      await authContext.register(
         formData.email,
         formData.password,
         formData.fullName,
