@@ -340,8 +340,8 @@ export const LaboratoryManagementSection: React.FC = () => {
                       key={filter}
                       onClick={() => setStatusFilter(filter)}
                       className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${statusFilter === filter
-                          ? 'bg-white text-gray-900 shadow-sm'
-                          : 'text-gray-500 hover:text-gray-900'
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-900'
                         }`}
                     >
                       {filter === 'all' ? 'الكل' : filter === 'active' ? 'نشط' : 'معلق'}
@@ -358,9 +358,18 @@ export const LaboratoryManagementSection: React.FC = () => {
                 {filteredLabs.map(lab => (
                   <div key={lab.id} className={`bg-white rounded-xl border p-5 hover:shadow-md transition-shadow relative ${lab.status === 'suspended' ? 'border-red-200 bg-red-50/10' : 'border-gray-200'}`}>
                     <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h3 className="font-bold text-gray-900 line-clamp-1">{lab.name}</h3>
-                        <p className="text-sm text-gray-500">{lab.ownerName}</p>
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-white rounded-xl border border-gray-100 flex items-center justify-center text-blue-600 font-bold overflow-hidden shadow-sm">
+                          {lab.logo ? (
+                            <img src={lab.logo} alt={lab.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <Building2 className="w-6 h-6" />
+                          )}
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-gray-900 line-clamp-1">{lab.name}</h3>
+                          <p className="text-sm text-gray-500">{lab.ownerName}</p>
+                        </div>
                       </div>
                       <span className={`px-2 py-1 rounded text-xs font-medium border ${lab.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' :
                         lab.status === 'suspended' ? 'bg-red-50 text-red-700 border-red-200' :
@@ -456,7 +465,18 @@ export const LaboratoryManagementSection: React.FC = () => {
                   <tbody className="divide-y divide-gray-50">
                     {filteredLabs.map(lab => (
                       <tr key={lab.id} className="hover:bg-purple-50/30 transition-colors">
-                        <td className="p-6 font-medium text-gray-900">{lab.name}</td>
+                        <td className="p-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center text-purple-600 font-bold overflow-hidden border border-purple-100">
+                              {lab.logo ? (
+                                <img src={lab.logo} alt={lab.name} className="w-full h-full object-cover" />
+                              ) : (
+                                lab.name.charAt(0)
+                              )}
+                            </div>
+                            <span className="font-medium text-gray-900">{lab.name}</span>
+                          </div>
+                        </td>
                         <td className="p-6">{lab.totalRevenue.toLocaleString()} د.ع</td>
                         <td className="p-6">
                           <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-bold">

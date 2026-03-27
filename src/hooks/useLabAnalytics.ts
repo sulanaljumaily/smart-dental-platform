@@ -32,8 +32,8 @@ export const useLabAnalytics = () => {
             const { data: labData } = await supabase
                 .from('dental_laboratories')
                 .select('id')
-                .eq('owner_id', user?.id)
-                .single();
+                .or(`id.eq.${user?.id},user_id.eq.${user?.id}`)
+                .maybeSingle();
 
             if (!labData) return;
 
@@ -83,7 +83,7 @@ export const useLabAnalytics = () => {
             // Top Clinics
             const clinicStats: Record<string, { name: string, orders: number, revenue: number }> = {};
             orders.forEach(o => {
-                const name = o.clinic?.name || 'Unknown';
+                const name = (o.clinic as any)?.name || 'Unknown';
                 if (!clinicStats[name]) clinicStats[name] = { name, orders: 0, revenue: 0 };
                 clinicStats[name].orders += 1;
                 clinicStats[name].revenue += (o.total_cost || 0);

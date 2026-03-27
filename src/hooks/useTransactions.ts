@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
 export interface Transaction {
@@ -16,9 +16,12 @@ export interface Transaction {
 export const useTransactions = (clinicId?: string) => {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(false);
+    const mountedRef = useRef(true);
 
     useEffect(() => {
+        mountedRef.current = true;
         fetchTransactions();
+        return () => { mountedRef.current = false; };
     }, [clinicId]);
 
     const fetchTransactions = async () => {
@@ -50,10 +53,11 @@ export const useTransactions = (clinicId?: string) => {
             }));
 
             setTransactions(mapped);
-        } catch (error) {
-            console.error('Error fetching transactions:', error);
+        } catch (error: any) {
+            if (error?.name === 'AbortError' || error?.message?.includes('AbortError')) return;
+            if (mountedRef.current) console.error('Error fetching transactions:', error);
         } finally {
-            setLoading(false);
+            if (mountedRef.current) setLoading(false);
         }
     };
 

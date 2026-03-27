@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   User, Settings, Building2, MapPin, Phone, Mail, Clock,
   Shield, Star, Edit, Save, X, Plus, Trash2, Camera,
@@ -10,6 +10,12 @@ import {
 import { Card } from '../../../components/common/Card';
 import { BentoStatCard } from '../../../components/dashboard/BentoStatCard';
 import { NotificationsList } from '../../../components/common/NotificationsList';
+import { SocialBadges } from '../../../components/auth/SocialBadges';
+
+import { supabase } from '../../../lib/supabase';
+import { useAuth } from '../../../contexts/AuthContext';
+import { useLabProfile } from '../../../hooks/useLabProfile';
+import { toast } from 'sonner';
 
 interface LabProfile {
   // بيانات المختبر الأساسية
@@ -60,6 +66,8 @@ interface LabProfile {
 }
 
 export const LabProfileSection: React.FC = () => {
+  const { user } = useAuth();
+  const { profile: dbLabProfile, updateProfile: updateDbLabProfile } = useLabProfile();
   const [activeTab, setActiveTab] = useState('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
@@ -71,60 +79,79 @@ export const LabProfileSection: React.FC = () => {
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfile({ ...profile, logo: reader.result as string });
-      };
-      reader.readAsDataURL(file);
+    if (!file || !user?.id) return;
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `lab-logos/${user.id}/${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        toast.error('فشل رفع الصورة');
+        return;
+      }
+
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      if (urlData?.publicUrl) {
+        setProfile({ ...profile, logo: urlData.publicUrl });
+        // Also persist to DB via the hook
+        await updateDbLabProfile({ avatar: urlData.publicUrl });
+        toast.success('تم تحديث صورة المختبر');
+      }
+    } catch (err) {
+      console.error('Image upload failed:', err);
+      toast.error('حدث خطأ أثناء رفع الصورة');
     }
   };
 
   // بيانات افتراضية للملف الشخصي
   const [profile, setProfile] = useState<LabProfile>({
-    id: '1',
-    labName: 'مختبر الأضواء للأسنان',
-    labNameAr: 'مختبر الأضواء للأسنان',
-    email: 'info@alladwa-lab.iq',
-    phone: '+964123456789',
-    address: 'شارع حيفا، الكرادة، بغداد',
-    city: 'بغداد',
+    id: '',
+    labName: '',
+    labNameAr: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
     governorate: 'بغداد',
-    description: 'مختبر متخصص في خدمات الأشعة السنية والتشخيص',
-    descriptionAr: 'مختبر متخصص في خدمات الأشعة السنية والتشخيص',
-    establishmentDate: '2020-03-15',
-    licenseNumber: 'LAB-2020-001',
-    licenseExpiryDate: '2025-12-31',
-    ownerName: 'د. أحمد محمد علي',
-    ownerPhone: '+964123456789',
-    ownerEmail: 'ahmed@alladwa-lab.iq',
+    description: '',
+    descriptionAr: '',
+    establishmentDate: new Date().toISOString().split('T')[0],
+    licenseNumber: '',
+    licenseExpiryDate: '',
+    ownerName: '',
+    ownerPhone: '',
+    ownerEmail: '',
     workingHours: {
       start: '08:00',
       end: '18:00',
       days: ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس']
     },
-    rating: 4.7,
-    reviewCount: 89,
-    isActive: true,
-    isFeatured: true,
-    verificationStatus: 'verified',
+    rating: 0,
+    reviewCount: 0,
+    isActive: false,
+    isFeatured: false,
+    verificationStatus: 'pending',
 
     labSettings: {
       workingHours: '8:00 ص - 6:00 م',
       responseTime: '30-60 دقيقة',
-      emergencyService: true,
-      autoAcceptOrders: true,
-      deliveryRadius: 25,
-      // priceList removed - moved to Finance Section
+      emergencyService: false,
+      autoAcceptOrders: false,
+      deliveryRadius: 10,
     },
 
-    totalOrders: 156,
-    completedOrders: 142,
-    cancelledOrders: 14,
-    monthlyRevenue: 485000,
-    averageDeliveryTime: 2.5
+    totalOrders: 0,
+    completedOrders: 0,
+    cancelledOrders: 0,
+    monthlyRevenue: 0,
+    averageDeliveryTime: 0
   });
 
   const [security, setSecurity] = useState({
@@ -133,14 +160,43 @@ export const LabProfileSection: React.FC = () => {
   });
 
   const iraqiGovernorates = [
-    'بغداد', 'البصرة', 'أربيل', 'الموصل', 'النجف', 'كربلاء',
-    'ديالى', 'كركوك', 'البصرة', 'ذي قار', 'ميسان', 'المثنى',
-    'الأنبار', 'بابل', 'تكريت', 'واسط', 'القادسية', 'مثنى'
+    'بغداد', 'البصرة', 'أربيل', 'نينوى', 'النجف', 'كربلاء',
+    'ديالى', 'كركوك', 'ذي قار', 'ميسان', 'المثنى',
+    'الأنبار', 'بابل', 'صلاح الدين', 'واسط', 'القادسية'
   ];
 
-  const handleSaveProfile = () => {
-    setIsEditing(false);
+  // Sync db data into local state when it loads
+  useEffect(() => {
+    if (dbLabProfile && (dbLabProfile.id || dbLabProfile.email)) {
+      setProfile(prev => ({
+        ...prev,
+        id: dbLabProfile.id || '',
+        labName: dbLabProfile.name || '',
+        email: dbLabProfile.email || '',
+        phone: dbLabProfile.phone || '',
+        address: dbLabProfile.address || '',
+        // governorate now has its own column — read it directly
+        governorate: (dbLabProfile as any).governorate || prev.governorate || 'بغداد',
+        description: dbLabProfile.description || '',
+        logo: dbLabProfile.avatar || '',
+      }));
+    }
+  }, [dbLabProfile]);
 
+  const handleSaveProfile = async () => {
+    try {
+      await updateDbLabProfile({
+        name: profile.labName,
+        email: profile.email,
+        phone: profile.phone,
+        address: profile.address,       // street address only
+        governorate: profile.governorate, // separate column
+        description: profile.description
+      } as any);
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Save failed', error);
+    }
   };
 
   const handlePasswordChange = () => {
@@ -191,7 +247,10 @@ export const LabProfileSection: React.FC = () => {
             <div className="flex items-start justify-between mb-6 flex-wrap gap-4">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">{profile.labName}</h1>
-                <p className="text-gray-600 text-lg mb-4 max-w-2xl leading-relaxed">{profile.description}</p>
+                <p className="text-gray-600 text-lg mb-2 max-w-2xl leading-relaxed">{profile.description}</p>
+                <div className="mb-4">
+                  <SocialBadges />
+                </div>
                 <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
                   <div className="flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
                     <Calendar className="w-4 h-4 text-purple-500" />
@@ -338,7 +397,7 @@ export const LabProfileSection: React.FC = () => {
                     className="w-full font-bold text-gray-900 bg-transparent border-b border-gray-300 focus:border-purple-500 focus:outline-none py-1"
                   />
                 ) : (
-                  <p className="font-bold text-gray-900">{profile.email}</p>
+                  <p className="font-bold text-gray-900">{profile.email || <span className="text-gray-400 font-normal">لم يُدخل بعد</span>}</p>
                 )}
               </div>
             </div>
@@ -357,7 +416,9 @@ export const LabProfileSection: React.FC = () => {
                     className="w-full font-bold text-gray-900 bg-transparent border-b border-gray-300 focus:border-purple-500 focus:outline-none py-1"
                   />
                 ) : (
-                  <p className="font-bold text-gray-900 font-numeric" dir="ltr">{profile.phone}</p>
+                  profile.phone
+                    ? <a href={`tel:${profile.phone}`} className="font-bold text-green-700 hover:underline" dir="ltr">{profile.phone}</a>
+                    : <p className="text-gray-400 font-normal">لم يُدخل بعد</p>
                 )}
               </div>
             </div>
@@ -376,7 +437,9 @@ export const LabProfileSection: React.FC = () => {
                     className="w-full font-bold text-gray-900 bg-transparent border-b border-gray-300 focus:border-purple-500 focus:outline-none py-1"
                   />
                 ) : (
-                  <p className="font-bold text-gray-900">{profile.address}</p>
+                  <p className="font-bold text-gray-900">
+                    {profile.address || <span className="text-gray-400 font-normal">لم يُحدد العنوان</span>}
+                  </p>
                 )}
               </div>
             </div>
@@ -386,20 +449,13 @@ export const LabProfileSection: React.FC = () => {
                 <Building2 className="w-5 h-5" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-500 mb-1">المدينة / المحافظة</p>
+                <p className="text-sm font-medium text-gray-500 mb-1">المحافظة</p>
                 {isEditing ? (
                   <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={profile.city}
-                      onChange={(e) => setProfile({ ...profile, city: e.target.value })}
-                      placeholder="المدينة"
-                      className="font-bold text-gray-900 bg-transparent border-b border-gray-300 focus:border-purple-500 focus:outline-none flex-1 py-1"
-                    />
                     <select
                       value={profile.governorate}
                       onChange={(e) => setProfile({ ...profile, governorate: e.target.value })}
-                      className="font-bold text-gray-900 bg-transparent border-b border-gray-300 focus:border-purple-500 focus:outline-none py-1"
+                      className="font-bold text-gray-900 bg-transparent border-b border-gray-300 focus:border-purple-500 focus:outline-none flex-1 py-1"
                     >
                       {iraqiGovernorates.map(gov => (
                         <option key={gov} value={gov}>{gov}</option>
@@ -407,7 +463,7 @@ export const LabProfileSection: React.FC = () => {
                     </select>
                   </div>
                 ) : (
-                  <p className="font-bold text-gray-900">{profile.city}, {profile.governorate}</p>
+                  <p className="font-bold text-gray-900">{profile.governorate || 'بغداد'}</p>
                 )}
               </div>
             </div>

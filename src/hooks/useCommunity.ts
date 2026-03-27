@@ -16,9 +16,11 @@ export const useCommunity = () => {
         createPost: context.createPost, // Expose directly for GroupDetailPage
         likePost: context.likePost,
         toggleLike: context.likePost, // Alias for backward compatibility
-        addComment: (postId: string, text: string, user?: any) => {
-            context.addComment(postId, text);
+        addComment: (postId: string, text: string, replyToUserId?: string) => {
+            context.addComment(postId, text, replyToUserId);
         },
+        updateComment: context.updateComment,
+        deleteComment: context.deleteComment,
         updatePost: context.updatePost,
         deletePost: context.deletePost,
 
@@ -31,8 +33,17 @@ export const useCommunity = () => {
         savedItems: context.savedItems,
         myEnrollments: context.myEnrollments,
         users: context.users,
+        suggestedUsers: context.suggestedUsers,
 
         // Social Actions
+        followUser: context.followUser,
+        unfollowUser: context.unfollowUser,
+        amIFollowing: context.amIFollowing,
+        toggleCloseFriend: context.toggleCloseFriend,
+        isCloseFriend: context.isCloseFriend,
+        following: context.following,
+        followers: context.followers,
+
         addFriend: context.addFriend,
         removeFriend: context.removeFriend,
         joinGroup: context.joinGroup,

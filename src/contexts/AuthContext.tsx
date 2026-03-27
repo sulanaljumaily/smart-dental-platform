@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { User, UserRole } from '../types';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
+import { sendRoleNotification } from '../lib/notifications';
 
 interface AuthContextType {
   user: User | null;
@@ -19,53 +20,101 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const mountedRef = useRef(true);
+  const fetchingRef = useRef(false); // Prevent concurrent fetchProfile calls
+
+  // Build user object from profile DB row
+  const buildUserFromProfile = (data: any, email: string): User => ({
+    id: data.id,
+    email: data.email || email,
+    name: data.full_name || email.split('@')[0],
+    role: data.role as UserRole,
+    phone: data.phone || '',
+    avatar: data.avatar_url || ''
+  });
+
+  // Build user from auth metadata (fallback)
+  const buildUserFromMeta = (userId: string, email: string, meta?: any): User => ({
+    id: userId,
+    email: email,
+    name: meta?.full_name || email.split('@')[0],
+    role: (meta?.role as UserRole) || null,
+    phone: meta?.phone || '',
+    avatar: ''
+  });
+
+  const fetchProfile = useCallback(async (userId: string, email: string) => {
+    // Prevent concurrent fetches (race between login + onAuthStateChange)
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, email, full_name, role, phone, avatar_url')
+        .eq('id', userId)
+        .single();
+
+      if (!mountedRef.current) return;
+
+      if (!error && data) {
+        setUser(buildUserFromProfile(data, email));
+      } else {
+        // Profile query failed or no row → fallback to auth metadata
+        if (error && !error.message?.includes('AbortError')) {
+          console.warn('[Auth] Profile fetch error, using metadata fallback:', error.message);
+        }
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (!mountedRef.current) return;
+        setUser(buildUserFromMeta(userId, email, authUser?.user_metadata));
+      }
+    } catch (err: any) {
+      if (err?.name === 'AbortError' || err?.message?.includes('AbortError')) return;
+      console.error('[Auth] Unexpected error fetching profile:', err);
+      if (mountedRef.current) {
+        setUser(buildUserFromMeta(userId, email));
+      }
+    } finally {
+      fetchingRef.current = false;
+      if (mountedRef.current) setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
+    mountedRef.current = true;
+
     // 1. Initial Session Check
     const initializeAuth = async () => {
-      setLoading(true);
       try {
         const { data: { session } } = await supabase.auth.getSession();
+        if (!mountedRef.current) return;
 
         if (session?.user) {
-          console.log('[AuthDebug] Initial session found. Bypassing profile fetch...');
-          // await fetchProfile(session.user.id, session.user.email!);
-          setUser({
-            id: session.user.id,
-            email: session.user.email!,
-            name: session.user.user_metadata?.full_name || 'Demo Doctor',
-            role: (session.user.user_metadata?.role as UserRole) || 'doctor',
-            phone: '',
-            avatar: ''
-          });
+          await fetchProfile(session.user.id, session.user.email!);
         } else {
           setUser(null);
+          setLoading(false);
         }
-      } catch (error) {
+      } catch (error: any) {
+        if (error?.name === 'AbortError' || error?.message?.includes('AbortError')) return;
         console.error('Error checking auth session:', error);
-      } finally {
-        setLoading(false);
+        if (mountedRef.current) setLoading(false);
       }
     };
 
     initializeAuth();
 
-    // 2. Auth State Listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // 2. Auth State Listener — handles login/logout/token refresh
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mountedRef.current) return;
+
       if (session?.user) {
-        // Only fetch if we don't have the user or it changed
-        if (!user || user.id !== session.user.id) {
-          console.log('[AuthDebug] Session found. Bypassing profile fetch...');
-          // await fetchProfile(session.user.id, session.user.email!);
-          setUser({
-            id: session.user.id,
-            email: session.user.email!,
-            name: session.user.user_metadata?.full_name || 'Demo Doctor',
-            role: (session.user.user_metadata?.role as UserRole) || 'doctor',
-            phone: '',
-            avatar: ''
-          });
-        }
+        // Small delay to avoid racing with initial getSession
+        setTimeout(() => {
+          if (mountedRef.current) {
+            fetchProfile(session.user.id, session.user.email!);
+          }
+        }, 100);
       } else {
         setUser(null);
         setLoading(false);
@@ -73,50 +122,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
 
     return () => {
+      mountedRef.current = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [fetchProfile]);
 
-  const fetchProfile = async (userId: string, email: string) => {
-    console.log('[AuthDebug] Fetching profile for:', userId);
+  const login = async (email: string, password: string, _role?: UserRole) => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) {
-        console.error('[AuthDebug] Error fetching profile:', error);
-        toast.error(`Error fetching profile: ${error.message}`);
-        // Fallback if profile missing in DEV only
-        // return; 
-      }
-
-      if (data) {
-        console.log('[AuthDebug] Profile found:', data);
-        setUser({
-          id: data.id,
-          email: data.email || email,
-          name: data.full_name || email.split('@')[0],
-          role: data.role as UserRole,
-          phone: data.phone,
-          avatar: data.avatar_url
-        });
-      } else {
-        console.error('[AuthDebug] Profile data is null');
-        toast.error('Profile not found in database');
-      }
-    } catch (err) {
-      console.error('[AuthDebug] Unexpected error fetching profile:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const login = async (email: string, password: string, role?: UserRole) => {
-    try {
-      console.log('[AuthDebug] Attempting login for:', email);
+      setLoading(true);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -124,26 +137,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (error) throw error;
 
-      console.log('[AuthDebug] Auth successful, user:', data.user?.id);
-
+      // Don't call fetchProfile here — onAuthStateChange handles it.
+      // This prevents the race condition (two concurrent fetchProfile calls).
       if (data.user) {
-        console.log('[AuthDebug] User authenticated. Skipping profile fetch for debugging...');
-        // await fetchProfile(data.user.id, data.user.email!);
-
-        // Manual User Set to unblock
-        setUser({
-          id: data.user.id,
-          email: data.user.email!,
-          name: data.user.user_metadata?.full_name || 'Demo Doctor',
-          role: (data.user.user_metadata?.role as UserRole) || 'doctor',
-          phone: '',
-          avatar: ''
-        });
-
-        toast.success(`تم تسجيل الدخول بنجاح`);
+        toast.success('تم تسجيل الدخول بنجاح');
       }
     } catch (error: any) {
-      console.error('[AuthDebug] Login error:', error);
+      console.error('[Auth] Login error:', error);
+      if (mountedRef.current) setLoading(false);
       toast.error(error.message || 'فشل تسجيل الدخول');
       throw error;
     }
@@ -184,9 +185,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         toast.success('تم إنشاء الحساب بنجاح');
 
-        if (data.session) {
-          await fetchProfile(data.user.id, email);
+        // Notify Admins about new professional accounts
+        if (role === 'supplier') {
+          await sendRoleNotification('admin', 'طلب انضمام مورد جديد', `قام ${name} بالتسجيل كمورد جديد بانتظار المراجعة.`, '/admin/suppliers');
+        } else if (role === 'laboratory') {
+          await sendRoleNotification('admin', 'طلب انضمام مختبر جديد', `قام ${name} بالتسجيل كمختبر جديد بانتظار المراجعة.`, '/admin/labs');
         }
+
+        // onAuthStateChange will handle fetchProfile
       }
     } catch (error: any) {
       console.error('Registration error:', error);
@@ -206,15 +212,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const getAccessibleClinics = () => {
-    // This should ideally come from a 'clinic_access' table or similar logic
-    // For now, we mock it based on role or simple logic
-    if (user?.role === 'doctor') return [user.id]; // Simplified
+    if (user?.role === 'doctor') return [user.id];
     return [];
   };
 
   const isMultiClinicOwner = () => {
-    // Check against DB if doctor owns multiple clinics
-    return false; // Default safe
+    return false;
   };
 
   return (

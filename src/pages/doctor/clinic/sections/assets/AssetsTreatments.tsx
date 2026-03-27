@@ -31,6 +31,7 @@ export const AssetsTreatments: React.FC = () => {
         expectedSessions: number;
         isActive: boolean;
         isComplex: boolean;
+        scope: 'tooth' | 'general' | 'both';
     }>({
         name: '',
         category: 'عام',
@@ -41,7 +42,8 @@ export const AssetsTreatments: React.FC = () => {
         totalRevenue: 0,
         expectedSessions: 1,
         isActive: true,
-        isComplex: false
+        isComplex: false,
+        scope: 'general' as 'general' | 'tooth' | 'both'
     });
 
     const handleEdit = (treatment: any) => {
@@ -56,7 +58,8 @@ export const AssetsTreatments: React.FC = () => {
             totalRevenue: treatment.totalRevenue,
             expectedSessions: treatment.expectedSessions,
             isActive: treatment.isActive,
-            isComplex: treatment.isComplex || false
+            isComplex: treatment.isComplex || false,
+            scope: treatment.scope || 'general'
         });
         setShowModal(true);
     };
@@ -85,7 +88,8 @@ export const AssetsTreatments: React.FC = () => {
                 profitMargin: margin,
                 expectedSessions: newService.expectedSessions,
                 isActive: newService.isActive,
-                isComplex: newService.isComplex || false // Can set default phases if needed
+                isComplex: newService.isComplex || false, // Can set default phases if needed
+                scope: newService.scope
             });
         }
 
@@ -103,7 +107,8 @@ export const AssetsTreatments: React.FC = () => {
             totalRevenue: 0,
             expectedSessions: 1,
             isActive: true,
-            isComplex: false
+            isComplex: false,
+            scope: 'general'
         });
     };
 
@@ -123,7 +128,8 @@ export const AssetsTreatments: React.FC = () => {
                             totalRevenue: 0,
                             expectedSessions: 1,
                             isActive: true,
-                            isComplex: false
+                            isComplex: false,
+                            scope: 'general'
                         });
                         setShowModal(true);
                     }} className="bg-emerald-600 hover:bg-emerald-700 text-white">
@@ -146,6 +152,7 @@ export const AssetsTreatments: React.FC = () => {
                                     <th className="pb-4 font-medium">هامش الربح</th>
                                     <th className="pb-4 font-medium">الشعبية</th>
                                     <th className="pb-4 font-medium">النوع</th>
+                                    <th className="pb-4 font-medium">نطاق العلاج</th>
                                     <th className="pb-4 font-medium">الحالة</th>
                                     <th className="pb-4 font-medium"></th>
                                 </tr>
@@ -179,9 +186,29 @@ export const AssetsTreatments: React.FC = () => {
                                             </span>
                                         </td>
                                         <td className="py-4">
-                                            <span className={`px-2 py-1 rounded-full text-xs ${t.isActive ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                                                {t.isActive ? 'نشط' : 'غير نشط'}
+                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${t.scope === 'tooth' ? 'bg-indigo-50 text-indigo-700' :
+                                                t.scope === 'both' ? 'bg-purple-50 text-purple-700' :
+                                                    'bg-gray-100 text-gray-700'
+                                                }`}>
+                                                {t.scope === 'tooth' ? 'سن محدد' : t.scope === 'both' ? 'عام + سن' : 'عام'}
                                             </span>
+                                        </td>
+                                        <td className="py-4">
+                                            <div
+                                                onClick={async () => {
+                                                    try {
+                                                        await updateTreatment(t.id, { isActive: !t.isActive });
+                                                    } catch (error) {
+                                                        console.error("Failed to toggle active status", error);
+                                                    }
+                                                }}
+                                                className={`relative inline-flex h-6 w-11 items-center rounded-full cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${t.isActive ? 'bg-emerald-500' : 'bg-gray-200'}`}
+                                            >
+                                                <span
+                                                    className={`${t.isActive ? 'translate-x-1' : 'translate-x-6'
+                                                        } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                                                />
+                                            </div>
                                         </td>
                                         <td className="py-4 text-left">
                                             <div className="flex gap-2 justify-end">
@@ -262,6 +289,51 @@ export const AssetsTreatments: React.FC = () => {
                                         <option value="تعويضات">تعويضات</option>
                                         <option value="تجميل">تجميل</option>
                                     </select>
+                                </div>
+                                <div className="mt-4">
+                                    <label className="block text-sm font-medium mb-2">نطاق العلاج</label>
+                                    <div className="flex gap-4">
+                                        <label className="flex items-center gap-2 cursor-pointer p-2 border rounded-lg hover:bg-gray-50 flex-1">
+                                            <input
+                                                type="checkbox"
+                                                className="w-4 h-4 text-blue-600 rounded"
+                                                checked={newService.scope === 'general' || newService.scope === 'both'}
+                                                onChange={(e) => {
+                                                    const isChecked = e.target.checked;
+                                                    const isTooth = newService.scope === 'tooth' || newService.scope === 'both';
+
+                                                    let newScope: 'general' | 'tooth' | 'both' = 'general';
+                                                    if (isChecked && isTooth) newScope = 'both';
+                                                    else if (isChecked) newScope = 'general';
+                                                    else if (isTooth) newScope = 'tooth';
+                                                    else newScope = 'general'; // Prevent unchecking both, default to general or handle as validation error? For now default to general if trying to uncheck last one.
+
+                                                    setNewService({ ...newService, scope: newScope });
+                                                }}
+                                            />
+                                            <span className="text-sm">عام (General)</span>
+                                        </label>
+                                        <label className="flex items-center gap-2 cursor-pointer p-2 border rounded-lg hover:bg-gray-50 flex-1">
+                                            <input
+                                                type="checkbox"
+                                                className="w-4 h-4 text-blue-600 rounded"
+                                                checked={newService.scope === 'tooth' || newService.scope === 'both'}
+                                                onChange={(e) => {
+                                                    const isChecked = e.target.checked;
+                                                    const isGeneral = newService.scope === 'general' || newService.scope === 'both';
+
+                                                    let newScope: 'general' | 'tooth' | 'both' = 'tooth';
+                                                    if (isChecked && isGeneral) newScope = 'both';
+                                                    else if (isChecked) newScope = 'tooth';
+                                                    else if (isGeneral) newScope = 'general';
+                                                    else newScope = 'tooth'; // Prevent unchecking both
+
+                                                    setNewService({ ...newService, scope: newScope });
+                                                }}
+                                            />
+                                            <span className="text-sm">سن محدد (Tooth Specific)</span>
+                                        </label>
+                                    </div>
                                 </div>
                                 <div className="flex gap-2 mt-6 justify-end">
                                     <Button variant="ghost" onClick={() => setShowModal(false)}>إلغاء</Button>

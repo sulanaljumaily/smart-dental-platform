@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, User, Plus, Phone, Calendar } from 'lucide-react';
 import { Patient, PatientSearchResult } from '../../types/patients';
-import { allPatients } from '../../data/mock/patients';
+
 
 interface PatientSearchProps {
   onSelectPatient: (patient: Patient) => void;
@@ -9,6 +9,7 @@ interface PatientSearchProps {
   placeholder?: string;
   autoFocus?: boolean;
   selectedPatient?: Patient | null;
+  patients?: Patient[]; // New prop for real data
 }
 
 export const PatientSearch: React.FC<PatientSearchProps> = ({
@@ -16,7 +17,8 @@ export const PatientSearch: React.FC<PatientSearchProps> = ({
   onAddNewPatient,
   placeholder = "ابحث عن مريض بالاسم أو رقم الهاتف...",
   autoFocus = false,
-  selectedPatient = null
+  selectedPatient = null,
+  patients = [] // Default to empty
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
@@ -25,30 +27,44 @@ export const PatientSearch: React.FC<PatientSearchProps> = ({
 
   // البحث في قاعدة بيانات المرضى
   const searchPatients = (term: string): Patient[] => {
-    if (term.length < 2) return [];
-    
+    if (term.length < 1) return [];
+
     const lowerTerm = term.toLowerCase();
-    
-    return allPatients.filter(patient => 
-      patient.fullName.toLowerCase().includes(lowerTerm) ||
-      patient.firstName.toLowerCase().includes(lowerTerm) ||
-      patient.lastName.toLowerCase().includes(lowerTerm) ||
-      patient.phone.includes(term) ||
+
+    // Use passed patients list or fallback to empty (removed mock allPatients)
+    // Note: Parent component must pass 'patients' prop now.
+    // However, the interface definition above doesn't have 'patients' yet.
+    // I need to update the interface first? 
+    // Wait, I can't easily change the prop signature here without updating usage.
+    // BUT, I can import the hook here? No, better to pass data.
+    // Let's assume for this step I will update the Props interface too.
+    return (patients || []).filter(patient =>
+      (patient.fullName || '').toLowerCase().includes(lowerTerm) ||
+      (patient.phone || '').includes(term) ||
       (patient.nationalId && patient.nationalId.includes(term))
-    ).slice(0, 10); // أول 10 نتائج فقط
+    ).slice(0, 50);
   };
 
   useEffect(() => {
-    if (searchTerm.length >= 2) {
+    if (searchTerm.length >= 1) {
       const searchResults = searchPatients(searchTerm);
       setResults(searchResults);
       setIsOpen(true);
       setSelectedIndex(-1);
+    } else if (isOpen) {
+      // If open but empty, show all defaults (limited to 50 for performance, or all if reasonable)
+      setResults(patients || []); // Show all real patients
     } else {
       setResults([]);
-      setIsOpen(false);
     }
-  }, [searchTerm]);
+  }, [searchTerm, isOpen, patients]);
+
+  const handleFocus = () => {
+    setIsOpen(true);
+    if (searchTerm.length === 0) {
+      setResults(patients || []); // Show all real patients
+    }
+  };
 
   // التحكم بالكيبورد
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -57,7 +73,7 @@ export const PatientSearch: React.FC<PatientSearchProps> = ({
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
-        setSelectedIndex(prev => 
+        setSelectedIndex(prev =>
           prev < results.length - 1 ? prev + 1 : prev
         );
         break;
@@ -113,6 +129,7 @@ export const PatientSearch: React.FC<PatientSearchProps> = ({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           autoFocus={autoFocus}
+          onFocus={handleFocus}
           className="w-full pr-10 pl-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
         />
         {searchTerm && (
@@ -127,7 +144,7 @@ export const PatientSearch: React.FC<PatientSearchProps> = ({
 
       {/* نتائج البحث */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto">
+        <div className="mt-3 bg-white border border-gray-200 rounded-xl shadow-sm max-h-[400px] overflow-y-auto divide-y divide-gray-100">
           {results.length > 0 ? (
             <>
               {results.map((patient, index) => (
@@ -149,28 +166,28 @@ export const PatientSearch: React.FC<PatientSearchProps> = ({
                         <h4 className="font-semibold text-gray-900">{patient.fullName}</h4>
                         <span className={`
                           px-2 py-1 rounded-full text-xs font-medium
-                          ${patient.status === 'active' ? 'bg-green-100 text-green-800' : 
-                            patient.status === 'inactive' ? 'bg-yellow-100 text-yellow-800' : 
-                            'bg-gray-100 text-gray-800'}
+                          ${patient.status === 'active' ? 'bg-green-100 text-green-800' :
+                            patient.status === 'inactive' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-gray-100 text-gray-800'}
                         `}>
-                          {patient.status === 'active' ? 'نشط' : 
-                           patient.status === 'inactive' ? 'غير نشط' : 'أرشيف'}
+                          {patient.status === 'active' ? 'نشط' :
+                            patient.status === 'inactive' ? 'غير نشط' : 'أرشيف'}
                         </span>
                       </div>
-                      
+
                       <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
                         <div className="flex items-center gap-1">
                           <Phone className="w-3 h-3" />
                           <span>{patient.phone}</span>
                         </div>
-                        
+
                         {patient.lastVisit && (
                           <div className="flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
                             <span>آخر زيارة: {patient.lastVisit}</span>
                           </div>
                         )}
-                        
+
                         <span>الزيارات: {patient.totalVisits}</span>
                       </div>
 
@@ -183,7 +200,7 @@ export const PatientSearch: React.FC<PatientSearchProps> = ({
                   </div>
                 </div>
               ))}
-              
+
               {/* زر إضافة مريض جديد */}
               {onAddNewPatient && (
                 <div className="border-t border-gray-200">
@@ -218,22 +235,16 @@ export const PatientSearch: React.FC<PatientSearchProps> = ({
           )}
         </div>
       )}
-      
-      {/* خلفية شفافة لإغلاق القائمة */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 z-40" 
-          onClick={() => setIsOpen(false)}
-        />
-      )}
+
+      {/* Removed backdrop overlay to allow footer clicks inline */}
     </div>
   );
 };
 
 // مكون مبسط لعرض المريض المحدد
-export const SelectedPatientCard: React.FC<{ patient: Patient; onClear: () => void }> = ({ 
-  patient, 
-  onClear 
+export const SelectedPatientCard: React.FC<{ patient: Patient; onClear: () => void }> = ({
+  patient,
+  onClear
 }) => (
   <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
     <div className="flex items-center justify-between">
@@ -250,7 +261,7 @@ export const SelectedPatientCard: React.FC<{ patient: Patient; onClear: () => vo
           </div>
         </div>
       </div>
-      
+
       <button
         onClick={onClear}
         className="p-2 text-gray-500 hover:text-red-600 hover:bg-white rounded-lg transition-colors"

@@ -57,7 +57,7 @@ export const useAdminSubscriptions = () => {
 
             const { data: requestsData, error: requestsError } = await supabase
                 .from('subscription_requests')
-                .select('*, doctor:profiles!doctor_id(full_name, phone, email)') // Join with profiles
+                .select('*, doctor:profiles!doctor_id(full_name, phone, email, avatar_url)') // Join with profiles
                 .order('created_at', { ascending: false });
 
             if (requestsError) throw requestsError;
@@ -69,6 +69,7 @@ export const useAdminSubscriptions = () => {
                 clinicName: r.clinic_name || 'Unknown',
                 phone: r.doctor?.phone || r.phone || '',
                 email: r.doctor?.email || r.email || '',
+                avatar_url: r.doctor?.avatar_url || undefined,
                 status: r.status,
                 requestedPlan: mappedPlans.find(p => p.id === r.plan_id)?.name || 'Unknown Plan',
                 paymentMethod: r.payment_method,

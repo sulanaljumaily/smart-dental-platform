@@ -14,7 +14,8 @@ import { ReturnRequestModal } from '../../components/store/ReturnRequestModal';
 import { UnavailableItemsModal } from '../../components/store/UnavailableItemsModal';
 
 const steps = [
-    { id: 'pending', label: 'تم الطلب' },
+    { id: 'placed', label: 'تم الطلب' },
+    { id: 'pending', label: 'معلق' },
     { id: 'processing', label: 'قيد التجهيز' },
     { id: 'shipped', label: 'تم الشحن' },
     { id: 'delivered', label: 'تم التسليم' }
@@ -43,8 +44,10 @@ export default function StoreOrderDetailPage() {
                     .from('store_orders')
                     .select(`
                         *,
+                        supplier:suppliers(name),
                         items:store_order_items(
                             *,
+                            supplier:suppliers(name),
                             product:products(name, image_url, stock, price)
                         )
                     `)
@@ -56,6 +59,9 @@ export default function StoreOrderDetailPage() {
                 // Map to UI friendly structure
                 const mappedOrder = {
                     ...data,
+                    supplierName: data.supplier?.name || data.items?.[0]?.supplier?.name,
+                    supplierId: data.supplier_id || data.items?.[0]?.supplier_id,
+                    creatorName: data.ordered_by || data.user_name?.split(' - ')[0],
                     items: data.items.map((i: any) => ({
                         id: i.product_id,
                         name: i.product?.name || i.product_name || 'منتج',
@@ -150,17 +156,34 @@ export default function StoreOrderDetailPage() {
     if (!order) return null;
 
     const stepStatusMap: Record<string, number> = {
-        'pending': 0,
-        'processing': 1,
-        'shipped': 2,
-        'delivered': 3,
-        'return_requested': 3,
-        'returned': 3,
+        'pending': 1, // Pending (معلق)
+        'processing': 2,
+        'received': 2,
+        'shipped': 3,
+        'delivered': 4,
+        'return_requested': 4,
+        'returned': 4,
         'cancelled': -1
     };
 
     const currentStepIndex = stepStatusMap[order.status] ?? 0;
     const isCancelled = order.status === 'cancelled';
+
+    const getStatusConfig = (status: string) => {
+        switch (status) {
+            case 'pending': return { color: 'bg-yellow-50 text-yellow-700 border-yellow-200', label: 'معلق' };
+            case 'received': return { color: 'bg-blue-50 text-blue-700 border-blue-200', label: 'تم الاستلام' };
+            case 'processing': return { color: 'bg-amber-50 text-amber-700 border-amber-200', label: 'قيد التجهيز' };
+            case 'shipped': return { color: 'bg-indigo-50 text-indigo-700 border-indigo-200', label: 'تم الشحن' };
+            case 'delivered': return { color: 'bg-emerald-50 text-emerald-700 border-emerald-200', label: 'تم التسليم' };
+            case 'cancelled': return { color: 'bg-rose-50 text-rose-700 border-rose-200', label: 'ملغي' };
+            case 'returned': return { color: 'bg-purple-50 text-purple-700 border-purple-200', label: 'مرتجع' };
+            case 'return_requested': return { color: 'bg-orange-50 text-orange-700 border-orange-200', label: 'طلب إرجاع' };
+            default: return { color: 'bg-slate-50 text-slate-700 border-slate-200', label: status };
+        }
+    };
+
+    const statusConfig = getStatusConfig(order.status);
 
     return (
         <div className="min-h-screen bg-slate-50 pb-24" dir="rtl">
@@ -169,14 +192,26 @@ export default function StoreOrderDetailPage() {
                     <button onClick={() => navigate(-1)} className="p-2 hover:bg-slate-100 rounded-full">
                         <ArrowRight className="w-5 h-5 text-slate-500" />
                     </button>
-                    <h1 className="font-bold text-lg text-slate-800">تفاصيل الطلب #{order.order_number || order.id.slice(0, 8)}</h1>
-                    <div className={`mr-auto px-3 py-1 rounded-full text-sm font-medium ${order.status === 'delivered' ? 'bg-green-100 text-green-700' :
-                        order.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                            'bg-blue-100 text-blue-700'
-                        }`}>
-                        {order.status === 'return_requested' ? 'طلب إرجاع' :
-                            order.status === 'returned' ? 'مسترجع' :
-                                order.status}
+                    <div>
+                        <h1 className="font-bold text-lg text-slate-800">تفاصيل الطلب #{order.order_number || order.id?.slice(0, 8)}</h1>
+                        {order.supplierName && (
+                            <div className="flex items-center gap-1 mt-1 text-sm font-bold">
+                                <div 
+                                    className="text-blue-600 hover:underline cursor-pointer flex items-center gap-1"
+                                    onClick={() => {
+                                        if (order.supplierId) navigate(`/store/supplier/${order.supplierId}`);
+                                    }}
+                                >
+                                    <span>{order.supplierName}</span>
+                                </div>
+                                {order.creatorName && (
+                                    <span className="text-slate-500 font-medium">بواسطة ({order.creatorName})</span>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                    <div className={`mr-auto px-3 py-1 rounded-full text-sm font-bold border ${statusConfig.color}`}>
+                        {statusConfig.label}
                     </div>
                 </div>
             </div>
@@ -199,18 +234,38 @@ export default function StoreOrderDetailPage() {
                             ></div>
 
                             {steps.map((step, idx) => {
-                                const isCompleted = idx <= currentStepIndex;
-                                const isCurrent = idx === currentStepIndex;
+                                const isCompleted = idx < currentStepIndex || (idx === currentStepIndex && idx === steps.length - 1);
+                                const isCurrent = idx === currentStepIndex && !isCompleted;
+                                
                                 return (
                                     <div key={step.id} className="flex flex-col items-center gap-2 relative">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center border-4 transition-all duration-500 z-10 ${isCompleted
-                                            ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-200'
-                                            : 'bg-white border-slate-200 text-slate-300'
-                                            }`}>
-                                            {isCompleted ? <CheckCircle2 className="w-5 h-5" /> : <div className={`w-3 h-3 rounded-full ${isCurrent ? 'bg-blue-200' : 'bg-slate-200'}`} />}
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center border-4 transition-all duration-500 z-10 ${
+                                            isCompleted
+                                                ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-200'
+                                                : isCurrent && step.id === 'pending' 
+                                                    ? 'bg-yellow-500 border-yellow-500 text-white shadow-lg shadow-yellow-200'
+                                                    : isCurrent
+                                                        ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-200'
+                                                        : 'bg-white border-slate-200 text-slate-300'
+                                        }`}>
+                                            {(isCompleted || isCurrent) && step.id !== 'pending' ? (
+                                                <CheckCircle2 className="w-5 h-5" />
+                                            ) : isCurrent && step.id === 'pending' ? (
+                                                <div className="w-3 h-3 rounded-full bg-white" />
+                                            ) : (
+                                                <div className={`w-3 h-3 rounded-full ${isCurrent ? 'bg-blue-200' : 'bg-slate-200'}`} />
+                                            )}
                                         </div>
                                         <div className="text-center absolute top-14 w-32">
-                                            <p className={`text-sm font-bold transition-colors ${isCompleted ? 'text-slate-900' : 'text-slate-400'}`}>{step.label}</p>
+                                            <p className={`text-sm font-bold transition-colors ${
+                                                isCompleted || isCurrent 
+                                                    ? step.id === 'pending' && isCurrent 
+                                                        ? 'text-yellow-600' 
+                                                        : 'text-slate-900' 
+                                                    : 'text-slate-400'
+                                            }`}>
+                                                {step.label}
+                                            </p>
                                         </div>
                                     </div>
                                 );

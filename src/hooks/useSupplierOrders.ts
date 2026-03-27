@@ -25,6 +25,8 @@ export interface SupplierOrder {
         name: string;
         phone: string;
         address: string;
+        governorate?: string;
+        city?: string;
         rating: number;
     };
 }
@@ -98,10 +100,13 @@ export const useSupplierOrders = () => {
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                // Count Clinics directly
-                const { count: clinicsCount } = await supabase
-                    .from('clinics')
-                    .select('*', { count: 'exact', head: true });
+                // Count Unique Customers from store_orders for this supplier
+                const { data: ordersData } = await supabase
+                    .from('store_orders')
+                    .select('user_name')
+                    .eq('supplier_id', supplierId || user?.id);
+
+                const uniqueCustomersCount = new Set(ordersData?.map(o => o.user_name).filter(Boolean) || []).size;
 
                 // Views from products (sum views for this supplier)
                 const { data: productsData } = await supabase
@@ -112,8 +117,8 @@ export const useSupplierOrders = () => {
                 const totalViews = productsData?.reduce((acc, curr) => acc + (curr.views || 0), 0) || 0;
 
                 setPlatformStats({
-                    totalCustomers: (clinicsCount || 0),
-                    totalClinics: clinicsCount || 0,
+                    totalCustomers: uniqueCustomersCount,
+                    totalClinics: uniqueCustomersCount, // Placeholder or same fallback
                     totalLabs: 0,
                     monthlyViews: totalViews
                 });
@@ -197,7 +202,9 @@ export const useSupplierOrders = () => {
                 customer: {
                     name: o.user_name || 'Client',
                     phone: o.shipping_address?.phone || '',
-                    address: o.shipping_address?.address || '',
+                    address: typeof o.shipping_address === 'string' ? o.shipping_address : o.shipping_address?.address || '',
+                    governorate: typeof o.shipping_address === 'object' ? o.shipping_address?.governorate : undefined,
+                    city: typeof o.shipping_address === 'object' ? o.shipping_address?.city : undefined,
                     rating: 5.0
                 }
             }));

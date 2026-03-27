@@ -5,7 +5,7 @@ import { AnalysisResultCard } from '../../../components/ai/AnalysisResultCard';
 import { Brain, History, RefreshCcw } from 'lucide-react';
 
 const AIAnalysisPage = () => {
-    const { history, uploading, analyzing, analyzeImage, refresh } = useAIAnalysis();
+    const { history, uploading, analyzing, analyzeImage, deleteAnalysis, refresh, credits } = useAIAnalysis();
 
     const handleFileSelect = async (file: File) => {
         await analyzeImage(file);
@@ -27,7 +27,12 @@ const AIAnalysisPage = () => {
 
             {/* Upload Section */}
             <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                <h2 className="text-lg font-semibold mb-4">تحليل جديد</h2>
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-lg font-semibold">تحليل جديد</h2>
+                    <div className="text-sm px-3 py-1 bg-blue-50 text-blue-700 rounded-full border border-blue-100">
+                        الرصيد المتاح: {credits}
+                    </div>
+                </div>
                 <ImageUploadZone
                     onFileSelect={handleFileSelect}
                     isUploading={uploading || analyzing}
@@ -59,10 +64,10 @@ const AIAnalysisPage = () => {
                                         <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto" />
                                         <p className="text-gray-600 font-medium">جاري معالجة الصورة...</p>
                                     </div>
-                                ) : item.result_json ? (
+                                ) : item.analysis_result ? (
                                     <AnalysisResultCard
                                         imageUrl={item.image_url}
-                                        result={item.result_json}
+                                        result={item.analysis_result}
                                         date={item.created_at}
                                     />
                                 ) : (

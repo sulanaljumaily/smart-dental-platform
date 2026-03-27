@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Clinic } from '../types';
@@ -7,9 +7,12 @@ export const useClinics = () => {
     const { user } = useAuth();
     const [clinics, setClinics] = useState<Clinic[]>([]);
     const [loading, setLoading] = useState(true);
+    const mountedRef = useRef(true);
 
     useEffect(() => {
+        mountedRef.current = true;
         if (user) fetchClinics();
+        return () => { mountedRef.current = false; };
     }, [user]);
 
     const fetchClinics = async () => {
@@ -29,16 +32,30 @@ export const useClinics = () => {
             // 2. Fetch Clinics where User is a Member (Staff)
             let memberClinics = [];
             try {
+                // Check 'staff' table using both user_id and auth_user_id for compatibility
+                const { data: staffData, error: staffError } = await supabase
+                    .from('staff')
+                    .select('clinic:clinics(*)')
+                    .or(`user_id.eq.${user.id},auth_user_id.eq.${user.id}`)
+                    .in('status', ['active', 'on_leave']);
+
+                if (staffError) {
+                    console.warn('Staff fetch error (ignoring):', staffError);
+                } else {
+                    memberClinics = staffData?.map((m: any) => m.clinic).filter(Boolean) || [];
+                }
+
+                // Legacy check for clinic_members if it still exists (optional)
+                /*
                 const { data: memberData, error: memberError } = await supabase
                     .from('clinic_members')
                     .select('clinic:clinics(*)')
                     .eq('user_id', user.id);
-
-                if (memberError) {
-                    console.warn('Member fetch error (ignoring):', memberError);
-                } else {
-                    memberClinics = memberData?.map((m: any) => m.clinic) || [];
+                if (!memberError && memberData) {
+                    const legacyClinics = memberData.map((m: any) => m.clinic);
+                    memberClinics = [...memberClinics, ...legacyClinics];
                 }
+                */
             } catch (err) {
                 console.warn('Member fetch exception (ignoring):', err);
             }
@@ -48,41 +65,12 @@ export const useClinics = () => {
                 index === self.findIndex((t) => (t.id === c.id))
             );
 
-            // FALLBACK: If no clinics found (e.g. fresh demo account), show Demo Clinics
-            if (allClinics.length === 0) {
-                allClinics = [
-                    {
-                        id: '101',
-                        name: 'عيادة النور التخصصية',
-                        address: 'بغداد - المنصور',
-                        phone: '07701234567',
-                        email: 'info@alnoor.com',
-                        image: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=800&auto=format&fit=crop&q=60',
-                        owner_id: user.id,
-                        specialties: ['جراحة وجه وفكين', 'تجميل الأسنان'],
-                        services: ['زراعة أسنان', 'ابتسامة هوليود', 'تبييض بالليزر'],
-                        description: 'عيادة متخصصة في طب وجراحة الفم والأسنان وتجميل الابتسامة بأحدث التقنيات.'
-                    },
-                    {
-                        id: '102',
-                        name: 'مركز الابتسامة الرقمي',
-                        address: 'البصرة - الجزائر',
-                        phone: '07901112233',
-                        email: 'info@smilecenter.com',
-                        image: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=800&auto=format&fit=crop&q=60',
-                        owner_id: user.id,
-                        specialties: ['تقويم الأسنان', 'طب أسنان أطفال', 'تجميل الأسنان', 'طب أسنان عام'],
-                        services: ['خلع جراحي', 'علاج عصب', 'تركيبات ثابتة'],
-                        description: 'High quality dental care for everyone. Modern clinic specialized in family innovation.'
-                    }
-                ];
-            }
+
 
             // Map to Interface
             const mappedClinics: Clinic[] = allClinics.map((c: any) => ({
                 id: c.id.toString(),
                 name: c.name,
-                address: c.address || 'العنوان غير محدد',
                 phone: c.phone || '',
                 location: (c.latitude && c.longitude)
                     ? { lat: c.latitude, lng: c.longitude }
@@ -98,14 +86,17 @@ export const useClinics = () => {
                 owner_id: c.owner_id,
                 settings: c.settings || {},
                 isFeatured: c.is_featured || false,
-                isDigitalBookingEnabled: c.is_digital_booking || false
+                isDigitalBookingEnabled: c.is_digital_booking || false,
+                governorate: c.governorate || '',
+                address: c.address || '',
             }));
 
             setClinics(mappedClinics);
-        } catch (err) {
-            console.error('Error fetching clinics:', err);
+        } catch (err: any) {
+            if (err?.name === 'AbortError' || err?.message?.includes('AbortError')) return;
+            if (mountedRef.current) console.error('Error fetching clinics:', err);
         } finally {
-            setLoading(false);
+            if (mountedRef.current) setLoading(false);
         }
     };
 

@@ -40,6 +40,7 @@ export interface CommunityUser {
     is_elite?: boolean;
     is_syndicate?: boolean;
     created_at: string;
+    avatar_url?: string;
 }
 
 export interface CommunityResource {
@@ -114,8 +115,47 @@ export function useAdminCommunity() {
             })) as CommunityGroup[]);
 
             // 3. Users (Profiles)
-            const { data: usersData } = await supabase.from('profiles').select('*').order('created_at', { ascending: false }).limit(50); // Limit for performance
-            if (usersData) setUsers(usersData as CommunityUser[]);
+            const { data: usersData } = await supabase
+                .from('profiles')
+                .select('*')
+                .in('role', ['doctor', 'lab', 'laboratory', 'supplier', 'admin'])
+                .order('created_at', { ascending: false })
+                .limit(200);
+
+            if (usersData) {
+                // Fetch extra details (logos) in parallel to avoid Join issues
+                const userIds = usersData.map((u: any) => u.id);
+
+                const [clinicsRes, labsRes, suppliersRes] = await Promise.all([
+                    supabase.from('clinics').select('owner_id, image_url').in('owner_id', userIds),
+                    supabase.from('dental_laboratories').select('user_id, logo_url').in('user_id', userIds),
+                    supabase.from('suppliers').select('user_id, logo').in('user_id', userIds)
+                ]);
+
+                // Create lookup maps
+                const clinicMap: Record<string, string> = {};
+                clinicsRes.data?.forEach((c: any) => { if (c.owner_id && c.image_url) clinicMap[c.owner_id] = c.image_url; });
+
+                const labMap: Record<string, string> = {};
+                labsRes.data?.forEach((l: any) => { if (l.user_id && l.logo_url) labMap[l.user_id] = l.logo_url; });
+
+                const supplierMap: Record<string, string> = {};
+                suppliersRes.data?.forEach((s: any) => { if (s.user_id && s.logo) supplierMap[s.user_id] = s.logo; });
+
+                const mappedUsers = usersData
+                    .filter((user: any) => !user.banned) // Hide suspended (banned) users
+                    .map((user: any) => {
+                        // For suppliers: prioritize business logo over community profile avatar
+                        const supplierLogo = (user.role === 'supplier') ? supplierMap[user.id] : null;
+                        return {
+                            ...user,
+                            avatar_url: supplierLogo || user.avatar_url || clinicMap[user.id] || labMap[user.id] || supplierMap[user.id]
+                        };
+                    });
+                // Deduplicate by ID to prevent the same account appearing twice
+                const uniqueUsers = Array.from(new Map(mappedUsers.map((u: any) => [u.id, u])).values());
+                setUsers(uniqueUsers as CommunityUser[]);
+            }
 
             // 4. Resources - Using 'scientific_resources' table
             const { data: resourcesData } = await supabase.from('scientific_resources').select('*').order('created_at', { ascending: false });

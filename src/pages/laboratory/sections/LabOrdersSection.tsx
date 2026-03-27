@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Package, Clock, Eye, Search, Plus, MoreVertical, AlertTriangle, DollarSign,
-  User, Building, Edit, MessageSquare, CheckCircle, XCircle, ArrowRight, Truck, RefreshCw, FlipVertical
+  User, Building, Edit, MessageSquare, CheckCircle, XCircle, ArrowRight, Truck, RefreshCw, FlipVertical, Phone
 } from 'lucide-react';
 import { Modal } from '../../../components/common/Modal';
 import { useLabOrders, LabOrder } from '../../../hooks/useLabOrders';
@@ -32,16 +32,29 @@ export const LabOrdersSection: React.FC = () => {
     const fetchDelegates = async () => {
       if (!user) return;
       try {
+        // Get Lab ID from User ID first
+        const { data: labData } = await supabase
+          .from('dental_laboratories')
+          .select('id')
+          .or(`id.eq.${user.id},user_id.eq.${user.id}`)
+          .maybeSingle();
+
+        const labId = labData?.id || user.id;
+
         const { data, error } = await supabase
           .from('dental_lab_representatives')
-          .select('*')
-          .eq('laboratory_id', user.id); // Assuming reps are linked to lab by user.id or lab table id
+          .select('id, full_name, phone, status')
+          .eq('laboratory_id', labId);
+
+        if (error) {
+          console.error('Supabase error fetching delegates in LabOrdersSection:', error);
+        }
 
         if (data) {
           setDelegates(data.map((d: any) => ({
             id: d.id,
-            name: d.full_name || d.name,
-            phone: d.phone_number || d.phone
+            name: d.full_name || 'مندوب',
+            phone: d.phone || ''
           })));
         }
       } catch (e) {
@@ -117,15 +130,26 @@ export const LabOrdersSection: React.FC = () => {
     if (!selectedOrder || !selectedDelegate) return;
 
     const delegate = delegates.find(d => d.id === selectedDelegate);
-    const updates = {
-      delegate_id: selectedDelegate,
-      delegate_name: delegate?.name
-    };
+    let updates: any = {};
 
     if (delegateAction === 'pickup') {
+      updates = {
+        pickup_delegate_id: selectedDelegate,
+        pickup_delegate_name: delegate?.name,
+        // Fallback for generic usages
+        delegate_id: selectedDelegate,
+        delegate_name: delegate?.name
+      };
       updateOrderStatus(selectedOrder.id, 'representative_dispatched', updates);
       toast.success(`تم إرسال المندوب لاستلام الطلب`);
     } else {
+      updates = {
+        delivery_delegate_id: selectedDelegate,
+        delivery_delegate_name: delegate?.name,
+        // Fallback for generic usages
+        delegate_id: selectedDelegate,
+        delegate_name: delegate?.name
+      };
       updateOrderStatus(selectedOrder.id, 'out_for_delivery', updates);
       toast.success(`تم إرسال الطلب مع المندوب`);
     }
@@ -293,10 +317,16 @@ export const LabOrdersSection: React.FC = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="py-4 px-6">
+                    <td className="py-4 px-6 flex flex-col gap-1 items-start">
                       <span className="text-sm text-gray-700 font-medium">{order.service_name}</span>
+                      {(() => {
+                        const toothNums = order.tooth_numbers && order.tooth_numbers.length > 0 ? order.tooth_numbers : (order.tooth_number !== undefined ? [order.tooth_number] : []);
+                        if (toothNums.length === 0 || (toothNums.length === 1 && toothNums[0] === 0)) return <span className="text-[11px] text-gray-500 px-2 py-0.5 rounded-md bg-gray-100 border border-gray-200">علاج عام</span>;
+                        if (toothNums.length === 1) return <span className="text-[11px] text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md font-medium">سن رقم: {toothNums[0]}</span>;
+                        return <span className="text-[11px] text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md font-medium">سن رقم: {toothNums.join(', ')}</span>;
+                      })()}
                       {order.is_return_cycle && (
-                        <span className="mr-2 px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 text-[10px] font-bold border border-rose-200">استرجاع</span>
+                        <span className="mt-1 px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 text-[10px] font-bold border border-rose-200">استرجاع</span>
                       )}
                     </td>
                     <td className="py-4 px-6">
@@ -362,10 +392,47 @@ export const LabOrdersSection: React.FC = () => {
               <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   {getStatusBadge(selectedOrder.status)}
-                  {selectedOrder.delegate_name && (
-                    <div className="flex items-center gap-1 text-sm text-purple-600 bg-purple-50 px-2 py-1 rounded-md border border-purple-100">
-                      <Truck className="w-3.5 h-3.5" />
-                      <span>المندوب: {selectedOrder.delegate_name}</span>
+                  {/* عرض مندوب الاستلام والمندوب الموصل */}
+                  {(selectedOrder.pickup_delegate_name || selectedOrder.delivery_delegate_name || selectedOrder.delegate_name) && (
+                    <div className="flex flex-col gap-2">
+                      {(selectedOrder.pickup_delegate_name || selectedOrder.delegate_name) && (
+                        <div className="flex items-center gap-1 text-sm text-purple-600 bg-purple-50 px-2 py-1 rounded-md border border-purple-100">
+                          <Truck className="w-3.5 h-3.5" />
+                          <span>مندوب الاستلام: {selectedOrder.pickup_delegate_name || selectedOrder.delegate_name}</span>
+                          {(() => {
+                            const phone = selectedOrder.pickup_delegate_phone || delegates.find(d => d.id === selectedOrder.pickup_delegate_id || d.id === selectedOrder.delegate_id)?.phone;
+                            return phone ? (
+                              <a
+                                href={`tel:${phone}`}
+                                className="mr-2 inline-flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-2 py-0.5 rounded-md text-xs font-medium transition-colors"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Phone className="w-3 h-3" />
+                                اتصال
+                              </a>
+                            ) : null;
+                          })()}
+                        </div>
+                      )}
+                      {selectedOrder.delivery_delegate_name && (
+                        <div className="flex items-center gap-1 text-sm text-cyan-600 bg-cyan-50 px-2 py-1 rounded-md border border-cyan-100">
+                          <Truck className="w-3.5 h-3.5" />
+                          <span>مندوب التوصيل: {selectedOrder.delivery_delegate_name}</span>
+                          {(() => {
+                            const phone = selectedOrder.delivery_delegate_phone || delegates.find(d => d.id === selectedOrder.delivery_delegate_id)?.phone;
+                            return phone ? (
+                              <a
+                                href={`tel:${phone}`}
+                                className="mr-2 inline-flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-2 py-0.5 rounded-md text-xs font-medium transition-colors"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Phone className="w-3 h-3" />
+                                اتصال
+                              </a>
+                            ) : null;
+                          })()}
+                        </div>
+                      )}
                     </div>
                   )}
                   {selectedOrder.is_return_cycle && (

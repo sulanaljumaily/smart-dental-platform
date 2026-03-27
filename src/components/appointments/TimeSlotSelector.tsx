@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Clock, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
+import { Clock, ChevronLeft, ChevronRight, AlertCircle, Calendar } from 'lucide-react';
 import { Doctor, DaySchedule, TimeSlot, AppointmentDuration } from '../../types/appointments';
 import { doctors, mockAppointments, defaultWorkingHours } from '../../data/mock/appointments';
 
@@ -10,6 +10,7 @@ interface TimeSlotSelectorProps {
   onSelectTime: (time: string) => void;
   selectedTime?: string;
   excludeAppointmentId?: string; // لاستبعاد موعد معين عند التعديل
+  clinicWorkingHours?: string; // ساعات عمل العيادة
 }
 
 export const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({
@@ -18,33 +19,62 @@ export const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({
   duration,
   onSelectTime,
   selectedTime,
-  excludeAppointmentId
+  excludeAppointmentId,
+  clinicWorkingHours
 }) => {
-  const [currentView, setCurrentView] = useState<'morning' | 'evening'>('morning');
+  // Determine initial view based on selectedTime or current time
+  const initialView = useMemo(() => {
+    if (selectedTime) {
+      const hour = parseInt(selectedTime.split(':')[0]);
+      return hour >= 12 ? 'evening' : 'morning';
+    }
+    const currentHour = new Date().getHours();
+    return currentHour >= 12 ? 'evening' : 'morning';
+  }, [selectedTime]);
 
-  // إنشاء شقوق الوقت للتاريخ المحدد
-  const timeSlots = useMemo(() => {
-    if (!selectedDate) return [];
+  const [currentView, setCurrentView] = useState<'morning' | 'evening'>(initialView);
 
+  // Update view when selectedTime changes externally (e.g. if loaded from editing)
+  React.useEffect(() => {
+    if (selectedTime) {
+      const hour = parseInt(selectedTime.split(':')[0]);
+      const view = hour >= 12 ? 'evening' : 'morning';
+      setCurrentView(view);
+    }
+  }, [selectedTime]);
+
+  // الحصول على جدول عمل الطبيب أو الجدول الافتراضي
+  const schedule = useMemo(() => {
     const date = new Date(selectedDate);
     const dayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-    
-    // الحصول على جدول عمل الطبيب أو الجدول الافتراضي
-    const schedule = selectedDoctor?.schedule?.[dayName] || {
+
+    let start = defaultWorkingHours.start;
+    let end = defaultWorkingHours.end;
+
+    if (clinicWorkingHours && clinicWorkingHours.includes(' - ')) {
+      const [startClinic, endClinic] = clinicWorkingHours.split(' - ');
+      if (startClinic && endClinic) {
+        start = startClinic.trim();
+        end = endClinic.trim();
+      }
+    }
+
+    return selectedDoctor?.schedule?.[dayName] || {
       isWorking: true,
-      startTime: defaultWorkingHours.start,
-      endTime: defaultWorkingHours.end,
+      startTime: start,
+      endTime: end,
       breakStart: defaultWorkingHours.breakStart,
       breakEnd: defaultWorkingHours.breakEnd
     };
+  }, [selectedDate, selectedDoctor, clinicWorkingHours]);
 
-    if (!schedule.isWorking) {
-      return [];
-    }
+  // إنشاء شقوق الوقت للتاريخ المحدد
+  const timeSlots = useMemo(() => {
+    if (!schedule.isWorking) return [];
 
     // الحصول على المواعيد الموجودة في هذا التاريخ
-    const existingAppointments = mockAppointments.filter(apt => 
-      apt.date === selectedDate && 
+    const existingAppointments = mockAppointments.filter(apt =>
+      apt.date === selectedDate &&
       (!selectedDoctor || apt.doctorId === selectedDoctor.id) &&
       apt.id !== excludeAppointmentId && // استبعاد الموعد المحدد
       ['scheduled', 'confirmed', 'inprogress'].includes(apt.status)
@@ -58,9 +88,9 @@ export const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({
     const breakEnd = schedule.breakEnd ? parseTime(schedule.breakEnd) : null;
 
     // إنشاء شقوق كل 30 دقيقة
-    for (let time = startTime; time < endTime; time += slotDuration) {
+    for (let time = startTime; time <= endTime; time += slotDuration) {
       const timeString = formatTime(time);
-      
+
       // تخطي أوقات الاستراحة
       if (breakStart && breakEnd && time >= breakStart && time < breakEnd) {
         continue;
@@ -70,15 +100,15 @@ export const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({
       const isBooked = existingAppointments.some(apt => {
         const aptStart = parseTime(apt.startTime);
         const aptEnd = parseTime(apt.endTime);
-        
+
         // تحقق إذا كان الوقت الحالي + المدة يتداخل مع الموعد الموجود
         const slotEnd = time + duration;
-        
+
         return (time < aptEnd && slotEnd > aptStart);
       });
 
-      // تحقق إذا كان الوقت + المدة لا يتجاوز نهاية العمل
-      const isAvailable = !isBooked && (time + duration) <= endTime;
+      // تحقق إذا كان الوقت + المدة لا يتجاوز نهاية العمل (أو يبدأ عند نهاية العمل بالضبط)
+      const isAvailable = !isBooked && (time === endTime || (time + duration) <= endTime);
 
       // إذا كان هناك استراحة، تأكد من أن الموعد لا يتداخل معها
       if (breakStart && breakEnd && isAvailable) {
@@ -96,16 +126,16 @@ export const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({
     }
 
     return slots;
-  }, [selectedDate, selectedDoctor, duration, excludeAppointmentId]);
+  }, [selectedDate, selectedDoctor, duration, excludeAppointmentId, clinicWorkingHours]);
 
   // تصفية الأوقات حسب العرض الحالي
   const filteredSlots = useMemo(() => {
     return timeSlots.filter(slot => {
       const hour = parseInt(slot.time.split(':')[0]);
       if (currentView === 'morning') {
-        return hour < 14; // قبل 2 ظهراً
+        return hour < 12; // قبل 12 ظهراً
       } else {
-        return hour >= 14; // بعد 2 ظهراً
+        return hour >= 12; // بعد 12 ظهراً
       }
     });
   }, [timeSlots, currentView]);
@@ -122,6 +152,19 @@ export const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({
     const mins = minutes % 60;
     return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
   }
+
+  // Helper function to format time in 12-hour format with Arabic suffix
+  const formatTime12h = (time24: string): string => {
+    if (!time24) return '';
+    const [hoursStr, minutesStr] = time24.split(':');
+    let hours = parseInt(hoursStr, 10);
+    const suffix = hours >= 12 ? 'م' : 'ص';
+
+    hours = hours % 12;
+    hours = hours ? hours : 12; // the hour '0' should be '12'
+
+    return `${hours}:${minutesStr} ${suffix}`;
+  };
 
   // تحديد ما إذا كان التاريخ في الماضي
   const isPastDate = new Date(selectedDate) < new Date(new Date().setHours(0, 0, 0, 0));
@@ -149,109 +192,85 @@ export const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" dir="rtl">
       {/* تبويبات الوقت */}
-      <div className="flex border-b border-gray-200">
+      <div className="flex border-b border-gray-200 bg-gray-50 rounded-t-lg">
         <button
           onClick={() => setCurrentView('morning')}
-          className={`flex-1 py-2 px-4 text-center font-medium transition-colors ${
-            currentView === 'morning'
-              ? 'border-b-2 border-purple-600 text-purple-600'
-              : 'text-gray-600 hover:text-gray-800'
-          }`}
+          className={`flex-1 py-3 px-4 text-center font-medium transition-all ${currentView === 'morning'
+            ? 'border-b-2 border-purple-600 text-purple-700 bg-purple-50 font-bold'
+            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+            }`}
         >
-          الفترة الصباحية
-          <span className="block text-xs text-gray-500">08:00 - 14:00</span>
+          <span className="flex flex-col items-center gap-1">
+            <span className="text-sm">الفترة الصباحية</span>
+            <span className="text-[10px] opacity-70 bg-gray-200/50 px-2 py-0.5 rounded-full">
+              {formatTime12h(schedule.startTime)} - 12:00 م
+            </span>
+          </span>
         </button>
         <button
           onClick={() => setCurrentView('evening')}
-          className={`flex-1 py-2 px-4 text-center font-medium transition-colors ${
-            currentView === 'evening'
-              ? 'border-b-2 border-purple-600 text-purple-600'
-              : 'text-gray-600 hover:text-gray-800'
-          }`}
+          className={`flex-1 py-3 px-4 text-center font-medium transition-all ${currentView === 'evening'
+            ? 'border-b-2 border-purple-600 text-purple-700 bg-purple-50 font-bold'
+            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+            }`}
         >
-          الفترة المسائية
-          <span className="block text-xs text-gray-500">14:00 - 18:00</span>
+          <span className="flex flex-col items-center gap-1">
+            <span className="text-sm">الفترة المسائية</span>
+            <span className="text-[10px] opacity-70 bg-gray-200/50 px-2 py-0.5 rounded-full">
+              12:00 م - {formatTime12h(schedule.endTime)}
+            </span>
+          </span>
         </button>
       </div>
 
-      {/* معلومات المدة */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-        <div className="flex items-center gap-2 text-blue-700">
-          <Clock className="w-4 h-4" />
-          <span className="text-sm">
-            مدة الموعد: <span className="font-semibold">{duration} دقيقة</span>
-          </span>
-        </div>
-        {selectedDoctor && (
-          <div className="text-xs text-blue-600 mt-1">
-            مع {selectedDoctor.name}
-          </div>
-        )}
-      </div>
-
       {/* شبكة الأوقات */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-60 overflow-y-auto p-1">
         {filteredSlots.map((slot) => (
           <button
             key={slot.time}
             onClick={() => slot.isAvailable && onSelectTime(slot.time)}
             disabled={!slot.isAvailable}
             className={`
-              p-3 rounded-lg border-2 font-medium transition-all duration-200
+              relative p-3 rounded-xl border-2 transition-all duration-300 flex flex-col items-center justify-center gap-1
               ${!slot.isAvailable
-                ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
+                ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed opacity-60' // Busy
                 : selectedTime === slot.time
-                ? 'bg-purple-600 border-purple-600 text-white shadow-lg'
-                : 'bg-white border-gray-200 text-gray-700 hover:border-purple-300 hover:bg-purple-50'
+                  ? 'bg-gradient-to-br from-purple-600 to-indigo-600 border-transparent text-white shadow-lg transform scale-105 ring-4 ring-purple-100' // Selected - Professional "Pressed" Look
+                  : 'bg-white border-gray-100 text-gray-700 hover:border-purple-200 hover:bg-purple-50 hover:shadow-md hover:-translate-y-0.5' // Available
               }
             `}
           >
-            <div className="text-sm">{slot.time}</div>
-            {slot.isBooked && (
-              <div className="text-xs text-red-500 mt-1">محجوز</div>
-            )}
-            {slot.isAvailable && isToday && (
-              <div className="text-xs text-green-600 mt-1">متاح</div>
+            <span className={`text-base font-bold ${selectedTime === slot.time ? 'text-white' : 'text-gray-800'}`} dir="ltr">
+              {formatTime12h(slot.time)}
+            </span>
+
+            {/* Status Text removed for cleaner look, or kept minimal */}
+            {selectedTime === slot.time && (
+              <div className="absolute -top-2 -right-2 bg-green-500 text-white text-[10px] px-2 py-0.5 rounded-full shadow-sm animate-in fade-in zoom-in">
+                محدد
+              </div>
             )}
           </button>
         ))}
       </div>
 
       {filteredSlots.length === 0 && (
-        <div className="text-center py-6 text-gray-500">
-          <p>لا توجد أوقات متاحة في هذه الفترة</p>
-          <p className="text-sm mt-1">جرب الفترة الأخرى</p>
+        <div className="text-center py-8 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+          <Clock className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500 font-medium">لا توجد أوقات متاحة في هذه الفترة</p>
+          <button
+            onClick={() => setCurrentView(currentView === 'morning' ? 'evening' : 'morning')}
+            className="text-purple-600 text-sm mt-2 hover:underline"
+          >
+            الانتقال للفترة {currentView === 'morning' ? 'المسائية' : 'الصباحية'}
+          </button>
         </div>
       )}
 
-      {/* معلومات إضافية */}
-      {selectedTime && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-          <div className="flex items-center gap-2 text-green-700">
-            <Clock className="w-4 h-4" />
-            <span className="text-sm">
-              الوقت المحدد: <span className="font-semibold">{selectedTime}</span>
-            </span>
-          </div>
-          <div className="text-xs text-green-600 mt-1">
-            سينتهي الموعد في: {formatTime(parseTime(selectedTime) + duration)}
-          </div>
-        </div>
-      )}
+      {/* Selected Time Summary */}
 
-      {/* ملاحظة للمواعيد اليوم */}
-      {isToday && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-          <div className="flex items-center gap-2 text-yellow-700">
-            <AlertCircle className="w-4 h-4" />
-            <span className="text-sm">
-              تأكد من إمكانية حضور المريض في نفس اليوم
-            </span>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

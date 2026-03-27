@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, Plus, Minus, ArrowRight, ShieldCheck, CreditCard, ShoppingBag, Receipt, Package, MapPin, Truck, Check, Tag, Building, Stethoscope } from 'lucide-react';
+import { Trash2, Plus, Minus, ArrowRight, ShieldCheck, CreditCard, ShoppingBag, Receipt, Package, MapPin, Truck, Check, Tag, Building, Stethoscope, Heart, AlertCircle } from 'lucide-react';
 import { useStoreCart } from '../../hooks/useStoreCart';
 import { useStore } from '../../hooks/useStore';
 import { useStoreAddresses } from '../../hooks/useStoreAddresses';
@@ -59,6 +59,10 @@ export const CartPage: React.FC = () => {
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
   const [discountAmount, setDiscountAmount] = useState(0);
+
+  // Multi-supplier warning state
+  const [showMultiSupplierWarning, setShowMultiSupplierWarning] = useState(false);
+  const [multiSupplierProceed, setMultiSupplierProceed] = useState(false);
 
   const handleApplyCoupon = async () => {
     if (!couponCode) return;
@@ -143,6 +147,22 @@ export const CartPage: React.FC = () => {
       return;
     }
 
+    // Check Multi-Supplier
+    const suppliersSet = new Set(
+      cartItems.map(item => storeProducts.find(p => p.id === item.id)?.supplierId).filter(Boolean)
+    );
+    const isMultiSupplier = suppliersSet.size > 1;
+    const allowMultiSupplier = localStorage.getItem('allow_multi_supplier') === 'true';
+
+    if (isMultiSupplier && !allowMultiSupplier && !multiSupplierProceed) {
+      setShowMultiSupplierWarning(true);
+      return;
+    }
+
+    executeCheckout();
+  };
+
+  const executeCheckout = async () => {
     setIsSubmitting(true);
     try {
       const simplifiedItems = cartItems.map(i => ({ id: i.id, quantity: i.quantity }));
@@ -150,7 +170,7 @@ export const CartPage: React.FC = () => {
       // Construct composite address since detailed field is removed
       const finalAddress = {
         ...shippingAddress,
-        address: `${shippingAddress.governorate || ''} - ${shippingAddress.city || ''}`
+        address: `${shippingAddress.governorate || ''}، ${shippingAddress.city || ''}`
       };
 
       await placeOrder(simplifiedItems, finalAddress, paymentMethod);
@@ -165,8 +185,8 @@ export const CartPage: React.FC = () => {
 
     } catch (error: any) {
       toast.error(error.message || 'حدث خطأ أثناء إتمام الطلب');
-    } finally {
       setIsSubmitting(false);
+      setMultiSupplierProceed(false); // reset
     }
   };
 
@@ -265,7 +285,7 @@ export const CartPage: React.FC = () => {
                                 address: addr.street || '',
                                 city: addr.city || '',
                                 phone: addr.phone || '',
-                                governorate: addr.city || 'بغداد'
+                                governorate: addr.governorate || 'بغداد'
                               }));
                               toast.success('تم اختيار العنوان');
                             }}>
@@ -344,11 +364,9 @@ export const CartPage: React.FC = () => {
                       onChange={(e) => setShippingAddress({ ...shippingAddress, governorate: e.target.value })}
                       className="w-full rounded-xl border-slate-200 focus:ring-blue-500 focus:border-blue-500"
                     >
-                      <option value="بغداد">بغداد</option>
-                      <option value="أربيل">أربيل</option>
-                      <option value="البصرة">البصرة</option>
-                      <option value="النجف">النجف</option>
-                      <option value="نينوى">نينوى</option>
+                      {['بغداد', 'البصرة', 'نينوى', 'أربيل', 'السليمانية', 'دهوك', 'كركوك', 'صلاح الدين', 'ديالى', 'الأنبار', 'بابل', 'كربلاء', 'النجف', 'واسط', 'القادسية', 'ميسان', 'ذي قار', 'المثنى'].map((gov) => (
+                        <option key={gov} value={gov}>{gov}</option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -433,11 +451,57 @@ export const CartPage: React.FC = () => {
         </div>
       )}
 
+      {/* Multi-Supplier Warning Dialog */}
+      {showMultiSupplierWarning && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-200">
+            <div className="w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-6">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h3 className="text-xl font-bold text-center mb-4 text-slate-900">تنبيه طلب من عدة موردين</h3>
+            <p className="text-slate-600 text-center mb-8 leading-relaxed">
+              طلبك يحتوي على منتجات من موردين مختلفين. سوف يتم عمل طلبين (أو أكثر)، كل طلب خاص بمورد. هل توافق على إتمام الطلب أم تود الرجوع إلى سلة التسوق للمراجعة؟
+            </p>
+            <div className="flex gap-3">
+              <Button onClick={() => { setShowMultiSupplierWarning(false); setMultiSupplierProceed(true); executeCheckout(); }} className="flex-1 bg-blue-600 hover:bg-blue-700">
+                أوافق، إتمام الطلب
+              </Button>
+              <Button onClick={() => { setShowMultiSupplierWarning(false); setIsCheckingOut(false); }} variant="outline" className="flex-1">
+                الرجوع للسلة
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Cart Items Column */}
-          <div className="lg:col-span-2 space-y-4">
-            {cartItems.map((item) => {
+          <div className="lg:col-span-2 space-y-6">
+            {Object.entries(
+              cartItems.reduce((acc, item) => {
+                const product = storeProducts.find(p => p.id === item.id);
+                // Fallback to "مورد غير معروف" instead of crashing if product isn't found
+                const supplierId = product?.supplierId || 'unknown';
+                const supplierName = product?.supplierName || 'مورد غير معروف';
+                if (!acc[supplierId]) acc[supplierId] = { supplierName, items: [] };
+                acc[supplierId].items.push(item);
+                return acc;
+              }, {} as Record<string, { supplierName: string, items: typeof cartItems }>)
+            ).map(([supplierId, group]) => (
+              <div key={supplierId} className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm overflow-hidden">
+                <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+                  <div className="w-12 h-12 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600">
+                    <Building className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg text-slate-900">{group.supplierName}</h3>
+                    <p className="text-xs text-slate-500">منتجات من هذا المورد</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  {group.items.map((item) => {
               const isAvailable = storeProducts.find(p => p.id === item.id);
               return (
                 <div
@@ -461,12 +525,22 @@ export const CartPage: React.FC = () => {
                         <h3 className={`font-bold text-lg mb-1 cursor-pointer ${isAvailable ? 'text-slate-900 hover:text-blue-600' : 'text-slate-500 line-through'}`} onClick={() => navigate(`/store/product/${item.id}`)}>{item.name}</h3>
                         <p className="text-sm text-slate-500 bg-slate-50 px-2 py-1 rounded-lg inline-block text-xs">{item.category || 'عام'}</p>
                       </div>
-                      <button
-                        onClick={() => removeFromCart(item.id)}
-                        className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-xl transition-all"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => toast.success('تمت الإضافة للمفضلة')}
+                          className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-xl transition-all"
+                          title="إضافة للمفضلة"
+                        >
+                          <Heart className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => removeFromCart(item.id)}
+                          className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-xl transition-all"
+                          title="حذف من السلة"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
                     </div>
 
                     <div className="flex flex-wrap justify-between items-end mt-4 gap-4">
@@ -498,6 +572,9 @@ export const CartPage: React.FC = () => {
                 </div>
               )
             })}
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* Checkout Summary Column */}

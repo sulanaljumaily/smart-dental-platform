@@ -8,7 +8,7 @@ export interface Laboratory {
     address: string;
     phone: string;
     email: string;
-    governorate: string;
+    governorate?: string;
     status: 'active' | 'pending' | 'suspended';
     commissionPercentage: number;
     totalRevenue: number;
@@ -21,6 +21,7 @@ export interface Laboratory {
     isVerified: boolean;
     isAccredited: boolean;
     totalRequests: number;
+    logo?: string;
 }
 
 export function useAdminLabs() {
@@ -51,27 +52,53 @@ export function useAdminLabs() {
             if (error) throw error;
 
             if (data) {
-                const mappedLabs: Laboratory[] = data.map((lab: any) => ({
-                    id: lab.id,
-                    name: lab.name || 'مختبر',
-                    ownerName: 'مدير المختبر', // Placeholder as owner_id join is needed for name
-                    address: lab.address || 'العنوان غير متوفر',
-                    phone: lab.phone || 'N/A',
-                    email: lab.email || 'N/A',
-                    governorate: 'بغداد',
-                    status: lab.account_status || 'pending',
-                    commissionPercentage: lab.commission_percentage || 5, // Default 5%
-                    totalRevenue: 0, // Need to join with orders or view
-                    pendingCommission: lab.pending_commission || 0,
-                    rating: lab.rating || 5,
-                    reviewCount: 0,
-                    joinDate: lab.created_at,
-                    labType: 'cooperative',
-                    isActive: lab.account_status === 'active',
-                    totalRequests: 0,
-                    isVerified: lab.is_verified || false,
-                    isAccredited: lab.is_accredited || false
-                }));
+                // Fetch owner profiles in parallel to avoid Join issues
+                const userIds = data.map((l: any) => l.user_id).filter(id => id); // Filter nulls
+
+                let profileMap: Record<string, { full_name: string; phone: string; email: string; avatar_url: string }> = {};
+                if (userIds.length > 0) {
+                    const { data: profilesData } = await supabase
+                        .from('profiles')
+                        .select('id, full_name, phone, email, avatar_url')
+                        .in('id', userIds);
+
+                    if (profilesData) {
+                        profilesData.forEach((p: any) => {
+                            profileMap[p.id] = {
+                                full_name: p.full_name || 'مدير المختبر',
+                                phone: p.phone || 'N/A',
+                                email: p.email || 'N/A',
+                                avatar_url: p.avatar_url
+                            };
+                        });
+                    }
+                }
+
+                const mappedLabs: Laboratory[] = data.map((lab: any) => {
+                    const owner = profileMap[lab.user_id];
+                    return {
+                        id: lab.id,
+                        name: lab.name || 'مختبر',
+                        ownerName: owner?.full_name || 'مدير المختبر',
+                        address: lab.address || 'العنوان غير متوفر',
+                        phone: owner?.phone || lab.phone || 'N/A',
+                        email: owner?.email || lab.email || 'N/A',
+                        governorate: lab.governorate || 'بغداد',
+                        status: lab.account_status || 'pending',
+                        commissionPercentage: lab.commission_percentage || 5, // Default 5%
+                        totalRevenue: 0, // Need to join with orders or view
+                        pendingCommission: lab.pending_commission || 0,
+                        rating: lab.rating || 5,
+                        reviewCount: 0,
+                        joinDate: lab.created_at,
+                        labType: 'cooperative',
+                        isActive: lab.account_status === 'active',
+                        totalRequests: 0,
+                        isVerified: lab.is_verified || false,
+                        isAccredited: lab.is_accredited || false,
+                        logo: lab.logo_url || owner?.avatar_url || undefined
+                    };
+                });
 
                 // Fetch stats from Admin View if possible or specific query
                 const { data: statsData } = await supabase.from('admin_lab_performance_view').select('lab_id, total_revenue, pending_fees');

@@ -46,7 +46,8 @@ export const UsersManager: React.FC = () => {
                     phoneNumber: data.phone_number || data.phone || user.phone_number || '',
                     email: data.contact_email || data.email || user.email || '',
                     location: data.address || data.location || user.location || '',
-                    status: data.status || 'pending',
+                    status: data.status || (data.is_verified ? 'approved' : 'pending'),
+                    logo: data.logo || user.avatar_url || undefined,
                     // Fallback to current date if join_date/created_at is missing to prevent invalid date error
                     joinDate: data.created_at || user.created_at || new Date().toISOString(),
                     productsCount: 0, // Could fetch this if needed
@@ -134,8 +135,12 @@ export const UsersManager: React.FC = () => {
             title: 'الاسم الكامل',
             render: (val: string, record: any) => (
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
-                        {val?.charAt(0) || 'U'}
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold overflow-hidden">
+                        {record.avatar_url ? (
+                            <img src={record.avatar_url} alt={val || ''} className="w-full h-full object-cover" />
+                        ) : (
+                            val?.charAt(0) || 'U'
+                        )}
                     </div>
                     <div>
                         <div className="font-bold text-gray-900">{val || 'غير محدد'}</div>
@@ -160,7 +165,7 @@ export const UsersManager: React.FC = () => {
                 </span>
             )
         },
-        { key: 'city', title: 'المدينة', render: (val: string) => val || '-' },
+        { key: 'governorate', title: 'المحافظة', render: (val: string) => val || '-' },
         {
             key: 'created_at',
             title: 'تاريخ الانضمام',
@@ -223,51 +228,62 @@ export const UsersManager: React.FC = () => {
                     onClose={() => setModalType(null)}
                     supplier={selectedUser}
                     onApprove={async (s) => {
-                        const { error } = await supabase.from('suppliers').update({ status: 'approved' }).eq('id', s.id);
-                        if (!error) {
+                        const { error: supErr } = await supabase.from('suppliers').update({ is_verified: true }).eq('id', s.id);
+                        // Also lift any ban on the profile
+                        await supabase.from('profiles').update({ banned: false }).eq('id', s.id);
+                        if (!supErr) {
                             toast.success('تم تفعيل حساب المورد');
                             setModalType(null);
                         } else {
-                            toast.error('حدث خطأ');
+                            toast.error('حدث خطأ في التفعيل');
+                            console.error(supErr);
                         }
                     }}
                     onReject={async (s) => {
-                        const { error } = await supabase.from('suppliers').update({ status: 'rejected' }).eq('id', s.id);
-                        if (!error) {
+                        const { error: supErr } = await supabase.from('suppliers').update({ is_verified: false }).eq('id', s.id);
+                        if (!supErr) {
                             toast.success('تم رفض حساب المورد');
                             setModalType(null);
                         } else {
-                            toast.error('حدث خطأ');
+                            toast.error('حدث خطأ في الرفض');
                         }
                     }}
                     onUpdateStatus={async (id, status) => {
-                        const { error } = await supabase.from('suppliers').update({ status }).eq('id', id);
-                        if (!error) {
-                            toast.success(`تم تحديث الحالة إلى ${status === 'suspended' ? 'معلق' : 'نشط'}`);
+                        const isSuspending = status === 'suspended';
+                        const isActivating = status === 'approved';
+                        // Update suppliers.is_verified
+                        const { error: supErr } = await supabase
+                            .from('suppliers')
+                            .update({ is_verified: isActivating })
+                            .eq('id', id);
+                        // Update profiles.banned (suspend = ban, activate = unban)
+                        const { error: profErr } = await supabase
+                            .from('profiles')
+                            .update({ banned: isSuspending })
+                            .eq('id', id);
+                        if (!supErr && !profErr) {
+                            toast.success(isSuspending ? 'تم تعليق حساب المورد وإخفاؤه من المنصة' : 'تم إعادة تفعيل حساب المورد');
                             setModalType(null);
                         } else {
-                            toast.error('حدث خطأ في التحديث');
+                            toast.error('حدث خطأ في تحديث الحالة');
+                            console.error({ supErr, profErr });
                         }
                     }}
-                    onClearCommission={async (id) => {
+                    onClearCommission={async (id, amount) => {
                         // Basic commission clearance implementation for Users Manager context
-                        // Ideally should call the same logic as StoreSuppliers, but let's keep it simple for now or strictly use the hook if possible.
-                        // Since we are not using the hook here, let's just show a toast or implement basic DB call if critical.
-                        // Given the user context, maybe just alert not supported here or implement.
-                        // Let's implement the DB transaction for consistency.
                         try {
                             const { data: supplier } = await supabase.from('suppliers').select('pending_commission').eq('id', id).single();
                             if (!supplier || !supplier.pending_commission) {
                                 toast.error('لا توجد عمولة مستحقة');
-                                return;
+                                return false;
                             }
 
-                            const amount = supplier.pending_commission;
+                            const clearanceAmount = amount || supplier.pending_commission;
 
                             const { error: txError } = await supabase.from('financial_transactions').insert({
                                 type: 'debit',
                                 category: 'commission_clearance',
-                                amount: amount,
+                                amount: clearanceAmount,
                                 description: `تسوية عمولة المنصة`,
                                 supplier_id: id,
                                 status: 'completed',
@@ -280,9 +296,11 @@ export const UsersManager: React.FC = () => {
                             if (updateError) throw updateError;
 
                             toast.success('تم تصفية العمولة بنجاح');
+                            return true;
                         } catch (e) {
                             toast.error('فشلت العملية');
                             console.error(e);
+                            return false;
                         }
                     }}
                 />
@@ -295,25 +313,33 @@ export const UsersManager: React.FC = () => {
                     lab={selectedUser}
                     onUpdateStatus={async (id, status) => {
                         try {
-                            // Map 'suspended'/'active' to 'deactivate'/'activate' for the RPC if needed, 
-                            // or if the RPC handles status string directly.
-                            // Looking at previous valid usage: toggle_lab_activation(p_lab_id, p_action) where action is 'activate' or 'deactivate'.
-
-                            const action = status === 'active' ? 'activate' : 'deactivate'; // Assuming 'suspended' -> deactivate
+                            const isSuspending = status === 'suspended';
+                            const action = status === 'active' ? 'activate' : 'deactivate';
                             const { data: { user } } = await supabase.auth.getUser();
 
-                            const { error } = await supabase.rpc('toggle_lab_activation', {
+                            // Call the existing RPC to toggle lab status
+                            const { error: rpcError } = await supabase.rpc('toggle_lab_activation', {
                                 p_lab_id: id,
                                 p_action: action,
                                 p_admin_id: user?.id
                             });
 
-                            if (!error) {
-                                toast.success(`تم ${action === 'activate' ? 'تفعيل' : 'تعليق'} حساب المختبر`);
-                                setModalType(null);
-                            } else {
-                                throw error;
+                            if (rpcError) throw rpcError;
+
+                            // Also sync profiles.banned so Community and LabDashboard know
+                            // Need to find the profile ID from the lab record
+                            const { data: labRecord } = await supabase
+                                .from('dental_laboratories')
+                                .select('owner_id, user_id')
+                                .eq('id', id)
+                                .single();
+                            const profileId = labRecord?.owner_id || labRecord?.user_id;
+                            if (profileId) {
+                                await supabase.from('profiles').update({ banned: isSuspending }).eq('id', profileId);
                             }
+
+                            toast.success(`تم ${action === 'activate' ? 'تفعيل' : 'تعليق'} حساب المختبر`);
+                            setModalType(null);
                         } catch (e) {
                             console.error(e);
                             toast.error('حدث خطأ في تحديث الحالة');

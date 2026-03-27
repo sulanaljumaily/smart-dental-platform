@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 
@@ -25,22 +25,26 @@ export const usePatients = (clinicId?: string) => {
     const [patients, setPatients] = useState<PatientData[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const mountedRef = useRef(true);
 
     useEffect(() => {
+        mountedRef.current = true;
         fetchPatients();
+        return () => { mountedRef.current = false; };
     }, [clinicId, user]);
 
     const fetchPatients = async () => {
         setLoading(true);
         try {
-            let query = supabase.from('patients').select('*');
+            let query = supabase.from('patients').select('*').is('deleted_at', null);
 
             if (clinicId) {
                 query = query.eq('clinic_id', clinicId);
             } else if (user?.id) {
                 // If no specific clinic, filter by user access (implied RLS or verify here)
-                // For now, let RLS handle it, or filter in memory if RLS is broad
             }
+
+            query = query.order('created_at', { ascending: false });
 
             const { data, error } = await query;
 
@@ -49,13 +53,13 @@ export const usePatients = (clinicId?: string) => {
             const mappedPatients: PatientData[] = (data || []).map((p: any) => ({
                 id: p.id,
                 clinicId: p.clinic_id?.toString(),
-                name: p.full_name || p.name, // Handle both
+                name: p.full_name || p.name,
                 age: p.age || 0,
                 gender: p.gender || 'male',
                 phone: p.phone,
                 email: p.email,
                 address: p.address,
-                status: 'active', // Default
+                status: p.status || 'active',
                 paymentStatus: 'paid', // Default
                 lastVisit: p.created_at,
                 totalVisits: 1, // Mock
@@ -67,10 +71,27 @@ export const usePatients = (clinicId?: string) => {
             setPatients(mappedPatients);
             setError(null);
         } catch (err: any) {
-            console.error('Error fetching patients:', err);
-            setError('Failed to load patients');
+            if (err?.name === 'AbortError' || err?.message?.includes('AbortError')) return;
+            if (mountedRef.current) {
+                console.error('Error fetching patients:', err);
+                setError('Failed to load patients');
+            }
         } finally {
-            setLoading(false);
+            if (mountedRef.current) setLoading(false);
+        }
+    };
+
+    const logActivity = async (action: string, entityId: string, details: any) => {
+        try {
+            await supabase.from('activity_logs').insert({
+                clinic_id: clinicId,
+                action_type: action,
+                entity_type: 'patient',
+                entity_id: entityId,
+                details
+            });
+        } catch (e) {
+            console.error('Failed to log activity', e);
         }
     };
 
@@ -92,6 +113,7 @@ export const usePatients = (clinicId?: string) => {
             const { data, error } = await supabase.from('patients').insert(patientData).select().single();
             if (error) throw error;
 
+            await logActivity('create_patient', data.id, { name: data.full_name });
             fetchPatients();
             return data;
         } catch (err) {
@@ -111,6 +133,7 @@ export const usePatients = (clinicId?: string) => {
             const { error } = await supabase.from('patients').update(dbUpdates).eq('id', id);
             if (error) throw error;
 
+            await logActivity('update_patient', id, updates);
             fetchPatients();
         } catch (err) {
             console.error('Error updating patient:', err);
@@ -119,14 +142,25 @@ export const usePatients = (clinicId?: string) => {
 
     const deletePatient = async (id: string) => {
         try {
-            const { error } = await supabase.from('patients').delete().eq('id', id);
+            // Soft delete
+            const { error } = await supabase
+                .from('patients')
+                .update({ deleted_at: new Date().toISOString() })
+                .eq('id', id);
+
             if (error) throw error;
 
+            await logActivity('delete_patient', id, { reason: 'Soft delete from UI' });
             fetchPatients();
         } catch (err) {
             console.error('Error deleting patient:', err);
         }
     };
+
+    // Check if we need to expose restorePatient?
+    // Usually restore is done from Activity Log or Trash, which might use a generic restore function.
+    // unlikely to be called from this hook unless we have a trash view.
+    // check tasks: "Undo" from Activity Log.
 
     return {
         patients,

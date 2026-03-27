@@ -9,6 +9,7 @@ import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
 import { useStore } from '../../hooks/useStore';
 import { ProductCard } from '../../components/store/ProductCard';
+import { formatLocation } from '../../utils/location';
 
 export const SupplierProfilePage: React.FC = () => {
   const { supplierId } = useParams<{ supplierId: string }>();
@@ -84,8 +85,8 @@ export const SupplierProfilePage: React.FC = () => {
               {/* Logo */}
               <div className="flex-shrink-0">
                 <div className="w-32 h-32 bg-white rounded-2xl shadow-xl flex items-center justify-center border-4 border-gray-100 overflow-hidden">
-                  {supplier.logo ? (
-                    <img src={supplier.logo} alt={supplier.name} className="w-full h-full object-cover" />
+                  {(supplier.logo_url || supplier.logo) ? (
+                    <img src={supplier.logo_url || supplier.logo} alt={supplier.name} className="w-full h-full object-cover" />
                   ) : (
                     <Store className="w-16 h-16 text-blue-600" />
                   )}
@@ -105,7 +106,7 @@ export const SupplierProfilePage: React.FC = () => {
                     <p className="text-lg text-gray-600 mb-3">{supplier.description || 'مورد موثوق للمواد الطبية ومستلزمات الأسنان.'}</p>
                     <div className="flex items-center gap-2 text-gray-600 mb-2">
                       <MapPin className="w-5 h-5" />
-                      <span>{supplier.location}</span>
+                      <span>{formatLocation(supplier.governorate, supplier.address)}</span>
                     </div>
                   </div>
 

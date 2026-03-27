@@ -49,7 +49,7 @@ export const ClinicDetailsModal: React.FC<ClinicDetailsModalProps> = ({
             // Fetch fresh clinic data for contact info
             const clinicPromise = supabase
                 .from('clinics')
-                .select('*')
+                .select('*, owner:profiles!owner_id(full_name, phone_number, email)')
                 .eq('id', clinicId)
                 .single();
 
@@ -137,7 +137,7 @@ export const ClinicDetailsModal: React.FC<ClinicDetailsModalProps> = ({
                                     <span className="text-gray-300">|</span>
                                     <span className="flex items-center gap-1.5 text-sm">
                                         <Globe className="w-4 h-4" />
-                                        {clinic.city || clinic.governorate || 'بغداد'}
+                                        {clinic.governorate && clinic.address ? `${clinic.governorate}، ${clinic.address}` : clinic.governorate || clinic.address || 'بغداد'}
                                     </span>
                                 </div>
                             </div>
@@ -159,12 +159,7 @@ export const ClinicDetailsModal: React.FC<ClinicDetailsModalProps> = ({
                                     {clinic.is_featured ? 'عيادة مميزة' : 'تمييز العيادة'}
                                 </button>
                             )}
-                            <div className={`px-4 py-2 rounded-xl text-sm font-bold ${clinic.is_verified
-                                ? 'bg-green-50 text-green-700 border border-green-100'
-                                : 'bg-amber-50 text-amber-700 border border-amber-100'
-                                }`}>
-                                {clinic.is_verified ? '• حساب موثق' : '• قيد المراجعة'}
-                            </div>
+
                         </div>
                     </div>
 
@@ -186,14 +181,14 @@ export const ClinicDetailsModal: React.FC<ClinicDetailsModalProps> = ({
                                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">رقم الهاتف</label>
                                         <div className="flex items-center gap-2 text-gray-900 text-lg">
                                             <Phone className="w-4 h-4 text-gray-400" />
-                                            <span dir="ltr">{clinic.phone_number || clinic.owner?.phone_number || 'غير متوفر'}</span>
+                                            <span dir="ltr">{clinic.owner?.phone_number || clinic.phone || 'غير متوفر'}</span>
                                         </div>
                                     </div>
                                     <div className="col-span-2">
                                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">البريد الإلكتروني للإدارة</label>
                                         <div className="flex items-center gap-2 text-gray-900">
                                             <Mail className="w-4 h-4 text-gray-400" />
-                                            <span>{clinic.email || clinic.contact_email || 'غير متوفر'}</span>
+                                            <span>{clinic.email || clinic.owner?.email || 'غير متوفر'}</span>
                                         </div>
                                     </div>
                                     <div className="col-span-2 border-t border-gray-200 pt-4 mt-2">
@@ -251,8 +246,10 @@ export const ClinicDetailsModal: React.FC<ClinicDetailsModalProps> = ({
                                     <MapPin className="w-4 h-4 text-purple-600" />
                                     العنوان
                                 </h4>
-                                <p className="text-sm text-gray-600 mb-1 font-medium">{clinic.city || clinic.governorate}</p>
-                                <p className="text-xs text-gray-500 leading-relaxed">{clinic.address || clinic.location_details || 'العنوان غير محدد'}</p>
+                                <p className="text-sm text-gray-600 mb-1 font-medium">
+                                    {clinic.governorate && clinic.address ? `${clinic.governorate}، ${clinic.address}` : clinic.governorate || clinic.address || ''}
+                                </p>
+
                             </div>
                         </div>
                     </div>
@@ -260,7 +257,6 @@ export const ClinicDetailsModal: React.FC<ClinicDetailsModalProps> = ({
 
                 <div className="border-t border-gray-100 p-6 bg-gray-50 rounded-b-xl flex justify-end gap-3">
                     <Button variant="outline" onClick={onClose}>إغلاق</Button>
-                    <Button className="bg-blue-600 text-white hover:bg-blue-700">تعديل البيانات</Button>
                 </div>
             </div>
         </AdminModal>

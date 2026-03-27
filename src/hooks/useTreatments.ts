@@ -16,6 +16,7 @@ export interface TreatmentService {
     isComplex: boolean;
     defaultPhases?: any[];
     clinicId?: string;
+    scope?: 'tooth' | 'general' | 'both';
 }
 
 export const useTreatments = (clinicId?: string) => {
@@ -52,7 +53,8 @@ export const useTreatments = (clinicId?: string) => {
                 isActive: t.is_active,
                 isComplex: t.is_complex,
                 defaultPhases: t.default_phases,
-                clinicId: t.clinic_id.toString()
+                clinicId: t.clinic_id.toString(),
+                scope: t.scope || 'tooth'
             }));
 
             // Sort by popularity or name
@@ -76,7 +78,8 @@ export const useTreatments = (clinicId?: string) => {
                 expected_sessions: newItem.expectedSessions,
                 is_active: newItem.isActive,
                 is_complex: newItem.isComplex,
-                default_phases: newItem.defaultPhases || []
+                default_phases: newItem.defaultPhases || [],
+                scope: newItem.scope || 'tooth'
             };
 
             const { error } = await supabase.from('treatments').insert([dbItem]);
@@ -95,6 +98,9 @@ export const useTreatments = (clinicId?: string) => {
             if (updates.costEstimate !== undefined) dbUpdates.cost_estimate = updates.costEstimate;
             if (updates.profitMargin !== undefined) dbUpdates.profit_margin = updates.profitMargin;
             if (updates.isActive !== undefined) dbUpdates.is_active = updates.isActive;
+            if (updates.isComplex !== undefined) dbUpdates.is_complex = updates.isComplex;
+            if (updates.expectedSessions !== undefined) dbUpdates.expected_sessions = updates.expectedSessions;
+            if (updates.scope !== undefined) dbUpdates.scope = updates.scope;
 
             const { error } = await supabase.from('treatments').update(dbUpdates).eq('id', id);
             if (error) throw error;

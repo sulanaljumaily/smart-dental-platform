@@ -1,8 +1,8 @@
-import { 
-  Doctor, 
-  Appointment, 
-  AppointmentType, 
-  AppointmentStatus, 
+import {
+  Doctor,
+  Appointment,
+  AppointmentType,
+  AppointmentStatus,
   AppointmentDuration,
   DailyStats,
   MonthlyStats
@@ -29,7 +29,7 @@ export const doctors: Doctor[] = [
     isActive: true
   },
   {
-    id: 'DOC002', 
+    id: 'DOC002',
     name: 'د. سارة النجفي',
     specialty: 'أخصائي تقويم الأسنان',
     phone: '07802345678',
@@ -64,7 +64,7 @@ export const doctors: Doctor[] = [
   },
   {
     id: 'DOC004',
-    name: 'د. نور الحلي', 
+    name: 'د. نور الحلي',
     specialty: 'أخصائي علاج العصب',
     phone: '07804567890',
     email: 'dr.noor@clinic.com',
@@ -103,13 +103,7 @@ export const appointmentTypes: { type: AppointmentType; label: string; defaultDu
   { type: 'consultation', label: 'استشارة', defaultDuration: 30, color: '#3B82F6' },
   { type: 'treatment', label: 'علاج', defaultDuration: 60, color: '#10B981' },
   { type: 'followup', label: 'متابعة', defaultDuration: 30, color: '#F59E0B' },
-  { type: 'emergency', label: 'طوارئ', defaultDuration: 45, color: '#EF4444' },
-  { type: 'cleaning', label: 'تنظيف', defaultDuration: 45, color: '#8B5CF6' },
-  { type: 'extraction', label: 'قلع', defaultDuration: 30, color: '#EC4899' },
-  { type: 'filling', label: 'حشو', defaultDuration: 45, color: '#06B6D4' },
-  { type: 'rootcanal', label: 'علاج عصب', defaultDuration: 90, color: '#84CC16' },
-  { type: 'orthodontics', label: 'تقويم', defaultDuration: 60, color: '#F97316' },
-  { type: 'surgery', label: 'جراحة', defaultDuration: 120, color: '#6366F1' }
+  { type: 'emergency', label: 'طوارئ', defaultDuration: 45, color: '#EF4444' }
 ];
 
 // حالات المواعيد مع الألوان
@@ -129,24 +123,24 @@ function generateRandomAppointment(id: number, date: Date): Appointment {
   const patient = allPatients[Math.floor(Math.random() * allPatients.length)];
   const doctor = doctors[Math.floor(Math.random() * doctors.length)];
   const appointmentType = appointmentTypes[Math.floor(Math.random() * appointmentTypes.length)];
-  
+
   // توليد وقت عشوائي خلال ساعات العمل
   const workStart = 8; // 8 صباحاً
   const workEnd = 18;  // 6 مساءً
   const startHour = workStart + Math.floor(Math.random() * (workEnd - workStart));
   const startMinute = [0, 15, 30, 45][Math.floor(Math.random() * 4)];
-  
+
   const startTime = `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`;
-  
+
   // حساب وقت الانتهاء
   const endDate = new Date(date);
   endDate.setHours(startHour, startMinute + appointmentType.defaultDuration);
   const endTime = `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`;
-  
+
   // تحديد حالة الموعد بناءً على التاريخ
   const today = new Date();
   const appointmentDate = new Date(date);
-  
+
   let status: AppointmentStatus;
   if (appointmentDate < today) {
     // مواعيد الماضي
@@ -154,7 +148,7 @@ function generateRandomAppointment(id: number, date: Date): Appointment {
     const weights = [0.8, 0.1, 0.1]; // 80% مكتمل، 10% لم يحضر، 10% ملغي
     const random = Math.random();
     let cumulative = 0;
-    
+
     for (let i = 0; i < pastStatuses.length; i++) {
       cumulative += weights[i];
       if (random <= cumulative) {
@@ -172,15 +166,16 @@ function generateRandomAppointment(id: number, date: Date): Appointment {
     const futureStatuses: AppointmentStatus[] = ['scheduled', 'confirmed'];
     status = futureStatuses[Math.floor(Math.random() * futureStatuses.length)];
   }
-  
+
   const priority = ['low', 'normal', 'high', 'urgent'][Math.floor(Math.random() * 4)] as any;
-  
+
   // تاريخ الإنشاء (قبل موعد الحجز)
   const createdDate = new Date(date);
   createdDate.setDate(createdDate.getDate() - Math.floor(Math.random() * 30) - 1);
-  
+
   return {
     id: `APT${id.toString().padStart(4, '0')}`,
+    clinicId: '1', // Default clinic ID for mocks
     patientId: patient.id,
     patientName: patient.fullName,
     patientPhone: patient.phone,
@@ -188,6 +183,7 @@ function generateRandomAppointment(id: number, date: Date): Appointment {
     doctorName: doctor.name,
     date: appointmentDate.toISOString().split('T')[0],
     startTime,
+    time: startTime, // Alias for compatibility
     endTime,
     duration: appointmentType.defaultDuration,
     type: appointmentType.type,
@@ -199,13 +195,13 @@ function generateRandomAppointment(id: number, date: Date): Appointment {
     createdAt: createdDate.toISOString(),
     createdBy: 'ADMIN001',
     updatedAt: Math.random() > 0.7 ? new Date().toISOString() : undefined,
-    
+
     // تفاصيل إضافية
     estimatedCost: Math.floor(Math.random() * 200000) + 50000, // 50-250 ألف دينار
     actualCost: status === 'completed' ? Math.floor(Math.random() * 200000) + 50000 : undefined,
-    paymentStatus: status === 'completed' ? 
+    paymentStatus: status === 'completed' ?
       (['paid', 'partial', 'pending'][Math.floor(Math.random() * 3)] as any) : 'pending',
-    
+
     // المواعيد المتكررة (10% من المواعيد)
     isRecurring: Math.random() < 0.1,
     recurringPattern: Math.random() < 0.1 ? {
@@ -213,7 +209,7 @@ function generateRandomAppointment(id: number, date: Date): Appointment {
       interval: Math.random() > 0.5 ? 1 : 2,
       endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 3 شهور
     } : undefined,
-    
+
     // التذكيرات
     reminders: [
       {
@@ -228,15 +224,15 @@ function generateRandomAppointment(id: number, date: Date): Appointment {
         type: 'call',
         timing: 60, // ساعة واحدة
         isActive: Math.random() > 0.3,
-        status: appointmentDate <= today ? 
+        status: appointmentDate <= today ?
           (['sent', 'delivered', 'failed'][Math.floor(Math.random() * 3)] as any) : 'pending'
       }
     ],
-    
+
     // معلومات الحضور (للمواعيد المكتملة فقط)
-    checkInTime: status === 'completed' || status === 'inprogress' ? 
+    checkInTime: status === 'completed' || status === 'inprogress' ?
       `${startHour.toString().padStart(2, '0')}:${(startMinute + Math.floor(Math.random() * 15)).toString().padStart(2, '0')}` : undefined,
-    checkOutTime: status === 'completed' ? 
+    checkOutTime: status === 'completed' ?
       `${endDate.getHours().toString().padStart(2, '0')}:${(endDate.getMinutes() + Math.floor(Math.random() * 30)).toString().padStart(2, '0')}` : undefined,
     waitingTime: status === 'completed' || status === 'inprogress' ? Math.floor(Math.random() * 20) + 5 : undefined
   };
@@ -246,59 +242,59 @@ function generateRandomAppointment(id: number, date: Date): Appointment {
 function generateAppointments(): Appointment[] {
   const appointments: Appointment[] = [];
   let appointmentId = 1;
-  
+
   // الشهر الماضي
   const lastMonth = new Date();
   lastMonth.setMonth(lastMonth.getMonth() - 1);
   const lastMonthDays = new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0).getDate();
-  
+
   for (let day = 1; day <= lastMonthDays; day++) {
     const date = new Date(lastMonth.getFullYear(), lastMonth.getMonth(), day);
-    
+
     // تخطي الجمعة للراحة الأسبوعية
     if (date.getDay() === 5) continue;
-    
+
     // عدد المواعيد في اليوم (2-8 مواعيد)
     const appointmentsPerDay = Math.floor(Math.random() * 7) + 2;
-    
+
     for (let i = 0; i < appointmentsPerDay; i++) {
       appointments.push(generateRandomAppointment(appointmentId++, date));
     }
   }
-  
+
   // الشهر الحالي
   const thisMonth = new Date();
   const thisMonthDays = new Date(thisMonth.getFullYear(), thisMonth.getMonth() + 1, 0).getDate();
-  
+
   for (let day = 1; day <= thisMonthDays; day++) {
     const date = new Date(thisMonth.getFullYear(), thisMonth.getMonth(), day);
-    
+
     if (date.getDay() === 5) continue;
-    
+
     const appointmentsPerDay = Math.floor(Math.random() * 8) + 3;
-    
+
     for (let i = 0; i < appointmentsPerDay; i++) {
       appointments.push(generateRandomAppointment(appointmentId++, date));
     }
   }
-  
+
   // الشهر القادم  
   const nextMonth = new Date();
   nextMonth.setMonth(nextMonth.getMonth() + 1);
   const nextMonthDays = Math.min(15, new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 0).getDate()); // أول 15 يوم فقط
-  
+
   for (let day = 1; day <= nextMonthDays; day++) {
     const date = new Date(nextMonth.getFullYear(), nextMonth.getMonth(), day);
-    
+
     if (date.getDay() === 5) continue;
-    
+
     const appointmentsPerDay = Math.floor(Math.random() * 6) + 1;
-    
+
     for (let i = 0; i < appointmentsPerDay; i++) {
       appointments.push(generateRandomAppointment(appointmentId++, date));
     }
   }
-  
+
   return appointments.sort((a, b) => {
     const dateComparison = new Date(a.date).getTime() - new Date(b.date).getTime();
     if (dateComparison === 0) {
@@ -315,25 +311,25 @@ export const dailyStats: DailyStats[] = (() => {
   const stats: DailyStats[] = [];
   const thisMonth = new Date();
   const daysInMonth = new Date(thisMonth.getFullYear(), thisMonth.getMonth() + 1, 0).getDate();
-  
+
   for (let day = 1; day <= daysInMonth; day++) {
     const date = new Date(thisMonth.getFullYear(), thisMonth.getMonth(), day);
     const dateString = date.toISOString().split('T')[0];
-    
+
     const dayAppointments = mockAppointments.filter(apt => apt.date === dateString);
-    
+
     if (dayAppointments.length > 0) {
       const completed = dayAppointments.filter(apt => apt.status === 'completed').length;
       const cancelled = dayAppointments.filter(apt => apt.status === 'cancelled').length;
       const noshow = dayAppointments.filter(apt => apt.status === 'noshow').length;
       const total = dayAppointments.length;
-      
+
       const revenue = dayAppointments
         .filter(apt => apt.actualCost && apt.paymentStatus === 'paid')
         .reduce((sum, apt) => sum + (apt.actualCost || 0), 0);
-      
+
       const patientCount = new Set(dayAppointments.map(apt => apt.patientId)).size;
-      
+
       const doctorUtilization: { [doctorId: string]: number } = {};
       doctors.forEach(doctor => {
         const doctorAppointments = dayAppointments.filter(apt => apt.doctorId === doctor.id);
@@ -341,7 +337,7 @@ export const dailyStats: DailyStats[] = (() => {
         const actualHours = doctorAppointments.reduce((sum, apt) => sum + apt.duration / 60, 0);
         doctorUtilization[doctor.id] = Math.round((actualHours / totalWorkingHours) * 100);
       });
-      
+
       stats.push({
         date: dateString,
         total,
@@ -362,7 +358,7 @@ export const dailyStats: DailyStats[] = (() => {
       });
     }
   }
-  
+
   return stats;
 })();
 
@@ -370,51 +366,51 @@ export const dailyStats: DailyStats[] = (() => {
 export const monthlyStats: MonthlyStats = (() => {
   const thisMonth = new Date();
   const monthString = `${thisMonth.getFullYear()}-${(thisMonth.getMonth() + 1).toString().padStart(2, '0')}`;
-  
+
   const monthAppointments = mockAppointments.filter(apt => apt.date.startsWith(monthString));
-  
+
   const completed = monthAppointments.filter(apt => apt.status === 'completed').length;
   const cancelled = monthAppointments.filter(apt => apt.status === 'cancelled').length;
   const noshow = monthAppointments.filter(apt => apt.status === 'noshow').length;
   const total = monthAppointments.length;
-  
+
   // أكثر الساعات ازدحاماً
   const hourCounts: { [hour: string]: number } = {};
   monthAppointments.forEach(apt => {
     const hour = apt.startTime.split(':')[0];
     hourCounts[hour] = (hourCounts[hour] || 0) + 1;
   });
-  
+
   const peakHours = Object.entries(hourCounts)
     .map(([hour, count]) => ({ hour: `${hour}:00`, count }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 5);
-  
+
   // أشهر أنواع العلاجات
   const treatmentCounts: { [type: string]: number } = {};
   monthAppointments.forEach(apt => {
     treatmentCounts[apt.type] = (treatmentCounts[apt.type] || 0) + 1;
   });
-  
+
   const popularTreatments = Object.entries(treatmentCounts)
     .map(([type, count]) => ({ type: type as AppointmentType, count }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 5);
-  
+
   // أفضل الأطباء
   const doctorCounts: { [doctorId: string]: number } = {};
   monthAppointments.forEach(apt => {
     doctorCounts[apt.doctorId] = (doctorCounts[apt.doctorId] || 0) + 1;
   });
-  
+
   const topDoctors = Object.entries(doctorCounts)
     .map(([doctorId, appointmentCount]) => ({ doctorId, appointmentCount }))
     .sort((a, b) => b.appointmentCount - a.appointmentCount);
-  
+
   const revenue = monthAppointments
     .filter(apt => apt.actualCost && apt.paymentStatus === 'paid')
     .reduce((sum, apt) => sum + (apt.actualCost || 0), 0);
-  
+
   return {
     month: monthString,
     total,
@@ -449,7 +445,7 @@ export const defaultWorkingHours = {
 // ألوان التقويم
 export const calendarColors = {
   primary: '#3B82F6',
-  success: '#10B981', 
+  success: '#10B981',
   warning: '#F59E0B',
   danger: '#EF4444',
   info: '#06B6D4',

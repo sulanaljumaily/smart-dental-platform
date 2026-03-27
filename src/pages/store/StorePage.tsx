@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { detailedCategories } from '../../data/store-categories';
 import { ProductCard } from '../../components/store/ProductCard';
+import { formatLocation } from '../../utils/location';
 import { useStoreCart } from '../../hooks/useStoreCart';
 import { useWishlist } from '../../hooks/useWishlist';
 
@@ -312,8 +313,8 @@ export const StorePage: React.FC = () => {
                     className="flex-shrink-0 w-48 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/5 hover:bg-white/20 transition-all cursor-pointer group"
                   >
                     <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center overflow-hidden mb-3 group-hover:scale-110 transition-transform">
-                      {supplier.logo_url ? (
-                        <img src={supplier.logo_url} alt={supplier.name} className="w-full h-full object-cover" />
+                      {supplier.logo ? (
+                        <img src={supplier.logo} alt={supplier.name} className="w-full h-full object-cover" />
                       ) : (
                         <Store className="w-6 h-6 text-slate-800" />
                       )}
@@ -323,7 +324,7 @@ export const StorePage: React.FC = () => {
                       <Star className="w-3 h-3 fill-amber-400" />
                       <span>{supplier.rating || 'New'}</span>
                     </div>
-                    <span className="text-[10px] text-slate-400 block">{supplier.city || 'العراق'}</span>
+                    <span className="line-clamp-1 text-xs text-slate-400">{formatLocation(supplier.governorate, supplier.address) || 'العراق'}</span>
                   </div>
                 ))}
               </div>

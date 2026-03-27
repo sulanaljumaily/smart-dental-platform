@@ -26,12 +26,14 @@ import { Card } from '../../../components/common/Card';
 import { formatDate } from '../../../lib/utils';
 import { BentoStatCard } from '../../../components/dashboard/BentoStatCard';
 import { HorizontalCalendar } from '../../../components/calendar/HorizontalCalendar';
+import { AppointmentModal } from '../../../components/appointments/AppointmentModal';
 import { Appointment } from '../../../types';
 import { useAppointments } from '../../../hooks/useAppointments';
 import { supabase } from '../../../lib/supabase';
 import { usePatients } from '../../../hooks/usePatients';
 import { useOnlineRequests, OnlineRequest } from '../../../hooks/useOnlineRequests';
 import { getStaffByClinic } from '../../../data/mock/clinicStaff';
+import { useStaff } from '../../../hooks/useStaff';
 
 interface ClinicAppointmentsPageProps {
   clinicId: string;
@@ -44,8 +46,11 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
-  const [showAddModal, setShowAddModal] = useState(false);
+
+  // Unified Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+
   const [selectedRequestForFile, setSelectedRequestForFile] = useState<OnlineRequest | null>(null); // New State
   const [doctors, setDoctors] = useState<{ id: string, name: string }[]>([]);
 
@@ -58,32 +63,28 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
     deleteAppointment
   } = useAppointments(clinicId);
 
-  // Fetch Doctors
-  useEffect(() => {
-    if (!clinicId) return;
-    const fetchDoctors = async () => {
-      // Fetch staff with role relevant to being a doctor
-      const { data, error } = await supabase
-        .from('staff')
-        .select('id, full_name, role_title')
-        .eq('clinic_id', parseInt(clinicId))
-        .eq('is_active', true);
+  // Unified Staff Data
+  const { staff } = useStaff(clinicId);
 
-      if (data && data.length > 0) {
-        setDoctors(data.map(d => ({ id: d.id.toString(), name: d.full_name })));
+  useEffect(() => {
+    if (!staff) return;
+    const activeDoctors = staff
+      .filter(s => s.status === 'active' && (s.position === 'doctor' || s.role_title?.toLowerCase().includes('doctor') || s.role_title?.includes('طبيب')))
+      .map(d => ({ id: d.id.toString(), name: d.name })); // useStaff returns 'name' not 'full_name'
+
+    if (activeDoctors.length > 0) {
+      setDoctors(activeDoctors);
+    } else {
+      // Fallback to Mock Data
+      const mockStaff = getStaffByClinic(clinicId).filter(s => s.position === 'doctor');
+      if (mockStaff.length > 0) {
+        setDoctors(mockStaff.map(s => ({ id: s.id, name: s.name })));
       } else {
-        // Fallback to Mock Data
-        const mockStaff = getStaffByClinic(clinicId).filter(s => s.position === 'doctor');
-        if (mockStaff.length > 0) {
-          setDoctors(mockStaff.map(s => ({ id: s.id, name: s.name })));
-        } else {
-          // Absolute fallback if no mock data exists
-          setDoctors([{ id: '1', name: 'د. أحمد محمد (افتراضي)' }]);
-        }
+        // Absolute fallback if no mock data exists
+        setDoctors([{ id: '1', name: 'د. أحمد محمد (افتراضي)' }]);
       }
-    };
-    fetchDoctors();
-  }, [clinicId]);
+    }
+  }, [staff, clinicId]);
 
   // Load Online Requests (Real Data)
   const { requests: onlineRequests, refresh: refreshRequests, confirmRequest, cancelRequest, linkPatientToRequest } = useOnlineRequests(clinicId);
@@ -130,15 +131,23 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
 
   const handleEditClick = (apt: Appointment) => {
     setEditingAppointment(apt);
+    setIsModalOpen(true);
   };
 
-  const handleUpdateAppointment = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingAppointment) return;
-
-    updateAppointment(editingAppointment);
+  const handleSaveAppointment = async (appointmentData: Partial<Appointment>) => {
+    if (editingAppointment) {
+      await updateAppointment({ ...editingAppointment, ...appointmentData } as Appointment);
+    } else {
+      // handleSaveAppointment handles both create and update
+      // No separate handleUpdateAppointment needed
+      await createAppointment({
+        ...appointmentData,
+        clinicId,
+        status: appointmentData.status || 'scheduled'
+      } as Appointment);
+    }
+    setIsModalOpen(false);
     setEditingAppointment(null);
-    alert('تم تحديث الموعد بنجاح');
   };
 
   const handleCreatePatientFile = (request: OnlineRequest) => {
@@ -200,21 +209,61 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed': return 'text-green-600 bg-green-100';
-      case 'cancelled': return 'text-red-600 bg-red-100';
-      case 'pending': return 'text-yellow-600 bg-yellow-100';
-      case 'confirmed': return 'text-blue-600 bg-blue-100';
-      default: return 'text-gray-600 bg-gray-100';
+      case 'scheduled': return 'text-blue-600 bg-blue-50 border-blue-100';
+      case 'confirmed': return 'text-purple-600 bg-purple-50 border-purple-100';
+      case 'completed': return 'text-green-600 bg-green-50 border-green-100';
+      case 'cancelled': return 'text-red-600 bg-red-50 border-red-100';
+      case 'noshow': return 'text-orange-600 bg-orange-50 border-orange-100';
+      case 'pending': return 'text-yellow-600 bg-yellow-50 border-yellow-100';
+      case 'inprogress': return 'text-indigo-600 bg-indigo-50 border-indigo-100';
+      default: return 'text-gray-600 bg-gray-50 border-gray-100';
     }
   };
 
   const getStatusLabel = (status: string) => {
     switch (status) {
+      case 'scheduled': return 'مجدول';
+      case 'confirmed': return 'مؤكد';
       case 'completed': return 'مكتمل';
       case 'cancelled': return 'ملغي';
-      case 'pending': return 'معلق';
-      case 'confirmed': return 'مؤكد';
+      case 'noshow': return 'لم يحضر';
+      case 'pending': return 'قيد الانتظار';
+      case 'inprogress': return 'جاري التنفيذ';
       default: return 'غير محدد';
+    }
+  };
+
+  const getTypeLabel = (type: string) => {
+    const types: { [key: string]: string } = {
+      'consultation': 'كشف / استشارة',
+      'treatment': 'علاج',
+      'followup': 'مراجعة',
+      'emergency': 'طوارئ',
+      'cleaning': 'تنظيف',
+      'extraction': 'قلع',
+      'filling': 'حشوة',
+      'rootcanal': 'عصب',
+      'orthodontics': 'تقويم',
+      'surgery': 'جراحة'
+    };
+    return types[type] || type || 'زيارة عامة';
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'urgent': return 'bg-red-100 text-red-700 border-red-200';
+      case 'high': return 'bg-orange-100 text-orange-700 border-orange-200';
+      case 'low': return 'bg-green-100 text-green-700 border-green-200';
+      default: return 'bg-blue-50 text-blue-700 border-blue-100'; // normal
+    }
+  };
+
+  const getPriorityLabel = (priority: string) => {
+    switch (priority) {
+      case 'urgent': return 'عاجل';
+      case 'high': return 'مهم';
+      case 'low': return 'منخفض';
+      default: return 'عادي';
     }
   };
 
@@ -301,6 +350,7 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                 className="appearance-none px-4 pl-8 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none cursor-pointer"
               >
                 <option value="all">كل الحالات</option>
+                <option value="scheduled">جدول اليوم</option>
                 <option value="confirmed">حجوزات مؤكدة</option>
                 <option value="pending">طلبات معلقة</option>
                 <option value="completed">مكتملة</option>
@@ -310,7 +360,7 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
             </div>
 
             <button
-              onClick={() => setShowAddModal(true)}
+              onClick={() => { setEditingAppointment(null); setIsModalOpen(true); }}
               className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-200 transition-all cursor-pointer font-medium"
             >
               <Plus className="w-5 h-5" />
@@ -337,6 +387,7 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
               {filteredAppointments.length} موعد
             </span>
           </div>
+
           {/* List for Calendar Day */}
           {filteredAppointments.length > 0 ? (
             <div className="grid grid-cols-1 gap-4">
@@ -348,32 +399,69 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
 
                   <div className="flex items-center gap-5 w-full md:w-auto pr-4">
                     <div className="flex flex-col items-center justify-center min-w-[70px] h-18 bg-blue-50/50 rounded-2xl text-blue-700 border border-blue-100">
-                      <span className="text-xl font-bold font-mono">{apt.time}</span>
-                      <span className="text-[10px] font-medium opacity-70">صباحاً</span>
+                      <span className="text-xl font-bold">
+                        {(() => {
+                          const [h, m] = apt.time.split(':');
+                          let hours = parseInt(h, 10);
+                          hours = hours % 12;
+                          hours = hours ? hours : 12;
+                          return `${hours.toString().padStart(2, '0')}:${m}`;
+                        })()}
+                      </span>
+                      <span className="text-[10px] font-medium opacity-70">
+                        {parseInt(apt.time.split(':')[0]) >= 12 ? 'مساءً' : 'صباحاً'}
+                      </span>
                     </div>
                     <div>
                       <h4 className="font-bold text-gray-900 text-lg flex items-center gap-2">
                         {getPatientName(apt.patientId, apt.patientName)}
                         {apt.patientId && apt.patientId.toString().startsWith('temp') && <span className="text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">زائر</span>}
                       </h4>
-                      <div className="flex items-center gap-4 text-sm text-gray-500 mt-1.5">
-                        <span className="flex items-center gap-1.5 bg-gray-50 px-2 py-0.5 rounded-lg"><Users className="w-3.5 h-3.5" /> كشف عام</span>
-                        <span className="flex items-center gap-1.5 bg-gray-50 px-2 py-0.5 rounded-lg"><Clock className="w-3.5 h-3.5" /> 30 دقيقة</span>
-                        {apt.type && apt.type.includes('أونلاين') && (
-                          <span className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg border border-blue-100 animate-pulse">
+                      {/* اسم الطبيب المعالج */}
+                      <div className="text-xs text-blue-600 font-semibold mt-0.5">
+                        {doctors.find(d => d.id === apt.doctorId)?.name || 'طبيب غير محدد'}
+                      </div>
+
+                      {apt.type && apt.type.includes('أونلاين') && (
+                        <div className="flex items-center gap-4 text-sm mt-1.5">
+                          <span className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg border border-blue-100 animate-pulse text-xs">
                             <Globe className="w-3.5 h-3.5" /> أونلاين
                           </span>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   <div className="flex items-center gap-3 w-full md:w-auto justify-end pl-2">
-                    <span className={`px-3 py-1.5 rounded-full text-xs font-bold ${getStatusColor(apt.status)}`}>
-                      {getStatusLabel(apt.status)}
-                    </span>
+                    {/* 2x2 Grid for status matrix offsets */}
+                    <div className="grid grid-cols-2 gap-1 text-center items-center">
+                      {/* Top Right: Status */}
+                      <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${getStatusColor(apt.status)} whitespace-nowrap`}>
+                        {getStatusLabel(apt.status)}
+                      </span>
+                      
+                      {/* Top Left: Type */}
+                      <span className="flex items-center justify-center gap-1 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-100 text-xs text-gray-700 whitespace-nowrap">
+                        {getTypeLabel(apt.type)}
+                      </span>
 
-                    <div className="h-8 w-px bg-gray-100 mx-2 hidden md:block"></div>
+                      {/* Bottom Right: Priority */}
+                      {apt.priority && apt.priority !== 'normal' ? (
+                        <span className={`flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg border text-[10px] font-bold ${getPriorityColor(apt.priority)} whitespace-nowrap`}>
+                          {getPriorityLabel(apt.priority)}
+                        </span>
+                      ) : (
+                        <div className="invisible" />
+                      )}
+
+                      {/* Bottom Left: Duration */}
+                      <span className="flex items-center justify-center gap-1 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-100 text-xs text-gray-700 whitespace-nowrap">
+                        <Clock className="w-3 h-3 text-gray-400" />
+                        {apt.duration} د
+                      </span>
+                    </div>
+
+                    <div className="h-12 w-px bg-gray-100 mx-2 hidden md:block"></div>
 
                     {/* Quick Actions */}
                     <div className="flex items-center gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity duration-200">
@@ -408,7 +496,7 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
               <h3 className="text-lg font-medium text-gray-900">لا يوجد مواعيد في هذا اليوم</h3>
               <p className="text-gray-500 mb-6">يمكنك إضافة موعد جديد أو استعراض الأيام الأخرى</p>
               <button
-                onClick={() => setShowAddModal(true)}
+                onClick={() => { setEditingAppointment(null); setIsModalOpen(true); }}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 إضافة موعد الآن
@@ -418,7 +506,7 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
         </div>
       )}
 
-      {/* Past View (List Only) */}
+      {/* Legacy Past View code remains same */}
       {sectionTab === 'past' && (
         <div className="space-y-4">
           <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -487,7 +575,16 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                     </p>
                   </div>
                   <div className="text-left">
-                    <p className="font-bold text-gray-900">{req.time}</p>
+                    <p className="font-bold text-gray-900 text-sm">
+                      {(() => {
+                        const [h, m] = req.time.split(':');
+                        let hours = parseInt(h, 10);
+                        const ampm = hours >= 12 ? 'مساءً' : 'صباحاً';
+                        hours = hours % 12;
+                        hours = hours ? hours : 12;
+                        return `${hours.toString().padStart(2, '0')}:${m} ${ampm}`;
+                      })()}
+                    </p>
                     <p className="text-xs text-gray-500">{req.date}</p>
                   </div>
                 </div>
@@ -538,131 +635,26 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
         </div>
       )}
 
-      {/* Add Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95">
-            {/* Header */}
-            <div className="px-6 py-4 border-b flex justify-between items-center bg-gray-50">
-              <h3 className="font-bold text-lg">إضافة موعد جديد</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-red-500">
-                <XCircle className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">المريض</label>
-                <select className="w-full border rounded-lg p-2.5 bg-white text-right" id="new-apt-patient">
-                  <option value="">اختر مريض...</option>
-                  {patients.map(p => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">الطبيب المعالج</label>
-                <select className="w-full border rounded-lg p-2.5 bg-white text-right" id="new-apt-doctor">
-                  <option value="">اختر الطبيب...</option>
-                  {doctors.map(d => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                {/* Date & Time */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">التاريخ</label>
-                  <input
-                    type="date"
-                    id="new-apt-date"
-                    defaultValue={selectedDate.toISOString().split('T')[0]}
-                    className="w-full border rounded-lg p-2.5 text-right"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">الوقت</label>
-                  <input
-                    type="time"
-                    id="new-apt-time"
-                    className="w-full border rounded-lg p-2.5 text-right"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">حالة الحجز</label>
-                <select id="new-apt-status" className="w-full border rounded-lg p-2.5 text-right bg-white">
-                  <option value="confirmed">حجز مؤكد (مباشر)</option>
-                  <option value="pending">طلب حجز (معلق/أونلاين)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">ملاحظات</label>
-                <textarea
-                  id="new-apt-notes"
-                  className="w-full border rounded-lg p-2.5 min-h-[80px]"
-                  placeholder="سبب الزيارة..."
-                />
-              </div>
-            </div>
-
-            <div className="p-4 bg-gray-50 border-t flex justify-end gap-3">
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="px-5 py-2 text-gray-600 hover:bg-gray-200 rounded-lg font-medium"
-              >
-                إلغاء
-              </button>
-              <button
-                onClick={() => {
-                  const pId = (document.getElementById('new-apt-patient') as HTMLSelectElement).value;
-                  const dId = (document.getElementById('new-apt-doctor') as HTMLSelectElement).value;
-                  const date = (document.getElementById('new-apt-date') as HTMLInputElement).value;
-                  const time = (document.getElementById('new-apt-time') as HTMLInputElement).value;
-                  const statusElement = document.getElementById('new-apt-status') as HTMLSelectElement;
-                  const status = statusElement ? statusElement.value : 'confirmed';
-                  const notes = (document.getElementById('new-apt-notes') as HTMLTextAreaElement).value;
-
-                  if (!pId || !dId || !date || !time) {
-                    alert('يرجى ملء البيانات الأساسية (المريض، الطبيب، الوقت)');
-                    return;
-                  }
-
-                  const selectedPatient = patients.find(p => p.id === pId);
-                  const selectedDoctor = doctors.find(d => d.id === dId);
-
-
-                  const newApt: Appointment = {
-                    id: `apt-${Date.now()}`,
-                    clinicId,
-                    patientId: pId,
-                    patientName: selectedPatient?.name,
-                    doctorId: dId,
-                    doctorName: selectedDoctor?.name,
-                    date,
-                    time,
-                    type: 'كشف',
-                    status: status as any,
-                    notes
-                  };
-
-                  createAppointment(newApt);
-                  setShowAddModal(false);
-                  alert('تم إضافة الموعد بنجاح');
-                }}
-                className="px-6 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg font-medium shadow-sm"
-              >
-                حفظ الموعد
-              </button>
-            </div>
-          </div>
-        </div>
-      )
-      }
+      {/* Unified Appointment Modal */}
+      <AppointmentModal
+        isOpen={isModalOpen}
+        onClose={() => { setIsModalOpen(false); setEditingAppointment(null); }}
+        onSave={handleSaveAppointment}
+        editingAppointment={editingAppointment}
+        preSelectedDate={selectedDate.toISOString().split('T')[0]}
+        patients={patients.map(p => ({
+          id: p.id,
+          fullName: p.name,
+          firstName: p.name.split(' ')[0],
+          lastName: p.name.split(' ').slice(1).join(' '),
+          phone: p.phone,
+          gender: p.gender,
+          totalVisits: p.totalVisits,
+          lastVisit: p.lastVisit,
+          status: p.status
+        }) as any)} // Map hook data to Component Prop Type
+        clinicId={clinicId}
+      />
 
       {/* Create Patient File Modal */}
       {
@@ -794,92 +786,7 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
         )
       }
 
-      {/* Edit Modal */}
-      {
-        editingAppointment && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95">
-              <div className="px-6 py-4 border-b flex justify-between items-center bg-gray-50">
-                <h3 className="font-bold text-lg">تعديل الموعد</h3>
-                <button onClick={() => setEditingAppointment(null)} className="text-gray-400 hover:text-red-500">
-                  <XCircle className="w-6 h-6" />
-                </button>
-              </div>
-
-              <form onSubmit={handleUpdateAppointment} className="p-6 space-y-4">
-                {/* Note: Patient selection is typically read-only in edit, but can be changeable */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">المريض</label>
-                  <div className="w-full border rounded-lg p-2.5 bg-gray-50 text-right text-gray-600">
-                    {getPatientName(editingAppointment.patientId, editingAppointment.patientName)}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">التاريخ</label>
-                    <input
-                      type="date"
-                      value={editingAppointment.date}
-                      onChange={e => setEditingAppointment({ ...editingAppointment, date: e.target.value })}
-                      className="w-full border rounded-lg p-2.5 text-right"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">الوقت</label>
-                    <input
-                      type="time"
-                      value={editingAppointment.time}
-                      onChange={e => setEditingAppointment({ ...editingAppointment, time: e.target.value })}
-                      className="w-full border rounded-lg p-2.5 text-right"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">الحالة</label>
-                  <select
-                    value={editingAppointment.status}
-                    onChange={e => setEditingAppointment({ ...editingAppointment, status: e.target.value as any })}
-                    className="w-full border rounded-lg p-2.5 text-right"
-                  >
-                    <option value="pending">معلق</option>
-                    <option value="confirmed">مؤكد</option>
-                    <option value="completed">مكتمل</option>
-                    <option value="cancelled">ملغي</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">ملاحظات</label>
-                  <textarea
-                    value={editingAppointment.notes || ''}
-                    onChange={e => setEditingAppointment({ ...editingAppointment, notes: e.target.value })}
-                    className="w-full border rounded-lg p-2.5 min-h-[80px]"
-                  />
-                </div>
-
-                <div className="pt-4 flex justify-end gap-3 border-t">
-                  <button
-                    type="button"
-                    onClick={() => setEditingAppointment(null)}
-                    className="px-5 py-2 text-gray-600 hover:bg-gray-200 rounded-lg font-medium"
-                  >
-                    إلغاء
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-6 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg font-medium shadow-sm flex items-center gap-2"
-                  >
-                    <Save className="w-4 h-4" />
-                    حفظ التغييرات
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )
-      }
+      {/* Legacy Edit Modal Removed - Replaced by Unified AppointmentModal */}
 
     </div >
   );
