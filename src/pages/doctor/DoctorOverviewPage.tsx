@@ -93,11 +93,17 @@ export const DoctorOverviewPage: React.FC = () => {
     const { appointments } = useAppointments(selectedClinicId); // Pass context ID
     const { orders: labOrders } = useLabOrders({ clinicId: selectedClinicId });
     const { orders: storeOrders } = useStoreOrders();
-    const { patients } = usePatients();
-
     // --- Logic & Filtering ---
     const isOwner = user?.role === 'doctor';
     const isStaff = user?.role === 'staff';
+
+    const allClinicIds = clinics.map(c => c.id.toString());
+    const { patients } = usePatients(
+        // For staff: filter to their assigned clinic only. For owner: pass all clinic IDs.
+        isStaff ? clinics[0]?.id?.toString() : undefined,
+        isStaff ? undefined : allClinicIds
+    );
+
 
     // Helper to check if item belongs to selected context
     const isRelevant = (clinicId?: string | number) => {
