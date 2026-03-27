@@ -41,8 +41,14 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
             if (clinicId) {
                 // Single clinic filter
                 query = query.eq('clinic_id', clinicId);
-            } else if (clinicIds && clinicIds.length > 0) {
-                // Multiple clinics filter (for owner with multiple clinics)
+            } else if (clinicIds !== undefined) {
+                // Multiple clinics filter
+                if (clinicIds.length === 0) {
+                    // User has no clinics — return empty, don't fetch all
+                    setPatients([]);
+                    setLoading(false);
+                    return;
+                }
                 query = query.in('clinic_id', clinicIds);
             }
 

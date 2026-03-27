@@ -65,9 +65,12 @@ export const DoctorNotificationsPage: React.FC = () => {
   const navigate = useNavigate();
   const { isMultiClinicOwner, user } = useAuth();
   const { notifications, updates, markAsRead, deleteNotification, loading } = useNotifications();
-  const { selectedClinicId } = useDoctorContext();
-  const { appointments } = useAppointments(selectedClinicId);
-  const { orders: labOrders } = useLabOrders({ clinicId: selectedClinicId });
+  const { selectedClinicId, clinics, loading: clinicsLoading } = useDoctorContext();
+  // Guard: if user has no clinics, don't fetch clinic-specific data
+  const hasNoClinics = !clinicsLoading && clinics.length === 0;
+  const appointmentClinicId = hasNoClinics ? undefined : selectedClinicId;
+  const { appointments } = useAppointments(appointmentClinicId);
+  const { orders: labOrders } = useLabOrders({ clinicId: hasNoClinics ? undefined : selectedClinicId });
   const { orders: storeOrders } = useStoreOrders();
   const [activeTab, setActiveTab] = useState<FilterCategory>('all');
 

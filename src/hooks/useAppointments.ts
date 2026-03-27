@@ -9,7 +9,14 @@ export const useAppointments = (clinicId?: string) => {
 
     useEffect(() => {
         mountedRef.current = true;
-        fetchAppointments();
+        // Only fetch when a clinic context is provided
+        if (clinicId !== undefined) {
+            fetchAppointments();
+        } else {
+            // No clinic context → clear data, don't fetch
+            setAppointments([]);
+            setLoading(false);
+        }
         return () => { mountedRef.current = false; };
     }, [clinicId]);
 
