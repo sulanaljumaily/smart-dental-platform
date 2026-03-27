@@ -105,25 +105,24 @@ export const useNotifications = () => {
     const fetchNotifications = async () => {
         try {
             setLoading(true);
-            const clinicIds = clinics.map(c => c.id);
 
-            let query = supabase
+            if (!user?.id) {
+                setNotifications([]);
+                setLoading(false);
+                return;
+            }
+
+            // CRITICAL: Filter ONLY by user_id to prevent data leak between users.
+            // Clinic-level notifications should be sent with the correct user_id at insert time.
+            const { data, error } = await supabase
                 .from('notifications')
                 .select(`
                     *,
                     clinic:clinics(name)
                 `)
-                .order('created_at', { ascending: false });
-
-            // Construct OR filter: user_id = my_id OR clinic_id IN (my_clinics)
-            let filterStr = `user_id.eq.${user?.id}`;
-            if (clinicIds.length > 0) {
-                filterStr += `,clinic_id.in.(${clinicIds.join(',')})`;
-            }
-
-            query = query.or(filterStr);
-
-            const { data, error } = await query.limit(50);
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false })
+                .limit(50);
 
             if (!mountedRef.current) return;
             if (error) throw error;
