@@ -100,10 +100,10 @@ export const DoctorOverviewPage: React.FC = () => {
     const isOwner = user?.role === 'doctor';
     const isStaff = user?.role === 'staff';
 
-    // Guard: if no clinics → pass undefined to usePatients (skips all fetching)
-    const allClinicIds = hasNoClinics ? undefined : clinics.map(c => c.id.toString());
+    // Guard: if no clinics → pass empty array [] to usePatients (skips all fetching)
+    const allClinicIds = hasNoClinics ? [] : clinics.map(c => c.id.toString());
     const { patients } = usePatients(
-        // For staff: single clinic. For owner with clinics: all clinic IDs. No clinics: undefined (no fetch).
+        // For staff: single clinic. For owner with clinics: all clinic IDs. No clinics: empty array (no fetch).
         isStaff ? clinics[0]?.id?.toString() : undefined,
         isStaff ? undefined : allClinicIds
     );

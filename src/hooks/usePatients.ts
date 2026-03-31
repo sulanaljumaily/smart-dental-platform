@@ -50,6 +50,11 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
                     return;
                 }
                 query = query.in('clinic_id', clinicIds);
+            } else {
+                // No clinicId and no clinicIds array provided — return empty to prevent fetching ALL patients
+                setPatients([]);
+                setLoading(false);
+                return;
             }
 
             query = query.order('created_at', { ascending: false });
