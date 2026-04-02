@@ -50,19 +50,28 @@ export function useAdminLabs() {
             if (profilesData) {
                 const userIds = profilesData.map((p: any) => p.id);
 
-                // Fetch real dental_laboratories and stats
-                const [labsRes, statsRes] = await Promise.all([
+                // Fetch real dental_laboratories and orders
+                const [labsRes, ordersRes] = await Promise.all([
                    supabase.from('dental_laboratories').select('*').in('user_id', userIds),
-                   supabase.from('admin_lab_performance_view').select('lab_id, total_revenue, pending_fees')
+                   supabase.from('dental_lab_orders').select('id, laboratory_id, final_amount, price, status, is_settled').eq('status', 'completed')
                 ]);
 
                 const labsData = labsRes.data || [];
-                const statsData = statsRes.data || [];
+                const ordersData = ordersRes.data || [];
 
                 const mappedLabs: Laboratory[] = profilesData.map((profile: any) => {
                     const labRecord = labsData.find((l: any) => l.user_id === profile.id || l.owner_id === profile.id);
                     const labId = labRecord ? labRecord.id : profile.id; // Use profile id as fallback id
-                    const stats = statsData.find((s: any) => s.lab_id === labId);
+                    
+                    // Computing manual revenue statistics
+                    const commissionPercentage = labRecord?.commission_percentage || 5;
+                    const labOrders = ordersData.filter((o: any) => o.laboratory_id === labId);
+                    
+                    const settledSales = labOrders.filter(o => o.is_settled).reduce((sum, o) => sum + (o.final_amount || o.price || 0), 0);
+                    const unsettledSales = labOrders.filter(o => !o.is_settled).reduce((sum, o) => sum + (o.final_amount || o.price || 0), 0);
+                    
+                    const computedTotalRevenue = (settledSales * commissionPercentage) / 100;
+                    const computedPendingFees = (unsettledSales * commissionPercentage) / 100;
 
                     return {
                         id: labId,
@@ -73,9 +82,9 @@ export function useAdminLabs() {
                         email: profile.email || 'N/A',
                         governorate: labRecord?.governorate || 'غير محدد',
                         status: labRecord?.account_status || 'pending', // Usually pending if not explicitly active
-                        commissionPercentage: labRecord?.commission_percentage || 5, // Default 5%
-                        totalRevenue: stats ? stats.total_revenue : 0,
-                        pendingCommission: stats ? stats.pending_fees : (labRecord?.pending_commission || 0),
+                        commissionPercentage,
+                        totalRevenue: computedTotalRevenue,
+                        pendingCommission: computedPendingFees,
                         rating: labRecord?.rating || 0,
                         reviewCount: labRecord?.review_count || 0,
                         joinDate: labRecord?.created_at || profile.created_at,
@@ -196,31 +205,41 @@ export function useAdminLabs() {
         }
     };
 
-    const clearCommission = async (labId: string) => {
+    const clearCommission = async (labId: string, amount: number) => {
         try {
+            if (amount <= 0) return false;
+
             const lab = labs.find(l => l.id === labId);
-            if (!lab || lab.pendingCommission <= 0) return false;
 
             // 1. Record the Transaction
-            const { error: txError } = await supabase.from('financial_transactions').insert({
-                lab_id: labId,
-                amount: lab.pendingCommission,
-                type: 'settlement',
-                category: 'commission_clearance',
-                status: 'completed',
-                transaction_date: new Date().toISOString(),
-                description: `Commission Payout for ${lab.name}`
-            });
+            const { data: newTx, error: txErr } = await supabase
+                .from('financial_transactions')
+                .insert({
+                    amount: amount,
+                    type: 'expense',
+                    category: 'commission_clearance',
+                    status: 'completed',
+                    transaction_date: new Date().toISOString(),
+                    description: `Commission Payout for ${lab?.name || 'Laboratory'}`
+                })
+                .select('id')
+                .single();
 
-            if (txError) throw txError;
+            if (txErr) throw txErr;
+
+            await supabase.from('dental_lab_orders')
+                .update({ is_settled: true, settlement_id: newTx?.id })
+                .eq('laboratory_id', labId)
+                .eq('status', 'completed')
+                .eq('is_settled', false);
 
             // 2. Clear Pending Commission
-            const { error } = await supabase
+            const { error: labErr } = await supabase
                 .from('dental_laboratories')
                 .update({ pending_commission: 0 })
                 .eq('id', labId);
 
-            if (error) throw error;
+            if (labErr) throw labErr;
 
             // 3. Update Local State
             setLabs(prev => prev.map(l => l.id === labId ? { ...l, pendingCommission: 0 } : l));
