@@ -11,6 +11,7 @@ export interface PlatformStats {
     monthlyRevenue: number;
     growth: number;
     doctorsCount: number;
+    newUsersThisMonth: number;
 }
 
 export interface PlatformSettings {
@@ -62,7 +63,8 @@ export const useAdminData = () => {
         pendingRequests: 0,
         monthlyRevenue: 0,
         growth: 0,
-        doctorsCount: 0
+        doctorsCount: 0,
+        newUsersThisMonth: 0
     });
 
     const [settings, setSettings] = useState<PlatformSettings>({
@@ -136,6 +138,15 @@ export const useAdminData = () => {
 
             const totalRevenue = docsRevenue + supplierRev + labRev;
 
+            // 4. New users this month
+            const monthStart = startOfMonth(new Date()).toISOString();
+            const monthEnd = endOfMonth(new Date()).toISOString();
+            const { count: newUsers } = await supabase
+                .from('profiles')
+                .select('*', { count: 'exact', head: true })
+                .gte('created_at', monthStart)
+                .lte('created_at', monthEnd);
+
             setStats({
                 clinicsCount: clinics || 0,
                 suppliersCount: suppliers || 0,
@@ -144,7 +155,8 @@ export const useAdminData = () => {
                 pendingRequests: totalPending,
                 monthlyRevenue: totalRevenue,
                 growth: 12.5,
-                doctorsCount: doctors || 0
+                doctorsCount: doctors || 0,
+                newUsersThisMonth: newUsers || 0
             });
 
         } catch (error) {
