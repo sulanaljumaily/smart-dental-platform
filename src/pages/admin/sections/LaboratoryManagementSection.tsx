@@ -605,7 +605,7 @@ export const LaboratoryManagementSection: React.FC = () => {
         }}
         onClearCommission={async (labId) => {
           if (selectedLab) {
-            const success = await clearCommission(labId);
+            const success = await clearCommission(labId, selectedLab.pendingCommission || 0);
             if (success) {
               toast.success('تم تصفية العمولة بنجاح');
               // Don't close modal so user can see the updated "Settlements" tab

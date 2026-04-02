@@ -105,19 +105,36 @@ export const useAdminData = () => {
 
             const totalPending = (pendingSuppliers || 0) + (pendingLabs || 0) + (pendingSubs || 0) + (pendingLabRequests || 0);
 
-            // 3. Revenue (This month)
-            const now = new Date();
-            const start = startOfMonth(now).toISOString();
-            const end = endOfMonth(now).toISOString();
-
-            const { data: revenueData } = await supabase
+            // 3. Revenue (All time or this month)
+            // Doctors Subscriptions
+            const { data: subsData } = await supabase
                 .from('subscription_requests')
-                .select('plan_id(price)')
-                .eq('status', 'approved')
-                .gte('updated_at', start)
-                .lte('updated_at', end);
+                .select('amount_paid, plan_id, plan:subscription_plans(price)')
+                .eq('status', 'approved');
 
-            const revenue = revenueData?.reduce((acc: number, curr: any) => acc + (curr.plan_id?.price || 0), 0) || 0;
+            const docsRevenue = subsData?.reduce((acc: number, curr: any) => acc + (Number(curr.amount_paid) || curr.plan?.price || 0), 0) || 0;
+
+            // Suppliers Settled Commissions
+            const { data: allSuppliers } = await supabase.from('suppliers').select('id, user_id, commission_percentage');
+            const { data: storeOrders } = await supabase.from('store_orders').select('supplier_id, total_amount').eq('status', 'delivered').eq('is_settled', true);
+            
+            const supplierRev = storeOrders?.reduce((acc: number, order: any) => {
+                const s = allSuppliers?.find(sup => sup.id === order.supplier_id || sup.user_id === order.supplier_id);
+                const pct = s?.commission_percentage || 0;
+                return acc + ((order.total_amount || 0) * pct / 100);
+            }, 0) || 0;
+
+            // Labs Settled Commissions
+            const { data: allLabs } = await supabase.from('dental_laboratories').select('id, user_id, commission_percentage');
+            const { data: labOrders } = await supabase.from('dental_lab_orders').select('laboratory_id, final_amount, price').eq('status', 'completed').eq('is_settled', true);
+            
+            const labRev = labOrders?.reduce((acc: number, order: any) => {
+                const l = allLabs?.find(lab => lab.id === order.laboratory_id || lab.user_id === order.laboratory_id);
+                const pct = l?.commission_percentage || 0;
+                return acc + (((order.final_amount || order.price) || 0) * pct / 100);
+            }, 0) || 0;
+
+            const totalRevenue = docsRevenue + supplierRev + labRev;
 
             setStats({
                 clinicsCount: clinics || 0,
@@ -125,7 +142,7 @@ export const useAdminData = () => {
                 labsCount: labs || 0,
                 patientsCount: patients || 0,
                 pendingRequests: totalPending,
-                monthlyRevenue: revenue,
+                monthlyRevenue: totalRevenue,
                 growth: 12.5,
                 doctorsCount: doctors || 0
             });
