@@ -215,15 +215,28 @@ export const PlatformUsersManager: React.FC = () => {
                     <h3 className="font-bold text-gray-900">المستخدمين المسجلين</h3>
                     <p className="text-gray-500 text-sm">عرض كافة المستخدمين في المنصة</p>
                 </div>
-                <div className="relative">
-                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <input
-                        type="text"
-                        placeholder="بحث..."
-                        className="pl-4 pr-10 py-2 bg-gray-50 border rounded-lg text-sm focus:bg-white transition-colors"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+                <div className="flex items-center gap-2">
+                    <select
+                        value={roleFilter}
+                        onChange={(e) => setRoleFilter(e.target.value)}
+                        className="py-2 px-3 bg-gray-50 border rounded-lg text-sm focus:bg-white transition-colors"
+                    >
+                        <option value="">كل الأدوار</option>
+                        <option value="doctor">طبيب</option>
+                        <option value="lab">مختبر</option>
+                        <option value="supplier">مورد</option>
+                        <option value="admin">مسؤول</option>
+                    </select>
+                    <div className="relative">
+                        <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                        <input
+                            type="text"
+                            placeholder="بحث..."
+                            className="pl-4 pr-10 py-2 bg-gray-50 border rounded-lg text-sm focus:bg-white transition-colors"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -232,14 +245,6 @@ export const PlatformUsersManager: React.FC = () => {
                     <AdminTable
                         columns={columns}
                         data={filteredUsers}
-                        filterOptions={[
-                            { label: 'طبيب', value: 'doctor' },
-                            { label: 'مختبر', value: 'lab' },
-                            { label: 'مورد', value: 'supplier' },
-                            { label: 'مسؤول', value: 'admin' }
-                        ]}
-                        filterValue={roleFilter}
-                        onFilterChange={setRoleFilter}
                         actions={{
                             delete: () => alert('لا يمكن حذف المستخدمين من هنا حالياً')
                         }}
