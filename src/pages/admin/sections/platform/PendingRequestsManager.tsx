@@ -53,10 +53,29 @@ export const PendingRequestsManager = () => {
                 .eq('status', 'pending');
 
             // 2. Fetch Pending Labs
-            const { data: labs } = await supabase
-                .from('dental_laboratories')
-                .select('*')
-                .eq('account_status', 'pending');
+            const { data: pendingLabProfiles } = await supabase
+                .from('profiles')
+                .select('id, full_name, phone, email, created_at')
+                .in('role', ['lab', 'laboratory']);
+            
+            const { data: dbLabs } = await supabase.from('dental_laboratories').select('*');
+            
+            const labs = pendingLabProfiles?.filter((p: any) => {
+                const labRec = dbLabs?.find(l => l.user_id === p.id || l.owner_id === p.id);
+                return !labRec || labRec.account_status === 'pending';
+            }).map((p: any) => {
+                const labRec = dbLabs?.find(l => l.user_id === p.id || l.owner_id === p.id);
+                return {
+                    id: labRec ? labRec.id : p.id,
+                    name: labRec?.name || labRec?.lab_name || p.full_name || 'مختبر جديد',
+                    ownerName: p.full_name,
+                    phone: labRec?.phone || p.phone,
+                    address: labRec?.address || '',
+                    created_at: labRec?.created_at || p.created_at,
+                    account_status: 'pending',
+                    user_id: p.id
+                };
+            }) || [];
 
             // 3. Fetch Pending Suppliers
             const { data: suppliers } = await supabase
@@ -113,8 +132,26 @@ export const PendingRequestsManager = () => {
         try {
             if (type === 'lab') {
                 const { data: { user } } = await supabase.auth.getUser();
+
+                let actualLabId = id;
+                const { data: existing } = await supabase.from('dental_laboratories').select('id').eq('id', id).maybeSingle();
+                
+                if (!existing) {
+                    const { data: byUser } = await supabase.from('dental_laboratories').select('id').eq('user_id', id).maybeSingle();
+                    if(byUser) actualLabId = byUser.id;
+                    else {
+                        const lab = accountRequests.find(l => l.id === id);
+                        const { data: newLab, error: insErr } = await supabase.from('dental_laboratories').insert({ 
+                            user_id: id, 
+                            name: lab?.name || lab?.ownerName || 'مختبر جديد'
+                        }).select('id').single();
+                        if (insErr) throw insErr;
+                        actualLabId = newLab.id;
+                    }
+                }
+
                 const { error } = await supabase.rpc('toggle_lab_activation', {
-                    p_lab_id: id,
+                    p_lab_id: actualLabId,
                     p_action: 'activate',
                     p_admin_id: user?.id
                 });

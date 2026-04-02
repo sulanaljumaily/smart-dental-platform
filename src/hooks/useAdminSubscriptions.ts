@@ -62,22 +62,54 @@ export const useAdminSubscriptions = () => {
 
             if (requestsError) throw requestsError;
 
+            const { data: paymentMethodsData } = await supabase
+                .from('payment_methods')
+                .select('id, name');
+
             // Map Requests
-            const mappedRequests: any[] = (requestsData || []).map(r => ({
-                id: r.id,
-                doctorName: r.doctor?.full_name || r.doctor_name || 'Unknown',
-                clinicName: r.clinic_name || 'Unknown',
-                phone: r.doctor?.phone || r.phone || '',
-                email: r.doctor?.email || r.email || '',
-                avatar_url: r.doctor?.avatar_url || undefined,
-                status: r.status,
-                requestedPlan: mappedPlans.find(p => p.id === r.plan_id)?.name || 'Unknown Plan',
-                paymentMethod: r.payment_method,
-                submittedDate: r.created_at,
-                user_id: r.user_id || r.doctor_id,
-                receiptImageUrl: r.receipt_image_url || r.payment_details?.receiptUrl,
-                paymentDetails: r.payment_details || {}
-            }));
+            const mappedRequests: any[] = (requestsData || []).map(r => {
+                let paymentMethodName = r.payment_method;
+                const foundMethod = paymentMethodsData?.find(pm => pm.id === paymentMethodName);
+                if (foundMethod) paymentMethodName = foundMethod.name;
+
+                const plan = mappedPlans.find(p => p.id === r.plan_id);
+                const duration = plan?.duration || 'monthly';
+                
+                // Calculate endDate dynamically
+                const createdDate = new Date(r.created_at);
+                const endDate = new Date(createdDate);
+                if (duration === 'yearly') {
+                    endDate.setFullYear(endDate.getFullYear() + 1);
+                } else {
+                    endDate.setMonth(endDate.getMonth() + 1);
+                }
+                
+                const isExpired = new Date() > endDate;
+                let finalStatus = r.status;
+                if(r.status === 'approved' && isExpired) {
+                    finalStatus = 'expired';
+                    // We log this or trigger serverless function ideally. But frontend UI will correctly show it expired.
+                }
+
+                return {
+                    id: r.id,
+                    doctorName: r.doctor?.full_name || r.doctor_name || 'Unknown',
+                    clinicName: r.clinic_name || 'Unknown',
+                    phone: r.doctor?.phone || r.phone || '',
+                    email: r.doctor?.email || r.email || '',
+                    avatar_url: r.doctor?.avatar_url || undefined,
+                    status: finalStatus,
+                    requestedPlan: plan?.name || 'Unknown Plan',
+                    paymentMethod: paymentMethodName,
+                    amountPaid: r.amount_paid || '0',
+                    discount: r.payment_details?.discount_applied || r.payment_details?.discountApplied || 0,
+                    submittedDate: r.created_at,
+                    endDate: endDate.toISOString(),
+                    user_id: r.user_id || r.doctor_id,
+                    receiptImageUrl: r.receipt_image_url || r.payment_details?.receiptUrl,
+                    paymentDetails: r.payment_details || {}
+                };
+            });
 
             const { data: couponsData, error: couponsError } = await supabase
                 .from('coupons')

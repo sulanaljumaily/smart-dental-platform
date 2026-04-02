@@ -151,8 +151,24 @@ export const LaboratoryManagementSection: React.FC = () => {
 
   const handleDeactivateLab = async (labId: string) => {
     try {
+      let actualLabId = labId;
+      const { data: existing } = await supabase.from('dental_laboratories').select('id').eq('id', labId).maybeSingle();
+      if (!existing) {
+          const { data: byUser } = await supabase.from('dental_laboratories').select('id').eq('user_id', labId).maybeSingle();
+          if(byUser) actualLabId = byUser.id;
+          else {
+              const lab = labs.find(l => l.id === labId);
+              const { data: newLab, error: insErr } = await supabase.from('dental_laboratories').insert({ 
+                  user_id: labId, 
+                  name: lab?.name || 'مختبر جديد' 
+              }).select('id').single();
+              if (insErr) throw insErr;
+              actualLabId = newLab.id;
+          }
+      }
+
       const { error } = await supabase.rpc('toggle_lab_activation', {
-        p_lab_id: labId,
+        p_lab_id: actualLabId,
         p_action: 'deactivate',
         p_admin_id: null
       });
@@ -182,12 +198,29 @@ export const LaboratoryManagementSection: React.FC = () => {
     }
   };
 
-  const handleActivateLab = async (lab: Laboratory) => {
+  const handleActivateLab = async (lab: any) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      
+      let actualLabId = lab.id;
+      const { data: existing } = await supabase.from('dental_laboratories').select('id').eq('id', lab.id).maybeSingle();
+      
+      if (!existing) {
+          const { data: byUser } = await supabase.from('dental_laboratories').select('id').eq('user_id', lab.user_id || lab.id).maybeSingle();
+          if(byUser) actualLabId = byUser.id;
+          else {
+              const { data: newLab, error: insErr } = await supabase.from('dental_laboratories').insert({ 
+                  user_id: lab.user_id || lab.id, 
+                  name: lab?.name || 'مختبر جديد' 
+              }).select('id').single();
+              if (insErr) throw insErr;
+              actualLabId = newLab.id;
+          }
+      }
+
       // Activate AND verify via RPC
       const { error } = await supabase.rpc('toggle_lab_activation', {
-        p_lab_id: lab.id,
+        p_lab_id: actualLabId,
         p_action: 'activate',
         p_admin_id: user?.id
       });

@@ -124,21 +124,40 @@ export const SubscriptionsSection: React.FC = () => {
       render: (value) => {
         const statusConfig = {
           pending: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'معلق' },
-          approved: { bg: 'bg-green-100', text: 'text-green-800', label: 'مقبول' },
-          rejected: { bg: 'bg-red-100', text: 'text-red-800', label: 'مرفوض' }
+          approved: { bg: 'bg-green-100', text: 'text-green-800', label: 'مقبول / نشط' },
+          rejected: { bg: 'bg-red-100', text: 'text-red-800', label: 'مرفوض' },
+          expired: { bg: 'bg-gray-100', text: 'text-gray-800', label: 'منتهي الصلاحية' }
         };
         const config = statusConfig[value as keyof typeof statusConfig] || statusConfig.pending;
         return (
-          <span className={`px-2 py-1 ${config.bg} ${config.text} rounded-full text-sm`}>
+          <span className={`px-2 py-1 ${config.bg} ${config.text} rounded-full text-sm font-bold`}>
             {config.label}
           </span>
         );
       }
     },
     {
-      key: 'requestDate',
+      key: 'amountPaid',
+      title: 'القيمة',
+      sortable: true,
+      render: (value) => <span className="font-semibold text-gray-900">{Number(value || 0).toLocaleString()} د.ع</span>
+    },
+    {
+      key: 'discount',
+      title: 'الخصم',
+      render: (value) => Number(value) > 0 ? <span className="text-sm font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">{Number(value).toLocaleString()} د.ع</span> : <span className="text-gray-400">-</span>
+    },
+    {
+      key: 'submittedDate',
       title: 'تاريخ الطلب',
-      sortable: true
+      sortable: true,
+      render: (value) => new Date(value).toLocaleDateString('ar-IQ')
+    },
+    {
+      key: 'endDate',
+      title: 'تاريخ الانتهاء',
+      sortable: true,
+      render: (value) => value ? new Date(value).toLocaleDateString('ar-IQ') : '-'
     }
   ];
 
@@ -179,6 +198,10 @@ export const SubscriptionsSection: React.FC = () => {
 
   // Stats
   const pendingRequests = requests.filter(r => r.status === 'pending').length;
+  // Calculate dynamic Total Revenue
+  const totalRevenue = requests
+    .filter(r => r.status === 'approved' || r.status === 'expired')
+    .reduce((sum, r) => sum + Number(r.amountPaid || 0), 0);
 
   return (
     <div className="space-y-8">
@@ -191,7 +214,7 @@ export const SubscriptionsSection: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatsCard title="طلبات معلقة" value={pendingRequests} description="بانتظار التأكيد" icon={Clock} color="orange" />
         <StatsCard title="اشتراكات نشطة" value={requests.filter(r => r.status === 'approved').length} description="أطباء مشتركون" icon={CheckCircle} color="green" />
-        <StatsCard title="إجمالي الإيرادات" value="45.5M" description="د.ع لهذا الشهر" icon={DollarSign} color="purple" />
+        <StatsCard title="إجمالي الإيرادات" value={`${(totalRevenue).toLocaleString()}`} description="د.ع إجمالي قيمة الاشتراكات" icon={DollarSign} color="purple" />
       </div>
 
       {/* Tabs */}
