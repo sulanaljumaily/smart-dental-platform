@@ -108,10 +108,41 @@ export const SubscriptionReviewModal: React.FC<SubscriptionReviewModalProps> = (
                             <span className="font-bold text-lg text-purple-600">{request.requestedPlan}</span>
                         </div>
                         <div className="p-4 border border-gray-200 rounded-xl bg-white">
+                            <span className="text-sm text-gray-500 block mb-1">مدة الاشتراك</span>
+                            <span className="font-bold text-gray-900">
+                                {request.paymentDetails?.billing_period === 'yearly' ? '🗓 سنوي' : request.paymentDetails?.billing_period === 'semi_annual' ? '📅 6 أشهر' : '📆 شهري'}
+                            </span>
+                        </div>
+                        <div className="p-4 border border-gray-200 rounded-xl bg-white">
+                            <span className="text-sm text-gray-500 block mb-1">المبلغ المدفوع</span>
+                            <span className="font-bold text-lg text-green-600">
+                                {request.amountPaid?.toLocaleString() || '0'} <span className="text-xs font-normal text-gray-500">د.ع</span>
+                            </span>
+                        </div>
+                        <div className="p-4 border border-gray-200 rounded-xl bg-white">
                             <span className="text-sm text-gray-500 block mb-1">طريقة الدفع</span>
                             <span className="font-bold text-lg text-gray-900">
                                 {request.paymentMethod === 'zain' ? 'ZainCash' : request.paymentMethod === 'agent' ? 'عن طريق وكيل' : (request.paymentMethod === 'rafidain' ? 'QiCard' : request.paymentMethod)}
                             </span>
+                        </div>
+                        <div className="p-4 border border-gray-200 rounded-xl bg-white">
+                            <span className="text-sm text-gray-500 block mb-1">تاريخ الطلب</span>
+                            <span className="font-medium text-gray-800">{new Date(request.submittedDate).toLocaleDateString('ar-EG')}</span>
+                        </div>
+                        <div className="p-4 border rounded-xl bg-white border-gray-200">
+                            <span className="text-sm text-gray-500 block mb-1">الخصم المطبق</span>
+                            {request.discount > 0 ? (
+                                <div>
+                                    <span className="font-bold text-green-600">−{Number(request.discount).toLocaleString()} د.ع</span>
+                                    {request.paymentDetails?.coupon_code && (
+                                        <span className="mr-2 text-xs bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full font-mono">
+                                            {request.paymentDetails.coupon_code}
+                                        </span>
+                                    )}
+                                </div>
+                            ) : (
+                                <span className="text-gray-400 text-sm">لا يوجد خصم</span>
+                            )}
                         </div>
                     </div>
 
