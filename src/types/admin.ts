@@ -44,6 +44,7 @@ export interface SubscriptionPlan {
   nameEn: string;
   price: {
     monthly: number;
+    semiAnnual?: number;
     yearly?: number;
     currency: string;
   };
@@ -63,6 +64,7 @@ export interface SubscriptionPlan {
   hasAISupport?: boolean; // Deprecated, use aiRequestLimit
   duration?: 'monthly' | 'yearly' | string;
 }
+
 
 // الوكلاء المحليين
 export interface LocalAgent {
