@@ -32,7 +32,7 @@ import { TermsOfServicePage } from './pages/auth/TermsOfServicePage';
 
 // Doctor Pages
 import { DoctorDashboard } from './pages/doctor/DoctorDashboard';
-import { DoctorOverviewPage } from './pages/doctor/DoctorOverviewPage';
+import { DoctorOverviewPage } from './pages/public/DoctorOverviewPage';
 import { DoctorClinicsPage } from './pages/doctor/DoctorClinicsPage';
 import { DoctorTasksPage } from './pages/doctor/DoctorTasksPage';
 import { DoctorMessagesPage } from './pages/doctor/DoctorMessagesPage';
