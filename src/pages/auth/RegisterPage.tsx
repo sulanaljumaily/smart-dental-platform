@@ -196,46 +196,87 @@ export const RegisterPage: React.FC = () => {
 
             {/* Account Type Selector */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                اختر نوع الحساب الذي تريد إنشاءه
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                🏷️ اختر نوع الحساب
               </label>
-              <div className="flex gap-2 p-1 bg-gray-100/60 rounded-xl mb-4 border border-gray-200/50">
+              <div className="grid grid-cols-3 gap-3">
                 <button
                   type="button"
                   onClick={() => handleInputChange('accountType', 'doctor')}
-                  className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-bold transition-all duration-300 flex items-center justify-center gap-2 transform active:scale-95 ${formData.accountType === 'doctor'
-                    ? 'bg-blue-50 text-blue-700 shadow-sm border border-blue-200 scale-[1.02]'
-                    : 'text-gray-500 hover:bg-white hover:shadow-sm hover:text-blue-600 border border-transparent'
-                    }`}
+                  className={`relative flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-200 transform hover:scale-[1.02] focus:outline-none ${
+                    formData.accountType === 'doctor'
+                      ? 'border-blue-500 bg-blue-50 shadow-lg shadow-blue-100'
+                      : 'border-gray-200 bg-white hover:border-blue-200 hover:bg-blue-50/30'
+                  }`}
                 >
-                  <Stethoscope className={`w-4 h-4 transition-colors ${formData.accountType === 'doctor' ? 'text-blue-600' : 'text-gray-400'}`} />
-                  <span>طبيب</span>
+                  {formData.accountType === 'doctor' && (
+                    <span className="absolute top-2 left-2 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                      <CheckCircle className="w-3 h-3 text-white" />
+                    </span>
+                  )}
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${formData.accountType === 'doctor' ? 'bg-blue-100' : 'bg-gray-100'}`}>
+                    <Stethoscope className={`w-6 h-6 ${formData.accountType === 'doctor' ? 'text-blue-600' : 'text-gray-400'}`} />
+                  </div>
+                  <div className="text-center">
+                    <span className={`block font-bold text-sm ${formData.accountType === 'doctor' ? 'text-blue-700' : 'text-gray-600'}`}>طبيب</span>
+                    <span className="text-[10px] text-gray-400 mt-0.5 block">عيادة أسنان</span>
+                  </div>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleInputChange('accountType', 'supplier')}
-                  className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-bold transition-all duration-300 flex items-center justify-center gap-2 transform active:scale-95 ${formData.accountType === 'supplier'
-                    ? 'bg-emerald-50 text-emerald-700 shadow-sm border border-emerald-200 scale-[1.02]'
-                    : 'text-gray-500 hover:bg-white hover:shadow-sm hover:text-emerald-600 border border-transparent'
-                    }`}
+                  className={`relative flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-200 transform hover:scale-[1.02] focus:outline-none ${
+                    formData.accountType === 'supplier'
+                      ? 'border-emerald-500 bg-emerald-50 shadow-lg shadow-emerald-100'
+                      : 'border-gray-200 bg-white hover:border-emerald-200 hover:bg-emerald-50/30'
+                  }`}
                 >
-                  <Package className={`w-4 h-4 transition-colors ${formData.accountType === 'supplier' ? 'text-emerald-600' : 'text-gray-400'}`} />
-                  <span>مورد</span>
+                  {formData.accountType === 'supplier' && (
+                    <span className="absolute top-2 left-2 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center">
+                      <CheckCircle className="w-3 h-3 text-white" />
+                    </span>
+                  )}
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${formData.accountType === 'supplier' ? 'bg-emerald-100' : 'bg-gray-100'}`}>
+                    <Package className={`w-6 h-6 ${formData.accountType === 'supplier' ? 'text-emerald-600' : 'text-gray-400'}`} />
+                  </div>
+                  <div className="text-center">
+                    <span className={`block font-bold text-sm ${formData.accountType === 'supplier' ? 'text-emerald-700' : 'text-gray-600'}`}>مورد</span>
+                    <span className="text-[10px] text-gray-400 mt-0.5 block">متجر المستلزمات</span>
+                  </div>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleInputChange('accountType', 'laboratory')}
-                  className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-bold transition-all duration-300 flex items-center justify-center gap-2 transform active:scale-95 ${formData.accountType === 'laboratory'
-                    ? 'bg-purple-50 text-purple-700 shadow-sm border border-purple-200 scale-[1.02]'
-                    : 'text-gray-500 hover:bg-white hover:shadow-sm hover:text-purple-600 border border-transparent'
-                    }`}
+                  className={`relative flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-200 transform hover:scale-[1.02] focus:outline-none ${
+                    formData.accountType === 'laboratory'
+                      ? 'border-purple-500 bg-purple-50 shadow-lg shadow-purple-100'
+                      : 'border-gray-200 bg-white hover:border-purple-200 hover:bg-purple-50/30'
+                  }`}
                 >
-                  <TestTube className={`w-4 h-4 transition-colors ${formData.accountType === 'laboratory' ? 'text-purple-600' : 'text-gray-400'}`} />
-                  <span>مختبر</span>
+                  {formData.accountType === 'laboratory' && (
+                    <span className="absolute top-2 left-2 w-4 h-4 bg-purple-500 rounded-full flex items-center justify-center">
+                      <CheckCircle className="w-3 h-3 text-white" />
+                    </span>
+                  )}
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${formData.accountType === 'laboratory' ? 'bg-purple-100' : 'bg-gray-100'}`}>
+                    <TestTube className={`w-6 h-6 ${formData.accountType === 'laboratory' ? 'text-purple-600' : 'text-gray-400'}`} />
+                  </div>
+                  <div className="text-center">
+                    <span className={`block font-bold text-sm ${formData.accountType === 'laboratory' ? 'text-purple-700' : 'text-gray-600'}`}>مختبر</span>
+                    <span className="text-[10px] text-gray-400 mt-0.5 block">مختبر أسنان</span>
+                  </div>
                 </button>
               </div>
+              {!formData.accountType && (
+                <p className="text-xs text-gray-400 text-center mt-2">
+                  👆 اختر نوع حسابك للمتابعة
+                </p>
+              )}
+              {errors.accountType && (
+                <p className="text-red-500 text-xs text-center mt-1 font-medium">{errors.accountType}</p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3 mb-4">
@@ -452,18 +493,11 @@ export const RegisterPage: React.FC = () => {
                 <p className="text-red-500 text-xs">{errors.agreeToTerms}</p>
               )}
 
-              {/* Account Type Error Warning */}
-              {errors.accountType && (
-                <p className="text-red-600 text-center font-bold text-sm bg-red-50 p-2 rounded-lg border border-red-200 animate-pulse">
-                  ⚠️ {errors.accountType}
-                </p>
-              )}
-
               {/* Submit Button */}
               <Button
                 type="submit"
-                variant={errors.accountType ? "outline" : "primary"}
-                className={`w-full flex items-center justify-center gap-2 ${errors.accountType ? 'border-red-500 text-red-600 hover:bg-red-50 bg-white' : ''}`}
+                variant="primary"
+                className="w-full flex items-center justify-center gap-2"
                 disabled={loading || !!loadingProvider}
               >
                 <UserPlus className="w-5 h-5" />
