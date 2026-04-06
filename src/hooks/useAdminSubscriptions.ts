@@ -124,6 +124,7 @@ export const useAdminSubscriptions = () => {
                     avatar_url: doctorProfile?.avatar_url || undefined,
                     status: finalStatus,
                     requestedPlan: plan?.name || r.plan_name || 'غير محدد',
+                    billingPeriod, // Include duration info
                     paymentMethod: paymentMethodName,
                     amountPaid: r.amount_paid || 0,
                     discount: r.payment_details?.discount_applied || r.payment_details?.discountApplied || r.discount || 0,
@@ -143,18 +144,27 @@ export const useAdminSubscriptions = () => {
 
             if (couponsError) throw couponsError;
 
-            const mappedCoupons = (couponsData || []).map(c => ({
-                id: c.id,
-                code: c.code,
-                name: c.name || '', // Ensure name is mapped
-                type: c.discount_type,
-                value: c.discount_value,
-                usageLimit: c.usage_limit,
-                usedCount: c.used_count || 0,
-                startDate: c.start_date,
-                endDate: c.end_date,
-                isActive: c.is_active
-            }));
+            const mappedCoupons = (couponsData || []).map(c => {
+                // Manually calculate usage from existing requests to ensure precision
+                const count = mappedRequests.filter(r => 
+                    r.paymentDetails?.coupon_code === c.code || 
+                    r.paymentDetails?.couponCode === c.code ||
+                    r.paymentDetails?.discount_code === c.code
+                ).length;
+
+                return {
+                    id: c.id,
+                    code: c.code,
+                    name: c.name || '',
+                    type: c.discount_type,
+                    value: c.discount_value,
+                    usageLimit: c.usage_limit,
+                    usedCount: count > 0 ? count : (c.used_count || 0), // Prefer calculated, fallback to DB
+                    startDate: c.start_date,
+                    endDate: c.end_date,
+                    isActive: c.is_active
+                };
+            });
 
             setPlans(mappedPlans);
             setRequests(mappedRequests);

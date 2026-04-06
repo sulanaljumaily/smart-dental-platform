@@ -105,12 +105,23 @@ export const SubscriptionReviewModal: React.FC<SubscriptionReviewModalProps> = (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="p-4 border border-gray-200 rounded-xl bg-white">
                             <span className="text-sm text-gray-500 block mb-1">الباقة المطلوبة</span>
-                            <span className="font-bold text-lg text-purple-600">{request.requestedPlan}</span>
+                            <div className="flex items-center gap-2">
+                                {(() => {
+                                    const period = request.paymentDetails?.billing_period || 'monthly';
+                                    const durationIcon = period === 'yearly' ? '12' : period === 'semi_annual' ? '6' : '1';
+                                    return (
+                                        <span className="w-6 h-6 flex items-center justify-center bg-purple-600 text-white text-xs font-black rounded-md shadow-sm">
+                                            {durationIcon}
+                                        </span>
+                                    );
+                                })()}
+                                <span className="font-bold text-lg text-purple-600">{request.requestedPlan}</span>
+                            </div>
                         </div>
                         <div className="p-4 border border-gray-200 rounded-xl bg-white">
                             <span className="text-sm text-gray-500 block mb-1">مدة الاشتراك</span>
-                            <span className="font-bold text-gray-900">
-                                {request.paymentDetails?.billing_period === 'yearly' ? '🗓 سنوي' : request.paymentDetails?.billing_period === 'semi_annual' ? '📅 6 أشهر' : '📆 شهري'}
+                            <span className="font-bold text-gray-700">
+                                {request.paymentDetails?.billing_period === 'yearly' ? '🗓 سنوي (12 شهر)' : request.paymentDetails?.billing_period === 'semi_annual' ? '📅 نصف سنوي (6 أشهر)' : '📆 شهري (1 شهر)'}
                             </span>
                         </div>
                         <div className="p-4 border border-gray-200 rounded-xl bg-white">
