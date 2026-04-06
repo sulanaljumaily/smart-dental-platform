@@ -83,16 +83,22 @@ export const PendingRequestsManager = () => {
                 .select('*')
                 .eq('status', 'pending');
 
-            const formattedSubs = (subs || []).map(r => ({
-                ...r,
-                doctorName: r.doctor_name || 'Unknown',
-                clinicName: r.clinic_name || 'Unknown',
-                phone: r.phone || '',
-                email: r.email || '',
-                requestedPlan: r.plan_id === 'plan-3' ? 'الباقة الشاملة' : r.plan_id === 'plan-2' ? 'الباقة المتقدمة' : 'الباقة الأساسية',
-                paymentMethod: r.payment_method,
-                user_id: r.user_id
-            }));
+            const formattedSubs = (subs || []).map(r => {
+                const planName = r.plan_id === 'plan-3' ? 'الباقة الشاملة' : r.plan_id === 'plan-2' ? 'الباقة المتقدمة' : 'الباقة الأساسية';
+                const period = r.payment_details?.billing_period || 'monthly';
+                const durationIcon = period === 'yearly' ? '12' : period === 'semi_annual' ? '6' : '1';
+                return {
+                    ...r,
+                    doctorName: r.doctor_name || 'Unknown',
+                    clinicName: r.clinic_name || 'Unknown',
+                    phone: r.phone || '',
+                    email: r.email || '',
+                    displayPlan: { name: planName, duration: durationIcon },
+                    requestedPlan: planName, // keep for modal
+                    paymentMethod: r.payment_method,
+                    user_id: r.user_id
+                };
+            });
 
             setSubscriptionRequests(formattedSubs || []);
 
@@ -241,9 +247,14 @@ export const PendingRequestsManager = () => {
                                             <div className="text-xs text-gray-500">{req.clinicName}</div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                                {req.plan_id === 'plan-3' ? 'Elite' : req.plan_id === 'plan-2' ? 'Pro' : 'Basic'}
-                                            </span>
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="w-5 h-5 flex items-center justify-center bg-blue-600 text-white text-[10px] font-black rounded-md shadow-sm">
+                                                    {req.displayPlan?.duration}
+                                                </span>
+                                                <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-full text-xs font-bold">
+                                                    {req.displayPlan?.name}
+                                                </span>
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 text-sm" dir="ltr">{req.phone}</td>
                                         <td className="px-6 py-4 text-sm text-gray-500">

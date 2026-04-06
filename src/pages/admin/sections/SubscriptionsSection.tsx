@@ -101,11 +101,20 @@ export const SubscriptionsSection: React.FC = () => {
       key: 'requestedPlan',
       title: 'الباقة',
       sortable: true,
-      render: (value) => (
-        <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-bold">
-          {value}
-        </span>
-      )
+      render: (value, record: any) => {
+        const period = record.billingPeriod || 'monthly';
+        const durationIcon = period === 'yearly' ? '12' : period === 'semi_annual' ? '6' : '1';
+        return (
+          <div className="flex items-center gap-1.5">
+            <span className="w-5 h-5 flex items-center justify-center bg-purple-600 text-white text-[10px] font-black rounded-md shadow-sm">
+              {durationIcon}
+            </span>
+            <span className="px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-100 rounded-full text-xs font-bold">
+              {value}
+            </span>
+          </div>
+        );
+      }
     },
     {
       key: 'paymentMethod',
@@ -130,7 +139,7 @@ export const SubscriptionsSection: React.FC = () => {
         };
         const config = statusConfig[value as keyof typeof statusConfig] || statusConfig.pending;
         return (
-          <span className={`px-2 py-1 ${config.bg} ${config.text} rounded-full text-sm font-bold`}>
+          <span className={`px-2 py-0.5 ${config.bg} ${config.text} rounded-full text-xs font-bold whitespace-nowrap`}>
             {config.label}
           </span>
         );
@@ -684,14 +693,15 @@ const CouponsManager: React.FC<{
     try {
       const { data, error } = await supabase
         .from('subscription_requests')
-        .select('*, doctor:profiles!doctor_id(full_name, phone, avatar_url), plan:subscription_plans(name)')
+        .select('*, doctor_profile:profiles!doctor_id(full_name, phone, avatar_url), plan:subscription_plans(name)')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
       const usages = (data || []).filter(req => {
         const pd = req.payment_details || {};
-        return pd.coupon_code === coupon.code;
+        const code = pd.coupon_code || pd.couponCode || pd.discount_code;
+        return code === coupon.code;
       });
       setCouponUsages(usages);
     } catch (e) {
@@ -984,11 +994,11 @@ const CouponsManager: React.FC<{
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
                               <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-bold text-xs overflow-hidden">
-                                {req.doctor?.avatar_url ? <img src={req.doctor.avatar_url} className="w-full h-full object-cover" alt="" /> : (req.doctor?.full_name?.charAt(0) || '?')}
+                                {req.doctor_profile?.avatar_url ? <img src={req.doctor_profile.avatar_url} className="w-full h-full object-cover" alt="" /> : (req.doctor_profile?.full_name?.charAt(0) || '?')}
                               </div>
                               <div>
-                                <div className="font-medium text-gray-900">{req.doctor?.full_name || 'غير معروف'}</div>
-                                <div className="text-xs text-gray-400" dir="ltr">{req.doctor?.phone}</div>
+                                <div className="font-medium text-gray-900">{req.doctor_profile?.full_name || 'غير معروف'}</div>
+                                <div className="text-xs text-gray-400" dir="ltr">{req.doctor_profile?.phone}</div>
                               </div>
                             </div>
                           </td>

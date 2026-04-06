@@ -598,32 +598,45 @@ export const DoctorProfilePage: React.FC = () => {
                         return (
                           <tr key={req.id} className="hover:bg-gray-50 transition-colors">
                             <td className="py-3 px-3 font-mono text-xs text-gray-500">#{req.id.slice(0, 8)}</td>
-                            <td className="py-3 px-3 font-medium text-gray-900">{req.plan?.name || 'باقة غير معروفة'}</td>
                             <td className="py-3 px-3">
-                              <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
+                              <div className="flex items-center gap-1.5">
+                                {(() => {
+                                  const period = req.payment_details?.billing_period || 'monthly';
+                                  const durationIcon = period === 'yearly' ? '12' : period === 'semi_annual' ? '6' : '1';
+                                  return (
+                                    <span className="w-5 h-5 flex items-center justify-center bg-blue-600 text-white text-[10px] font-black rounded-md shadow-sm">
+                                      {durationIcon}
+                                    </span>
+                                  );
+                                })()}
+                                <span className="font-bold text-gray-900 text-xs">{req.plan?.name || 'باقة غير معروفة'}</span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-[10px] font-bold">
                                 {billingPeriodLabel(bp)}
                               </span>
                             </td>
-                            <td className="py-3 px-3 text-gray-600" dir="ltr">
+                            <td className="py-3 px-3 text-xs text-gray-600" dir="ltr">
                               {new Date(req.created_at).toLocaleDateString('ar-EG')}
                             </td>
-                            <td className={`py-3 px-3 text-xs font-medium ${isExpired ? 'text-red-600' : 'text-gray-600'}`} dir="ltr">
+                            <td className={`py-3 px-3 text-[10px] font-bold ${isExpired ? 'text-red-600' : 'text-gray-600'}`} dir="ltr">
                               {req.status === 'approved' ? expiryDate.toLocaleDateString('ar-EG') : '-'}
                             </td>
-                            <td className="py-3 px-3 font-medium text-gray-900">
-                              {Number(amountPaid).toLocaleString()} <span className="text-xs font-normal text-gray-500">د.ع</span>
+                            <td className="py-3 px-3 font-bold text-gray-900 text-xs">
+                              {Number(amountPaid).toLocaleString()} <span className="text-[10px] font-normal text-gray-400">د.ع</span>
                             </td>
                             <td className="py-3 px-3">
                               {discount > 0 ? (
-                                <span className="text-green-600 font-medium text-xs">
+                                <span className="text-green-600 font-bold text-[10px] bg-green-50 px-1.5 py-0.5 rounded border border-green-100">
                                   −{Number(discount).toLocaleString()} د.ع
                                 </span>
                               ) : (
-                                <span className="text-gray-300 text-xs">—</span>
+                                <span className="text-gray-300 text-[10px]">—</span>
                               )}
                             </td>
                             <td className="py-3 px-3">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusClass}`}>
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${statusClass}`}>
                                 {statusLabel}
                               </span>
                             </td>
