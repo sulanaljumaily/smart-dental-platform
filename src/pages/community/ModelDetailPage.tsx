@@ -8,8 +8,27 @@ export const ModelDetailPage: React.FC = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { models, toggleSave, isSaved } = useCommunity();
-    const model = models.find(m => m.id === id) || mockModels.find(m => m.id === id) || mockModels[0];
-    const isItemSaved = model ? isSaved(model.id) : false;
+    const model = models.find(m => m.id === id) || mockModels?.find(m => m.id === id) || mockModels?.[0];
+
+    if (!model) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+                <div className="bg-white p-8 rounded-2xl shadow-sm text-center max-w-sm">
+                    <Box className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">النموذج غير موجود</h2>
+                    <p className="text-gray-500 text-sm mb-6">عذراً، لم نتمكن من العثور على النموذج المطلوب أو ربما تم حذفه.</p>
+                    <button 
+                        onClick={() => navigate(-1)}
+                        className="w-full bg-blue-600 text-white rounded-xl py-3 font-medium hover:bg-blue-700 transition"
+                    >
+                        العودة للخلف
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    const isItemSaved = isSaved(model.id);
 
     return (
         <div className="min-h-screen bg-gray-50 pb-24 md:pb-0">
