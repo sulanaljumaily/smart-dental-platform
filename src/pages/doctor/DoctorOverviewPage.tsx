@@ -118,7 +118,11 @@ export const DoctorOverviewPage: React.FC = () => {
 
         // Owner Logic: Respect Selected Clinic ID
         if (!clinicId) return true; // Show global/system items (no clinic ID)
-        return selectedClinicId === 'all' || selectedClinicId.toString() === clinicId.toString();
+        if (selectedClinicId === 'all') {
+            // Only show if the clinic actually belongs to the user
+            return clinics.some(c => c.id.toString() === clinicId.toString());
+        }
+        return selectedClinicId.toString() === clinicId.toString();
     };
 
     const getClinicName = (id?: string | number) => {
@@ -221,7 +225,7 @@ export const DoctorOverviewPage: React.FC = () => {
             if (n.type === 'message') { Icon = MessageCircle; color = 'green'; }
 
             // Logic to show clinic name if available
-            const clinicName = n.clinicName || clinics.find(c => c.id === n.clinicId)?.name || 'عيادة عامة';
+            const clinicName = n.clinicName || clinics.find(c => c.id.toString() === n.clinicId?.toString())?.name || 'إشعار عام';
 
             return {
                 id: n.id,
@@ -257,7 +261,7 @@ export const DoctorOverviewPage: React.FC = () => {
             icon: Icon,
             color: 'blue' as const,
             clinicId: a.clinicId,
-            clinicName: clinics.find(c => c.id === a.clinicId)?.name || 'عيادة عامة',
+            clinicName: clinics.find(c => c.id.toString() === a.clinicId?.toString())?.name || 'إشعار عام',
             createdAt: a.createdAt || new Date().toISOString()
         };
     });
