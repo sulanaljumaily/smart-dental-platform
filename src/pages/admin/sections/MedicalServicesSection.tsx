@@ -263,13 +263,65 @@ const AIConfigManager = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [viewMode, setViewMode] = useState<'settings' | 'stats'>('settings');
 
+    // Test states
+    const [testPrompt, setTestPrompt] = useState('');
+    const [testImageUrl, setTestImageUrl] = useState('');
+    const [isTesting, setIsTesting] = useState(false);
+    const [testResponse, setTestResponse] = useState<string | null>(null);
+    const [testError, setTestError] = useState<string | null>(null);
+
+    // Fetch Models states
+    const [fetchedModels, setFetchedModels] = useState<{ id: string; name: string; description?: string }[] | null>(null);
+    const [isFetchingModels, setIsFetchingModels] = useState(false);
+    const [fetchModelsError, setFetchModelsError] = useState<string | null>(null);
+
     useEffect(() => {
-        setConfigs(aiService.getConfigs());
+        const loadConfigs = async () => {
+            const dbConfigs = aiService.getConfigs();
+            const coreAgents = ['doctor_assistant', 'image_analysis', 'patient_assistant'];
+            const mergedConfigs = [...dbConfigs];
+            
+            coreAgents.forEach(id => {
+                if (!mergedConfigs.find(c => c.id === id)) {
+                    mergedConfigs.push(aiService.getConfig(id));
+                }
+            });
+            
+            setConfigs(mergedConfigs);
+        };
+        loadConfigs();
     }, []);
 
     const handleSelectAgent = (config: AIAgentConfig) => {
         setSelectedAgentId(config.id);
         setEditForm(config);
+        setTestResponse(null);
+        setTestError(null);
+        setTestPrompt('');
+        setFetchedModels(null);
+        setFetchModelsError(null);
+    };
+
+    const handleFetchModels = async () => {
+        const configToUse = { ...selectedAgent, ...editForm } as AIAgentConfig;
+        if (!configToUse.apiKey) {
+            setFetchModelsError('يرجى إدخال مفتاح API أولاً لجلب الموديلات.');
+            return;
+        }
+        setIsFetchingModels(true);
+        setFetchModelsError(null);
+        setFetchedModels(null);
+        try {
+            const models = await aiService.listModels(configToUse);
+            setFetchedModels(models);
+            if (models.length > 0 && !models.find(m => m.id === editForm.model)) {
+                setEditForm(prev => ({ ...prev, model: models[0].id }));
+            }
+        } catch (e: any) {
+            setFetchModelsError(e.message);
+        } finally {
+            setIsFetchingModels(false);
+        }
     };
 
     const handleSave = async () => {
@@ -277,12 +329,50 @@ const AIConfigManager = () => {
         setIsSaving(true);
         try {
             await aiService.updateConfig(selectedAgentId as any, editForm);
-            setConfigs(aiService.getConfigs()); // Refresh
-            alert('تم حفظ الإعدادات بنجاح');
+            
+            // Refresh config list to reflect changes visually
+            const updatedConfigs = configs.map(c => 
+                c.id === selectedAgentId ? { ...c, ...editForm } : c
+            );
+            setConfigs(updatedConfigs as AIAgentConfig[]);
+            
+            alert('تم حفظ الإعدادات بنجاح في قاعدة البيانات.');
         } catch (error) {
+            console.error(error);
             alert('فشل حفظ الإعدادات');
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleTestConnection = async () => {
+        if (!editForm.apiKey || editForm.apiKey.trim() === '') {
+            let existingKey = configs.find(c => c.id === selectedAgentId)?.apiKey;
+            if (!existingKey) {
+                 setTestError("يرجى إدخال مفتاح API (API Key) أولاً للاختبار.");
+                 return;
+            }
+        }
+        setIsTesting(true);
+        setTestResponse(null);
+        setTestError(null);
+        try {
+            const configToTest = {
+                ...selectedAgent,
+                ...editForm
+            } as AIAgentConfig;
+            
+            const response = await aiService.testConnection(
+                configToTest,
+                testPrompt || 'مرحباً، هل أنت متصل بالخدمة؟',
+                selectedAgentId === 'image_analysis' ? testImageUrl : undefined
+            );
+            
+            setTestResponse(response);
+        } catch (error: any) {
+            setTestError(error.message);
+        } finally {
+            setIsTesting(false);
         }
     };
 
@@ -384,9 +474,9 @@ const AIConfigManager = () => {
                                                 onChange={e => {
                                                     const provider = e.target.value as any;
                                                     let defaultModel = '';
-                                                    if (provider === 'openai') defaultModel = 'gpt-4o';
-                                                    if (provider === 'anthropic') defaultModel = 'claude-3-5-sonnet-20240620';
-                                                    if (provider === 'google') defaultModel = 'gemini-1.5-pro';
+                                                    if (provider === 'openai') defaultModel = 'gpt-4.1';
+                                                    if (provider === 'anthropic') defaultModel = 'claude-sonnet-4-5';
+                                                    if (provider === 'google') defaultModel = 'gemini-2.5-pro-preview-03-25';
                                                     if (provider === 'deepseek') defaultModel = 'deepseek-chat';
 
                                                     setEditForm(prev => ({ ...prev, provider, model: defaultModel }));
@@ -394,50 +484,158 @@ const AIConfigManager = () => {
                                                 className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none"
                                             >
                                                 <option value="openai">OpenAI</option>
-                                                <option value="anthropic">Anthropic</option>
-                                                <option value="google">Google</option>
+                                                <option value="anthropic">Anthropic (Claude)</option>
+                                                <option value="google">Google (Gemini)</option>
                                                 <option value="deepseek">DeepSeek</option>
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">موديل الذكاء الاصطناعي</label>
-                                            <select
-                                                value={editForm.model}
-                                                onChange={e => setEditForm(prev => ({ ...prev, model: e.target.value }))}
-                                                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none"
-                                            >
+                                            <div className="flex items-center justify-between mb-1">
+                                                <label className="block text-sm font-medium text-gray-700">موديل الذكاء الاصطناعي</label>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleFetchModels}
+                                                    disabled={isFetchingModels}
+                                                    title="جلب الموديلات المتاحة من المزود مباشرةً"
+                                                    className="flex items-center gap-1.5 text-xs font-medium text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-2.5 py-1 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    {isFetchingModels ? (
+                                                        <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                                                        </svg>
+                                                    ) : (
+                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                        </svg>
+                                                    )}
+                                                    {isFetchingModels ? 'جاري الجلب...' : 'جلب الموديلات'}
+                                                    {fetchedModels && !isFetchingModels && (
+                                                        <span className="bg-green-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5">{fetchedModels.length}</span>
+                                                    )}
+                                                </button>
+                                            </div>
+
+                                            {fetchModelsError && (
+                                                <p className="text-xs text-red-500 mb-1.5 flex items-center gap-1">
+                                                    <span>⚠️</span> {fetchModelsError}
+                                                </p>
+                                            )}
+
+                                            {fetchedModels ? (
+                                                // Dynamic list from API
+                                                <div className="space-y-1">
+                                                    <select
+                                                        value={editForm.model}
+                                                        onChange={e => setEditForm(prev => ({ ...prev, model: e.target.value }))}
+                                                        className="w-full p-2.5 bg-gray-50 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm"
+                                                        size={Math.min(fetchedModels.length + 1, 8)}
+                                                    >
+                                                        {fetchedModels.map(m => (
+                                                            <option key={m.id} value={m.id} title={m.description}>
+                                                                {m.name !== m.id ? `${m.name} (${m.id})` : m.id}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    <p className="text-xs text-green-600 flex items-center gap-1">
+                                                        <CheckCircle className="w-3 h-3" />
+                                                        {fetchedModels.length} موديل متاح — الموديل المحدد: <strong className="font-mono">{editForm.model}</strong>
+                                                    </p>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setFetchedModels(null)}
+                                                        className="text-xs text-gray-400 hover:text-gray-600 underline"
+                                                    >
+                                                        العودة للقائمة الثابتة
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <select
+                                                    value={editForm.model}
+                                                    onChange={e => setEditForm(prev => ({ ...prev, model: e.target.value }))}
+                                                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none"
+                                                >
                                                 {/* Dynamic Options based on Provider */}
                                                 {editForm.provider === 'openai' && (
                                                     <>
-                                                        <option value="gpt-4o">GPT-4o (Latest)</option>
-                                                        <option value="gpt-4o-mini">GPT-4o mini</option>
-                                                        <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                                                        <optgroup label="— GPT-4.1 Series (2025) ★ جديد —">
+                                                            <option value="gpt-4.1">GPT-4.1 ★ (Latest 2025)</option>
+                                                            <option value="gpt-4.1-mini">GPT-4.1 mini</option>
+                                                            <option value="gpt-4.1-nano">GPT-4.1 nano</option>
+                                                        </optgroup>
+                                                        <optgroup label="— سلسلة التفكير / Reasoning (2025) —">
+                                                            <option value="o4-mini">o4-mini ★ (Latest Reasoning)</option>
+                                                            <option value="o3">o3 (Full Reasoning)</option>
+                                                            <option value="o3-mini">o3-mini</option>
+                                                            <option value="o1">o1</option>
+                                                            <option value="o1-mini">o1-mini</option>
+                                                            <option value="o1-preview">o1-preview</option>
+                                                        </optgroup>
+                                                        <optgroup label="— GPT-4.5 —">
+                                                            <option value="gpt-4.5-preview">GPT-4.5 Preview</option>
+                                                        </optgroup>
+                                                        <optgroup label="— GPT-4o Series —">
+                                                            <option value="gpt-4o">GPT-4o</option>
+                                                            <option value="gpt-4o-mini">GPT-4o mini</option>
+                                                            <option value="gpt-4o-2024-11-20">GPT-4o (2024-11-20)</option>
+                                                            <option value="chatgpt-4o-latest">ChatGPT-4o (Latest)</option>
+                                                        </optgroup>
+                                                        <optgroup label="— GPT-4 القديمة —">
+                                                            <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                                                            <option value="gpt-4">GPT-4</option>
+                                                            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                                                        </optgroup>
                                                     </>
                                                 )}
                                                 {editForm.provider === 'anthropic' && (
-                                                    <>
-                                                        <option value="claude-3-5-sonnet-20240620">Claude 3.5 Sonnet</option>
+                                                    <optgroup label="— Claude Models —">
+                                                        <option value="claude-sonnet-4-5">Claude Sonnet 4.5 ★ (Latest)</option>
+                                                        <option value="claude-opus-4-5">Claude Opus 4.5 (Latest)</option>
+                                                        <option value="claude-3-7-sonnet-20250219">Claude 3.7 Sonnet (Hybrid Reasoning)</option>
+                                                        <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet (Oct 2024)</option>
+                                                        <option value="claude-3-5-sonnet-20240620">Claude 3.5 Sonnet (Jun 2024)</option>
                                                         <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku</option>
                                                         <option value="claude-3-opus-20240229">Claude 3 Opus</option>
-                                                        <option value="claude-4">Claude 4 (Preview)</option>
-                                                    </>
+                                                        <option value="claude-3-sonnet-20240229">Claude 3 Sonnet</option>
+                                                        <option value="claude-3-haiku-20240307">Claude 3 Haiku</option>
+                                                    </optgroup>
                                                 )}
                                                 {editForm.provider === 'google' && (
                                                     <>
-                                                        <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                                                        <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-                                                        <option value="gemini-pro">Gemini Pro 1.0</option>
+                                                        <optgroup label="— Gemini 2.5 (الأحدث) ★ —">
+                                                            <option value="gemini-2.5-pro-preview-03-25">Gemini 2.5 Pro Preview ★ (v1beta)</option>
+                                                            <option value="gemini-2.5-flash-preview-04-17">Gemini 2.5 Flash Preview (v1beta)</option>
+                                                        </optgroup>
+                                                        <optgroup label="— Gemini 2.0 (مستقر) —">
+                                                            <option value="gemini-2.0-flash">Gemini 2.0 Flash ★</option>
+                                                            <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite</option>
+                                                            <option value="gemini-2.0-flash-thinking-exp">Gemini 2.0 Flash Thinking (v1beta)</option>
+                                                        </optgroup>
+                                                        <optgroup label="— Gemini 1.5 (مستقر) —">
+                                                            <option value="gemini-1.5-pro-002">Gemini 1.5 Pro 002 ★</option>
+                                                            <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                                                            <option value="gemini-1.5-flash-002">Gemini 1.5 Flash 002 ★</option>
+                                                            <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                                                            <option value="gemini-1.5-flash-8b">Gemini 1.5 Flash 8B</option>
+                                                        </optgroup>
+                                                        <optgroup label="— Gemini 1.0 (قديم) —">
+                                                            <option value="gemini-1.0-pro">Gemini 1.0 Pro</option>
+                                                        </optgroup>
                                                     </>
                                                 )}
                                                 {editForm.provider === 'deepseek' && (
-                                                    <>
-                                                        <option value="deepseek-chat">DeepSeek V3 (Chat)</option>
-                                                        <option value="deepseek-coder">DeepSeek Coder</option>
-                                                    </>
+                                                    <optgroup label="— DeepSeek Models —">
+                                                        <option value="deepseek-chat">DeepSeek V3 (Chat) ★</option>
+                                                        <option value="deepseek-reasoner">DeepSeek R1 (Reasoning)</option>
+                                                        <option value="deepseek-coder">DeepSeek Coder V2</option>
+                                                        <option value="deepseek-coder-v2-instruct">DeepSeek Coder V2 Instruct</option>
+                                                        <option value="deepseek-v2-5">DeepSeek V2.5</option>
+                                                    </optgroup>
                                                 )}
 
-                                                <option value="custom">مخصص (أخرى)</option>
-                                            </select>
+                                                <option value="custom">مخصص (أخرى) — أدخل الاسم يدوياً</option>
+                                                </select>
+                                            )}
                                         </div>
                                     </div>
 
@@ -447,14 +645,14 @@ const AIConfigManager = () => {
                                         <div className="relative">
                                             <Lock className="w-4 h-4 text-gray-400 absolute right-3 top-3" />
                                             <input
-                                                type="password"
+                                                type={editForm.apiKey && editForm.apiKey.length > 0 && !isSaving ? "password" : "text"}
                                                 value={editForm.apiKey || ''}
                                                 onChange={e => setEditForm(prev => ({ ...prev, apiKey: e.target.value }))}
                                                 placeholder="sk-..."
                                                 className="w-full pr-10 pl-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none font-mono text-sm"
                                             />
                                         </div>
-                                        <p className="text-xs text-gray-400 mt-1">يتم تخزين المفتاح بشكل مشفر محلياً.</p>
+                                        <p className="text-xs text-gray-400 mt-1">يتم تخزين المفتاح بشكل آمن في قاعدة البيانات لاستخدامه في الخدمة.</p>
                                     </div>
 
                                     {/* System Rules - THE CONFIRMATION OF "Rules help guide behavior" */}
@@ -484,7 +682,7 @@ const AIConfigManager = () => {
                                             min="0"
                                             max="1"
                                             step="0.1"
-                                            value={editForm.temperature}
+                                            value={editForm.temperature || 0.5}
                                             onChange={e => setEditForm(prev => ({ ...prev, temperature: Number(e.target.value) }))}
                                             className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
                                         />
@@ -508,6 +706,63 @@ const AIConfigManager = () => {
                                             )}
                                         </Button>
                                     </div>
+
+                                    {/* Testing Area */}
+                                    <div className="mt-8 pt-6 border-t border-gray-100">
+                                        <h4 className="text-md font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                            <Zap className="w-4 h-4 text-yellow-500" />
+                                            فحص ومحاكاة الوكيل (Test Connection)
+                                        </h4>
+                                        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-4">
+                                            {selectedAgentId === 'image_analysis' && (
+                                                <div>
+                                                    <label className="block text-xs font-medium text-gray-700 mb-1">رابط صورة للاختبار (اختياري)</label>
+                                                    <input 
+                                                        type="text" 
+                                                        value={testImageUrl}
+                                                        onChange={e => setTestImageUrl(e.target.value)}
+                                                        placeholder="https://example.com/xray.jpg (رابط صورة حقيقي لفحص التشخيص)"
+                                                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-500"
+                                                    />
+                                                </div>
+                                            )}
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-700 mb-1">رسالة الاختبار (Prompt)</label>
+                                                <div className="flex gap-2">
+                                                    <input 
+                                                        type="text" 
+                                                        value={testPrompt}
+                                                        onChange={e => setTestPrompt(e.target.value)}
+                                                        placeholder="أدخل رسالة لاختبار الموديل..."
+                                                        className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:border-purple-500"
+                                                        onKeyDown={e => e.key === 'Enter' && handleTestConnection()}
+                                                    />
+                                                    <Button onClick={handleTestConnection} disabled={isTesting} className="bg-gray-900 hover:bg-black text-white shrink-0">
+                                                        {isTesting ? 'جاري الفحص...' : 'إرسال الفحص'}
+                                                    </Button>
+                                                </div>
+                                            </div>
+
+                                            {/* Test Output Area */}
+                                            {testError && (
+                                                <div className="p-3 bg-red-50 text-red-600 border border-red-100 rounded-xl text-sm font-medium">
+                                                    خطأ أثناء الاتصال: {testError}
+                                                </div>
+                                            )}
+                                            {testResponse && (
+                                                <div className="p-4 bg-white border border-green-100 rounded-xl shadow-sm">
+                                                    <div className="text-xs font-bold text-green-600 mb-2 flex items-center gap-1">
+                                                        <CheckCircle className="w-4 h-4" />
+                                                        نجاح الاتصال ورد الموديل:
+                                                    </div>
+                                                    <div className="text-sm text-gray-800 font-mono whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto">
+                                                        {testResponse}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    
                                 </div>
                             </Card>
                         ) : (
