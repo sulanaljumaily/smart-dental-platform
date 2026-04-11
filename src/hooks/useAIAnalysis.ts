@@ -186,7 +186,7 @@ export const useAIAnalysis = (patientId?: string, clinicId?: number) => {
                     .from('ai_analyses')
                     .update({
                         status: 'completed',
-                        result_json: result
+                        analysis_result: result
                     })
                     .eq('id', analysisEntry.id);
 
@@ -195,7 +195,7 @@ export const useAIAnalysis = (patientId?: string, clinicId?: number) => {
                 // Update UI with result
                 setHistory(prev => prev.map(item =>
                     item.id === analysisEntry.id
-                        ? { ...item, status: 'completed', result_json: result }
+                        ? { ...item, status: 'completed', analysis_result: result }
                         : item
                 ));
 
