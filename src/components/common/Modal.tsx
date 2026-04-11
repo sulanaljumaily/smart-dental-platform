@@ -40,13 +40,13 @@ export const Modal: React.FC<ModalProps> = ({
 
       {/* Modal - Fixed Height Integration */}
       <div className={cn(
-        'relative bg-white rounded-2xl shadow-2xl w-full max-h-[85vh] flex flex-col overflow-hidden',
+        'relative bg-white rounded-2xl shadow-2xl w-full max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden',
         sizes[size]
       )}>
         {/* Header */}
         {title && (
-          <div className="flex items-center justify-between p-6 border-b flex-shrink-0 bg-white z-10">
-            <h2 className="text-xl font-bold text-gray-900">{title}</h2>
+          <div className="flex items-center justify-between p-4 sm:p-6 border-b flex-shrink-0 bg-white z-10">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 pr-2">{title}</h2>
             <button
               onClick={onClose}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
