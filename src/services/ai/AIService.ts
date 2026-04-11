@@ -537,35 +537,13 @@ class AIService {
 
         if (config.provider === 'google') {
             try {
-                const modelName = config.model || 'gemini-1.5-pro';
-                // Remove 'models/' prefix if present to avoid duplication
-                const cleanModel = modelName.replace('models/', '');
-
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: systemContent + "\n" + message }] }]
-                    })
-                });
-
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.error?.message || 'Gemini API Error');
-                }
-
-                const data = await response.json();
-                const content = data.candidates?.[0]?.content?.parts?.[0]?.text || "No response";
-
-                // Estimate tokens (Gemini doesn't always return usage in simple response)
+                const content = await this.callGemini(apiKey, config.model || 'gemini-1.5-pro', systemContent, message);
                 const tokens = content.length / 4;
                 this.logUsage(agentType, Math.ceil(tokens), 'text_chat', userId, clinicId ? parseInt(clinicId) : undefined, sessionId);
-
                 return content;
-
-            } catch (e) {
+            } catch (e: any) {
                 console.error('Gemini Chat Error:', e);
-                return "عذراً، حدث خطأ أثناء الاتصال بـ Google Gemini.";
+                throw new Error(e.message || 'عذراً، حدث خطأ أثناء الاتصال بـ Google Gemini.');
             }
         }
 
@@ -642,6 +620,236 @@ class AIService {
             return `(Mock Response) بناءً على بيانات المريض ${contextObj?.patientName || ''}: أنصح بمراجعة التاريخ الطبي قبل وصف أي مضادات حيوية.`;
         }
         return "أهلاً بك. كيف يمكنني مساعدتك؟ (تجريبي)";
+    }
+
+    // --- List Models from Provider API ---
+    async listModels(config: AIAgentConfig): Promise<{ id: string; name: string; description?: string }[]> {
+        const apiKey = config.apiKey;
+        if (!apiKey) throw new Error('يرجى إدخال مفتاح API أولاً لجلب الموديلات.');
+
+        if (config.provider === 'google') {
+            // Fetch from v1beta (has the most models including experimental)
+            const tryFetchList = async (version: string) => {
+                const res = await fetch(
+                    `https://generativelanguage.googleapis.com/${version}/models?key=${apiKey}&pageSize=100`
+                );
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error?.message || `Failed to list Gemini models (${version})`);
+                }
+                const data = await res.json();
+                return (data.models || []) as any[];
+            };
+
+            let models: any[] = [];
+            try {
+                // v1beta has the widest coverage
+                const [v1betaModels, v1Models] = await Promise.allSettled([
+                    tryFetchList('v1beta'),
+                    tryFetchList('v1'),
+                ]);
+
+                const v1betaList = v1betaModels.status === 'fulfilled' ? v1betaModels.value : [];
+                const v1List = v1Models.status === 'fulfilled' ? v1Models.value : [];
+
+                // Merge, dedup by name
+                const seen = new Set<string>();
+                for (const m of [...v1betaList, ...v1List]) {
+                    if (!seen.has(m.name)) {
+                        seen.add(m.name);
+                        models.push(m);
+                    }
+                }
+            } catch {
+                models = [];
+            }
+
+            return models
+                .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
+                .map((m: any) => ({
+                    id: m.name.replace('models/', ''),
+                    name: m.displayName || m.name.replace('models/', ''),
+                    description: m.description,
+                }))
+                .sort((a, b) => b.id.localeCompare(a.id));
+        }
+
+        if (config.provider === 'openai') {
+            const res = await fetch('https://api.openai.com/v1/models', {
+                headers: { Authorization: `Bearer ${apiKey}` },
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error?.message || 'Failed to list OpenAI models');
+            }
+            const data = await res.json();
+            return (data.data as any[])
+                .filter((m: any) =>
+                    /^(gpt-|o1|o3|o4|chatgpt)/.test(m.id) &&
+                    !m.id.includes('instruct') &&
+                    !m.id.includes('audio') &&
+                    !m.id.includes('tts') &&
+                    !m.id.includes('whisper') &&
+                    !m.id.includes('dall-e') &&
+                    !m.id.includes('embedding')
+                )
+                .sort((a: any, b: any) => b.created - a.created)
+                .map((m: any) => ({ id: m.id, name: m.id }));
+        }
+
+        if (config.provider === 'deepseek') {
+            const res = await fetch('https://api.deepseek.com/models', {
+                headers: { Authorization: `Bearer ${apiKey}` },
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error?.message || 'Failed to list DeepSeek models');
+            }
+            const data = await res.json();
+            return (data.data as any[]).map((m: any) => ({ id: m.id, name: m.id }));
+        }
+
+        if (config.provider === 'anthropic') {
+            // Anthropic doesn't have a public ListModels endpoint — return known list
+            return [
+                { id: 'claude-opus-4-5', name: 'Claude Opus 4.5 (Latest)' },
+                { id: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5 (Latest)' },
+                { id: 'claude-3-7-sonnet-20250219', name: 'Claude 3.7 Sonnet (Hybrid Reasoning)' },
+                { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet (Oct 2024)' },
+                { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku' },
+                { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus' },
+                { id: 'claude-3-sonnet-20240229', name: 'Claude 3 Sonnet' },
+                { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku' },
+            ];
+        }
+
+        throw new Error('جلب الموديلات غير مدعوم لهذا المزود حالياً.');
+    }
+
+    // --- Testing Utility for Admin Settings ---
+    // ─── Gemini Universal Caller ───────────────────────────────────────────────
+    private async callGemini(apiKey: string, modelName: string, systemContent: string, userMessage: string): Promise<string> {
+        const cleanModel = modelName.replace(/^models\//, '');
+
+        // Models that do NOT support systemInstruction (Gemini 1.0 and older)
+        const noSystemInstruction = ['gemini-1.0-pro', 'gemini-pro', 'gemini-pro-vision', 'aqa'];
+        const supportsSystemInstruction = !noSystemInstruction.some(m => cleanModel.startsWith(m));
+
+        // Models that only exist in v1beta
+        const v1betaOnly = [
+            'gemini-2.5-pro-preview', 'gemini-2.5-flash-preview',
+            'gemini-2.0-flash-thinking-exp', 'gemini-exp', 'learnlm', 'gemma'
+        ];
+        const needsV1beta = v1betaOnly.some(prefix => cleanModel.includes(prefix));
+
+        // Build request body based on model capability
+        const requestBody: any = supportsSystemInstruction
+            ? {
+                // Gemini 1.5+ — proper separate systemInstruction
+                systemInstruction: { parts: [{ text: systemContent }] },
+                contents: [{ role: 'user', parts: [{ text: userMessage }] }],
+                generationConfig: { temperature: 0.7 }
+              }
+            : {
+                // Gemini 1.0 — merge system + user into single contents array
+                contents: [{
+                    parts: [{ text: `${systemContent}\n\n${userMessage}` }]
+                }],
+                generationConfig: { temperature: 0.7 }
+              };
+
+        const tryFetch = async (apiVersion: string) => {
+            const url = `https://generativelanguage.googleapis.com/${apiVersion}/models/${cleanModel}:generateContent?key=${apiKey}`;
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error?.message || `Gemini ${apiVersion} Error`);
+            }
+            const data = await res.json();
+            return data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response received';
+        };
+
+        if (needsV1beta) {
+            return await tryFetch('v1beta');
+        }
+
+        // Try v1 first (stable), fallback to v1beta
+        try {
+            return await tryFetch('v1');
+        } catch (e: any) {
+            if (e.message?.includes('not found') || e.message?.includes('not supported') || e.message?.includes('Unknown name')) {
+                console.warn(`[Gemini] Model/feature not in v1, trying v1beta: ${cleanModel}`);
+                return await tryFetch('v1beta');
+            }
+            throw e;
+        }
+    }
+    // ──────────────────────────────────────────────────────────────────────────
+
+
+
+    async testConnection(config: AIAgentConfig, prompt: string, imageUrl?: string): Promise<string> {
+        const apiKey = config.apiKey || this.getApiKey(config.provider);
+        if (!apiKey) {
+            throw new Error('يرجى إدخال مفتاح API (API Key) أولاً.');
+        }
+
+        const systemContent = config.systemRules || 'You are a helpful assistant.';
+
+        try {
+            if (config.provider === 'google') {
+                return await this.callGemini(apiKey, config.model || 'gemini-1.5-pro', systemContent, prompt || 'مرحباً، هل أنت متصل؟');
+            }
+
+            const baseURL = config.provider === 'deepseek' ? 'https://api.deepseek.com' : 'https://api.openai.com/v1';
+            
+            let messages: any[] = [
+                { role: 'system', content: systemContent }
+            ];
+
+            if (imageUrl && config.provider === 'openai') {
+                messages.push({
+                    role: 'user',
+                    content: [
+                        { type: 'text', text: prompt || "Analyze this image." },
+                        { type: 'image_url', image_url: { url: imageUrl } }
+                    ]
+                });
+            } else {
+                 messages.push({ role: 'user', content: prompt || "Hello" });
+            }
+
+            const bodyConfig: any = {
+                model: config.model || (config.provider === 'deepseek' ? 'deepseek-chat' : 'gpt-4o'),
+                messages: messages,
+                temperature: config.temperature || 0.7
+            };
+
+            const response = await fetch(`${baseURL}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify(bodyConfig)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error?.message || 'API Error');
+            }
+
+            const data = await response.json();
+            return data.choices[0].message.content;
+
+        } catch (error: any) {
+            console.error('[AI-Service] Test Connection Failed:', error);
+            throw new Error(error.message || 'حدث خطأ أثناء فحص الاتصال.');
+        }
     }
 }
 
