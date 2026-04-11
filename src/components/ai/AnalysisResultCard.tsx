@@ -16,10 +16,21 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl
     const [isZoomOpen, setIsZoomOpen] = useState(false);
     const [showBoxes, setShowBoxes] = useState(true);
 
+    if (!result) {
+        return (
+            <div className="bg-red-50 p-6 rounded-xl border border-red-100 flex flex-col items-center justify-center text-red-700 min-h-[200px]">
+                <AlertTriangle className="w-10 h-10 mb-3 opacity-50" />
+                <p className="font-bold">عذراً، تعذر عرض نتائج التحليل.</p>
+                <p className="text-xs mt-2 opacity-80">البيانات غير متوفرة أو معطوبة.</p>
+            </div>
+        );
+    }
+
     // Determine Service State
     const isMock = result.metadata?.isMock ?? true; // Default to true if metadata missing (safe fallback)
     const provider = result.metadata?.provider || 'Unknown';
     const model = result.metadata?.model || 'Demo';
+    const issues = result?.issues || [];
 
     return (
         <>
@@ -73,7 +84,7 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl
                                     className="w-full h-full object-contain"
                                 />
                                 {/* Bounding Boxes Mini View */}
-                                {result.issues.map((issue, idx) => (
+                                {issues.map((issue, idx) => (
                                     issue.box && (
                                         <div
                                             key={idx}
@@ -106,7 +117,7 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl
                             </div>
                             <div className="bg-white p-2.5 rounded-lg border border-gray-100 text-center">
                                 <span className="block text-xs text-gray-400 mb-0.5">عدد الملاحظات</span>
-                                <span className="block font-bold text-red-500">{result.issues.length}</span>
+                                <span className="block font-bold text-red-500">{issues.length}</span>
                             </div>
                         </div>
                     </div>
@@ -126,14 +137,14 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl
                         </div>
 
                         {/* Findings List */}
-                        {result.issues.length > 0 ? (
+                        {issues.length > 0 ? (
                             <div className="space-y-3">
                                 <h4 className="flex items-center gap-2 font-bold text-gray-900 border-b pb-2">
                                     <AlertTriangle className="w-5 h-5 text-red-500" />
                                     الملاحظات المكتشفة
                                 </h4>
                                 <ul className="space-y-2">
-                                    {result.issues.map((issue, idx) => (
+                                    {issues.map((issue, idx) => (
                                         <li key={idx} className="flex justify-between items-start bg-gray-50 p-3 rounded-lg border hover:border-red-200 transition-colors group">
                                             <div className="flex items-start gap-3">
                                                 <div className="mt-1 w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div>
@@ -216,7 +227,7 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl
                                     className="max-w-full max-h-[85vh] object-contain rounded-md shadow-2xl"
                                 />
                                 {/* Scaled Bounding Boxes */}
-                                {showBoxes && result.issues.map((issue, idx) => (
+                                {showBoxes && issues.map((issue, idx) => (
                                     issue.box && (
                                         <div
                                             key={idx}

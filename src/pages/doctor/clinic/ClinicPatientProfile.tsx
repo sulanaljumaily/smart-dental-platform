@@ -882,7 +882,7 @@ export const ClinicPatientProfile = () => {
                                 </h4>
                                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${plan.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
                                   }`}>
-                                  {plan.status === 'completed' ? 'مكتمل' : 'قيد الم��الجة'}
+                                  {plan.status === 'completed' ? 'مكتمل' : 'قيد المعالجة'}
                                 </span>
                               </div>
                               <div className="text-sm text-gray-500 mt-1 flex items-center gap-3">
@@ -1308,7 +1308,7 @@ export const ClinicPatientProfile = () => {
                             <div
                               key={idx}
                               className={`h-full flex-1 rounded-sm transition-all ${isPaid ? 'bg-green-500' : 'bg-red-200'}`}
-                              title={isPaid ? 'مدفوع' : 'غير م��فوع'}
+                              title={isPaid ? 'مدفوع' : 'غير مدفوع'}
                             />
                           );
                         })}
@@ -2053,7 +2053,7 @@ export const ClinicPatientProfile = () => {
       setFiles(prev => prev.filter(f => !selectedImageIds.includes(f.id)));
       setSelectedImageIds([]);
       setIsSelectionMode(false);
-      toast.success('تم حذف ال��لفات بنجاح');
+      toast.success('تم حذف الملفات بنجاح');
 
     } catch (error) {
       console.error('File deletion error:', error);
@@ -3116,7 +3116,7 @@ export const ClinicPatientProfile = () => {
         isOpen={isChatModalOpen}
         onClose={() => setIsChatModalOpen(false)}
         title="المساعد الطبي الذكي"
-        contentClassName="p-0 overflow-hidden flex flex-col h-[65vh]"
+        contentClassName="p-0 overflow-hidden flex flex-col h-[85vh] md:h-[65vh]"
         size="lg"
       >
         <div className="flex-1 flex flex-col h-full overflow-hidden min-h-0">
