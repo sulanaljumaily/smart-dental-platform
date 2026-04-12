@@ -52,11 +52,14 @@ export const DoctorClinicsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'settings' | 'profile' | 'staff_settings'>('settings');
 
   // Real Data
-  const { appointments } = useAppointments();
-  const { patients } = usePatients(undefined); // Fetch all patients
+  const { clinics, loading, addClinic, updateClinic, deleteClinic, refresh: refreshClinics } = useClinics();
   const { staff, updateStaff, leaveClinic } = useStaff(); // Fetch all staff (filtered by RLS)
   const { invitations, respondToInvitation, refresh: refreshInvitations } = useInvitations();
-  const { clinics, loading, addClinic, updateClinic, deleteClinic, refresh: refreshClinics } = useClinics();
+
+  // Optimized Fetching: pass clinic IDs to ensure they are fetched and re-fetched correctly
+  const clinicIds = React.useMemo(() => clinics.map(c => c.id), [clinics]);
+  const { appointments } = useAppointments('all');
+  const { patients } = usePatients(undefined, clinicIds);
 
   // Handler for staff member to leave a clinic
   const handleLeaveClinic = async (clinicId: string) => {
