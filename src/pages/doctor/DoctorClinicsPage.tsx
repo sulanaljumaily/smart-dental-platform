@@ -444,12 +444,13 @@ export const DoctorClinicsPage: React.FC = () => {
             const userPermissions = userStaffRecord?.permissions;
 
             return (
-            <Card key={clinic.id} className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer" onClick={(e) => {
+            <Card key={clinic.id} className="overflow-hidden hover:shadow-lg transition-all cursor-pointer border-none shadow-sm" onClick={(e) => {
               if ((e.target as HTMLElement).closest('button')) return;
               navigate(`/doctor/clinic/${clinic.id}`);
             }}>
-              {/* Clinic Image */}
-              <div className="h-32 relative overflow-hidden group-hover:scale-105 transition-transform duration-500">
+              {/* Clinic Image with soft frame */}
+              <div className="p-3 pb-0">
+                <div className="h-40 relative rounded-2xl overflow-hidden transition-transform duration-500">
                 <img
                   src={clinic.coverImage || clinic.image}
                   alt={clinic.name}
@@ -459,41 +460,17 @@ export const DoctorClinicsPage: React.FC = () => {
                 <div className="absolute bottom-0 right-0 p-4">
                   {/* Logo Overlay */}
                   <div className="flex items-center gap-3">
+                    <h3 className="text-xl font-bold text-white drop-shadow-md">{clinic.name}</h3>
                     <div className="w-10 h-10 rounded-full border-2 border-white/50 overflow-hidden bg-white/10 backdrop-blur-sm">
                       <img src={clinic.image} alt="" className="w-full h-full object-cover" />
                     </div>
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Clinic Info */}
+            {/* Clinic Info */}
               <div className="p-6 space-y-4">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">{clinic.name}</h3>
-                  <div className="flex items-start gap-2 mt-2 text-sm text-gray-600">
-                    <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                    <span>
-                      {formatLocation(clinic.governorate, clinic.address)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 mt-1 text-sm text-gray-600">
-                    <Phone className="w-4 h-4" />
-                    <span>{clinic.phone}</span>
-                  </div>
-                  <div className="flex items-center gap-2 mt-1 text-sm text-gray-600">
-                    <Clock className="w-4 h-4" />
-                    <span>{clinic.workingHours}</span>
-                  </div>
-                </div>
-
-                {/* Rating and Specialties */}
-                <div className="flex items-center justify-between pt-4 border-t">
-                  {/* Rating removed */}
-                  <div className="text-xs text-gray-600">
-                    {clinic.specialties[0]}
-                  </div>
-                </div>
-
                 {/* Stats */}
                 <div className="grid grid-cols-3 gap-2 pt-4 border-t">
                   <div className="text-center">
