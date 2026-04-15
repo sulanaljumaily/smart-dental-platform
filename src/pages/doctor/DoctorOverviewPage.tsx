@@ -631,63 +631,7 @@ export const DoctorOverviewPage: React.FC = () => {
 
             {/* 4. Purchase Suggestions & Activities (Adjusted Layout for Staff) */}
             <div className={`grid grid-cols-1 ${!isStaff ? 'lg:grid-cols-2' : 'lg:grid-cols-1'} gap-6`}>
-                {/* Purchase Suggestions (Enhanced with Clinic Name) - OWNER ONLY or AUTHORED Staff */}
-                {/* Hiding for Staff as per typical 'Review' flow, or keep if they manage inventory. User said 'Only clinic stats'. Let's hide Suggestions if simplifies view, OR allow if relevant. Let's hide for now to match 'Owner manages money/purchases' vibe unless specifically asked. But wait, Staff might need to order? I'll hide it for simplified view per request 'Overview shows ONLY clinic stats'. */}
-                {!isStaff && (
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div className="bg-gradient-to-r from-pink-50 to-pink-100 px-6 py-4 border-b border-gray-100">
-                            <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 bg-pink-100 rounded-lg flex items-center justify-center">
-                                    <ShoppingCart className="w-5 h-5 text-pink-600" />
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-gray-900">اقتراحات الشراء</h3>
-                                    <p className="text-xs text-gray-600">نواقص المخزون في العيادات</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="p-6">
-                            <div className="space-y-4">
-                                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
-                                    {lowStockLoading ? (
-                                        <div className="text-center py-4 text-gray-500 text-sm">جاري تحميل الاقتراحات...</div>
-                                    ) : filteredLowStock.length === 0 ? (
-                                        <div className="text-center py-4 text-gray-500 text-sm">لا توجد نواقص في المخزون لهذه العيادة</div>
-                                    ) : (
-                                        filteredLowStock.map((item) => (
-                                            <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer"
-                                                onClick={() => navigate(`/doctor/clinic/${(item as any).clinicId || '1'}?tab=inventory`)}
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
-                                                        <CircleAlert className="w-4 h-4 text-yellow-600" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-medium text-gray-900 text-sm">{item.name}</p>
-                                                        <div className="flex items-center gap-2 mt-1">
-                                                            <span className="text-[10px] bg-pink-50 text-pink-700 px-2 py-0.5 rounded-full border border-pink-100 whitespace-nowrap inline-block">
-                                                                {(item as any).clinicName || `عيادة ${(item as any).clinicId}`}
-                                                            </span>
-                                                            <span className="text-[10px] text-gray-500">
-                                                                الحد الأدنى: {item.minStock}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="text-right">
-                                                    <div className={`inline-block px-2 py-1 rounded-full text-xs mb-1 bg-red-100 text-red-700`}>
-                                                        كمية حرجة
-                                                    </div>
-                                                    <p className="text-xs text-gray-600">{item.quantity} {item.unit}</p>
-                                                </div>
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
+
 
                 {/* Recent Activities (Enhanced with Owner/Staff Logic) */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
