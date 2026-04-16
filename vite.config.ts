@@ -40,8 +40,21 @@ export default defineConfig(({ mode }) => {
           ],
         },
         workbox: {
-          // Cache strategy: network first for API, cache first for static assets
+          // Don't precache JS chunks (they're large and cause Vercel build errors)
+          // They will be cached at runtime via runtimeCaching instead
+          globPatterns: ['**/*.{css,html,png,jpg,jpeg,svg,gif,webp,ico,woff,woff2}'],
+          globIgnores: ['**/node_modules/**', '**/*.js', '**/*.mjs'],
           runtimeCaching: [
+            // Cache JS files at runtime (avoids 2MB precache limit)
+            {
+              urlPattern: /\.(?:js|mjs)$/i,
+              handler: 'StaleWhileRevalidate',
+              options: {
+                cacheName: 'js-cache',
+                expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 7 },
+              },
+            },
+            // Cache Supabase API responses
             {
               urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
               handler: 'NetworkFirst',
@@ -51,6 +64,7 @@ export default defineConfig(({ mode }) => {
                 expiration: { maxEntries: 50, maxAgeSeconds: 300 },
               },
             },
+            // Cache images
             {
               urlPattern: /\.(png|jpg|jpeg|svg|gif|webp|ico)$/i,
               handler: 'CacheFirst',
@@ -62,7 +76,7 @@ export default defineConfig(({ mode }) => {
           ],
         },
         devOptions: {
-          enabled: false, // Disable in dev - PWA works in production build only
+          enabled: false,
         },
       }),
     ],
