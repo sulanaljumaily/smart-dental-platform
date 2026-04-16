@@ -18,9 +18,9 @@ export const CommunityPage: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
+    <div className="min-h-[100dvh] bg-gray-50 flex flex-col font-sans w-full pb-20 md:pb-0">
       {/* Sticky Top Navigation */}
-      <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm pt-[env(safe-area-inset-top)] transition-all duration-300">
+      <div className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm pt-[env(safe-area-inset-top)] transition-all duration-300">
         <div className="flex items-center gap-0.5 sm:gap-2 overflow-x-auto no-scrollbar py-1.5 sm:py-2 px-1 sm:px-4 mask-linear-fade flex-nowrap justify-start lg:justify-center">
           {tabs.map(tab => {
             const Icon = tab.icon;
@@ -49,7 +49,7 @@ export const CommunityPage: React.FC = () => {
       </div>
 
       {/* Tab Application Content */}
-      <div className="max-w-3xl mx-auto min-h-[calc(100vh-120px)]">
+      <div className="max-w-3xl mx-auto w-full flex-1 pt-4 pb-20">
         {activeTab === 'overview' && <OverviewTab />}
         {activeTab === 'education' && <EducationTab />}
         {activeTab === 'groups' && <GroupsTab />}
