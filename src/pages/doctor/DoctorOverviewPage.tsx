@@ -215,32 +215,32 @@ export const DoctorOverviewPage: React.FC = () => {
     const mappedNotifications = hasNoClinics
         ? []
         : allNotifications
-        .filter(n => isRelevant(n.clinicId) && n.type !== 'order_update' && !n.title.includes('طلبك') && !n.title.includes('تحديث حالة الطلب'))
-        .map(n => {
-            let Icon = Bell;
-            let color = 'blue';
+            .filter(n => isRelevant(n.clinicId) && n.type !== 'order_update' && !n.title.includes('طلبك') && !n.title.includes('تحديث حالة الطلب'))
+            .map(n => {
+                let Icon = Bell;
+                let color = 'blue';
 
-            if (n.type === 'appointment') { Icon = Calendar; color = 'blue'; }
-            if (n.type === 'alert' || n.type === 'reminder') { Icon = CircleAlert; color = 'orange'; }
-            if (n.type === 'message') { Icon = MessageCircle; color = 'green'; }
+                if (n.type === 'appointment') { Icon = Calendar; color = 'blue'; }
+                if (n.type === 'alert' || n.type === 'reminder') { Icon = CircleAlert; color = 'orange'; }
+                if (n.type === 'message') { Icon = MessageCircle; color = 'green'; }
 
-            // Logic to show clinic name if available
-            const clinicName = n.clinicName || clinics.find(c => c.id.toString() === n.clinicId?.toString())?.name || 'إشعار عام';
+                // Logic to show clinic name if available
+                const clinicName = n.clinicName || clinics.find(c => c.id.toString() === n.clinicId?.toString())?.name || 'إشعار عام';
 
-            return {
-                id: n.id,
-                type: n.type,
-                title: n.title,
-                description: n.description,
-                time: formatDate(n.createdAt),
-                icon: Icon,
-                color: color,
-                clinicId: n.clinicId,
-                clinicName: clinicName,
-                createdAt: n.createdAt,
-                metadata: undefined as any
-            };
-        });
+                return {
+                    id: n.id,
+                    type: n.type,
+                    title: n.title,
+                    description: n.description,
+                    time: formatDate(n.createdAt),
+                    icon: Icon,
+                    color: color,
+                    clinicId: n.clinicId,
+                    clinicName: clinicName,
+                    createdAt: n.createdAt,
+                    metadata: undefined as any
+                };
+            });
 
     const mappedAppointments = (appointments || []).map(a => {
         const isOnline = (a.type as any) === 'كشف عام (أونلاين)' || a.title === 'كشف عام (أونلاين)' || a.doctorName === 'غير محدد' || !a.doctorName;
@@ -311,8 +311,8 @@ export const DoctorOverviewPage: React.FC = () => {
     const recentNotifications = hasNoClinics
         ? []
         : [...mappedNotifications, ...mappedAppointments, ...mappedLabOrders, ...mappedStoreOrders, ...mappedUpdates]
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, 5);
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, 5);
 
 
     // 6. Subscription Data
@@ -359,93 +359,61 @@ export const DoctorOverviewPage: React.FC = () => {
         <div className="space-y-6">
 
 
-            {/* 1. Stats Row */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Total Clinics (Blue) */}
+            {/* Stats Row - always 2 cols side by side */}
+            <div className="grid grid-cols-2 gap-4">
+                {/* Total Clinics (Blue) — expanded with embedded clinic list */}
                 <div
                     onClick={() => navigate('/doctor/clinics')}
                     style={{ animationDelay: '100ms' }}
                     className="relative overflow-hidden rounded-[2rem] p-6 border border-blue-100 bg-gradient-to-br from-blue-50 to-blue-100/50 transition-all duration-300 group cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-transparent animate-in fade-in slide-in-from-bottom-4 fill-mode-backwards"
                 >
-                    {/* Decorative Icon */}
                     <Building2 className="absolute -bottom-4 -left-4 w-32 h-32 text-blue-500/10 rotate-12 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6" strokeWidth={1.5} />
 
                     <div className="relative z-10 flex flex-col h-full justify-between">
-                        <div className="flex justify-between items-start mb-4">
+                        <div className="flex justify-between items-start mb-3">
                             <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm bg-blue-500 text-white group-hover:scale-110 transition-transform duration-300">
                                 <Building2 className="w-6 h-6" />
                             </div>
                         </div>
                         <div>
-                            <p className="text-blue-600/80 font-medium text-sm mb-1">{isStaff ? 'عيادتي' : 'عدد العيادات'}</p>
-                            <h3 className="text-3xl font-bold text-blue-900 mb-4">{totalClinics}</h3>
+                            {/* Clinic List - name + patients only */}
+                            <div className="space-y-2 mt-1">
+                                {clinicStats.filter(c => isRelevant(c.id)).slice(0, 4).map((clinic) => (
+                                    <div
+                                        key={clinic.id}
+                                        className="flex items-center justify-between p-2.5 bg-white/60 rounded-xl hover:bg-white/90 cursor-pointer transition-colors border border-blue-100/40"
+                                        onClick={(e) => { e.stopPropagation(); navigate(`/doctor/clinic/${clinic.id}`); }}
+                                    >
+                                        <div className="flex items-center gap-2.5">
+                                            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                                                <Building2 className="w-4 h-4 text-blue-600" />
+                                            </div>
+                                            <div>
+                                                <p className="font-medium text-gray-900 text-sm">{clinic.name}</p>
+                                                <p className="text-xs text-blue-600/80">{clinic.patients} مريض</p>
+                                            </div>
+                                        </div>
+                                        <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
+                                    </div>
+                                ))}
+                            </div>
                             {/* Progress Bar */}
-                            <div className="w-full h-1.5 bg-blue-200/50 rounded-full overflow-hidden">
+                            <div className="w-full h-1.5 bg-blue-200/50 rounded-full overflow-hidden mt-3">
                                 <div className="h-full bg-blue-500 w-2/3 rounded-full"></div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Active Patients (Green) */}
-                <div
-                    style={{ animationDelay: '200ms' }}
-                    className="relative overflow-hidden rounded-[2rem] p-6 border border-green-100 bg-gradient-to-br from-green-50 to-green-100/50 transition-all duration-300 group hover:shadow-xl hover:-translate-y-1 hover:border-transparent animate-in fade-in slide-in-from-bottom-4 fill-mode-backwards"
-                >
-                    <Users className="absolute -bottom-4 -left-4 w-32 h-32 text-green-500/10 rotate-12 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6" strokeWidth={1.5} />
-
-                    <div className="relative z-10 flex flex-col h-full justify-between">
-                        <div className="flex justify-between items-start mb-4">
-                            <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm bg-green-500 text-white group-hover:scale-110 transition-transform duration-300">
-                                <Users className="w-6 h-6" />
-                            </div>
-                        </div>
-                        <div>
-                            <p className="text-green-600/80 font-medium text-sm mb-1">المرضى النشطين</p>
-                            <h3 className="text-3xl font-bold text-green-900 mb-4">{affectedCustomers}</h3>
-                            {/* Progress Bar */}
-                            <div className="w-full h-1.5 bg-green-200/50 rounded-full overflow-hidden">
-                                <div className="h-full bg-green-500 w-3/4 rounded-full"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Total Revenue (Amber/Yellow) - OWNER ONLY */}
-                {!isStaff && (
-                    <div
-                        style={{ animationDelay: '300ms' }}
-                        className="relative overflow-hidden rounded-[2rem] p-6 border border-amber-100 bg-gradient-to-br from-amber-50 to-amber-100/50 transition-all duration-300 group hover:shadow-xl hover:-translate-y-1 hover:border-transparent animate-in fade-in slide-in-from-bottom-4 fill-mode-backwards"
-                    >
-                        <DollarSign className="absolute -bottom-4 -left-4 w-32 h-32 text-amber-500/10 rotate-12 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6" strokeWidth={1.5} />
-
-                        <div className="relative z-10 flex flex-col h-full justify-between">
-                            <div className="flex justify-between items-start mb-4">
-                                <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm bg-amber-500 text-white group-hover:scale-110 transition-transform duration-300">
-                                    <DollarSign className="w-6 h-6" />
-                                </div>
-                            </div>
-                            <div>
-                                <p className="text-amber-600/80 font-medium text-sm mb-1">إجمالي الإيرادات</p>
-                                <h3 className="text-3xl font-bold text-amber-900 mb-4">{(totalRevenue / 1000000).toFixed(1)}M</h3>
-                                {/* Progress Bar */}
-                                <div className="w-full h-1.5 bg-amber-200/50 rounded-full overflow-hidden">
-                                    <div className="h-full bg-amber-500 w-1/2 rounded-full"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
                 {/* Today Appointments (Purple) */}
                 <div
-                    style={{ animationDelay: '400ms' }}
+                    style={{ animationDelay: '200ms' }}
                     className="relative overflow-hidden rounded-[2rem] p-6 border border-purple-100 bg-gradient-to-br from-purple-50 to-purple-100/50 transition-all duration-300 group hover:shadow-xl hover:-translate-y-1 hover:border-transparent animate-in fade-in slide-in-from-bottom-4 fill-mode-backwards"
                 >
                     <Calendar className="absolute -bottom-4 -left-4 w-32 h-32 text-purple-500/10 rotate-12 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6" strokeWidth={1.5} />
 
                     <div className="relative z-10 flex flex-col h-full justify-between">
-                        <div className="flex justify-between items-start mb-4">
+                        <div className="flex justify-between items-start mb-3">
                             <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm bg-purple-500 text-white group-hover:scale-110 transition-transform duration-300">
                                 <Calendar className="w-6 h-6" />
                             </div>
@@ -463,7 +431,7 @@ export const DoctorOverviewPage: React.FC = () => {
             </div>
 
 
-            {/* 3. Notifications & Clinics Summary */}
+            {/* 3. Notifications & Recent Activities - side by side on desktop */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Recent Notifications (Enhanced with Clinic Name) */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -583,57 +551,7 @@ export const DoctorOverviewPage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Clinics Summary - Only show if Owner or Single Clinic Info for Staff (Without Revenue) */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="bg-gradient-to-r from-green-50 to-green-100 px-6 py-4 border-b border-gray-100">
-                        <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                                <Building2 className="w-5 h-5 text-green-600" />
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-gray-900">{isStaff ? 'أداء العيادة' : 'ملخص العيادات'}</h3>
-                                <p className="text-xs text-gray-600">{isStaff ? 'نظرة عامة' : `أداء العيادات (${clinics.length})`}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="p-6">
-                        <div className="space-y-4">
-                            {clinicStats.filter(c => isRelevant(c.id)).map((clinic) => (
-                                <div
-                                    key={clinic.id}
-                                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-                                    onClick={() => navigate(`/doctor/clinic/${clinic.id}`)}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center">
-                                            <Building2 className="w-5 h-5 text-gray-600" />
-                                        </div>
-                                        <div>
-                                            <p className="font-medium text-gray-900 text-sm">{clinic.name}</p>
-                                            <p className="text-xs text-gray-600">{clinic.patients} مريض</p>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        {/* Hide Revenue for Staff */}
-                                        {!isStaff && <p className="font-bold text-gray-900 text-sm">{(clinic.revenue / 1000).toFixed(0)}K د.ع</p>}
-                                        <div className={`inline-block px-2 py-1 rounded-full text-xs ${clinic.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                                            } `}>
-                                            {clinic.status === 'active' ? 'نشطة' : 'صيانة'}
-                                        </div>
-                                    </div>
-                                    <ChevronRight className="w-4 h-4 text-gray-400" />
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* 4. Purchase Suggestions & Activities (Adjusted Layout for Staff) */}
-            <div className={`grid grid-cols-1 ${!isStaff ? 'lg:grid-cols-2' : 'lg:grid-cols-1'} gap-6`}>
-
-
-                {/* Recent Activities (Enhanced with Owner/Staff Logic) */}
+                {/* Recent Activities - second column */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                     <div className="bg-gradient-to-r from-indigo-50 to-indigo-100 px-6 py-4 border-b border-gray-100">
                         <div className="flex items-center gap-3">
@@ -656,9 +574,8 @@ export const DoctorOverviewPage: React.FC = () => {
                                         onClick={() => {
                                             const clinicId = (activity as any).clinicId || '1';
                                             let tab = 'overview';
-
                                             if (activity.type === 'appointment') tab = 'appointments';
-                                            if (activity.type === 'inventory') tab = 'inventory'; // Fixed to inventory
+                                            if (activity.type === 'inventory') tab = 'inventory';
                                             navigate(`/doctor/clinic/${clinicId}?tab=${tab}`);
                                         }}
                                     >

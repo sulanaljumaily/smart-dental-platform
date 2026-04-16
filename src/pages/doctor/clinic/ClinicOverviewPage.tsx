@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Users,
   Calendar,
@@ -53,11 +53,18 @@ export const ClinicOverviewPage: React.FC<ClinicOverviewPageProps> = ({ clinicId
   // Modals state
   const [showAddPatientModal, setShowAddPatientModal] = useState(false);
   const [showAddAppointmentModal, setShowAddAppointmentModal] = useState(false);
+  const [showButtonText, setShowButtonText] = useState(true);
   const [newPatient, setNewPatient] = useState({
     name: '', phone: '', age: '', gender: 'male', email: '', address: '', notes: ''
   });
 
   const { checkLimit } = useSubscriptionLimits();
+
+  // Auto-collapse buttons after 3 seconds
+  useEffect(() => {
+    const timer = setTimeout(() => setShowButtonText(false), 3000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Real Data Hooks
   const { clinics, loading: loadingClinics } = useClinics();
@@ -193,9 +200,10 @@ export const ClinicOverviewPage: React.FC<ClinicOverviewPageProps> = ({ clinicId
   const lowStockCount = inventoryItems?.filter(i => i.quantity <= (i.minStock || 0)).length || 0;
 
   // Recent Patients (Real)
+  // Recent Patients (Real)
   const recentPatients = [...patients]
     .sort((a, b) => new Date(b.lastVisit || 0).getTime() - new Date(a.lastVisit || 0).getTime())
-    .slice(0, 5);
+    .slice(0, 10);
 
   if (!realClinic) {
     return (
@@ -259,13 +267,27 @@ export const ClinicOverviewPage: React.FC<ClinicOverviewPageProps> = ({ clinicId
             
             {/* Overlay Actions */}
             <div className="absolute top-4 right-4 flex items-center gap-3">
-              <button onClick={() => setShowAddPatientModal(true)} className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 hover:bg-green-100 rounded-xl transition-colors text-sm font-bold border border-green-100 shadow-sm">
-                <UserPlus className="w-4 h-4" />
-                إضافة مريض
+              <button
+                onClick={() => setShowAddPatientModal(true)}
+                className="flex items-center justify-center gap-2 py-2 bg-green-50 text-green-700 hover:bg-green-100 rounded-xl transition-all duration-500 ease-in-out text-sm font-bold border border-green-100 shadow-sm shadow-green-200 overflow-hidden"
+                style={{ width: showButtonText ? '130px' : '38px', paddingLeft: showButtonText ? '12px' : '9px', paddingRight: showButtonText ? '12px' : '9px' }}
+                title="إضافة مريض"
+              >
+                <UserPlus className="w-4 h-4 shrink-0" />
+                <span className={`transition-all duration-500 whitespace-nowrap overflow-hidden ${showButtonText ? 'max-w-[100px] opacity-100' : 'max-w-0 opacity-0'}`}>
+                  إضافة مريض
+                </span>
               </button>
-              <button onClick={() => setShowAddAppointmentModal(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-xl transition-colors text-sm font-bold shadow-sm shadow-blue-200">
-                <CalendarPlus className="w-4 h-4" />
-                إضافة موعد
+              <button
+                onClick={() => setShowAddAppointmentModal(true)}
+                className="flex items-center justify-center gap-2 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-xl transition-all duration-500 ease-in-out text-sm font-bold shadow-sm shadow-blue-400 overflow-hidden"
+                style={{ width: showButtonText ? '130px' : '38px', paddingLeft: showButtonText ? '12px' : '9px', paddingRight: showButtonText ? '12px' : '9px' }}
+                title="إضافة موعد"
+              >
+                <CalendarPlus className="w-4 h-4 shrink-0" />
+                <span className={`transition-all duration-500 whitespace-nowrap overflow-hidden ${showButtonText ? 'max-w-[100px] opacity-100' : 'max-w-0 opacity-0'}`}>
+                  إضافة موعد
+                </span>
               </button>
             </div>
           </div>
@@ -392,120 +414,33 @@ export const ClinicOverviewPage: React.FC<ClinicOverviewPageProps> = ({ clinicId
 
 
 
-      {/* Content Grid */}
-      < div className="grid grid-cols-1 lg:grid-cols-2 gap-6" >
-
-        {/* Recent Patients */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-50 to-blue-100 px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Users className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-900">المرضى حديثاً</h3>
-                <p className="text-xs text-gray-600">أحدث المرضى المضافين</p>
-              </div>
-            </div>
-          </div>
-          <div className="p-6">
-            <div className="space-y-3">
-              {recentPatients.length > 0 ? recentPatients.map((patient) => (
-                <div
-                  key={patient.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
-                      <Users className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-900">{patient.name}</p>
-                      <p className="text-sm text-gray-600">العمر: {patient.age || 'غير محدد'} سنة</p>
-                    </div>
-                  </div>
-                  <div className="text-left">
-                    <p className="text-sm font-medium text-gray-900">
-                      زيارة #{patient.totalVisits || 1}
-                    </p>
-                    <p className="text-xs text-gray-600">
-                      {formatDate(patient.lastVisit || new Date().toISOString())}
-                    </p>
-                  </div>
-                </div>
-              )) : (
-                <div className="text-center py-6 text-gray-500">لا يوجد مرضى حالياً</div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Purchase Suggestions replacing Quick Actions */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="bg-gradient-to-r from-pink-50 to-pink-100 px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-pink-100 rounded-lg flex items-center justify-center">
-                      <ShoppingCart className="w-5 h-5 text-pink-600" />
-                  </div>
-                  <div>
-                      <h3 className="font-bold text-gray-900">اقتراحات الشراء</h3>
-                      <p className="text-xs text-gray-600">نواقص المخزون في العيادة</p>
-                  </div>
-              </div>
-          </div>
-          <div className="p-6">
-              <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
-                  {lowStockCount === 0 ? (
-                      <div className="text-center py-6 text-gray-500 text-sm">لا توجد نواقص في المخزون حالياً</div>
-                  ) : (
-                      inventoryItems?.filter(i => i.quantity <= (i.minStock || 0)).map((item) => (
-                          <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
-                              onClick={() => navigate(`/doctor/clinic/${clinicId}?tab=inventory`)}
-                          >
-                              <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
-                                      <CircleAlert className="w-4 h-4 text-yellow-600" />
-                                  </div>
-                                  <div>
-                                      <p className="font-medium text-gray-900 text-sm">{item.name}</p>
-                                      <span className="text-[10px] text-gray-500">الحد الأدنى: {item.minStock}</span>
-                                  </div>
-                              </div>
-                              <div className="text-right">
-                                  <div className="inline-block px-2 py-1 rounded-full text-[10px] font-bold mb-1 bg-red-100 text-red-700">
-                                      كمية حرجة
-                                  </div>
-                                  <p className="text-xs font-semibold text-gray-700">{item.quantity} {item.unit}</p>
-                              </div>
-                          </div>
-                      ))
-                  )}
-              </div>
-          </div>
-        </div>
-      </div>
-
+      {/* Content Grid 1: Appointments & Staff */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        {/* Today's Appointments (Dynamic Card) */}
-        {todayAppointmentsList.length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="bg-gradient-to-r from-purple-50 to-purple-100 px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <Calendar className="w-5 h-5 text-purple-600" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900">مواعيد اليوم</h3>
-                  <p className="text-xs text-gray-600">جدول المواعيد لهذا اليوم</p>
-                </div>
+        {/* Today's Appointments */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-gradient-to-r from-purple-50 to-purple-100 px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                <Calendar className="w-5 h-5 text-purple-600" />
               </div>
-              <span className="text-xs font-bold text-purple-700 bg-purple-200 px-2.5 py-1 rounded-full">{todayAppointmentsList.length} موعد</span>
+              <div>
+                <h3 className="font-bold text-gray-900">مواعيد اليوم</h3>
+                <p className="text-xs text-gray-600">جدول المواعيد لهذا اليوم</p>
+              </div>
             </div>
-            <div className="p-6">
-              <div className="space-y-3">
-                {todayAppointmentsList.slice(0, 4).map((apt, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-blue-50/50 rounded-xl border border-blue-100/50">
+            <span className="text-xs font-bold text-purple-700 bg-purple-200 px-2.5 py-1 rounded-full">{todayAppointmentsList.length} موعد</span>
+          </div>
+          <div className="p-6">
+            <div className="space-y-3 max-h-[240px] overflow-y-auto pr-2 custom-scrollbar">
+              {todayAppointmentsList.length === 0 ? (
+                <div className="text-center py-6 text-gray-500 text-sm">لا توجد مواعيد اليوم</div>
+              ) : (
+                todayAppointmentsList.slice(0, 10).map((apt, index) => (
+                  <div key={index} 
+                    onClick={() => onNavigate?.('appointments')}
+                    className="flex items-center justify-between p-3 bg-blue-50/50 rounded-xl border border-blue-100/50 cursor-pointer hover:bg-blue-100/50 transition-colors"
+                  >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-white rounded-lg flex flex-col items-center justify-center border border-blue-100 shadow-sm text-blue-600">
                          <span className="text-sm font-bold">{apt.time.split(':')[0]}:{apt.time.split(':')[1]}</span>
@@ -524,11 +459,11 @@ export const ClinicOverviewPage: React.FC<ClinicOverviewPageProps> = ({ clinicId
                        apt.status === 'completed' ? 'مكتمل' : 'معلق'}
                     </div>
                   </div>
-                ))}
-              </div>
+                ))
+              )}
             </div>
           </div>
-        )}
+        </div>
 
         {/* Staff On Duty */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -544,12 +479,15 @@ export const ClinicOverviewPage: React.FC<ClinicOverviewPageProps> = ({ clinicId
             </div>
           </div>
           <div className="p-6">
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-[240px] overflow-y-auto pr-2 custom-scrollbar">
               {activeStaffList.length === 0 ? (
-                <div className="text-center py-4 text-gray-500 text-sm">لا يتوفر كادر نشط حالياً</div>
+                <div className="text-center py-6 text-gray-500 text-sm">لا يتوفر كادر نشط حالياً</div>
               ) : (
-                activeStaffList.map((st, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                activeStaffList.slice(0, 10).map((st, index) => (
+                  <div key={index} 
+                    onClick={() => onNavigate?.('staff')}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
+                  >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center">
                         <Users className="w-5 h-5" />
@@ -577,7 +515,103 @@ export const ClinicOverviewPage: React.FC<ClinicOverviewPageProps> = ({ clinicId
             </div>
           </div>
         </div>
+      </div>
 
+      {/* Content Grid 2: Patients & Inventory */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* Recent Patients */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-gradient-to-r from-blue-50 to-blue-100 px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Users className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900">المرضى حديثاً</h3>
+                <p className="text-xs text-gray-600">أحدث المرضى المضافين</p>
+              </div>
+            </div>
+          </div>
+          <div className="p-6">
+            <div className="space-y-3 max-h-[240px] overflow-y-auto pr-2 custom-scrollbar">
+              {recentPatients.length > 0 ? recentPatients.slice(0, 10).map((patient) => (
+                <div
+                  key={patient.id}
+                  onClick={() => onNavigate?.('patients')}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+                      <Users className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900">{patient.name}</p>
+                      <p className="text-sm text-gray-600">العمر: {patient.age || 'غير محدد'} سنة</p>
+                    </div>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-gray-900">
+                      زيارة #{patient.totalVisits || 1}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      {formatDate(patient.lastVisit || new Date().toISOString())}
+                    </p>
+                  </div>
+                </div>
+              )) : (
+                <div className="text-center py-6 text-gray-500 text-sm">لا يوجد مرضى حالياً</div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Purchase Suggestions */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-gradient-to-r from-pink-50 to-pink-100 px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-pink-100 rounded-lg flex items-center justify-center">
+                      <ShoppingCart className="w-5 h-5 text-pink-600" />
+                  </div>
+                  <div>
+                      <h3 className="font-bold text-gray-900">اقتراحات الشراء</h3>
+                      <p className="text-xs text-gray-600">نواقص المخزون في العيادة</p>
+                  </div>
+              </div>
+          </div>
+          <div className="p-6">
+              <div className="space-y-3 max-h-[240px] overflow-y-auto pr-2 custom-scrollbar">
+                  {lowStockCount === 0 ? (
+                      <div className="text-center py-6 text-gray-500 text-sm">لا توجد نواقص في المخزون حالياً</div>
+                  ) : (
+                      inventoryItems?.filter(i => i.quantity <= (i.minStock || 0)).slice(0, 10).map((item) => (
+                          <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
+                              onClick={() => {
+                                navigate(`/doctor/clinic/${clinicId}?tab=assets`);
+                                onNavigate?.('assets');
+                              }}
+                          >
+                              <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
+                                      <CircleAlert className="w-4 h-4 text-yellow-600" />
+                                  </div>
+                                  <div>
+                                      <p className="font-medium text-gray-900 text-sm">{item.name}</p>
+                                      <span className="text-[10px] text-gray-500">الحد الأدنى: {item.minStock}</span>
+                                  </div>
+                              </div>
+                              <div className="text-right">
+                                  <div className="inline-block px-2 py-1 rounded-full text-[10px] font-bold mb-1 bg-red-100 text-red-700">
+                                      كمية حرجة
+                                  </div>
+                                  <p className="text-xs font-semibold text-gray-700">{item.quantity} {item.unit}</p>
+                              </div>
+                          </div>
+                      ))
+                  )}
+              </div>
+          </div>
+        </div>
       </div>
 
       {/* Add Patient Modal */}
