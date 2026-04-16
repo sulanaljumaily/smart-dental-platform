@@ -4,6 +4,7 @@ import { LanguageProvider } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { MainLayout } from './layouts/MainLayout';
 import { StoreLayout } from './layouts/StoreLayout';
+import { PWAInstallButton } from './components/common/PWAInstallButton';
 
 // Public Pages
 import { HomePage } from './pages/public/HomePage';
@@ -129,6 +130,8 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requiredRole?: strin
 function AppContent() {
   return (
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      {/* PWA Install Button - floating above bottom nav */}
+      <PWAInstallButton variant="floating" />
       <Routes>
         {/* Public Routes Wrapped in MainLayout (Header + Bottom Nav) */}
         <Route element={<MainLayout />}>
@@ -230,7 +233,6 @@ function AppContent() {
           <Route path="ai" element={<AIAnalysisPage />} />
 
           {/* Integrated Public Pages for Doctor */}
-          <Route path="home" element={<HomePage />} />
           <Route path="community" element={<CommunityPage />} />
 
           <Route path="jobs" element={<JobsPage hideHeader={true} />} />

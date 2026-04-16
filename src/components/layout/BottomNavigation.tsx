@@ -60,9 +60,9 @@ export const BottomNavigation: React.FC = () => {
     { id: 'store', label: 'المتجر', icon: ShoppingBag, path: '/store', activeOn: ['/store'] },
   ];
 
-  // 1.1 Doctor Specific Menu (Internal Routing)
+  // 1.1 Doctor Specific Menu
   const doctorMenu = [
-    { id: 'home', label: 'الرئيسية', icon: Building2, path: '/doctor/home', activeOn: ['/doctor/home', '/', '/services'] },
+    { id: 'home', label: 'الرئيسية', icon: Building2, path: '/', activeOn: ['/', '/services'] },
     { id: 'community', label: 'المجتمع', icon: Users, path: '/doctor/community', activeOn: ['/doctor/community', '/community'] },
     { id: 'doctor', label: 'مركز الأطباء', icon: Stethoscope, path: '/doctor', activeOn: ['/doctor', '/doctor/overview'] },
     { id: 'jobs', label: 'التوظيف', icon: Briefcase, path: '/doctor/jobs', activeOn: ['/doctor/jobs', '/jobs'] },
