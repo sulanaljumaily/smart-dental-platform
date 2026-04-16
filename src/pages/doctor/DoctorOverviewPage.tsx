@@ -128,6 +128,11 @@ export const DoctorOverviewPage: React.FC = () => {
     const targetClinicIdForAction = selectedClinicId !== 'all' ? selectedClinicId : (clinics.length === 1 ? clinics[0].id : null);
 
     const handleActionClick = (type: 'patient' | 'appointment') => {
+        if (hasNoClinics) {
+            setClinicSelectorHighlight(true);
+            setTimeout(() => setClinicSelectorHighlight(false), 2000);
+            return;
+        }
         if (selectedClinicId === 'all' && clinics.length > 1 && !isStaff) {
             setClinicSelectorHighlight(true);
             setIsClinicMenuOpen(true);
@@ -433,13 +438,27 @@ export const DoctorOverviewPage: React.FC = () => {
                 {user?.role === 'doctor' ? (
                     <div className="relative min-w-0" onClick={e => e.stopPropagation()}>
                         <button
-                            onClick={(e) => { e.stopPropagation(); setIsClinicMenuOpen(!isClinicMenuOpen); }}
+                            onClick={(e) => { 
+                                e.stopPropagation(); 
+                                if (hasNoClinics) {
+                                    setClinicSelectorHighlight(true);
+                                    setTimeout(() => setClinicSelectorHighlight(false), 2000);
+                                    return;
+                                }
+                                setIsClinicMenuOpen(!isClinicMenuOpen); 
+                            }}
                             className={`w-full flex items-center justify-between gap-1.5 p-2.5 sm:p-3 rounded-xl transition-all duration-300 border shadow-sm ${clinicSelectorHighlight ? 'border-red-400 bg-red-50 ring-2 ring-red-200 shadow-md' : 'border-blue-100 bg-gradient-to-br from-blue-50 to-blue-100/50 hover:-translate-y-0.5 hover:shadow-md'}`}
                         >
                             <div className="flex items-center gap-1.5 min-w-0">
                                 <Building2 className={`w-4 h-4 sm:w-5 sm:h-5 shrink-0 hidden sm:block transition-colors ${clinicSelectorHighlight ? 'text-red-500' : 'text-blue-600'}`} />
                                 <span className={`text-[11px] sm:text-sm font-bold truncate transition-colors ${clinicSelectorHighlight ? 'text-red-700' : 'text-blue-900'}`}>
-                                    {selectedClinicId === 'all' ? 'اختر العيادة أولاً' : clinics.find(c => c.id === selectedClinicId)?.name || 'عيادة محددة'}
+                                    {hasNoClinics 
+                                        ? 'أضف عيادة أولاً' 
+                                        : (clinicSelectorHighlight && selectedClinicId === 'all' && clinics.length > 1) 
+                                            ? 'اختر العيادة أولاً' 
+                                            : selectedClinicId === 'all' 
+                                                ? 'جميع العيادات' 
+                                                : clinics.find(c => c.id === selectedClinicId)?.name || 'عيادة محددة'}
                                 </span>
                             </div>
                             <ChevronDown className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform shrink-0 ${isClinicMenuOpen ? 'rotate-180' : ''} ${clinicSelectorHighlight ? 'text-red-400' : 'text-blue-600/60'}`} />
