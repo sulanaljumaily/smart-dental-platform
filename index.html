@@ -50,6 +50,21 @@
 <body>
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
+  
+  <!-- Force unregister old Service Workers that are caching the old RTL layout -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function (registrations) {
+        for (let registration of registrations) {
+          registration.unregister();
+        }
+        // If there were registrations, force reload to get the clean non-RTL version
+        if (registrations.length > 0) {
+          window.location.reload();
+        }
+      });
+    }
+  </script>
 </body>
 
 </html>
