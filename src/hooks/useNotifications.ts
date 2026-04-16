@@ -28,16 +28,24 @@ export const useNotifications = () => {
     const [updates, setUpdates] = useState<any[]>([]);
     const mountedRef = useRef(true);
 
+    // Fetch data whenever user or clinics change
     useEffect(() => {
-        mountedRef.current = true;
         if (!user) return;
-
         fetchNotifications();
         fetchUpdates();
+    }, [user, clinics]);
 
-        // Real-time subscription - Filtered by user_id
+    // Realtime subscription — separate effect, only re-runs when user.id changes
+    // Uses a unique channel name to avoid React StrictMode double-invoke issues
+    useEffect(() => {
+        if (!user?.id) return;
+
+        // Unique suffix prevents Supabase from reusing a cached channel
+        // that was already subscribed in the previous (StrictMode) run
+        const channelName = `notifications_${user.id}_${Math.random().toString(36).slice(2)}`;
+
         const channel = supabase
-            .channel(`notifications_${user.id}`)
+            .channel(channelName)
             .on(
                 'postgres_changes',
                 {
@@ -50,21 +58,17 @@ export const useNotifications = () => {
                     if (!mountedRef.current) return;
                     handleRealtimeUpdate(payload);
                 }
-            );
-
-        // Additional subscriptions for clinics if needed
-        // For simplicity and to avoid too many channels, we rely on the fact that 
-        // most clinic notifications should also be sent to the user_id of the clinic members.
-        // If they are ONLY sent to clinic_id, we'd need more filters.
-        // However, standard RLS handles visibility, but real-time 'filter' is limited to simple eq.
-
-        channel.subscribe();
+            )
+            .subscribe((status) => {
+                if (status === 'CHANNEL_ERROR') {
+                    console.warn('Realtime channel error for notifications');
+                }
+            });
 
         return () => {
-            mountedRef.current = false;
             supabase.removeChannel(channel);
         };
-    }, [user, clinics]);
+    }, [user?.id]);
 
     const handleRealtimeUpdate = (payload: any) => {
         if (payload.eventType === 'INSERT') {
