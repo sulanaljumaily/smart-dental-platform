@@ -89,83 +89,28 @@ const DoctorDashboardContent: React.FC = () => {
       {/* Top Navigation Bar */}
       {shouldShowHeader && (
         <div className="bg-white/80 backdrop-blur-lg border-b border-gray-200/50 sticky top-0 z-50 shadow-sm transition-all duration-300">
-          <div className="container mx-auto px-4">
-            <div className="flex items-center justify-between h-16">
+          <div className="container mx-auto px-2 sm:px-4">
+            <div className="flex items-center justify-between h-auto py-1 sm:h-14 sm:py-0">
 
               {/* Logo & Brand & Clinic Selector */}
-              <div className="flex items-center gap-4">
+              <div className="hidden lg:flex items-center gap-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg transform hover:scale-105 transition-transform duration-300">
                     <LayoutDashboard className="w-6 h-6 text-white" />
                   </div>
-                  <div className="hidden sm:block">
+                  <div className="hidden xl:block">
                     <h1 className="font-bold text-xl text-gray-900 tracking-tight">مركز الأطباء</h1>
                   </div>
                 </div>
-
-                {/* CLINIC SELECTOR (Filter for Staff/Owner) */}
-                {user?.role === 'doctor' && (
-                  <div className="relative border-r border-gray-200 pr-4 mr-4 hidden md:block">
-                    <button
-                      onClick={() => setIsClinicMenuOpen(!isClinicMenuOpen)}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
-                    >
-                      <Building2 className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm font-medium text-gray-700">
-                        {selectedClinicId === 'all' ? 'جميع العيادات' : clinics.find(c => c.id === selectedClinicId)?.name || 'عيادة محددة'}
-                      </span>
-                      <ChevronDown className="w-3 h-3 text-gray-400" />
-                    </button>
-
-                    {isClinicMenuOpen && (
-                      <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 z-50 animate-in fade-in zoom-in-95">
-                        <div className="p-1">
-                          {/* Only Owner sees "All Clinics" */}
-                          {clinics.some(c => c.owner_id === user?.id) && (
-                            <button
-                              onClick={() => { setSelectedClinicId('all'); setIsClinicMenuOpen(false); }}
-                              className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg ${selectedClinicId === 'all' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'}`}
-                            >
-                              <LayoutDashboard className="w-4 h-4" />
-                              <span>جميع العيادات</span>
-                            </button>
-                          )}
-
-                          {clinics.map(clinic => (
-                            <button
-                              key={clinic.id}
-                              onClick={() => { setSelectedClinicId(clinic.id); setIsClinicMenuOpen(false); }}
-                              className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg ${selectedClinicId === clinic.id ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'}`}
-                            >
-                              <Building2 className="w-4 h-4" />
-                              <span className="truncate">{clinic.name}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-                {/* For Staff: Show Static Clinic Name */}
-                {user?.role === 'staff' && (
-                  <div className="relative border-r border-gray-200 pr-4 mr-4 hidden md:block">
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-100">
-                      <Building2 className="w-4 h-4 text-blue-600" />
-                      <span className="text-sm font-bold text-blue-800">
-                        {clinics[0]?.name || 'عيادتي'}
-                      </span>
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Desktop & Mobile Navigation (Scrollable) */}
-              <nav className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-1 mx-2 sm:mx-4 mask-linear-fade pb-1 sm:pb-0 flex-nowrap">
+              <nav className="flex items-center gap-0 overflow-x-auto no-scrollbar flex-1 mx-0.5 sm:mx-2 mask-linear-fade flex-nowrap">
                 {menuItems.map((item) => (
                   <button
                     key={item.id}
                     onClick={() => navigate(item.path)}
-                    className={`relative flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2.5 rounded-xl transition-all duration-300 group shrink-0 whitespace-nowrap ${activeTab === item.id
+                    className={`relative flex items-center gap-0.5 px-2 py-1 sm:px-3 sm:py-2 rounded-xl transition-all duration-300 group shrink-0 whitespace-nowrap ${activeTab === item.id
                       ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg shadow-blue-500/25`
                       : 'text-gray-600 hover:text-gray-900 hover:bg-white/80'
                       }`}
@@ -192,9 +137,9 @@ const DoctorDashboardContent: React.FC = () => {
                 <div className="relative">
                   <button
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                    className="flex items-center gap-2 p-1.5 sm:p-2 rounded-xl bg-white/60 hover:bg-white transition-all ring-1 ring-transparent hover:ring-gray-200"
+                    className="flex items-center gap-1 p-1 rounded-xl bg-white/60 hover:bg-white transition-all ring-1 ring-transparent hover:ring-gray-200"
                   >
-                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-sm overflow-hidden">
+                    <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-sm overflow-hidden">
                       {user?.avatar ? (
                         <img src={user.avatar} alt={user?.name || ''} className="w-full h-full object-cover" />
                       ) : (
@@ -202,7 +147,7 @@ const DoctorDashboardContent: React.FC = () => {
                       )}
                     </div>
                     {/* User Name hidden globally as per request, shown only in dropdown */}
-                    <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-300 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
                   </button>
 
                   {isUserMenuOpen && (
@@ -253,7 +198,7 @@ const DoctorDashboardContent: React.FC = () => {
         <div className={
           location.pathname.includes('/doctor/community') || location.pathname.includes('/doctor/jobs')
             ? ""
-            : "container mx-auto px-4 py-6"
+            : "container mx-auto px-2 py-2"
         }>
           <Outlet />
         </div>
