@@ -1,303 +1,320 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Send, Paperclip, MoreVertical, User, Building2, MessageCircle, Plus, ChevronLeft, Users } from 'lucide-react';
+import { Send, Paperclip, MoreVertical, User, Building2, MessageCircle, ChevronRight } from 'lucide-react';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
-import { Modal } from '../../components/common/Modal';
-import { useCommunity } from '../../hooks/useCommunity';
 import { useAuth } from '../../contexts/AuthContext';
 import { useStaff } from '../../hooks/useStaff';
 import { useDoctorContext } from '../../contexts/DoctorContext';
 import { useLocation } from 'react-router-dom';
 import { useMessages } from '../../hooks/useMessages';
-import { useClinicChat } from '../../hooks/useClinicChat';
 
 export const DoctorMessagesPage: React.FC = () => {
   const { user } = useAuth();
   const { selectedClinicId, clinics } = useDoctorContext();
-  const { staff } = useStaff(selectedClinicId === 'all' ? '' : selectedClinicId || '');
+  
+  // Fetch staff across appropriate clinics to enable horizontal grouping
+  const { staff } = useStaff(selectedClinicId === 'all' ? undefined : selectedClinicId || undefined);
 
   // Custom Hooks
-  const { conversations, loading: messagesLoading, sendMessage: sendDirectMessage } = useMessages();
-  const { messages: clinicMessages, loading: chatLoading, sendMessage: sendClinicMessage } = useClinicChat(selectedClinicId);
+  const { conversations, sendMessage: sendDirectMessage } = useMessages();
 
-  const [selectedConversationId, setSelectedConversationId] = useState<string | null>('clinic-team');
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [messageText, setMessageText] = useState('');
-  const [showNewMessageModal, setShowNewMessageModal] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [expandedClinicId, setExpandedClinicId] = useState<string | null>('all');
 
-  // Hooks
-  const { friends } = useCommunity();
   const location = useLocation();
 
   useEffect(() => {
     if (location.state?.startConversationWith) {
       const targetUser = location.state.startConversationWith;
       setSelectedConversationId(targetUser.id);
+    } else if (conversations.length > 0 && !selectedConversationId) {
+      setSelectedConversationId(conversations[0].id);
     }
-  }, [location.state]);
+  }, [location.state, conversations]);
 
   const handleSendMessage = async () => {
-    if (!messageText.trim()) return;
+    if (!messageText.trim() || !selectedConversationId) return;
 
-    let success = false;
-    if (selectedConversationId === 'clinic-team') {
-      success = await sendClinicMessage(messageText);
-    } else if (selectedConversationId) {
-      success = await sendDirectMessage(selectedConversationId, messageText);
-    }
-
+    const success = await sendDirectMessage(selectedConversationId, messageText);
     if (success) {
       setMessageText('');
     }
   };
 
-  const startNewConversation = (contact: { id: string, name: string }) => {
-    setSelectedConversationId(contact.id);
-    setShowNewMessageModal(false);
-    setSearchTerm('');
+  const startNewConversation = (member: any) => {
+    const targetId = member.userId || member.id;
+    setSelectedConversationId(targetId);
+    setExpandedClinicId(null); // Auto hide staff list
   };
 
-  // Combine Clinic Chat with other conversations
-  const currentClinicName = clinics.find(c => c.id === selectedClinicId)?.name || 'العيادة';
+  const currentPartnerStaff = staff.find(s => (s.userId === selectedConversationId || s.id === selectedConversationId));
+  const currentChatPartnerInfo = conversations.find(c => c.id === selectedConversationId) || {
+    partnerName: currentPartnerStaff?.name || 'مستخدم',
+    messages: []
+  };
+
+  const handleBackToStaffList = () => {
+    setSelectedConversationId(null);
+    if (currentPartnerStaff?.clinicId) {
+      setExpandedClinicId(currentPartnerStaff.clinicId);
+    }
+  };
+
+  // Helper maps for unread counts
+  const staffUnreadMap = new Map();
+  
+  conversations.forEach(conv => {
+    if (conv.unreadCount > 0) {
+      staffUnreadMap.set(conv.id, conv.unreadCount);
+    }
+  });
+
+  const getClinicUnreadCount = (clinicId: string) => {
+    if (clinicId === 'all') {
+      let total = 0;
+      clinics.forEach(c => {
+        total += getClinicUnreadCount(c.id);
+      });
+      return total;
+    }
+    const clinicStaff = staff.filter(s => s.clinicId === clinicId);
+    let count = 0;
+    clinicStaff.forEach(s => {
+      const staffId = s.userId || s.id;
+      if (staffUnreadMap.has(staffId)) {
+        count += staffUnreadMap.get(staffId);
+      }
+    });
+    return count;
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex justify-between items-center">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl shadow-lg shadow-blue-200">
-            <MessageCircle className="w-8 h-8" />
+    <div className="space-y-4 h-[calc(100vh-120px)] flex flex-col">
+      {/* Top Clinic & Staff Horizontal Selector */}
+      {user?.role === 'doctor' && clinics.length > 0 && (
+        <div className="flex flex-col gap-2 shrink-0">
+          <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
+            {/* All Clinics Button */}
+            <button
+              onClick={() => setExpandedClinicId('all')}
+              className={`relative min-w-[140px] px-4 py-3 shrink-0 rounded-xl flex items-center justify-between gap-3 transition-all duration-300 border shadow-sm ${
+                expandedClinicId === 'all'
+                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 border-purple-700 shadow-md ring-2 ring-purple-600/20 transform -translate-y-0.5'
+                  : 'bg-white border-purple-100 hover:border-purple-200 hover:shadow-md'
+              }`}
+            >
+              {getClinicUnreadCount('all') > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm min-w-[18px] text-center z-10">
+                  {getClinicUnreadCount('all')}
+                </span>
+              )}
+              <span className={`text-[12px] font-bold text-right line-clamp-2 leading-tight flex-1 ${expandedClinicId === 'all' ? 'text-white' : 'text-purple-900'}`}>
+                جميع العيادات
+              </span>
+              <div className={`p-2 rounded-lg shrink-0 ${expandedClinicId === 'all' ? 'bg-white/20' : 'bg-purple-50 text-purple-600'}`}>
+                <Building2 className={`w-5 h-5 ${expandedClinicId === 'all' ? 'text-white' : ''}`} />
+              </div>
+            </button>
+
+            {clinics.map(clinic => {
+              const unreadCount = getClinicUnreadCount(clinic.id);
+              return (
+                <button
+                  key={clinic.id}
+                  onClick={() => setExpandedClinicId(expandedClinicId === clinic.id ? null : clinic.id)}
+                  className={`relative min-w-[140px] px-4 py-3 shrink-0 rounded-xl flex items-center justify-between gap-3 transition-all duration-300 border shadow-sm ${
+                    expandedClinicId === clinic.id 
+                      ? 'bg-blue-600 border-blue-700 shadow-md ring-2 ring-blue-600/20 transform -translate-y-0.5' 
+                      : 'bg-white border-blue-100 hover:border-blue-300 hover:shadow-md'
+                  }`}
+                >
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm min-w-[18px] text-center z-10">
+                      {unreadCount}
+                    </span>
+                  )}
+                  <span className={`text-[12px] font-bold text-right line-clamp-2 leading-tight flex-1 ${expandedClinicId === clinic.id ? 'text-white' : 'text-blue-900'}`}>
+                    {clinic.name}
+                  </span>
+                  <div className={`p-2 rounded-lg shrink-0 ${expandedClinicId === clinic.id ? 'bg-white/20' : 'bg-blue-50 text-blue-600'}`}>
+                    <Building2 className={`w-5 h-5 ${expandedClinicId === clinic.id ? 'text-white' : ''}`} />
+                  </div>
+                </button>
+              );
+            })}
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">الرسائل</h1>
-            <p className="text-gray-600 mt-1">تواصل مع الطاقم والإدارة</p>
-          </div>
+
+          {expandedClinicId && (
+            <div className="bg-white/90 px-4 py-3 rounded-xl border border-blue-100 shadow-sm overflow-hidden backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-300 relative z-10">
+              <div className="flex gap-4 overflow-x-auto pb-1 custom-scrollbar">
+                {staff
+                  .filter(s => 
+                    (expandedClinicId === 'all' ? clinics.some(c => c.id === s.clinicId) : s.clinicId === expandedClinicId) 
+                    && (s.userId !== user?.id && s.id !== user?.id)
+                  )
+                  .length > 0 ? (
+                  staff
+                    .filter(s => 
+                      (expandedClinicId === 'all' ? clinics.some(c => c.id === s.clinicId) : s.clinicId === expandedClinicId) 
+                      && (s.userId !== user?.id && s.id !== user?.id)
+                    )
+                    .map(member => {
+                    const staffId = member.userId || member.id;
+                    const unreadCount = staffUnreadMap.get(staffId) || 0;
+                    const memberClinic = clinics.find(c => c.id === member.clinicId);
+                    
+                    return (
+                      <button
+                        key={member.id}
+                        onClick={() => startNewConversation(member)}
+                        className="relative flex flex-col items-center gap-1.5 shrink-0 group transition-transform hover:-translate-y-1 w-[80px]"
+                      >
+                         {unreadCount > 0 && (
+                          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm z-10 border-2 border-white">
+                            {unreadCount}
+                          </span>
+                        )}
+                        <div className={`w-12 h-12 rounded-full border-2 overflow-hidden flex items-center justify-center p-0.5 transition-colors ${selectedConversationId === staffId ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-600/20' : 'border-gray-200 group-hover:border-blue-400 bg-white'}`}>
+                          {member.avatar ? (
+                            <img src={member.avatar} alt={member.name} className="w-full h-full rounded-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full rounded-full bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-600 font-bold text-sm flex items-center justify-center">
+                              {member.name.charAt(0)}
+                            </div>
+                          )}
+                        </div>
+                        {expandedClinicId === 'all' && memberClinic && (
+                          <span className="absolute top-8 -right-1 bg-blue-100 text-blue-700 text-[8px] px-1 rounded-sm border border-blue-200 font-bold max-w-[50px] truncate shadow-sm">
+                            {memberClinic.name}
+                          </span>
+                        )}
+                        <div className="text-center w-full">
+                          <p className={`text-[10px] font-bold truncate w-full transition-colors ${selectedConversationId === staffId ? 'text-blue-700' : 'text-gray-800 group-hover:text-blue-600'}`}>{member.name}</p>
+                          <p className="text-[9px] text-gray-500 truncate w-full mt-0.5">{member.role_title || member.position || 'طاقم'}</p>
+                        </div>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="w-full text-center py-2 text-xs text-gray-500 bg-gray-50/50 rounded-lg border border-dashed border-gray-200">لا يوجد طاقم مسجل في العيادة</div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
-        <div className="flex gap-2">
-          <Button onClick={() => window.history.back()} variant="ghost" className="flex items-center gap-2">
-            <ChevronLeft className="w-5 h-5" />
-            رجوع
-          </Button>
-          <Button onClick={() => setShowNewMessageModal(true)} className="flex items-center gap-2">
-            <Plus className="w-5 h-5" />
-            رسالة جديدة
-          </Button>
-        </div>
-      </div>
+      )}
 
       {/* Messages Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Conversations List */}
-        <Card className="md:col-span-1 h-[600px] flex flex-col border-gray-200 shadow-sm">
-          <div className="p-4 flex-1 overflow-hidden flex flex-col">
-            {/* Search */}
-            <div className="relative mb-4">
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="بحث..."
-                className="w-full pr-10 pl-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 focus:bg-white transition-colors"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-
-            {/* Conversation Items */}
-            <div className="space-y-2 overflow-y-auto flex-1 custom-scrollbar">
-              {/* Clinic Team Fixed Item */}
-              {selectedClinicId !== 'all' && (
-                <button
-                  onClick={() => setSelectedConversationId('clinic-team')}
-                  className={`w-full p-3 rounded-lg text-right transition-all duration-200 ${selectedConversationId === 'clinic-team'
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
-                    : 'hover:bg-gray-50 text-gray-700 bg-blue-50/50 border border-blue-100'
-                    }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border-2 border-white/20 bg-blue-100 text-blue-600`}>
-                      <Users className="w-5 h-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className={`font-semibold text-sm truncate ${selectedConversationId === 'clinic-team' ? 'text-white' : 'text-gray-900'}`}>
-                          فريق {currentClinicName}
-                        </p>
-                      </div>
-                      <p className={`text-xs truncate ${selectedConversationId === 'clinic-team' ? 'text-white/80' : 'text-gray-500'}`}>
-                        محادثة جماعية للطاقم
-                      </p>
-                    </div>
-                  </div>
-                </button>
-              )}
-
-              {conversations.length > 0 ? conversations.map((conv) => (
-                <button
-                  key={conv.id}
-                  onClick={() => setSelectedConversationId(conv.id)}
-                  className={`w-full p-3 rounded-lg text-right transition-all duration-200 ${selectedConversationId === conv.id
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
-                    : 'hover:bg-gray-50 text-gray-700'
-                    }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 border-2 border-white/20 bg-gray-200 text-gray-600`}>
-                      <User className="w-5 h-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className={`font-semibold text-sm truncate ${selectedConversationId === conv.id ? 'text-white' : 'text-gray-900'
-                          }`}>
-                          {conv.partnerName}
-                        </p>
-                        {conv.unreadCount > 0 && selectedConversationId !== conv.id && (
-                          <span className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0 animate-pulse"></span>
-                        )}
-                      </div>
-                      <p className={`text-xs truncate ${selectedConversationId === conv.id ? 'text-white/80' : 'text-gray-500'
-                        }`}>
-                        {conv.lastMessage}
-                      </p>
-                    </div>
-                  </div>
-                </button>
-              )) : (
-                conversations.length === 0 && selectedClinicId === 'all' && (
-                  <div className="text-center py-10 text-gray-400">لا توجد محادثات</div>
-                )
-              )}
-            </div>
-          </div>
-        </Card>
-
+      <div className="flex-1 overflow-hidden min-h-[400px]">
         {/* Chat Area */}
-        <Card className="md:col-span-2 border-gray-200 shadow-sm overflow-hidden">
+        <Card className="border-gray-200 shadow-sm overflow-hidden flex flex-col h-full bg-slate-50/50">
           {selectedConversationId ? (
-            <div className="flex flex-col h-[600px]">
+            <div className="flex flex-col h-full flex-1 min-h-0">
               {/* Chat Header */}
-              <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white">
+              <div className="p-3 sm:p-4 border-b border-gray-100 flex items-center justify-between bg-white shrink-0 shadow-sm z-10">
                 <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center bg-gray-100`}>
-                    {selectedConversationId === 'clinic-team' ? <Users className="w-6 h-6 text-blue-600" /> : <User className="w-6 h-6 text-gray-600" />}
+                   {/* Back Button to show staff list */}
+                   <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={handleBackToStaffList}
+                    className="p-1.5 hover:bg-gray-100 text-gray-500 ml-1 block"
+                    title="العودة لطاقم العيادة"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </Button>
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-blue-50 border border-blue-100 text-blue-600 shrink-0 overflow-hidden">
+                    {currentPartnerStaff?.avatar ? (
+                      <img src={currentPartnerStaff.avatar} alt="avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="w-5 h-5" />
+                    )}
                   </div>
-                  <div>
-                    <h3 className="font-bold text-gray-900">
-                      {selectedConversationId === 'clinic-team' ? `فريق ${currentClinicName}` : conversations.find(c => c.id === selectedConversationId)?.partnerName || 'مستخدم'}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-gray-900 text-sm truncate">
+                      {currentChatPartnerInfo.partnerName}
                     </h3>
+                    <p className="text-[10px] text-green-600 flex items-center gap-1 font-medium mt-0.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0"></span> متاح للمراسلة
+                    </p>
                   </div>
                 </div>
-                <Button variant="ghost" size="sm" className="hover:bg-gray-100">
-                  <MoreVertical className="w-5 h-5 text-gray-600" />
+                <Button variant="ghost" size="sm" className="hover:bg-gray-100 text-gray-400 p-1.5 hidden sm:block">
+                  <MoreVertical className="w-5 h-5" />
                 </Button>
               </div>
 
               {/* Messages */}
-              <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-gray-50/50">
-                {(selectedConversationId === 'clinic-team' ? clinicMessages : conversations.find(c => c.id === selectedConversationId)?.messages || []).map((msg: any, idx: number) => (
-                  <div key={idx} className={`flex gap-3 ${msg.isMe ? 'justify-end' : ''}`}>
+              <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-fixed custom-scrollbar">
+                {currentChatPartnerInfo.messages.length > 0 ? currentChatPartnerInfo.messages.map((msg: any, idx: number) => (
+                  <div key={idx} className={`flex gap-3 ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
                     {!msg.isMe && (
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-gray-200 text-xs font-bold text-gray-600`}>
-                        {msg.senderName ? msg.senderName.charAt(0) : <User className="w-4 h-4" />}
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-white border border-gray-200 text-xs font-bold text-blue-700 shadow-sm overflow-hidden`}>
+                         {currentPartnerStaff?.avatar ? (
+                          <img src={currentPartnerStaff.avatar} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          msg.senderName ? msg.senderName.charAt(0) : <User className="w-4 h-4" />
+                        )}
                       </div>
                     )}
-                    <div className="flex-1 max-w-md">
-                      {!msg.isMe && selectedConversationId === 'clinic-team' && (
-                        <p className="text-[10px] text-gray-500 mb-1 mr-1">{msg.senderName} ({msg.senderRole === 'owner' ? 'المالك' : 'طاقم'})</p>
-                      )}
-                      <div className={`${msg.isMe ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-tl-none' : 'bg-white border border-gray-100 rounded-tr-none'} shadow-sm rounded-2xl p-4`}>
-                        <p className={`${msg.isMe ? 'text-white' : 'text-gray-900'} leading-relaxed`}>{msg.content}</p>
+                    <div className="flex-1 max-w-[85%] md:max-w-md">
+                      <div className={`${msg.isMe ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-tr-xl rounded-tl-xl rounded-bl-xl' : 'bg-white border border-gray-100 rounded-tr-xl rounded-tl-xl rounded-br-xl'} shadow-sm p-3`}>
+                        <p className={`text-[13px] sm:text-sm ${msg.isMe ? 'text-white' : 'text-gray-800'} leading-relaxed whitespace-pre-wrap break-words`}>{msg.content}</p>
                       </div>
-                      <p className={`text-xs text-gray-500 mt-1 ${msg.isMe ? 'mr-2 text-left' : 'ml-2'}`}>
+                      <p className={`text-[10px] text-gray-400 mt-1.5 ${msg.isMe ? 'mr-1 text-left' : 'ml-1'}`}>
                         {new Date(msg.timestamp || msg.createdAt).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>
                   </div>
-                ))}
-                {(selectedConversationId === 'clinic-team' && clinicMessages.length === 0) && (
-                  <div className="text-center py-10 text-gray-400">ابدأ المحادثة مع فريق العيادة</div>
+                )) : (
+                  <div className="h-full flex flex-col items-center justify-center text-center opacity-70 mt-4 sm:mt-10">
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 bg-blue-100 rounded-full flex items-center justify-center mb-3">
+                      <MessageCircle className="w-7 h-7 sm:w-8 sm:h-8 text-blue-600" />
+                    </div>
+                    <p className="text-sm sm:text-base text-gray-600 font-medium">ابدأ المحادثة مع {currentChatPartnerInfo.partnerName}</p>
+                    <p className="text-[11px] sm:text-xs text-gray-400 mt-1 max-w-[250px]">يمكنك الآن مراسلة زميلك بسهولة وبشكل مباشر!</p>
+                  </div>
                 )}
               </div>
 
               {/* Message Input */}
-              <div className="p-4 border-t border-gray-100 bg-white">
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" className="hover:bg-gray-100 p-2">
-                    <Paperclip className="w-5 h-5 text-gray-400" />
+              <div className="p-2 sm:p-3 border-t border-gray-100 bg-white shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]">
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <Button variant="ghost" size="sm" className="hover:bg-gray-100 p-2 rounded-xl text-gray-400 shrink-0">
+                    <Paperclip className="w-4 h-4 sm:w-5 sm:h-5" />
                   </Button>
                   <input
                     type="text"
                     value={messageText}
                     onChange={(e) => setMessageText(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                    placeholder="اكتب رسالتك..."
-                    className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 bg-gray-50 focus:bg-white transition-all"
+                    placeholder="اكتب رسالة..."
+                    className="flex-1 px-3 py-2 sm:px-4 sm:py-2.5 text-[13px] sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 focus:bg-white transition-all placeholder:text-gray-400"
                   />
                   <Button
                     onClick={handleSendMessage}
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-200 p-3 h-auto rounded-xl"
+                    disabled={!messageText.trim()}
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md p-2 sm:p-2.5 h-auto rounded-xl shrink-0 disabled:opacity-50 transition-all"
                   >
-                    <Send className="w-5 h-5" />
+                    <Send className="w-4 h-4 sm:w-5 sm:h-5" />
                   </Button>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="h-[600px] flex items-center justify-center text-gray-400 flex-col gap-4 bg-gray-50/30">
-              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-2">
-                <MessageCircle className="w-10 h-10 text-gray-300" />
+            <div className="h-full flex items-center justify-center text-gray-400 flex-col gap-4 bg-gray-50/50 p-6">
+              <div className="w-20 h-20 bg-white border border-gray-100 shadow-sm rounded-full flex items-center justify-center mb-2">
+                <MessageCircle className="w-8 h-8 text-gray-300" />
               </div>
-              <p className="font-medium">اختر محادثة للبدء في المراسلة</p>
+              <div className="text-center">
+                <p className="font-bold text-gray-600 mb-1 text-sm">صندوق الرسائل المباشرة</p>
+                <p className="text-xs text-gray-400 max-w-[220px] mx-auto leading-relaxed">اختر العيادة من الشريط العلوي وانقر على الموظف للبدء والمراسلة والتواصل المستمر</p>
+              </div>
             </div>
           )}
         </Card>
       </div>
-
-      {/* New Message Modal */}
-      <Modal
-        isOpen={showNewMessageModal}
-        onClose={() => {
-          setShowNewMessageModal(false);
-          setSearchTerm('');
-        }}
-        title="رسالة جديدة"
-      >
-        <div className="space-y-4 min-h-[400px]">
-          <div className="relative mb-4">
-            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="بحث..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pr-10 pl-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 focus:bg-white transition-colors"
-            />
-          </div>
-
-          <div className="grid gap-3 max-h-[400px] overflow-y-auto">
-            {/* Combine Staff and Friends */}
-            {[...staff.map(s => ({ id: s.id, name: s.name, role: 'staff' })),
-            ...friends.map(f => ({ id: f.id, name: f.name, role: f.role }))]
-              .filter((c: any) => c.name.toLowerCase().includes(searchTerm.toLowerCase()))
-              .map((contact: any) => (
-                <button
-                  key={contact.id}
-                  onClick={() => startNewConversation(contact)}
-                  className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all text-right group"
-                >
-                  <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-100 flex items-center justify-center">
-                    <User className="w-6 h-6 text-gray-500" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-gray-900 group-hover:text-blue-700 transition-colors">{contact.name}</h4>
-                    <p className="text-sm text-gray-500">
-                      {contact.role}
-                    </p>
-                  </div>
-                </button>
-              ))}
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 };
