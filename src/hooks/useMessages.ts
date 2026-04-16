@@ -24,7 +24,8 @@ export const useMessages = () => {
     useEffect(() => {
         if (user) {
             fetchMessages();
-            subscribeToMessages();
+            const cleanup = subscribeToMessages();
+            return cleanup;
         }
     }, [user]);
 
@@ -121,7 +122,7 @@ export const useMessages = () => {
 
     const subscribeToMessages = () => {
         const subscription = supabase
-            .channel('public:direct_messages')
+            .channel(`direct_messages:${user?.id}`)
             .on('postgres_changes', {
                 event: 'INSERT',
                 schema: 'public',
