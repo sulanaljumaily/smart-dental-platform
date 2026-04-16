@@ -361,8 +361,9 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
                 if (!mountedRef.current) return;
 
                 // --- REALTIME SUBSCRIPTION FOR MODELS ---
+                const modelsChannelName = `public:models_${userId}_${Math.random().toString(36).substring(2, 9)}`;
                 const modelsChannel = supabase
-                    .channel('public:models')
+                    .channel(modelsChannelName)
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'models' }, (payload) => {
                         if (!mountedRef.current) return;
                         if (payload.eventType === 'INSERT') {
@@ -377,8 +378,9 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
                 modelsChannelRef = modelsChannel;
 
                 // --- REALTIME SUBSCRIPTION FOR NOTIFICATIONS ---
+                const notificationsChannelName = `public:notifications_${userId}_${Math.random().toString(36).substring(2, 9)}`;
                 const notificationsChannel = supabase
-                    .channel('public:notifications')
+                    .channel(notificationsChannelName)
                     .on('postgres_changes', {
                         event: 'INSERT',
                         schema: 'public',

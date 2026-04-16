@@ -365,9 +365,10 @@ export const useLabOrders = (options?: { clinicId?: string, laboratoryId?: strin
         }
         fetchOrders();
 
-        // Realtime Subscription
+        // Realtime Subscription - must use unique channel names for multiple instances
+        const channelName = `lab_orders_changes_${user.id}_${Math.random().toString(36).substring(2, 9)}`;
         const channel = supabase
-            .channel('lab_orders_changes')
+            .channel(channelName)
             .on(
                 'postgres_changes',
                 {
