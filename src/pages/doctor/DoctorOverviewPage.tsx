@@ -21,7 +21,9 @@ import {
     Clock,
     ArrowRight,
     Activity, // Added back
-    RefreshCw
+    RefreshCw,
+    ChevronDown,
+    LayoutDashboard
 } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useDoctorContext } from '../../contexts/DoctorContext';
@@ -89,7 +91,9 @@ export const DoctorOverviewPage: React.FC = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
     // Use Global Context
-    const { clinics, loading: clinicsLoading, selectedClinicId } = useDoctorContext();
+    const { clinics, loading: clinicsLoading, selectedClinicId, setSelectedClinicId } = useDoctorContext();
+    const [isClinicMenuOpen, setIsClinicMenuOpen] = React.useState(false);
+
     // Guard: if no clinics, pass undefined to prevent fetching all data from DB
     const hasNoClinics = !clinicsLoading && clinics.length === 0;
     const appointmentClinicId = hasNoClinics ? undefined : selectedClinicId;
@@ -365,15 +369,57 @@ export const DoctorOverviewPage: React.FC = () => {
                 <div
                     onClick={() => navigate('/doctor/clinics')}
                     style={{ animationDelay: '100ms' }}
-                    className="relative overflow-hidden rounded-[2rem] p-6 border border-blue-100 bg-gradient-to-br from-blue-50 to-blue-100/50 transition-all duration-300 group cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-transparent animate-in fade-in slide-in-from-bottom-4 fill-mode-backwards"
+                    className="relative overflow-hidden rounded-[2rem] p-4 border border-blue-100 bg-gradient-to-br from-blue-50 to-blue-100/50 transition-all duration-300 group cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-transparent animate-in fade-in slide-in-from-bottom-4 fill-mode-backwards"
                 >
                     <Building2 className="absolute -bottom-4 -left-4 w-32 h-32 text-blue-500/10 rotate-12 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6" strokeWidth={1.5} />
 
                     <div className="relative z-10 flex flex-col h-full justify-between">
-                        <div className="flex justify-between items-start mb-3">
+                        <div className="flex justify-between items-start mb-2">
                             <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm bg-blue-500 text-white group-hover:scale-110 transition-transform duration-300">
                                 <Building2 className="w-6 h-6" />
                             </div>
+
+                            {/* CLINIC SELECTOR */}
+                            {user?.role === 'doctor' && (
+                                <div className="relative" onClick={e => e.stopPropagation()}>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setIsClinicMenuOpen(!isClinicMenuOpen); }}
+                                        className="flex items-center gap-2 px-3 py-1.5 bg-white/60 hover:bg-white/90 rounded-lg transition-colors border border-blue-100 backdrop-blur-sm shadow-sm"
+                                    >
+                                        <Building2 className="w-4 h-4 text-blue-600" />
+                                        <span className="text-sm font-bold text-blue-900">
+                                            {selectedClinicId === 'all' ? 'جميع العيادات' : clinics.find(c => c.id === selectedClinicId)?.name || 'عيادة محددة'}
+                                        </span>
+                                        <ChevronDown className={`w-3 h-3 text-blue-600/60 transition-transform ${isClinicMenuOpen ? 'rotate-180' : ''}`} />
+                                    </button>
+
+                                    {isClinicMenuOpen && (
+                                        <div className="absolute top-full end-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-50 animate-in fade-in zoom-in-95 overflow-hidden">
+                                            <div className="p-1">
+                                                {clinics.some(c => c.owner_id === user?.id) && (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); setSelectedClinicId('all'); setIsClinicMenuOpen(false); }}
+                                                        className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors ${selectedClinicId === 'all' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'}`}
+                                                    >
+                                                        <LayoutDashboard className="w-4 h-4" />
+                                                        <span className="font-medium">جميع العيادات</span>
+                                                    </button>
+                                                )}
+                                                {clinics.map(clinic => (
+                                                    <button
+                                                        key={clinic.id}
+                                                        onClick={(e) => { e.stopPropagation(); setSelectedClinicId(clinic.id); setIsClinicMenuOpen(false); }}
+                                                        className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors ${selectedClinicId === clinic.id ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'}`}
+                                                    >
+                                                        <Building2 className="w-4 h-4" />
+                                                        <span className="truncate font-medium">{clinic.name}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                         <div>
                             {/* Clinic List - name + patients only */}
@@ -408,12 +454,12 @@ export const DoctorOverviewPage: React.FC = () => {
                 {/* Today Appointments (Purple) */}
                 <div
                     style={{ animationDelay: '200ms' }}
-                    className="relative overflow-hidden rounded-[2rem] p-6 border border-purple-100 bg-gradient-to-br from-purple-50 to-purple-100/50 transition-all duration-300 group hover:shadow-xl hover:-translate-y-1 hover:border-transparent animate-in fade-in slide-in-from-bottom-4 fill-mode-backwards"
+                    className="relative overflow-hidden rounded-[2rem] p-4 border border-purple-100 bg-gradient-to-br from-purple-50 to-purple-100/50 transition-all duration-300 group hover:shadow-xl hover:-translate-y-1 hover:border-transparent animate-in fade-in slide-in-from-bottom-4 fill-mode-backwards"
                 >
                     <Calendar className="absolute -bottom-4 -left-4 w-32 h-32 text-purple-500/10 rotate-12 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6" strokeWidth={1.5} />
 
                     <div className="relative z-10 flex flex-col h-full justify-between">
-                        <div className="flex justify-between items-start mb-3">
+                        <div className="flex justify-between items-start mb-2">
                             <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm bg-purple-500 text-white group-hover:scale-110 transition-transform duration-300">
                                 <Calendar className="w-6 h-6" />
                             </div>
@@ -446,7 +492,7 @@ export const DoctorOverviewPage: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                    <div className="p-6">
+                    <div className="p-4">
                         <div className="space-y-4">
                             {notificationsLoading ? (
                                 <p className="text-center text-gray-500 py-4">جاري تحميل الإشعارات...</p>
@@ -564,7 +610,7 @@ export const DoctorOverviewPage: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                    <div className="p-6">
+                    <div className="p-4">
                         <div className="space-y-4">
                             <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
                                 {activitiesLoading ? (
@@ -625,14 +671,14 @@ export const DoctorOverviewPage: React.FC = () => {
                         </div>
                     </div>
                 </div>
-                <div className="p-6">
+                <div className="p-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {/* Community */}
                         <div
                             onClick={() => navigate('/community')}
-                            className="p-6 bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-xl hover:shadow-lg transition-all text-right group cursor-pointer"
+                            className="p-4 bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-xl hover:shadow-lg transition-all text-right group cursor-pointer"
                         >
-                            <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-start justify-between mb-2">
                                 <div>
                                     <h4 className="text-lg font-bold text-gray-900 mb-1">المجتمع الطبي</h4>
                                     <p className="text-xs text-gray-600">تواصل مع الزملاء</p>
@@ -650,9 +696,9 @@ export const DoctorOverviewPage: React.FC = () => {
                         {/* Store */}
                         <div
                             onClick={() => navigate('/store')}
-                            className="p-6 bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl hover:shadow-lg transition-all text-right group cursor-pointer"
+                            className="p-4 bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl hover:shadow-lg transition-all text-right group cursor-pointer"
                         >
-                            <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-start justify-between mb-2">
                                 <div>
                                     <h4 className="text-lg font-bold text-gray-900 mb-1">المتجر الطبي</h4>
                                     <p className="text-xs text-gray-600">مستلزمات وأدوات</p>
@@ -670,9 +716,9 @@ export const DoctorOverviewPage: React.FC = () => {
                         {/* Jobs */}
                         <div
                             onClick={() => navigate('/jobs')}
-                            className="p-6 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl hover:shadow-lg transition-all text-right group cursor-pointer"
+                            className="p-4 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl hover:shadow-lg transition-all text-right group cursor-pointer"
                         >
-                            <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-start justify-between mb-2">
                                 <div>
                                     <h4 className="text-lg font-bold text-gray-900 mb-1">التوظيف</h4>
                                     <p className="text-xs text-gray-600">فرص عمل طبية</p>
@@ -703,7 +749,7 @@ export const DoctorOverviewPage: React.FC = () => {
                         </div>
                     </div>
                 </div>
-                <div className="p-6">
+                <div className="p-4">
                     <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                         <div className="text-center md:text-right flex items-center gap-4">
                             <div className="w-16 h-16 bg-gradient-to-br from-cyan-100 to-cyan-200 rounded-full flex items-center justify-center">
