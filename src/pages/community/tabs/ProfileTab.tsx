@@ -167,12 +167,12 @@ export const ProfileTab: React.FC = () => {
             </div>
 
             {/* MASONRY GRID DASHBOARD */}
-            <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-4 auto-rows-max">
+            <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 auto-rows-max">
 
-                {/* 1. IDENTITY CARD (Full Width on Mobile, Col-span-2 on Desktop) */}
+                {/* 1. IDENTITY CARD (Full Width) */}
                 <div
                     onClick={() => navigate(user?.id ? `/community/user/${user.id}` : '/doctor/profile')}
-                    className="md:col-span-2 bg-white rounded-3xl p-6 shadow-sm relative overflow-hidden group cursor-pointer hover:shadow-md transition-shadow"
+                    className="col-span-2 md:col-span-2 bg-white rounded-3xl p-6 shadow-sm relative overflow-hidden group cursor-pointer hover:shadow-md transition-shadow"
                 >
                     {/* Decor */}
                     <div className="absolute top-0 right-0 w-48 h-48 bg-blue-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 opacity-60"></div>
@@ -181,75 +181,44 @@ export const ProfileTab: React.FC = () => {
                         <div className="relative">
                             <img
                                 src={user?.avatar || 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400'}
-                                className="w-20 h-20 rounded-full border-4 border-white shadow-sm object-cover bg-gray-100"
+                                className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 border-white shadow-sm object-cover bg-gray-100"
                                 alt="Profile"
                             />
-                            <div className="absolute bottom-0 right-0 w-6 h-6 bg-blue-600 rounded-full border-2 border-white flex items-center justify-center text-white">
-                                <CheckCircle className="w-3 h-3 fill-current" />
+                            <div className="absolute bottom-0 right-0 w-5 h-5 sm:w-6 sm:h-6 bg-blue-600 rounded-full border-2 border-white flex items-center justify-center text-white">
+                                <CheckCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-current" />
                             </div>
                         </div>
 
                         <div className="flex-1">
-                            <h3 className="text-xl font-black text-gray-900 mb-1">{user?.name || 'د. محمد علي'}</h3>
-                            <p className="text-gray-500 text-sm font-medium mb-2">{user?.role === 'doctor' ? 'طبيب أسنان • جراحة وجه وفكين' : user?.role}</p>
-                            <div className="flex items-center gap-4 text-xs text-gray-400 font-bold">
+                            <h3 className="text-lg sm:text-xl font-black text-gray-900 mb-0.5 sm:mb-1">{user?.name || 'د. محمد علي'}</h3>
+                            <p className="text-gray-500 text-[10px] sm:text-sm font-medium mb-1.5 sm:mb-2">{user?.role === 'doctor' ? 'طبيب أسنان • جراحة وجه وفكين' : user?.role}</p>
+                            <div className="flex items-center gap-4 text-[10px] sm:text-xs text-gray-400 font-bold">
                                 <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" /> {friends.length} متابع</span>
                                 <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> بغداد</span>
                             </div>
                         </div>
 
-                        <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
-                            <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-blue-600" />
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                            <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 group-hover:text-blue-600" />
                         </div>
                     </div>
                 </div>
 
-                {/* 2. MESSAGES (Col-span-1) */}
-                <div
-                    onClick={() => navigate('/community/messages')}
-                    className="bg-white rounded-3xl p-6 shadow-sm flex flex-col justify-between cursor-pointer hover:shadow-md transition-shadow group h-48"
-                >
-                    <div className="flex justify-between items-start">
-                        <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
-                            <MessageSquare className="w-6 h-6" />
-                        </div>
-                        <span className="bg-red-50 text-red-600 text-[10px] font-black px-2 py-1 rounded-lg">5 جديد</span>
-                    </div>
-                    <div>
-                        <div className="text-2xl font-black text-gray-900 mb-1">الرسائل</div>
-                        <div className="text-xs text-gray-500 font-bold">لديك 5 رسائل غير مقروءة</div>
-                    </div>
-                </div>
-
-                {/* 3. GROUPS (Col-span-1) */}
-                <div
-                    onClick={() => navigate('/community?tab=groups')}
-                    className="bg-white rounded-3xl p-6 shadow-sm flex flex-col justify-between cursor-pointer hover:shadow-md transition-shadow group h-48"
-                >
-                    <div className="w-12 h-12 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">
-                        <Users className="w-6 h-6" />
-                    </div>
-                    <div>
-                        <div className="text-2xl font-black text-gray-900 mb-1">المجموعات</div>
-                        <div className="text-xs text-gray-500 font-bold">{activeGroups} مجموعة نشطة</div>
-                    </div>
-                </div>
-
-                {/* 4. MY LEARNING (Wide Card - 2x1) */}
+                {/* 2. MY LEARNING (Wide Card - Below Identity) */}
                 <div
                     onClick={() => navigate('/community/learning')}
-                    className="md:col-span-2 bg-white rounded-3xl p-6 shadow-sm flex items-center justify-between cursor-pointer hover:shadow-md transition-shadow group"
+                    className="col-span-2 md:col-span-2 bg-white rounded-3xl p-6 shadow-sm flex items-center justify-between cursor-pointer hover:shadow-md transition-shadow group"
                 >
                     <div className="flex items-center gap-5">
-                        <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
-                            <BookOpen className="w-7 h-7" />
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
+                            <BookOpen className="w-6 h-6 sm:w-7 sm:h-7" />
                         </div>
                         <div>
-                            <h3 className="font-black text-gray-900 text-lg">تعليمي</h3>
-                            <p className="text-gray-500 text-sm font-medium mt-1">{registeredCourses + registeredWebinars} دورات وندوات مسجلة</p>
+                            <h3 className="font-black text-gray-900 text-base sm:text-lg">تعليمي</h3>
+                            <p className="text-gray-500 text-[11px] sm:text-sm font-medium mt-0.5 sm:mt-1">{registeredCourses + registeredWebinars} دورات وندوات مسجلة</p>
                         </div>
                     </div>
-                    <div className="flex -space-x-3 space-x-reverse pl-2">
+                    <div className="hidden sm:flex -space-x-3 space-x-reverse pl-2">
                         {[1, 2, 3].map(i => (
                             <div key={i} className="w-10 h-10 rounded-full border-2 border-white bg-gray-200" />
                         ))}
@@ -257,28 +226,59 @@ export const ProfileTab: React.FC = () => {
                     </div>
                 </div>
 
-                {/* 5. SAVED ITEMS (Col-span-1) */}
+                {/* 3. MESSAGES (Side by side on mobile) */}
                 <div
-                    onClick={() => navigate('/community/saved')}
-                    className="bg-white rounded-3xl p-6 shadow-sm flex flex-col justify-between cursor-pointer hover:shadow-md transition-shadow group h-48"
+                    onClick={() => navigate('/community/messages')}
+                    className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col justify-between cursor-pointer hover:shadow-md transition-shadow group h-40 sm:h-48"
                 >
-                    <div className="w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600 group-hover:scale-110 transition-transform">
-                        <Bookmark className="w-6 h-6" />
+                    <div className="flex justify-between items-start">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+                            <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6" />
+                        </div>
+                        <span className="bg-red-50 text-red-600 text-[9px] sm:text-[10px] font-black px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg">5 جديد</span>
                     </div>
                     <div>
-                        <div className="text-2xl font-black text-gray-900 mb-1">المحفوظات</div>
-                        <div className="text-xs text-gray-500 font-bold">{savedItems.length} عنصر محفوظ</div>
+                        <div className="text-xl sm:text-2xl font-black text-gray-900 mb-0.5 sm:mb-1">الرسائل</div>
+                        <div className="text-[10px] sm:text-xs text-gray-500 font-bold">5 رسائل غير مقروءة</div>
                     </div>
                 </div>
 
-                {/* 6. QUICK ACTION (Col-span-1) */}
-                <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-6 shadow-lg text-white flex flex-col justify-between h-48 cursor-pointer hover:scale-[1.02] transition-transform">
-                    <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
-                        <UserPlus className="w-5 h-5 text-white" />
+                {/* 4. GROUPS (Side by side on mobile) */}
+                <div
+                    onClick={() => navigate('/community?tab=groups')}
+                    className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col justify-between cursor-pointer hover:shadow-md transition-shadow group h-40 sm:h-48"
+                >
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">
+                        <Users className="w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
                     <div>
-                        <div className="font-bold text-lg leading-tight mb-1">دعوة صديق</div>
-                        <div className="text-xs text-gray-400">ارسل دعوة لزملائك</div>
+                        <div className="text-xl sm:text-2xl font-black text-gray-900 mb-0.5 sm:mb-1">المجموعات</div>
+                        <div className="text-[10px] sm:text-xs text-gray-500 font-bold">{activeGroups} مجموعة نشطة</div>
+                    </div>
+                </div>
+
+                {/* 5. INVITE FRIEND (Side by side on mobile) */}
+                <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-5 sm:p-6 shadow-lg text-white flex flex-col justify-between h-40 sm:h-48 cursor-pointer hover:scale-[1.02] transition-transform">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/10 rounded-full flex items-center justify-center">
+                        <UserPlus className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                    </div>
+                    <div>
+                        <div className="font-bold text-base sm:text-lg leading-tight mb-0.5 sm:mb-1">دعوة صديق</div>
+                        <div className="text-[10px] sm:text-xs text-gray-400">ارسل دعوة لزملائك</div>
+                    </div>
+                </div>
+
+                {/* 6. SAVED ITEMS (Side by side on mobile) */}
+                <div
+                    onClick={() => navigate('/community/saved')}
+                    className="bg-white rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col justify-between cursor-pointer hover:shadow-md transition-shadow group h-40 sm:h-48"
+                >
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600 group-hover:scale-110 transition-transform">
+                        <Bookmark className="w-5 h-5 sm:w-6 sm:h-6" />
+                    </div>
+                    <div>
+                        <div className="text-xl sm:text-2xl font-black text-gray-900 mb-0.5 sm:mb-1">المحفوظات</div>
+                        <div className="text-[10px] sm:text-xs text-gray-500 font-bold">{savedItems.length} عنصر محفوظ</div>
                     </div>
                 </div>
 
