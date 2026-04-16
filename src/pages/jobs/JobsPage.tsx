@@ -60,9 +60,9 @@ export const JobsPage: React.FC<{ hideHeader?: boolean }> = ({ hideHeader }) => 
 
   const menuItems = [
     { id: 'overview', icon: LayoutDashboard, label: 'نظرة عامة', gradient: 'from-blue-500 to-blue-600' },
-    { id: 'browse-jobs', icon: Briefcase, label: 'تصفح الوظائف', gradient: 'from-green-500 to-green-600' },
-    { id: 'browse-doctors', icon: Users, label: 'تصفح الاختصاصات', gradient: 'from-teal-500 to-teal-600' },
-    { id: 'my-career', icon: User, label: 'مركز مساري المهني', gradient: 'from-purple-500 to-purple-600' },
+    { id: 'browse-jobs', icon: Briefcase, label: 'الوظائف', gradient: 'from-green-500 to-green-600' },
+    { id: 'browse-doctors', icon: Users, label: 'الاختصاصات', gradient: 'from-teal-500 to-teal-600' },
+    { id: 'my-career', icon: User, label: 'الملف الشخصي', gradient: 'from-purple-500 to-purple-600' },
   ];
 
   const filteredJobs = useMemo(() => {
@@ -94,7 +94,7 @@ export const JobsPage: React.FC<{ hideHeader?: boolean }> = ({ hideHeader }) => 
     return (
       <div className="space-y-10 animate-in fade-in">
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <BentoStatCard
             title="إجمالي الوظائف"
             value={stats.totalJobs}
@@ -415,34 +415,36 @@ export const JobsPage: React.FC<{ hideHeader?: boolean }> = ({ hideHeader }) => 
     };
 
     const renderDashboard = () => (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 animate-in fade-in slide-in-from-bottom-4">
         <div onClick={() => navigate('/jobs/profile')} className="cursor-pointer">
-          <Card className="p-6 h-full border-2 border-transparent hover:border-purple-100 hover:shadow-lg transition-all group">
-            <div className="w-14 h-14 bg-purple-50 rounded-2xl flex items-center justify-center mb-4 text-purple-600 group-hover:scale-110 transition-transform">
-              <User className="w-7 h-7" />
+          <Card className="p-4 sm:p-6 h-full border-2 border-transparent hover:border-purple-100 hover:shadow-lg transition-all group">
+            <div className="w-10 h-10 sm:w-14 sm:h-14 bg-purple-50 rounded-2xl flex items-center justify-center mb-3 sm:mb-4 text-purple-600 group-hover:scale-110 transition-transform">
+              <User className="w-5 h-5 sm:w-7 sm:h-7" />
             </div>
-            <h3 className="font-bold text-lg mb-2 text-gray-900">الملف الشخصي</h3>
-            <p className="text-sm text-gray-500">إدارة سيرتك الذاتية ومعلوماتك</p>
+            <h3 className="font-bold text-sm sm:text-lg mb-1 sm:mb-2 text-gray-900">الملف الشخصي</h3>
+            <p className="text-[10px] sm:text-sm text-gray-500">إدارة سيرتك الذاتية</p>
           </Card>
         </div>
 
         <div onClick={() => setSubTab('manage-jobs')} className="cursor-pointer">
-          <Card className="p-6 h-full border-2 border-transparent hover:border-blue-100 hover:shadow-lg transition-all group">
-            <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mb-4 text-blue-600 group-hover:scale-110 transition-transform">
-              <Briefcase className="w-7 h-7" />
+          <Card className="p-4 sm:p-6 h-full border-2 border-transparent hover:border-blue-100 hover:shadow-lg transition-all group">
+            <div className="w-10 h-10 sm:w-14 sm:h-14 bg-blue-50 rounded-2xl flex items-center justify-center mb-3 sm:mb-4 text-blue-600 group-hover:scale-110 transition-transform">
+              <Briefcase className="w-5 h-5 sm:w-7 sm:h-7" />
             </div>
-            <h3 className="font-bold text-lg mb-2 text-gray-900">إدارة وظائفي</h3>
-            <p className="text-sm text-gray-500">لأصحاب العمل: متابعة الوظائف والمتقدمين</p>
+            <h3 className="font-bold text-sm sm:text-lg mb-1 sm:mb-2 text-gray-900">إدارة وظائفي</h3>
+            <p className="text-[10px] sm:text-sm text-gray-500">متابعة الوظائف</p>
           </Card>
         </div>
 
-        <div onClick={() => setSubTab('offers')} className="cursor-pointer">
-          <Card className="p-6 h-full border-2 border-transparent hover:border-green-100 hover:shadow-lg transition-all group">
-            <div className="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center mb-4 text-green-600 group-hover:scale-110 transition-transform">
-              <Inbox className="w-7 h-7" />
+        <div onClick={() => setSubTab('offers')} className="cursor-pointer col-span-2 lg:col-span-1">
+          <Card className="p-4 sm:p-6 h-full border-2 border-transparent hover:border-green-100 hover:shadow-lg transition-all group flex flex-row lg:flex-col items-center lg:items-start gap-4 lg:gap-0">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 bg-green-50 rounded-2xl flex shrink-0 items-center justify-center lg:mb-4 text-green-600 group-hover:scale-110 transition-transform">
+              <Inbox className="w-6 h-6 sm:w-7 sm:h-7" />
             </div>
-            <h3 className="font-bold text-lg mb-2 text-gray-900">العروض المقدمة لي</h3>
-            <p className="text-sm text-gray-500">فرص العمل التي وصلتني من أصحاب العمل</p>
+            <div>
+              <h3 className="font-bold text-sm sm:text-lg mb-0.5 sm:mb-2 text-gray-900">العروض المقدمة لي</h3>
+              <p className="text-[10px] sm:text-sm text-gray-500">فرص العمل التي وصلتني</p>
+            </div>
           </Card>
         </div>
       </div>
@@ -591,23 +593,22 @@ export const JobsPage: React.FC<{ hideHeader?: boolean }> = ({ hideHeader }) => 
   if (loading) return <div className="p-12 text-center text-gray-500">جاري تحميل الوظائف...</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 w-full pt-[130px]" dir="rtl">
-      {/* Header */}
-      <div className={`fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-lg border-b border-gray-200/50 z-50 shadow-sm supports-[backdrop-filter]:bg-white/60 transition-all duration-300 ${hideHeader ? 'top-[64px]' : 'top-0'}`}>
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col gap-2 py-2">
+    <div className="min-h-screen bg-gray-50 font-sans flex flex-col w-full pb-20 md:pb-0" dir="rtl">
+      <div className={`sticky top-0 z-50 w-full bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm pt-[env(safe-area-inset-top)] transition-all duration-300`}>
+        <div className="max-w-7xl mx-auto px-1 sm:px-4">
+          <div className="flex flex-col gap-1 sm:gap-2 pb-1 pt-2 sm:pt-3">
             {!hideHeader && (
-              <div className="flex items-center justify-between h-14">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg transform hover:scale-105 transition-transform duration-300">
-                    <Briefcase className="w-6 h-6 text-white" />
+              <div className="flex items-center justify-between h-12 sm:h-14 px-2">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg transform hover:scale-105 transition-transform duration-300">
+                    <Briefcase className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
                   </div>
                   <div>
-                    <h1 className="font-bold text-xl text-gray-900 tracking-tight">مركز الوظائف</h1>
+                    <h1 className="font-bold text-lg sm:text-xl text-gray-900 tracking-tight">مركز الوظائف</h1>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
                   <Link to="/jobs/applications">
                     <Button variant="ghost" size="sm" className="hidden lg:flex">
                       <FileText className="w-4 h-4 ml-2" />
@@ -616,56 +617,41 @@ export const JobsPage: React.FC<{ hideHeader?: boolean }> = ({ hideHeader }) => 
                   </Link>
                   <Button
                     onClick={() => setActiveTab('my-career')}
-                    className="hidden lg:flex bg-blue-600 hover:bg-blue-700 text-white shadow-md active:scale-95 transition-all size-sm"
+                    className="flex bg-blue-600 hover:bg-blue-700 text-white shadow-md active:scale-95 transition-all text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2"
                   >
-                    <Plus className="w-4 h-4 ml-2" />
+                    <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-1 sm:ml-2" />
                     نشر وظيفة
                   </Button>
-                  <button className="lg:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-                    <Menu className="w-6 h-6" />
-                  </button>
                 </div>
               </div>
             )}
 
-            {/* Navigation Tabs */}
-            <nav className="hidden lg:flex items-center gap-1">
-              {menuItems.map(item => (
+            {/* Navigation Tabs (Scrollable Mobile View matching Community/Doctor Dashboard) */}
+            <nav className="flex items-center gap-0 overflow-x-auto no-scrollbar flex-1 mx-0.5 sm:mx-2 mask-linear-fade flex-nowrap pb-1">
+              {menuItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === item.id
-                    ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-md'
-                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                  className={`relative flex items-center gap-0.5 px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all duration-300 group shrink-0 whitespace-nowrap ${activeTab === item.id
+                    ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg shadow-blue-500/25`
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-white/80'
                     }`}
                 >
-                  <item.icon className="w-4 h-4" />
-                  {item.label}
+                  <div className="relative">
+                    <item.icon className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-110 ${activeTab === item.id ? 'text-white' : ''}`} />
+                  </div>
+                  <span className="font-medium text-xs sm:text-sm">{item.label}</span>
+                  {activeTab === item.id && (
+                    <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-white rounded-full shadow-sm animate-pulse" />
+                  )}
                 </button>
               ))}
             </nav>
           </div>
         </div>
-
-        {/* Mobile Menu */}
-        {isMobileMenuOpen && (
-          <div className="lg:hidden border-t border-gray-100 p-4 space-y-2 bg-white shadow-lg animate-in slide-in-from-top-2">
-            {menuItems.map(item => (
-              <button
-                key={item.id}
-                onClick={() => { setActiveTab(item.id); setIsMobileMenuOpen(false); }}
-                className={`w-full text-right px-4 py-3 rounded-xl flex items-center gap-3 transition-colors ${activeTab === item.id ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-700'
-                  }`}
-              >
-                <item.icon className={`w-5 h-5 ${activeTab === item.id ? 'text-blue-600' : 'text-gray-400'}`} />
-                {item.label}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-2 sm:px-4 pt-3 pb-8">
         {activeTab === 'overview' && <OverviewTab />}
         {activeTab === 'browse-jobs' && <BrowseJobsTab />}
         {activeTab === 'browse-doctors' && <BrowseDoctorsTab />}

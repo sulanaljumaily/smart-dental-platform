@@ -194,7 +194,7 @@ const DoctorDashboardContent: React.FC = () => {
 
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto pb-20">
+      <main className="flex-1 pb-20">
         <div className={
           location.pathname.includes('/doctor/community') || location.pathname.includes('/doctor/jobs')
             ? ""
