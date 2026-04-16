@@ -442,7 +442,7 @@ export const NewEnhancedLabDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50" dir="rtl">
       {/* شريط التنقل العلوي */}
-      <div className="bg-white/80 backdrop-blur-md border-b border-white/20 shadow-sm sticky top-0 z-50">
+      <div className="bg-white/80 backdrop-blur-md border-b border-white/20 shadow-sm sticky top-0 z-50 pt-[env(safe-area-inset-top)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-2">
