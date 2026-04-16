@@ -23,8 +23,13 @@ import {
     Activity, // Added back
     RefreshCw,
     ChevronDown,
-    LayoutDashboard
+    LayoutDashboard,
+    UserPlus,
+    CalendarPlus,
+    Save,
+    XCircle
 } from 'lucide-react';
+import { AppointmentModal } from '../../components/appointments/AppointmentModal';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useDoctorContext } from '../../contexts/DoctorContext';
 import { useAppointments } from '../../hooks/useAppointments';
@@ -90,14 +95,21 @@ export const DoctorOverviewPage: React.FC = () => {
     const { t } = useLanguage();
     const navigate = useNavigate();
     const { user } = useAuth();
-    // Use Global Context
     const { clinics, loading: clinicsLoading, selectedClinicId, setSelectedClinicId } = useDoctorContext();
     const [isClinicMenuOpen, setIsClinicMenuOpen] = React.useState(false);
+
+    // UI Modal state
+    const [showAddPatientModal, setShowAddPatientModal] = React.useState(false);
+    const [showAddAppointmentModal, setShowAddAppointmentModal] = React.useState(false);
+    const [clinicSelectorHighlight, setClinicSelectorHighlight] = React.useState(false);
+    const [newPatient, setNewPatient] = React.useState({
+        name: '', phone: '', age: '', gender: 'male', email: '', address: '', notes: ''
+    });
 
     // Guard: if no clinics, pass undefined to prevent fetching all data from DB
     const hasNoClinics = !clinicsLoading && clinics.length === 0;
     const appointmentClinicId = hasNoClinics ? undefined : selectedClinicId;
-    const { appointments } = useAppointments(appointmentClinicId); // Guard: undefined = no fetch
+    const { appointments, createAppointment } = useAppointments(appointmentClinicId); // Guard: undefined = no fetch
     const { orders: labOrders } = useLabOrders({ clinicId: hasNoClinics ? undefined : selectedClinicId });
     const { orders: storeOrders } = useStoreOrders();
     // --- Logic & Filtering ---
@@ -106,12 +118,65 @@ export const DoctorOverviewPage: React.FC = () => {
 
     // Guard: if no clinics → pass empty array [] to usePatients (skips all fetching)
     const allClinicIds = hasNoClinics ? [] : clinics.map(c => c.id.toString());
-    const { patients } = usePatients(
+    const { patients, createPatient } = usePatients(
         // For staff: single clinic. For owner with clinics: all clinic IDs. No clinics: empty array (no fetch).
         isStaff ? clinics[0]?.id?.toString() : undefined,
         isStaff ? undefined : allClinicIds
     );
 
+
+    const targetClinicIdForAction = selectedClinicId !== 'all' ? selectedClinicId : (clinics.length === 1 ? clinics[0].id : null);
+
+    const handleActionClick = (type: 'patient' | 'appointment') => {
+        if (selectedClinicId === 'all' && clinics.length > 1 && !isStaff) {
+            setClinicSelectorHighlight(true);
+            setIsClinicMenuOpen(true);
+            setTimeout(() => setClinicSelectorHighlight(false), 2000);
+            return;
+        }
+        if (type === 'patient') setShowAddPatientModal(true);
+        else setShowAddAppointmentModal(true);
+    };
+
+    const handleCreatePatient = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        if (!newPatient.name || !newPatient.phone) {
+            alert('يرجى إدخال الاسم ورقم الهاتف');
+            return;
+        }
+        try {
+            if (createPatient) {
+                await createPatient({
+                    ...newPatient,
+                    age: parseInt(newPatient.age) || 0,
+                    status: 'active',
+                    paymentStatus: 'pending',
+                    clinicId: targetClinicIdForAction?.toString() || clinics[0]?.id?.toString() || '101'
+                });
+                setShowAddPatientModal(false);
+                setNewPatient({ name: '', phone: '', age: '', gender: 'male', email: '', address: '', notes: '' });
+                alert('تم إضافة المريض بنجاح');
+            }
+        } catch (e) {
+            alert('حدث خطأ أثناء الإضافة');
+        }
+    };
+
+    const handleSaveAppointment = async (appointmentData: any) => {
+        try {
+            if (createAppointment) {
+                await createAppointment({
+                    ...appointmentData,
+                    clinicId: targetClinicIdForAction?.toString() || clinics[0]?.id?.toString() || '101',
+                    status: appointmentData.status || 'scheduled'
+                });
+                setShowAddAppointmentModal(false);
+                alert('تم إضافة الموعد بنجاح');
+            }
+        } catch (e) {
+            alert('حدث خطأ أثناء حفظ الموعد');
+        }
+    };
 
     // Helper to check if item belongs to selected context
     const isRelevant = (clinicId?: string | number) => {
@@ -362,6 +427,74 @@ export const DoctorOverviewPage: React.FC = () => {
     return (
         <div className="space-y-6">
 
+            {/* Top Action Bar (Bento UI with Grid alignment) */}
+            <div className="grid grid-cols-2 gap-4 relative z-40 mb-2">
+                {/* Right side in RTL (Start): Clinic Selector */}
+                {user?.role === 'doctor' ? (
+                    <div className="relative min-w-0" onClick={e => e.stopPropagation()}>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setIsClinicMenuOpen(!isClinicMenuOpen); }}
+                            className={`w-full flex items-center justify-between gap-1.5 p-2.5 sm:p-3 rounded-xl transition-all duration-300 border shadow-sm ${clinicSelectorHighlight ? 'border-red-400 bg-red-50 ring-2 ring-red-200 shadow-md' : 'border-blue-100 bg-gradient-to-br from-blue-50 to-blue-100/50 hover:-translate-y-0.5 hover:shadow-md'}`}
+                        >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                                <Building2 className={`w-4 h-4 sm:w-5 sm:h-5 shrink-0 hidden sm:block transition-colors ${clinicSelectorHighlight ? 'text-red-500' : 'text-blue-600'}`} />
+                                <span className={`text-[11px] sm:text-sm font-bold truncate transition-colors ${clinicSelectorHighlight ? 'text-red-700' : 'text-blue-900'}`}>
+                                    {selectedClinicId === 'all' ? 'اختر العيادة أولاً' : clinics.find(c => c.id === selectedClinicId)?.name || 'عيادة محددة'}
+                                </span>
+                            </div>
+                            <ChevronDown className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform shrink-0 ${isClinicMenuOpen ? 'rotate-180' : ''} ${clinicSelectorHighlight ? 'text-red-400' : 'text-blue-600/60'}`} />
+                        </button>
+
+                        {isClinicMenuOpen && (
+                            <div className="absolute top-full right-0 mt-2 w-full bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 z-50">
+                                <div className="p-1">
+                                    {clinics.some(c => c.owner_id === user?.id) && (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setSelectedClinicId('all'); setIsClinicMenuOpen(false); }}
+                                            className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors ${selectedClinicId === 'all' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'}`}
+                                        >
+                                            <LayoutDashboard className="w-4 h-4 shrink-0" />
+                                            <span className="font-medium truncate min-w-0">جميع العيادات</span>
+                                        </button>
+                                    )}
+                                    {clinics.map(clinic => (
+                                        <button
+                                            key={clinic.id}
+                                            onClick={(e) => { e.stopPropagation(); setSelectedClinicId(clinic.id); setIsClinicMenuOpen(false); }}
+                                            className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors ${selectedClinicId === clinic.id ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'}`}
+                                        >
+                                            <Building2 className="w-4 h-4 shrink-0" />
+                                            <span className="font-medium truncate min-w-0">{clinic.name}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <div />
+                )}
+
+                {/* Left side (End): Add Actions */}
+                <div className="grid grid-cols-2 gap-2 sm:gap-3 shrink-0">
+                    <button
+                        onClick={() => handleActionClick('patient')}
+                        className="w-full flex justify-center items-center gap-1.5 relative overflow-hidden rounded-xl p-2.5 sm:p-3 border border-green-100 bg-gradient-to-br from-green-50 to-green-100/50 hover:-translate-y-0.5 hover:shadow-md transition-all duration-300 text-green-700 outline-none shadow-sm"
+                        title="إضافة مريض"
+                    >
+                        <UserPlus className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                        <span className="text-[11px] sm:text-sm font-bold hidden min-[380px]:inline whitespace-nowrap">إضافة مريض</span>
+                    </button>
+                    <button
+                        onClick={() => handleActionClick('appointment')}
+                        className="w-full flex justify-center items-center gap-1.5 relative overflow-hidden rounded-xl p-2.5 sm:p-3 border border-purple-100 bg-gradient-to-br from-purple-50 to-purple-100/50 hover:-translate-y-0.5 hover:shadow-md transition-all duration-300 text-purple-700 outline-none shadow-sm"
+                        title="إضافة موعد"
+                    >
+                        <CalendarPlus className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                        <span className="text-[11px] sm:text-sm font-bold hidden min-[380px]:inline whitespace-nowrap">إضافة موعد</span>
+                    </button>
+                </div>
+            </div>
 
             {/* Stats Row - always 2 cols side by side */}
             <div className="grid grid-cols-2 gap-4">
@@ -369,7 +502,7 @@ export const DoctorOverviewPage: React.FC = () => {
                 <div
                     onClick={() => navigate('/doctor/clinics')}
                     style={{ animationDelay: '100ms' }}
-                    className="relative overflow-hidden rounded-[2rem] p-4 border border-blue-100 bg-gradient-to-br from-blue-50 to-blue-100/50 transition-all duration-300 group cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-transparent animate-in fade-in slide-in-from-bottom-4 fill-mode-backwards"
+                    className="relative rounded-[2rem] p-4 border border-blue-100 bg-gradient-to-br from-blue-50 to-blue-100/50 transition-all duration-300 group cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-transparent animate-in fade-in slide-in-from-bottom-4 fill-mode-backwards"
                 >
                     <Building2 className="absolute -bottom-4 -left-4 w-32 h-32 text-blue-500/10 rotate-12 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6" strokeWidth={1.5} />
 
@@ -378,48 +511,6 @@ export const DoctorOverviewPage: React.FC = () => {
                             <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm bg-blue-500 text-white group-hover:scale-110 transition-transform duration-300">
                                 <Building2 className="w-6 h-6" />
                             </div>
-
-                            {/* CLINIC SELECTOR */}
-                            {user?.role === 'doctor' && (
-                                <div className="relative" onClick={e => e.stopPropagation()}>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); setIsClinicMenuOpen(!isClinicMenuOpen); }}
-                                        className="flex items-center gap-2 px-3 py-1.5 bg-white/60 hover:bg-white/90 rounded-lg transition-colors border border-blue-100 backdrop-blur-sm shadow-sm"
-                                    >
-                                        <Building2 className="w-4 h-4 text-blue-600" />
-                                        <span className="text-sm font-bold text-blue-900">
-                                            {selectedClinicId === 'all' ? 'جميع العيادات' : clinics.find(c => c.id === selectedClinicId)?.name || 'عيادة محددة'}
-                                        </span>
-                                        <ChevronDown className={`w-3 h-3 text-blue-600/60 transition-transform ${isClinicMenuOpen ? 'rotate-180' : ''}`} />
-                                    </button>
-
-                                    {isClinicMenuOpen && (
-                                        <div className="absolute top-full end-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-50 animate-in fade-in zoom-in-95 overflow-hidden">
-                                            <div className="p-1">
-                                                {clinics.some(c => c.owner_id === user?.id) && (
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); setSelectedClinicId('all'); setIsClinicMenuOpen(false); }}
-                                                        className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors ${selectedClinicId === 'all' ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'}`}
-                                                    >
-                                                        <LayoutDashboard className="w-4 h-4" />
-                                                        <span className="font-medium">جميع العيادات</span>
-                                                    </button>
-                                                )}
-                                                {clinics.map(clinic => (
-                                                    <button
-                                                        key={clinic.id}
-                                                        onClick={(e) => { e.stopPropagation(); setSelectedClinicId(clinic.id); setIsClinicMenuOpen(false); }}
-                                                        className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors ${selectedClinicId === clinic.id ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'}`}
-                                                    >
-                                                        <Building2 className="w-4 h-4" />
-                                                        <span className="truncate font-medium">{clinic.name}</span>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
                         </div>
                         <div>
                             {/* Clinic List - name + patients only */}
@@ -475,7 +566,6 @@ export const DoctorOverviewPage: React.FC = () => {
                     </div>
                 </div>
             </div>
-
 
             {/* 3. Notifications & Recent Activities - side by side on desktop */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -647,6 +737,7 @@ export const DoctorOverviewPage: React.FC = () => {
                                         <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
                                     </div>
                                 ))}
+
                                 {!activitiesLoading && activities.length === 0 && (
                                     <div className="text-center py-4 text-gray-500 text-sm">لا توجد نشاطات حديثة</div>
                                 )}
@@ -655,8 +746,6 @@ export const DoctorOverviewPage: React.FC = () => {
                     </div>
                 </div>
             </div>
-
-
 
             {/* 5. Additional Services (Now Linked) */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -787,6 +876,122 @@ export const DoctorOverviewPage: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Modals placed safely at the end of the container */}
+            {showAddPatientModal && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm shadow-2xl">
+                    <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-center p-6 border-b bg-gray-50/50">
+                            <div>
+                                <h3 className="text-xl font-bold text-gray-900 mb-1">تسجيل مريض جديد</h3>
+                                <p className="text-sm text-gray-500">أدخل بيانات المريض الأساسية لفتح الملف</p>
+                            </div>
+                            <button onClick={() => setShowAddPatientModal(false)} className="text-gray-400 hover:text-red-500 transition-colors p-2 hover:bg-red-50 rounded-lg">
+                                <XCircle className="w-6 h-6" />
+                            </button>
+                        </div>
+                        <div className="p-6 overflow-y-auto custom-scrollbar">
+                            <form onSubmit={handleCreatePatient} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">اسم المريض الكامل</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={newPatient.name}
+                                        onChange={e => setNewPatient({ ...newPatient, name: e.target.value })}
+                                        className="w-full border border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all outline-none"
+                                        placeholder="اسم المريض"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">رقم الهاتف</label>
+                                    <input
+                                        type="tel"
+                                        required
+                                        value={newPatient.phone}
+                                        onChange={e => setNewPatient({ ...newPatient, phone: e.target.value })}
+                                        className="w-full border border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all outline-none"
+                                        placeholder="07..."
+                                        dir="ltr"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">العمر</label>
+                                    <input
+                                        type="number"
+                                        value={newPatient.age}
+                                        onChange={e => setNewPatient({ ...newPatient, age: e.target.value })}
+                                        className="w-full border border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all outline-none"
+                                        placeholder="مثال: 25"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">الجنس</label>
+                                    <select
+                                        value={newPatient.gender}
+                                        onChange={e => setNewPatient({ ...newPatient, gender: e.target.value })}
+                                        className="w-full border border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all outline-none"
+                                    >
+                                        <option value="male">ذكر</option>
+                                        <option value="female">أنثى</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">العنوان</label>
+                                    <input
+                                        type="text"
+                                        value={newPatient.address}
+                                        onChange={e => setNewPatient({ ...newPatient, address: e.target.value })}
+                                        className="w-full border border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all outline-none"
+                                        placeholder="المحافظة / المنطقة..."
+                                    />
+                                </div>
+
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">ملاحظات طبية</label>
+                                    <textarea
+                                        value={newPatient.notes}
+                                        onChange={e => setNewPatient({ ...newPatient, notes: e.target.value })}
+                                        className="w-full border border-gray-200 rounded-xl p-2.5 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all outline-none"
+                                        rows={3}
+                                        placeholder="أي ملاحظات أو تاريخ مرضي..."
+                                    />
+                                </div>
+
+                                <div className="md:col-span-2 pt-4 bg-gray-50 border-t flex justify-end gap-3 -mx-6 -mb-6 p-4">
+                                    <button type="button" onClick={() => setShowAddPatientModal(false)} className="px-5 py-2 text-gray-600 hover:bg-gray-200 rounded-xl font-medium">إلغاء</button>
+                                    <button type="submit" className="px-6 py-2 flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow-sm shadow-blue-200 font-bold">
+                                        <Save className="w-4 h-4" /> حفظ البيانات
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <AppointmentModal
+                isOpen={showAddAppointmentModal}
+                onClose={() => setShowAddAppointmentModal(false)}
+                onSave={handleSaveAppointment}
+                preSelectedDate={new Date().toISOString().split('T')[0]}
+                patients={patients?.map(p => ({
+                    id: p.id,
+                    fullName: p.name,
+                    firstName: p.name.split(' ')[0],
+                    lastName: p.name.split(' ').slice(1).join(' '),
+                    phone: p.phone,
+                    gender: p.gender as 'male' | 'female',
+                    totalVisits: p.totalVisits || 1,
+                    lastVisit: p.lastVisit,
+                    status: p.status
+                })) as any}
+                clinicId={targetClinicIdForAction?.toString() || undefined}
+            />
 
         </div >
     );
