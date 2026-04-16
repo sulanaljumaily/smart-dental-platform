@@ -3,24 +3,47 @@
 
 <head>
   <meta charset="UTF-8" />
-  <!-- ربط صورة أيقونة التطبيق (Logo) -->
-  <link rel="icon" type="image/png" href="/logo.png" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+  <!-- Theme & Colors -->
   <meta name="theme-color" content="#0D8ABC" />
+  <meta name="msapplication-TileColor" content="#0D8ABC" />
+  <meta name="msapplication-TileImage" content="/icons/icon-144x144.png" />
+
+  <!-- App Icons -->
+  <link rel="icon" type="image/png" href="/icons/icon-192x192.png" />
+  <link rel="shortcut icon" href="/icons/icon-192x192.png" />
+
+  <!-- PWA Manifest -->
   <link rel="manifest" href="/manifest.json" />
-  
-  <!-- SEO (تحسين محركات البحث) -->
+
+  <!-- ============================================ -->
+  <!-- Apple / Safari PWA Support (CRITICAL)        -->
+  <!-- ============================================ -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="DentalPlatform" />
+  <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+  <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
+  <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192x192.png" />
+  <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512x512.png" />
+
+  <!-- ============================================ -->
+  <!-- SEO                                          -->
+  <!-- ============================================ -->
   <title>Dental Platform</title>
   <meta name="description" content="أفضل أطباء الأسنان بالقرب منك، نظام ذكي لإدارة العيادات، ومجتمع طبي متكامل يوفر المستلزمات السنية ومختبرات الأسنان." />
   <meta name="keywords" content="طب أسنان, أطباء أسنان, عيادات, منصة طبية, مستلزمات أسنان, dental platform" />
   <meta name="author" content="Dental Platform" />
   <meta name="robots" content="index, follow" />
-  
-  <!-- Open Graph Meta Tags (لتحسين ظهور الرابط عند مشاركته في تويتر وفيسبوك وواتساب) -->
+
+  <!-- ============================================ -->
+  <!-- Open Graph (social sharing)                  -->
+  <!-- ============================================ -->
   <meta property="og:type" content="website" />
   <meta property="og:title" content="Dental Platform" />
-  <meta property="og:description" content="البحث وإظهار أفضل أطباء الأسنان بالقرب منك، نظام ذكي لإدارة العيادات، ومجتمع طبي متكامل يوفر المستلزمات السنية ومختبرات الأسنان." />
-  <meta property="og:image" content="/logo.png" />
+  <meta property="og:description" content="البحث وإظهار أفضل أطباء الأسنان بالقرب منك، نظام ذكي لإدارة العيادات، ومجتمع طبي متكامل." />
+  <meta property="og:image" content="/icons/icon-512x512.png" />
   <meta property="og:url" content="/" />
 </head>
 
