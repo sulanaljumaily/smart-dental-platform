@@ -19,43 +19,43 @@ export const StoreHeader: React.FC = () => {
     const isActive = (path: string) => location.pathname === path;
 
     return (
-        <div className="bg-white sticky top-0 z-50 shadow-sm border-b border-slate-100 mb-6">
-            <div className="max-w-7xl mx-auto px-4">
-                <div className="flex items-center justify-between h-16 gap-4">
+        <div className="bg-white sticky top-0 z-50 shadow-sm border-b border-slate-100 mb-6 pt-[env(safe-area-inset-top)]">
+            <div className="max-w-7xl mx-auto px-2 sm:px-4 cursor-pointer">
+                <div className="flex items-center justify-between h-14 sm:h-16 gap-2 sm:gap-4">
                     {/* Logo Area */}
-                    <div className="flex items-center gap-3 min-w-fit cursor-pointer" onClick={() => navigate('/store')}>
-                        <div className="w-10 h-10 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
-                            <Store className="w-6 h-6 text-white" />
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-fit" onClick={() => navigate('/store')}>
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
+                            <Store className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
                         </div>
                         <div className="hidden sm:block">
-                            <h1 className="text-lg font-bold text-gray-900 leading-tight">المتجر الطبي</h1>
+                            <h1 className="text-sm sm:text-lg font-bold text-gray-900 leading-tight">المتجر الطبي</h1>
                         </div>
                     </div>
 
                     {/* Search Bar */}
-                    <div className="flex-1 max-w-2xl px-2">
+                    <div className="flex-1 max-w-2xl px-1 sm:px-2">
                         <div className="relative group">
-                            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                            <Search className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
                             <input
                                 type="text"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 placeholder="ابحث عن منتج..."
-                                className="w-full pr-10 pl-4 py-2.5 bg-slate-50 border-transparent rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-200 transition-all text-sm"
+                                className="w-full pr-8 pl-3 py-1.5 sm:pr-10 sm:pl-4 sm:py-2.5 bg-slate-50 border-transparent rounded-lg sm:rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-200 transition-all text-xs sm:text-sm"
                             />
                         </div>
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-2 min-w-fit">
-                        <button onClick={() => navigate('/store/favorites')} className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-600 relative transition-colors">
-                            <Heart className="w-6 h-6" />
+                    <div className="flex items-center gap-1 sm:gap-2 min-w-fit">
+                        <button onClick={() => navigate('/store/favorites')} className="p-1.5 sm:p-2.5 hover:bg-slate-100 rounded-xl text-slate-600 relative transition-colors">
+                            <Heart className="w-5 h-5 sm:w-6 sm:h-6" />
                             {/* Wishlist badge logic would go here */}
                         </button>
-                        <button onClick={() => navigate('/store/cart')} className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-600 relative transition-colors">
-                            <ShoppingBag className="w-6 h-6" />
+                        <button onClick={() => navigate('/store/cart')} className="p-1.5 sm:p-2.5 hover:bg-slate-100 rounded-xl text-slate-600 relative transition-colors">
+                            <ShoppingBag className="w-5 h-5 sm:w-6 sm:h-6" />
                             {cartCount > 0 && (
-                                <span className="absolute -top-1 -right-1 bg-blue-600 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ring-2 ring-white">
+                                <span className="absolute -top-1 -right-1 bg-blue-600 text-white w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center text-[9px] sm:text-[10px] font-bold ring-2 ring-white">
                                     {cartCount}
                                 </span>
                             )}
@@ -66,8 +66,8 @@ export const StoreHeader: React.FC = () => {
 
             {/* Secondary Navigation - Tabs */}
             <div className="border-t border-slate-50 overflow-x-auto scrollbar-hide bg-white/80 backdrop-blur-sm">
-                <div className="max-w-7xl mx-auto px-4">
-                    <div className="flex items-center gap-8 h-12 text-sm font-medium text-slate-600 min-w-max">
+                <div className="max-w-7xl mx-auto px-2 sm:px-4">
+                    <div className="flex items-center justify-between sm:justify-start gap-2 h-10 sm:h-12 text-xs sm:text-sm font-medium text-slate-600 min-w-max px-1">
                         <button
                             onClick={() => navigate('/store')}
                             className={`h-full px-1 transition-colors ${isActive('/store') ? 'text-blue-600 border-b-2 border-blue-600' : 'hover:text-slate-900'}`}

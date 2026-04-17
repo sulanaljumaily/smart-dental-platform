@@ -626,21 +626,21 @@ export const JobsPage: React.FC<{ hideHeader?: boolean }> = ({ hideHeader }) => 
               </div>
             )}
 
-            {/* Navigation Tabs (Scrollable Mobile View matching Community/Doctor Dashboard) */}
-            <nav className="flex items-center gap-0 overflow-x-auto no-scrollbar flex-1 mx-0.5 sm:mx-2 mask-linear-fade flex-nowrap pb-1">
+            {/* Navigation Tabs */}
+            <nav className="flex items-center w-full justify-between sm:justify-center gap-0.5 sm:gap-2 overflow-x-auto no-scrollbar flex-1 mx-0.5 sm:mx-2 mask-linear-fade flex-nowrap pb-1">
               {menuItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`relative flex items-center gap-0.5 px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all duration-300 group shrink-0 whitespace-nowrap ${activeTab === item.id
+                  className={`relative flex items-center gap-1 sm:gap-1.5 px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all duration-300 group shrink-0 whitespace-nowrap ${activeTab === item.id
                     ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg shadow-blue-500/25`
                     : 'text-gray-600 hover:text-gray-900 hover:bg-white/80'
                     }`}
                 >
                   <div className="relative">
-                    <item.icon className={`w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:scale-110 ${activeTab === item.id ? 'text-white' : ''}`} />
+                    <item.icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform group-hover:scale-110 ${activeTab === item.id ? 'text-white' : ''}`} />
                   </div>
-                  <span className="font-medium text-xs sm:text-sm">{item.label}</span>
+                  <span className="font-semibold text-[11px] sm:text-[13px] tracking-tight">{item.label}</span>
                   {activeTab === item.id && (
                     <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-white rounded-full shadow-sm animate-pulse" />
                   )}

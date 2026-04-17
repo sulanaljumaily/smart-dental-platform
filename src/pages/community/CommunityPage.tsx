@@ -21,7 +21,7 @@ export const CommunityPage: React.FC = () => {
     <div className="min-h-[100dvh] bg-gray-50 flex flex-col font-sans w-full pb-20 md:pb-0">
       {/* Sticky Top Navigation */}
       <div className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm pt-[env(safe-area-inset-top)] transition-all duration-300">
-        <div className="flex items-center gap-0.5 sm:gap-2 overflow-x-auto no-scrollbar py-1.5 sm:py-2 px-1 sm:px-4 mask-linear-fade flex-nowrap justify-start lg:justify-center">
+        <div className="flex items-center gap-0.5 sm:gap-1.5 overflow-x-auto no-scrollbar py-2 px-1 sm:px-2 mask-linear-fade flex-nowrap justify-start lg:justify-center">
           {tabs.map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -29,16 +29,16 @@ export const CommunityPage: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`relative flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-4 sm:py-2.5 rounded-xl transition-all duration-300 group shrink-0 whitespace-nowrap ${
+                className={`relative flex items-center gap-1 sm:gap-1.5 px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all duration-300 group shrink-0 whitespace-nowrap ${
                   isActive
                     ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-lg shadow-indigo-500/25'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-white/80'
                 }`}
               >
                 <div className="relative">
-                  <Icon className={`w-3.5 h-3.5 sm:w-5 sm:h-5 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : ''}`} />
+                  <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : ''}`} />
                 </div>
-                <span className="font-medium text-[10px] sm:text-sm">{tab.label}</span>
+                <span className="font-semibold text-[11px] sm:text-[13px] tracking-tight">{tab.label}</span>
                 {isActive && (
                   <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-white rounded-full shadow-sm animate-pulse" />
                 )}
