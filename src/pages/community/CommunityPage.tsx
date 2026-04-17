@@ -20,7 +20,7 @@ export const CommunityPage: React.FC = () => {
   return (
     <div className="min-h-[100dvh] bg-gray-50 flex flex-col font-sans w-full pb-20 md:pb-0">
       {/* Sticky Top Navigation */}
-      <div className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm pt-[calc(env(safe-area-inset-top)/2)] transition-all duration-300">
+      <div className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm pt-[calc(env(safe-area-inset-top)*0.75)] transition-all duration-300">
         <div className="flex items-center gap-0.5 sm:gap-1.5 overflow-x-auto no-scrollbar py-2 px-1 sm:px-2 mask-linear-fade flex-nowrap justify-start lg:justify-center">
           {tabs.map(tab => {
             const Icon = tab.icon;
