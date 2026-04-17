@@ -205,7 +205,7 @@ export const ClinicDashboard: React.FC = () => {
   return (
     <div className={`flex flex-col min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 ${language === 'ar' ? 'rtl' : 'ltr'}`}>
       {/* Top Navigation Bar */}
-      <div className="bg-white/80 backdrop-blur-lg border-b border-gray-200/50 sticky top-0 z-50 shadow-sm pt-[calc(env(safe-area-inset-top)/2)]">
+      <div className="bg-white/80 backdrop-blur-lg border-b border-gray-200/50 sticky top-0 z-50 shadow-sm pt-[calc(env(safe-area-inset-top)*0.75)]">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
 

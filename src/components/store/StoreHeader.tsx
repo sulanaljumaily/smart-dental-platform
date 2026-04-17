@@ -19,7 +19,7 @@ export const StoreHeader: React.FC = () => {
     const isActive = (path: string) => location.pathname === path;
 
     return (
-        <div className="bg-white sticky top-0 z-50 shadow-sm border-b border-slate-100 mb-6 pt-[calc(env(safe-area-inset-top)/2)]">
+        <div className="bg-white sticky top-0 z-50 shadow-sm border-b border-slate-100 mb-6 pt-[calc(env(safe-area-inset-top)*0.75)]">
             <div className="max-w-7xl mx-auto px-2 sm:px-4 cursor-pointer">
                 <div className="flex items-center justify-between h-14 sm:h-16 gap-2 sm:gap-4">
                     {/* Logo Area */}
