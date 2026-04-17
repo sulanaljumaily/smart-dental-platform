@@ -594,7 +594,7 @@ export const JobsPage: React.FC<{ hideHeader?: boolean }> = ({ hideHeader }) => 
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans flex flex-col w-full pb-20 md:pb-0" dir="rtl">
-      <div className={`sticky top-0 z-50 w-full bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm pt-[env(safe-area-inset-top)] transition-all duration-300`}>
+      <div className={`sticky top-0 z-50 w-full bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm pt-[calc(env(safe-area-inset-top)/2)] transition-all duration-300`}>
         <div className="max-w-7xl mx-auto px-1 sm:px-4">
           <div className="flex flex-col gap-1 sm:gap-2 pb-1 pt-2 sm:pt-3">
             {!hideHeader && (
