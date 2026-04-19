@@ -1036,7 +1036,84 @@ const FeaturedClinicsManager = () => {
 };
 
 const ArticlesManager = () => {
-    const { articles, loading } = useArticles();
+    const { articles, loading, refetch } = useArticles();
+    const [showModal, setShowModal] = useState(false);
+    const [editingArticle, setEditingArticle] = useState<any>(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const [formData, setFormData] = useState({
+        title: '',
+        excerpt: '',
+        content: '',
+        image_url: '',
+        category: 'عام',
+    });
+
+    const handleOpenModal = (article: any = null) => {
+        if (article) {
+            setEditingArticle(article);
+            setFormData({
+                title: article.title || '',
+                excerpt: article.excerpt || '',
+                content: article.content || '',
+                image_url: article.image || '',
+                category: article.category || 'عام',
+            });
+        } else {
+            setEditingArticle(null);
+            setFormData({
+                title: '',
+                excerpt: '',
+                content: '',
+                image_url: '',
+                category: 'عام',
+            });
+        }
+        setShowModal(true);
+    };
+
+    const handleSaveArticle = async () => {
+        if (!formData.title || !formData.content) {
+            alert('الرجاء إدخال عنوان ومحتوى المقال');
+            return;
+        }
+        try {
+            setIsSaving(true);
+            if (editingArticle) {
+                const { error } = await supabase
+                    .from('articles')
+                    .update(formData)
+                    .eq('id', editingArticle.id);
+                if (error) throw error;
+            } else {
+                const { error } = await supabase
+                    .from('articles')
+                    .insert([{ ...formData, is_published: true }]);
+                if (error) throw error;
+            }
+            setShowModal(false);
+            refetch();
+        } catch (error) {
+            console.error('Error saving article:', error);
+            alert('حدث خطأ أثناء حفظ المقال');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleDeleteArticle = async (id: string) => {
+        if (!window.confirm('هل أنت متأكد من حذف هذا المقال؟')) return;
+        try {
+            const { error } = await supabase
+                .from('articles')
+                .delete()
+                .eq('id', id);
+            if (error) throw error;
+            refetch();
+        } catch (error) {
+            console.error('Error deleting article:', error);
+            alert('فشل حذف المقال');
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -1045,7 +1122,7 @@ const ArticlesManager = () => {
                     <h3 className="text-lg font-bold text-gray-900">مكتبة المقالات الطبية</h3>
                     <p className="text-gray-500 text-sm">إدارة المحتوى الطبي والمقالات التثقيفية</p>
                 </div>
-                <Button className="rounded-xl shadow-lg shadow-purple-200">
+                <Button onClick={() => handleOpenModal()} className="rounded-xl shadow-lg shadow-purple-200">
                     <Plus className="w-4 h-4 ml-2" />
                     مقالة جديدة
                 </Button>
@@ -1087,10 +1164,10 @@ const ArticlesManager = () => {
                                     <button className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="معاينة">
                                         <Eye className="w-4 h-4" />
                                     </button>
-                                    <button className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="تعديل">
+                                    <button onClick={() => handleOpenModal(article)} className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="تعديل">
                                         <Edit className="w-4 h-4" />
                                     </button>
-                                    <button className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="حذف">
+                                    <button onClick={() => handleDeleteArticle(article.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="حذف">
                                         <Trash2 className="w-4 h-4" />
                                     </button>
                                 </div>
@@ -1111,9 +1188,85 @@ const ArticlesManager = () => {
 
             <div className="text-center pt-4">
                 <Button variant="outline" className="rounded-xl text-gray-500 border-gray-200">
-                    عرض المزيد من المقالات ({articles.length - 6} متبقي)
+                    عرض المزيد من المقالات ({articles.length > 6 ? articles.length - 6 : 0} متبقي)
                 </Button>
             </div>
+
+            {/* Article Modal */}
+            {showModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto w-full">
+                        <div className="flex justify-between items-center p-6 border-b border-gray-100 sticky top-0 bg-white z-10">
+                            <h3 className="text-xl font-bold text-gray-900">
+                                {editingArticle ? 'تعديل المقال' : 'إضافة مقال جديد'}
+                            </h3>
+                            <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">عنوان المقال</label>
+                                <input
+                                    type="text"
+                                    value={formData.title}
+                                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                    className="w-full p-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                                />
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">التصنيف</label>
+                                    <input
+                                        type="text"
+                                        value={formData.category}
+                                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                                        className="w-full p-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                                        placeholder="مثال: زراعة الأسنان"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">رابط الصورة الخارجية (اختياري)</label>
+                                    <input
+                                        type="text"
+                                        value={formData.image_url}
+                                        onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                                        className="w-full p-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-left"
+                                        placeholder="https://..."
+                                        dir="ltr"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">وصف مختصر (Excerpt)</label>
+                                <textarea
+                                    value={formData.excerpt}
+                                    onChange={(e) => setFormData({ ...formData, excerpt: e.target.value })}
+                                    className="w-full p-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                                    rows={2}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">المحتوى</label>
+                                <textarea
+                                    value={formData.content}
+                                    onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                                    className="w-full p-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                                    rows={8}
+                                />
+                            </div>
+                        </div>
+                        <div className="p-6 border-t border-gray-100 flex justify-end gap-3 sticky bottom-0 bg-white z-10">
+                            <Button variant="outline" onClick={() => setShowModal(false)} className="rounded-xl">
+                                إلغاء
+                            </Button>
+                            <Button onClick={handleSaveArticle} disabled={isSaving} className="rounded-xl bg-purple-600 hover:bg-purple-700 text-white min-w-[120px]">
+                                {isSaving ? 'جاري الحفظ...' : 'حفظ المقال'}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
