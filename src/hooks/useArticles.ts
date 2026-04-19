@@ -34,7 +34,8 @@ export function useArticles() {
         content: article.content,
         author: article.author,
         date: article.date,
-        category: article.category
+        category: article.category,
+        image: article.image_url
       })) || []
 
       setArticles(formattedArticles)
@@ -90,7 +91,8 @@ export function useArticle(id: string) {
           content: data.content,
           author: data.author,
           date: data.date,
-          category: data.category
+          category: data.category,
+          image: data.image_url
         }
         setArticle(formattedArticle)
       } else {
