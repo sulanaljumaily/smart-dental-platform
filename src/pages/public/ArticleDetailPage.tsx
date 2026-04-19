@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { ArrowLeft, Share2, Clock, Calendar, Copy, Twitter, Facebook, Linkedin, BookOpen, Quote } from 'lucide-react';
 import { useArticle, useArticles } from '../../hooks/useArticles';
 import { usePublicClinics } from '../../hooks/usePublicClinics';
@@ -30,9 +31,28 @@ export const ArticleDetailPage: React.FC = () => {
   const featuredClinics = clinics.filter(c => c.settings?.articleSuggestions === true).slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-white pb-32">
-      {/* Progress Bar (Optional) */}
-      <div className="fixed top-0 left-0 h-1 bg-blue-600 z-50 w-full origin-left transform scale-x-0" id="progress-bar" />
+    <>
+      <Helmet>
+        <title>{article.title} | Dental Platform</title>
+        <meta name="description" content={article.excerpt} />
+        <meta name="keywords" content={`طب الأسنان, ${article.category}, مقالات طبية, Dental Platform, العناية بالأسنان`} />
+        
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="article" />
+        <meta property="og:title" content={article.title} />
+        <meta property="og:description" content={article.excerpt} />
+        {article.image && <meta property="og:image" content={article.image} />}
+        
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={article.title} />
+        <meta name="twitter:description" content={article.excerpt} />
+        {article.image && <meta name="twitter:image" content={article.image} />}
+      </Helmet>
+      
+      <div className="min-h-screen bg-white pb-32">
+        {/* Progress Bar (Optional) */}
+        <div className="fixed top-0 left-0 h-1 bg-blue-600 z-50 w-full origin-left transform scale-x-0" id="progress-bar" />
 
       {/* Navigation & Actions Header */}
       <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100 transition-all">
@@ -156,5 +176,6 @@ export const ArticleDetailPage: React.FC = () => {
         </div>
       )}
     </div>
+    </>
   );
 };

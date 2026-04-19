@@ -315,21 +315,24 @@ import { CompleteRegistrationModal } from './components/auth/CompleteRegistratio
 import { StoreProvider } from './context/StoreContext';
 import { CommunityProvider } from './contexts/CommunityContext';
 import { PlatformProvider } from './contexts/PlatformContext';
+import { HelmetProvider } from 'react-helmet-async';
 
 function App() {
   return (
-    <LanguageProvider>
-      <AuthProvider>
-        <CompleteRegistrationModal />
-        <StoreProvider>
-          <CommunityProvider>
-            <PlatformProvider>
-              <AppContent />
-            </PlatformProvider>
-          </CommunityProvider>
-        </StoreProvider>
-      </AuthProvider>
-    </LanguageProvider>
+    <HelmetProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <CompleteRegistrationModal />
+          <StoreProvider>
+            <CommunityProvider>
+              <PlatformProvider>
+                <AppContent />
+              </PlatformProvider>
+            </CommunityProvider>
+          </StoreProvider>
+        </AuthProvider>
+      </LanguageProvider>
+    </HelmetProvider>
   );
 }
 
