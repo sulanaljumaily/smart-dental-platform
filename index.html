@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 
 <head>
   <meta charset="UTF-8" />
@@ -10,55 +10,104 @@
   <meta name="msapplication-TileColor" content="#0D8ABC" />
   <meta name="msapplication-TileImage" content="/icons/icon-144x144.png" />
 
-  <!-- App Icons -->
-  <link rel="icon" type="image/png" href="/icons/icon-192x192.png" />
-  <link rel="shortcut icon" href="/icons/icon-192x192.png" />
+  <!-- Favicon (CRITICAL for Google Search logo) -->
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-96x96.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192x192.png" />
+  <link rel="shortcut icon" href="/favicon.ico" />
 
   <!-- PWA Manifest -->
   <link rel="manifest" href="/manifest.json" />
 
-  <!-- ============================================ -->
-  <!-- Apple / Safari PWA Support (CRITICAL)        -->
-  <!-- ============================================ -->
+  <!-- Apple / Safari PWA Support -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="DentalPlatform" />
+  <meta name="apple-mobile-web-app-title" content="Dental Platform" />
   <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
   <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
   <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192x192.png" />
   <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512x512.png" />
 
   <!-- ============================================ -->
-  <!-- SEO                                          -->
+  <!-- SEO - Primary                                -->
   <!-- ============================================ -->
-  <title>Dental Platform</title>
-  <meta name="description" content="أفضل أطباء الأسنان بالقرب منك، نظام ذكي لإدارة العيادات، ومجتمع طبي متكامل يوفر المستلزمات السنية ومختبرات الأسنان." />
-  <meta name="keywords" content="طب أسنان, أطباء أسنان, عيادات, منصة طبية, مستلزمات أسنان, dental platform" />
-  <meta name="author" content="Dental Platform" />
+  <title>DENTAL PLATFORM - منصة طب الأسنان</title>
+  <meta name="description" content="DENTAL PLATFORM - منصة طب الأسنان المتكاملة. أفضل أطباء الأسنان بالقرب منك، نظام ذكي لإدارة العيادات، مجتمع طبي، متجر المستلزمات السنية، ومختبرات الأسنان." />
+  <meta name="keywords" content="dental platform, dental-platform.com, منصة طب الأسنان, dentist, طب أسنان, أطباء أسنان, عيادات أسنان, منصة طبية, مستلزمات أسنان, مختبرات أسنان, dental clinic, Iraq dental, أسنان العراق, dental management system" />
+  <meta name="author" content="DENTAL PLATFORM" />
   <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://dental-platform.com/" />
 
   <!-- ============================================ -->
-  <!-- Open Graph (social sharing)                  -->
+  <!-- Open Graph (Google / Facebook / WhatsApp)    -->
   <!-- ============================================ -->
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="Dental Platform" />
-  <meta property="og:description" content="البحث وإظهار أفضل أطباء الأسنان بالقرب منك، نظام ذكي لإدارة العيادات، ومجتمع طبي متكامل." />
-  <meta property="og:image" content="/icons/icon-512x512.png" />
-  <meta property="og:url" content="/" />
+  <meta property="og:site_name" content="DENTAL PLATFORM - منصة طب الأسنان" />
+  <meta property="og:title" content="DENTAL PLATFORM - منصة طب الأسنان" />
+  <meta property="og:description" content="منصة طب الأسنان المتكاملة — أفضل أطباء الأسنان، نظام إدارة العيادات الذكي، متجر المستلزمات السنية، ومختبرات الأسنان." />
+  <meta property="og:image" content="https://dental-platform.com/icons/icon-512x512.png" />
+  <meta property="og:image:width" content="512" />
+  <meta property="og:image:height" content="512" />
+  <meta property="og:url" content="https://dental-platform.com/" />
+  <meta property="og:locale" content="ar_IQ" />
+
+  <!-- ============================================ -->
+  <!-- Twitter Card                                 -->
+  <!-- ============================================ -->
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="DENTAL PLATFORM - منصة طب الأسنان" />
+  <meta name="twitter:description" content="منصة طب الأسنان المتكاملة. أطباء أسنان، عيادات، متجر، ومختبرات." />
+  <meta name="twitter:image" content="https://dental-platform.com/icons/icon-512x512.png" />
+
+  <!-- ============================================ -->
+  <!-- JSON-LD Structured Data (Google Rich Results)-->
+  <!-- ============================================ -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "DENTAL PLATFORM - منصة طب الأسنان",
+    "alternateName": ["Dental Platform", "dental-platform.com", "منصة طب الأسنان", "منصة الأسنان"],
+    "url": "https://dental-platform.com",
+    "description": "منصة طب الأسنان المتكاملة. أفضل أطباء الأسنان بالقرب منك، نظام ذكي لإدارة العيادات، مجتمع طبي متكامل يوفر المستلزمات السنية ومختبرات الأسنان.",
+    "inLanguage": ["ar", "en"],
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": {
+        "@type": "EntryPoint",
+        "urlTemplate": "https://dental-platform.com/services?q={search_term_string}"
+      },
+      "query-input": "required name=search_term_string"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "DENTAL PLATFORM",
+      "url": "https://dental-platform.com",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://dental-platform.com/icons/icon-512x512.png",
+        "width": 512,
+        "height": 512
+      },
+      "sameAs": [
+        "https://dental-platform.com"
+      ]
+    }
+  }
+  </script>
 </head>
 
 <body>
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
   
-  <!-- Force unregister old Service Workers that are caching the old RTL layout -->
+  <!-- Force unregister old Service Workers -->
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function (registrations) {
         for (let registration of registrations) {
           registration.unregister();
         }
-        // If there were registrations, force reload to get the clean non-RTL version
         if (registrations.length > 0) {
           window.location.reload();
         }
