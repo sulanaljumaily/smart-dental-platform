@@ -345,92 +345,17 @@ export default function ClinicLabPage({ clinicId }: ClinicLabPageProps) {
 
   const renderCaseManagementTab = () => (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">طلبات معامل الاسنان</h2>
-          <p className="text-gray-500">متابعة جميع الحالات المرسلة لمعامل الاسنان</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleRefresh} className="flex items-center gap-2">
-            <RefreshCw className={`w - 4 h - 4 ${loading ? 'animate-spin' : ''} `} />
-            تحديث
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setShowAddCustomLabModal(true)}
-            className="flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            إضافة معمل
-          </Button>
-          <Button
-            onClick={handleAddRequest}
-            className="flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            طلب معامل
-          </Button>
-        </div>
-      </div>
 
       {/* Stats Cards - Bento Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <BentoStatCard
-          title="إجمالي الطلبات"
-          value={stats.total}
-          icon={FileText}
-          color="blue"
-          delay={0}
-        />
-        <BentoStatCard
-          title="في الانتظار"
-          value={stats.pending}
-          icon={Clock}
-          color="amber"
-          delay={100}
-        />
-        <BentoStatCard
-          title="جاري العمل"
-          value={stats.inProgress}
-          icon={Activity}
-          color="indigo"
-          delay={200}
-        />
-        <BentoStatCard
-          title="جاهز للاستلام"
-          value={stats.ready}
-          icon={Truck}
-          color="purple"
-          delay={300}
-        />
-        <BentoStatCard
-          title="مكتمل"
-          value={stats.completed}
-          icon={CheckCircle}
-          color="emerald"
-          delay={400}
-        />
-        <BentoStatCard
-          title="مرتجع / تعديل"
-          value={stats.returned}
-          icon={AlertTriangle}
-          color="orange"
-          delay={500}
-        />
-        <BentoStatCard
-          title="ملغي"
-          value={stats.cancelled}
-          icon={X}
-          color="slate"
-          delay={600}
-        />
-        <BentoStatCard
-          title="متأخر"
-          value={stats.overdue}
-          icon={Clock}
-          color="red"
-          delay={700}
-        />
+        <BentoStatCard title="إجمالي الطلبات" value={stats.total} icon={FileText} color="blue" delay={0} />
+        <BentoStatCard title="في الانتظار" value={stats.pending} icon={Clock} color="amber" delay={100} />
+        <BentoStatCard title="جاري العمل" value={stats.inProgress} icon={Activity} color="indigo" delay={200} />
+        <BentoStatCard title="جاهز للاستلام" value={stats.ready} icon={Truck} color="purple" delay={300} />
+        <BentoStatCard title="مكتمل" value={stats.completed} icon={CheckCircle} color="emerald" delay={400} />
+        <BentoStatCard title="مرتجع / تعديل" value={stats.returned} icon={AlertTriangle} color="orange" delay={500} />
+        <BentoStatCard title="ملغي" value={stats.cancelled} icon={X} color="slate" delay={600} />
+        <BentoStatCard title="متأخر" value={stats.overdue} icon={Clock} color="red" delay={700} />
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -445,6 +370,27 @@ export default function ClinicLabPage({ clinicId }: ClinicLabPageProps) {
           onPaymentStatusChange={handlePaymentStatusChange}
           onRating={handleRating}
           onAddExpense={handleAddExpense}
+          actions={
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAddCustomLabModal(true)}
+                className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 h-auto"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                إضافة معمل
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleAddRequest}
+                className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 h-auto"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                طلب معامل
+              </Button>
+            </>
+          }
         />
       </div>
     </div>

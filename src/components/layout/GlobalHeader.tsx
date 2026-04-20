@@ -142,7 +142,7 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({
                   </button>
 
                   {isNotificationsOpen && (
-                    <div className="absolute left-0 mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 transform origin-top-left animate-in fade-in zoom-in-95 duration-200">
+                    <div className="absolute end-0 mt-2 w-80 sm:w-96 max-w-[calc(100vw-1rem)] bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 transform origin-top-end animate-in fade-in zoom-in-95 duration-200">
                       <div className="px-4 py-3 border-b border-gray-50 flex justify-between items-center">
                         <h3 className="font-bold text-gray-900">الإشعارات</h3>
                         {notifications.length > 0 && <button onClick={() => markAsRead('all')} className="text-xs text-blue-600 hover:text-blue-700">تحديد الكل كمقروء</button>}
@@ -236,7 +236,7 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({
 
                   {/* Dropdown Menu */}
                   {isProfileOpen && (
-                    <div className="absolute left-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 transform origin-top-left animate-in fade-in zoom-in-95 duration-200">
+                    <div className="absolute end-0 mt-2 w-56 max-w-[calc(100vw-1rem)] bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 transform origin-top-end animate-in fade-in zoom-in-95 duration-200">
                       <div className="px-4 py-3 border-b border-gray-50 mb-1">
                         <p className="text-sm font-bold text-gray-900">{user.name}</p>
                         <p className="text-xs text-gray-500 truncate">{user.email}</p>
