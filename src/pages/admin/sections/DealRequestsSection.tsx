@@ -126,7 +126,7 @@ export const DealRequestsSection: React.FC = () => {
                     <h2 className="text-2xl font-bold text-gray-900">طلبات العروض والمنتجات المميزة</h2>
                     <p className="text-gray-600">الموافقة على طلبات الموردين لتمييز منتجاتهم</p>
                 </div>
-                <Button variant="outline" onClick={fetchRequests}>تحديث</Button>
+
             </div>
 
             {requests.length === 0 ? (

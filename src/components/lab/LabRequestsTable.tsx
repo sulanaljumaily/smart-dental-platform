@@ -46,6 +46,7 @@ interface LabRequestsTableProps {
   onRating?: (id: string, rating: number) => void;
   onAddExpense?: (request: LabRequest) => void;
   className?: string;
+  actions?: React.ReactNode;
 }
 
 // Status Configuration
@@ -160,7 +161,8 @@ export const LabRequestsTable: React.FC<LabRequestsTableProps> = ({
   onPaymentStatusChange,
   onRating,
   onAddExpense,
-  className
+  className,
+  actions,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<LabRequest['status'] | 'all'>('all');
@@ -257,26 +259,20 @@ export const LabRequestsTable: React.FC<LabRequestsTableProps> = ({
     <div className={cn('bg-white rounded-xl shadow-md', className)}>
       {/* Header */}
       <div className="p-6 border-b border-gray-200">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900">إدارة حالات المختبر (Case Management)</h2>
-            <p className="text-sm text-gray-600 mt-1">
-              إجمالي {filteredRequests.length} طلب
-              {selectedRequests.length > 0 && ` (تم تحديد ${selectedRequests.length} طلب)`}
-            </p>
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h2 className="text-base font-semibold text-gray-900">إدارة الحالات</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                إجمالي {filteredRequests.length} طلب
+                {selectedRequests.length > 0 && ` (تم تحديد ${selectedRequests.length} طلب)`}
+              </p>
+            </div>
+            {actions && <div className="flex gap-1.5 shrink-0">{actions}</div>}
           </div>
 
-          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 sm:space-x-reverse">
-            <button className="flex items-center space-x-2 space-x-reverse px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors">
-              <Download className="w-4 h-4" />
-              <span>تصدير</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Search and Filters */}
-        <div className="mt-4 flex flex-col lg:flex-row space-y-2 lg:space-y-0 lg:space-x-4 lg:space-x-reverse">
-          <div className="relative flex-1">
+        {/* Search and Filters - all in one row */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <div className="relative flex-1 min-w-[140px]">
             <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
@@ -290,7 +286,7 @@ export const LabRequestsTable: React.FC<LabRequestsTableProps> = ({
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value as LabRequest['status'] | 'all')}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
           >
             <option value="all">جميع الحالات</option>
             <option value="pending">في الانتظار</option>
@@ -302,7 +298,7 @@ export const LabRequestsTable: React.FC<LabRequestsTableProps> = ({
           <select
             value={filterPriority}
             onChange={(e) => setFilterPriority(e.target.value as LabRequest['priority'] | 'all')}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
           >
             <option value="all">جميع الأولويات</option>
             <option value="emergency">طارئ</option>
