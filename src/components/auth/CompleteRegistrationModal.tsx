@@ -126,32 +126,32 @@ export const CompleteRegistrationModal: React.FC = () => {
       <Card className="w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
 
         {/* Header */}
-        <div className="bg-gradient-to-br from-primary to-primary-dark p-6 text-center text-white">
-          <div className="w-16 h-16 bg-white/20 rounded-2xl mx-auto mb-4 flex items-center justify-center backdrop-blur-sm">
-            <span className="font-bold text-2xl">S</span>
+        <div className="bg-gradient-to-br from-primary to-primary-dark px-6 py-4 text-center text-white">
+          <div className="w-10 h-10 bg-white/20 rounded-xl mx-auto mb-2 flex items-center justify-center backdrop-blur-sm">
+            <span className="font-bold text-lg">S</span>
           </div>
-          <h2 className="text-2xl font-bold">أهلاً بك في منصة سمارت! 🎉</h2>
-          <p className="mt-2 text-white/80 text-sm">سجّلت الدخول بنجاح — أكمل إعداد ملفك للمتابعة</p>
+          <h2 className="text-lg font-bold">أهلاً بك في منصة سمارت! 🎉</h2>
+          <p className="mt-0.5 text-white/80 text-xs">سجّلت الدخول بنجاح — أكمل إعداد ملفك للمتابعة</p>
         </div>
 
-        <div className="p-6">
-          <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="p-4">
+          <form onSubmit={handleSubmit} className="space-y-3">
 
             {/* Error */}
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm text-center font-medium">
+              <div className="p-2 bg-red-50 border border-red-200 text-red-600 rounded-xl text-xs text-center font-medium">
                 ⚠️ {error}
               </div>
             )}
 
             {/* Role Selection */}
             <div>
-              <label className="block text-sm font-bold text-gray-800 mb-1">
+              <label className="block text-xs font-bold text-gray-800 mb-0.5">
                 🏷️ نوع الحساب <span className="text-red-500">*</span>
               </label>
-              <p className="text-xs text-gray-400 mb-3">اختر نوع حسابك بدقة — لا يمكن تغييره لاحقاً</p>
+              <p className="text-[10px] text-gray-400 mb-2">اختر نوع حسابك بدقة — لا يمكن تغييره لاحقاً</p>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-2">
                 {(Object.entries(ROLE_CONFIG) as [Role, typeof ROLE_CONFIG[Role]][]).map(([key, cfg]) => {
                   const Icon = cfg.icon;
                   const selected = role === key;
@@ -161,32 +161,32 @@ export const CompleteRegistrationModal: React.FC = () => {
                       type="button"
                       onClick={() => { setRole(key); setError(''); }}
                       className={`
-                        relative flex flex-col items-center gap-2 p-4 rounded-2xl border-2 
+                        relative flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 
                         transition-all duration-200 transform hover:scale-[1.03] focus:outline-none
                         ${selected
-                          ? `${cfg.border} ${cfg.bg} shadow-lg ${cfg.shadow} scale-[1.03]`
+                          ? `${cfg.border} ${cfg.bg} shadow-md ${cfg.shadow} scale-[1.03]`
                           : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
                         }
                       `}
                     >
                       {/* Check badge */}
                       {selected && (
-                        <span className={`absolute top-1.5 left-1.5 w-5 h-5 ${cfg.check} rounded-full flex items-center justify-center`}>
-                          <CheckCircle className="w-3.5 h-3.5 text-white" />
+                        <span className={`absolute top-1 left-1 w-4 h-4 ${cfg.check} rounded-full flex items-center justify-center`}>
+                          <CheckCircle className="w-3 h-3 text-white" />
                         </span>
                       )}
 
                       {/* Icon */}
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${selected ? cfg.bg : 'bg-gray-100'}`}>
-                        <Icon className={`w-6 h-6 ${selected ? cfg.color : 'text-gray-400'}`} />
+                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${selected ? cfg.bg : 'bg-gray-100'}`}>
+                        <Icon className={`w-5 h-5 ${selected ? cfg.color : 'text-gray-400'}`} />
                       </div>
 
                       {/* Text */}
                       <div className="text-center">
-                        <span className={`block text-sm font-bold ${selected ? cfg.color : 'text-gray-600'}`}>
+                        <span className={`block text-xs font-bold ${selected ? cfg.color : 'text-gray-600'}`}>
                           {cfg.label}
                         </span>
-                        <span className="text-[10px] text-gray-400 mt-0.5 block">{cfg.sub}</span>
+                        <span className="text-[9px] text-gray-400 block">{cfg.sub}</span>
                       </div>
                     </button>
                   );
@@ -195,7 +195,7 @@ export const CompleteRegistrationModal: React.FC = () => {
 
               {/* No selection hint */}
               {!role && (
-                <p className="text-xs text-center text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-2 mt-2 font-medium">
+                <p className="text-[10px] text-center text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-1.5 mt-1.5 font-medium">
                   👆 يجب اختيار نوع الحساب للمتابعة
                 </p>
               )}
@@ -203,12 +203,12 @@ export const CompleteRegistrationModal: React.FC = () => {
 
             {/* Phone */}
             <div>
-              <label className="block text-sm font-bold text-gray-800 mb-2">
+              <label className="block text-xs font-bold text-gray-800 mb-1.5">
                 رقم الهاتف <span className="text-red-500">*</span>
               </label>
               <div className="flex shadow-sm" dir="ltr">
-                <div className="flex items-center justify-center gap-2 px-4 bg-gray-50 border border-gray-300 rounded-s-lg border-e-0 text-gray-600 font-medium">
-                  <img src="https://flagcdn.com/w20/iq.png" alt="Iraq" className="w-5" />
+                <div className="flex items-center justify-center gap-1.5 px-3 bg-gray-50 border border-gray-300 rounded-s-lg border-e-0 text-gray-600 font-medium text-sm">
+                  <img src="https://flagcdn.com/w20/iq.png" alt="Iraq" className="w-4" />
                   <span dir="ltr">+964</span>
                 </div>
                 <input
@@ -217,24 +217,24 @@ export const CompleteRegistrationModal: React.FC = () => {
                   value={phone}
                   onChange={handlePhoneChange}
                   placeholder="77x xxx xxxx"
-                  className="flex-1 min-w-0 px-4 py-2.5 border border-gray-300 rounded-e-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                  className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-e-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
                   required
                 />
               </div>
-              <p className="text-xs text-gray-400 mt-1.5 text-right">سيُستخدم للتواصل الرسمي واستقبال الطلبات</p>
+              <p className="text-[10px] text-gray-400 mt-1 text-right">سيُستخدم للتواصل الرسمي واستقبال الطلبات</p>
             </div>
 
             {/* Governorate */}
             <div>
-              <label className="block text-sm font-bold text-gray-800 mb-2">
-                <MapPin className="w-4 h-4 inline ml-1 text-gray-500" />
+              <label className="block text-xs font-bold text-gray-800 mb-1.5">
+                <MapPin className="w-3.5 h-3.5 inline ml-1 text-gray-500" />
                 المحافظة <span className="text-red-500">*</span>
               </label>
               <select
                 value={governorate}
                 onChange={e => setGovernorate(e.target.value)}
                 required
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary bg-white text-gray-900 transition-all"
+                className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary bg-white text-gray-900 transition-all text-sm"
               >
                 <option value="" disabled>— اختر المحافظة —</option>
                 {IRAQI_GOVERNORATES.map(gov => (
@@ -245,8 +245,8 @@ export const CompleteRegistrationModal: React.FC = () => {
 
             {/* Password Optional */}
             <div>
-              <label className="block text-sm font-bold text-gray-800 mb-2">
-                <Lock className="w-4 h-4 inline ml-1 text-gray-500" />
+              <label className="block text-xs font-bold text-gray-800 mb-1.5">
+                <Lock className="w-3.5 h-3.5 inline ml-1 text-gray-500" />
                 كلمة مرور (اختياري)
               </label>
               <Input
@@ -256,7 +256,7 @@ export const CompleteRegistrationModal: React.FC = () => {
                 placeholder="أدخل كلمة مرور إن أردت"
                 dir="ltr"
               />
-              <p className="text-xs text-gray-400 mt-1.5 text-right">للتمكن من الدخول بالإيميل وكلمة السر مستقبلاً</p>
+              <p className="text-[10px] text-gray-400 mt-1 text-right">للتمكن من الدخول بالإيميل وكلمة السر مستقبلاً</p>
             </div>
 
             <Button
