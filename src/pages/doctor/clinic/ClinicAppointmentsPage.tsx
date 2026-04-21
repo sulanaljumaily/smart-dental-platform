@@ -419,7 +419,7 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                       </h4>
                       {/* اسم الطبيب المعالج */}
                       <div className="text-xs text-blue-600 font-semibold mt-0.5">
-                        {doctors.find(d => d.id === apt.doctorId)?.name || 'طبيب غير محدد'}
+                        {apt.doctorName || doctors.find(d => d.id === apt.doctorId)?.name || 'طبيب غير محدد'}
                       </div>
 
                       {apt.type && apt.type.includes('أونلاين') && (
@@ -642,6 +642,13 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
         onSave={handleSaveAppointment}
         editingAppointment={editingAppointment}
         preSelectedDate={selectedDate.toISOString().split('T')[0]}
+        doctors={doctors.map(d => ({
+          id: d.id,
+          name: d.name,
+          specialty: 'عام',
+          schedule: {},
+          isActive: true
+        }))}
         patients={patients.map(p => ({
           id: p.id,
           fullName: p.name,
