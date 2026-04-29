@@ -1,6 +1,6 @@
 // أنواع البيانات للتطبيق
 
-export type UserRole = 'doctor' | 'supplier' | 'laboratory' | 'staff' | 'admin' | 'newuser';
+export type UserRole = 'doctor' | 'supplier' | 'laboratory' | 'staff' | 'admin' | 'newuser' | 'patient';
 
 export interface User {
   id: string;
@@ -148,8 +148,19 @@ export interface Product {
   isFeatured?: boolean;
   featuredOrder?: number;
   // Role-Based Filtering
-  target_audience?: ('clinic' | 'lab' | 'both')[];
+  target_audience?: ('clinic' | 'lab' | 'both' | 'patient')[];
   created_at?: string;
+}
+
+export interface PatientProfile {
+  id: string;
+  fullName: string;
+  phone: string;
+  age?: number;
+  gender?: 'male' | 'female';
+  governorate?: string;
+  dateOfBirth?: string;
+  createdAt?: string;
 }
 
 export interface PromotionalCard {

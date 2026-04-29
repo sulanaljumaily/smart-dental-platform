@@ -27,6 +27,7 @@ import { LabWelcomePage } from './pages/welcome/LabWelcomePage';
 // Auth Pages
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
+import { PatientLoginPage } from './pages/auth/PatientLoginPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { PrivacyPolicyPage } from './pages/auth/PrivacyPolicyPage';
 import { TermsOfServicePage } from './pages/auth/TermsOfServicePage';
@@ -91,6 +92,23 @@ import { JobsPage } from './pages/jobs/JobsPage';
 import { JobDetailPage } from './pages/jobs/JobDetailPage';
 import { MyApplicationsPage } from './pages/jobs/MyApplicationsPage';
 import { ProfessionalProfilePage } from './pages/jobs/ProfessionalProfilePage';
+
+// Patient Pages
+import { PatientDashboard } from './pages/patient/PatientDashboard';
+import { PatientStoreHome } from './pages/patient/store/PatientStoreHome';
+import { PatientProductsPage } from './pages/patient/store/PatientProductsPage';
+import { PatientProductDetails } from './pages/patient/store/PatientProductDetails';
+import { PatientCartPage } from './pages/patient/store/PatientCartPage';
+import { PatientOrdersPage } from './pages/patient/store/PatientOrdersPage';
+import { PatientCategoriesPage } from './pages/patient/store/PatientCategoriesPage';
+import { PatientBrandsPage } from './pages/patient/store/PatientBrandsPage';
+import { PatientStoreMenuPage } from './pages/patient/store/PatientStoreMenuPage';
+import { PatientDealsPage } from './pages/patient/store/PatientDealsPage';
+import { PatientFavoritesPage } from './pages/patient/store/PatientFavoritesPage';
+import { PatientRecordView } from './pages/patient/PatientRecordView';
+import { PatientMessagesPage } from './pages/patient/PatientMessagesPage';
+import { PatientAddressesPage } from './pages/patient/store/PatientAddressesPage';
+import { PatientStoreSupportPage } from './pages/patient/store/PatientStoreSupportPage';
 
 // Admin Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -211,10 +229,29 @@ function AppContent() {
 
         {/* Auth Routes (No Header) */}
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/patient-login" element={<PatientLoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
         <Route path="/terms-of-service" element={<TermsOfServicePage />} />
+
+        {/* Patient Routes */}
+        <Route path="/patient" element={<ProtectedRoute requiredRole="patient"><PatientDashboard /></ProtectedRoute>} />
+        <Route path="/patient/store" element={<PatientStoreHome />} />
+        <Route path="/patient/store/categories" element={<PatientCategoriesPage />} />
+        <Route path="/patient/store/products" element={<PatientProductsPage />} />
+        <Route path="/patient/store/product/:productId" element={<PatientProductDetails />} />
+        <Route path="/patient/store/cart" element={<PatientCartPage />} />
+        <Route path="/patient/store/orders" element={<ProtectedRoute requiredRole="patient"><PatientOrdersPage /></ProtectedRoute>} />
+        <Route path="/patient/store/brands" element={<PatientBrandsPage />} />
+        <Route path="/patient/store/brand/:brandId" element={<BrandDetailPage />} />
+        <Route path="/patient/store/deals" element={<PatientDealsPage />} />
+        <Route path="/patient/store/menu" element={<PatientStoreMenuPage />} />
+        <Route path="/patient/store/favorites" element={<PatientFavoritesPage />} />
+        <Route path="/patient/store/addresses" element={<PatientAddressesPage />} />
+        <Route path="/patient/store/support" element={<PatientStoreSupportPage />} />
+        <Route path="/patient/record/:id" element={<ProtectedRoute requiredRole="patient"><PatientRecordView /></ProtectedRoute>} />
+        <Route path="/patient/messages" element={<ProtectedRoute requiredRole="patient"><PatientMessagesPage /></ProtectedRoute>} />
 
         {/* Doctor Routes (Protected, No Public Header) */}
         <Route path="/doctor" element={

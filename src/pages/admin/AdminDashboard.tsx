@@ -1,20 +1,9 @@
 import React, { useState } from 'react';
 
 import {
-  LayoutDashboard,
-  Settings,
-  CreditCard,
-  Store,
-  Users,
-  Briefcase,
-  Bell,
-  Headphones,
-  TestTube,
-  Activity,
-  Clock,
-  Stethoscope,
-  Shield,
-  Megaphone
+  LayoutDashboard, Settings, CreditCard, Store,
+  Users, Briefcase, Bell, Headphones, TestTube,
+  Stethoscope, HeartPulse
 } from 'lucide-react';
 
 // استيراد أقسام الإدارة
@@ -28,6 +17,9 @@ import { NotificationsSection } from './sections/NotificationsSection';
 import { SupportSection } from './sections/SupportSection';
 import { LaboratoryManagementSection } from './sections/LaboratoryManagementSection';
 import { MedicalServicesSection } from './sections/MedicalServicesSection';
+import { PatientStoreDealRequestsSection } from './sections/PatientStoreDealRequestsSection';
+import { PatientStoreCategoriesSection } from './sections/PatientStoreCategoriesSection';
+import { PatientStoreBrandsSection } from './sections/PatientStoreBrandsSection';
 
 
 
@@ -43,6 +35,7 @@ const adminSections: AdminSection[] = [
   { id: 'platform', label: 'إدارة المنصة', icon: Settings },
 
   { id: 'store-suppliers', label: 'الموردين', icon: Store },
+  { id: 'patient-store', label: 'متجر المرضى', icon: HeartPulse },
   { id: 'subscriptions', label: 'الاشتراكات والباقات', icon: CreditCard },
   { id: 'laboratory', label: 'إدارة المختبرات', icon: TestTube },
   { id: 'community', label: 'المجتمع الطبي', icon: Users },
@@ -50,6 +43,24 @@ const adminSections: AdminSection[] = [
   { id: 'notifications', label: 'الإشعارات والتنبيهات', icon: Bell },
   { id: 'support', label: 'الدعم الفني', icon: Headphones }
 ];
+
+// Inline view for patient store admin — shows deals + categories + brands in sub-tabs
+const PatientStoreAdminView: React.FC = () => {
+  const [sub, setSub] = useState<'deals' | 'categories' | 'brands'>('deals');
+  return (
+    <div className="space-y-6">
+      <div className="flex gap-2 border-b pb-3">
+        {(['deals', 'categories', 'brands'] as const).map(t => (
+          <button key={t} onClick={() => setSub(t)}
+            className={`flex items-center gap-2 py-2 px-5 rounded-xl font-medium text-sm transition-all duration-200 whitespace-nowrap ${sub === t ? 'bg-teal-600 text-white shadow-md shadow-teal-200' : 'bg-white/50 text-gray-600 hover:bg-white'}`}>
+            {t === 'deals' ? '🏷️ العروض والصفقات' : t === 'categories' ? '📂 الفئات' : '🏢 الماركات'}
+          </button>
+        ))}
+      </div>
+      {sub === 'deals' ? <PatientStoreDealRequestsSection /> : sub === 'categories' ? <PatientStoreCategoriesSection /> : <PatientStoreBrandsSection />}
+    </div>
+  );
+};
 
 export default function AdminDashboard() {
   const [activeSection, setActiveSection] = useState('overview');
@@ -85,6 +96,8 @@ export default function AdminDashboard() {
         return <NotificationsSection />;
       case 'support':
         return <SupportSection />;
+      case 'patient-store':
+        return <PatientStoreAdminView />;
       default:
         return <OverviewSection onNavigate={handleNavigate} />;
     }

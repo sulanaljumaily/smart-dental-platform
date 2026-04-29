@@ -6,19 +6,9 @@ import { StoreOrdersSection } from '../sections/StoreOrdersSection';
 import { Supplier } from '../../../hooks/useAdminSuppliers';
 import { Button } from '../../../components/common/Button';
 import {
-    Building2,
-    MapPin,
-    Mail,
-    Phone,
-    Calendar,
-    ShieldCheck,
-    DollarSign,
-    Package,
-    ShoppingCart,
-    FileText,
-    AlertCircle,
-    CheckCircle,
-    XCircle
+    Building2, MapPin, Mail, Phone, Calendar,
+    ShieldCheck, DollarSign, Package, ShoppingCart,
+    FileText, AlertCircle, CheckCircle, XCircle, Store
 } from 'lucide-react';
 import { formatCurrency } from '../../../lib/utils';
 
@@ -45,6 +35,8 @@ export const SupplierDetailModal: React.FC<SupplierDetailModalProps> = ({
 }) => {
     const [activeTab, setActiveTab] = useState<'profile' | 'finance' | 'products' | 'orders' | 'settlements'>('profile');
     const [editRate, setEditRate] = useState<number>(supplier?.commissionPercentage || 0);
+    const [storeType, setStoreType] = useState<'professional' | 'patient' | 'both'>(supplier?.store_type || 'professional');
+    const [savingStoreType, setSavingStoreType] = useState(false);
 
     useEffect(() => {
         if (supplier?.commissionPercentage !== undefined) {
@@ -107,11 +99,26 @@ export const SupplierDetailModal: React.FC<SupplierDetailModalProps> = ({
     useEffect(() => {
         if (isOpen && supplier?.id) {
             fetchRealStats();
+            setStoreType(supplier?.store_type || 'professional');
         }
     }, [isOpen, supplier]);
 
     const commissionAmount = realStats.totalCommission;
     const netProfit = realStats.netProfit;
+
+    const handleUpdateStoreType = async (type: 'professional' | 'patient' | 'both') => {
+        setSavingStoreType(true);
+        try {
+            const { error } = await supabase.from('suppliers').update({ store_type: type }).eq('id', supplier.id);
+            if (!error) {
+                setStoreType(type);
+                const { toast } = await import('sonner');
+                toast.success('تم تحديث نوع المتجر');
+            }
+        } catch { /* ignore */ } finally {
+            setSavingStoreType(false);
+        }
+    };
 
     const tabs = [
         { id: 'profile', label: 'الملف الشخصي', icon: Building2 },
@@ -218,6 +225,35 @@ export const SupplierDetailModal: React.FC<SupplierDetailModalProps> = ({
                                             <span className="font-bold text-purple-600">{supplier.commissionPercentage}%</span>
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+
+                            {/* Store Type Selector */}
+                            <div className="bg-white border border-gray-200 rounded-xl p-4">
+                                <h4 className="font-bold text-gray-900 mb-1 flex items-center gap-2">
+                                    <Store className="w-4 h-4 text-teal-600" />
+                                    نوع متجر المورد
+                                </h4>
+                                <p className="text-xs text-gray-500 mb-3">حدد أين تظهر منتجات هذا المورد على المنصة</p>
+                                <div className="flex gap-2">
+                                    {(['professional', 'patient', 'both'] as const).map(type => (
+                                        <button
+                                            key={type}
+                                            onClick={() => handleUpdateStoreType(type)}
+                                            disabled={savingStoreType}
+                                            className={`flex-1 py-2 px-2 rounded-xl border-2 text-xs font-bold transition-all ${
+                                                storeType === type
+                                                    ? type === 'patient' ? 'border-teal-500 bg-teal-50 text-teal-700'
+                                                    : type === 'both' ? 'border-purple-500 bg-purple-50 text-purple-700'
+                                                    : 'border-blue-500 bg-blue-50 text-blue-700'
+                                                    : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                                            }`}
+                                        >
+                                            {type === 'professional' ? '🏥 للأطباء'
+                                                : type === 'patient' ? '👤 للمرضى'
+                                                : '🔀 للجميع'}
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
 

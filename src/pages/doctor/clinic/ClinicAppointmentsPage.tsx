@@ -19,7 +19,8 @@ import {
   Save,
   ChevronDown,
   History, // Added
-  Globe
+  Globe,
+  MessageSquare
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../../../components/common/Card';
@@ -42,7 +43,7 @@ interface ClinicAppointmentsPageProps {
 export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ clinicId }) => {
   const navigate = useNavigate();
   const [activeView, setActiveView] = useState<'calendar' | 'list'>('calendar');
-  const [sectionTab, setSectionTab] = useState<'upcoming' | 'past'>('upcoming'); // New Tab State
+  const [sectionTab, setSectionTab] = useState<'upcoming' | 'past' | 'messages'>('upcoming'); // New Tab State
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
@@ -52,6 +53,7 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
 
   const [selectedRequestForFile, setSelectedRequestForFile] = useState<OnlineRequest | null>(null); // New State
+  const [isSavingPatient, setIsSavingPatient] = useState(false);
   const [doctors, setDoctors] = useState<{ id: string, name: string }[]>([]);
 
   const { patients, createPatient } = usePatients(clinicId);
@@ -328,6 +330,12 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
             >
               <History className="w-4 h-4" /> المواعيد الفائتة
             </button>
+            <button
+              onClick={() => { setSectionTab('messages'); }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${sectionTab === 'messages' ? 'bg-white text-amber-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              <MessageSquare className="w-4 h-4" /> الرسائل
+            </button>
           </div>
 
           {/* Actions */}
@@ -439,7 +447,7 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                       <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${getStatusColor(apt.status)} whitespace-nowrap`}>
                         {getStatusLabel(apt.status)}
                       </span>
-                      
+
                       {/* Top Left: Type */}
                       <span className="flex items-center justify-center gap-1 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-100 text-xs text-gray-700 whitespace-nowrap">
                         {getTypeLabel(apt.type)}
@@ -465,6 +473,15 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
 
                     {/* Quick Actions */}
                     <div className="flex items-center gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      {apt.patientUserId && (
+                        <button
+                          className="p-2 text-amber-500 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
+                          title="مراسلة المريض"
+                          onClick={() => setSectionTab('messages')}
+                        >
+                          <MessageSquare className="w-5 h-5" />
+                        </button>
+                      )}
                       <button
                         className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
                         title="عرض الملف"
@@ -537,12 +554,24 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                     <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${getStatusColor(apt.status)}`}>
                       {getStatusLabel(apt.status)}
                     </span>
-                    <button
-                      className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
-                      onClick={() => navigate(`/doctor/clinic/${clinicId}/patient/${apt.patientId}`)}
-                    >
-                      <FileText className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      {apt.patientUserId && (
+                        <button
+                          className="p-1.5 text-amber-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg"
+                          title="مراسلة المريض"
+                          onClick={() => setSectionTab('messages')}
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button
+                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                        title="عرض الملف"
+                        onClick={() => navigate(`/doctor/clinic/${clinicId}/patient/${apt.patientId}`)}
+                      >
+                        <FileText className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -552,6 +581,20 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
               لا توجد مواعيد فائتة
             </div>
           )}
+        </div>
+      )}
+
+      {/* Messages Tab View */}
+      {sectionTab === 'messages' && (
+        <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
+          <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-bold text-gray-900 mb-2">رسائل المراجعين</h3>
+          <p className="text-gray-500 max-w-sm mx-auto">
+            من هنا يمكنك التواصل مباشرة مع مراجعيك الذين يمتلكون حسابات نشطة على منصة سمارت دنتال.
+          </p>
+          <div className="mt-6 inline-flex items-center gap-2 text-amber-600 bg-amber-50 px-4 py-2 rounded-xl text-sm font-medium">
+            <AlertCircle className="w-4 h-4" /> سيتم تفعيل المراسلة الفورية قريباً
+          </div>
         </div>
       )}
 
@@ -569,7 +612,14 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
               <div key={req.id} className="bg-white p-5 rounded-xl border border-orange-100 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h4 className="font-bold text-gray-900">{req.patientName}</h4>
+                    <h4 className="font-bold text-gray-900 flex items-center gap-1.5">
+                      {req.patientName}
+                      {req.patientUserId && (
+                        <span title="لديه حساب في المنصة" className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full flex items-center gap-0.5 border border-blue-100">
+                          <Globe className="w-2.5 h-2.5" /> المنصة
+                        </span>
+                      )}
+                    </h4>
                     <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                       <MapPin className="w-3 h-3" /> عبر {req.source === 'map' ? 'الخريطة' : 'التطبيق'}
                     </p>
@@ -677,48 +727,58 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
 
               <form onSubmit={async (e) => {
                 e.preventDefault();
+                if (isSavingPatient) return;
+                setIsSavingPatient(true);
+
                 const formData = new FormData(e.currentTarget);
                 const newName = formData.get('name') as string;
-
-                // Duplicate Check
-                const isDuplicate = patients.some(p => p.name.trim() === newName.trim());
-                if (isDuplicate) {
-                  const proceed = confirm(`تنبيه: يوجد بالفعل مريض باسم "${newName}". هل تريد المتابعة وإنشاء ملف مكرر؟\n\nاضغط "موافق" للمتابعة أو "إلغاء| لتغيير الاسم.`);
-                  if (!proceed) return;
-                }
+                const newPhone = formData.get('phone') as string;
 
                 try {
                   // 1. Create Patient
-                  const newPatient = await createPatient({
-                    name: newName,
-                    phone: formData.get('phone') as string,
-                    gender: formData.get('gender') as 'male' | 'female',
-                    age: parseInt(formData.get('age') as string) || 30,
-                    status: 'active',
-                    paymentStatus: 'pending',
-                    address: formData.get('address') as string,
-                    notes: `تم إنشاء الملف من حجز إلكتروني - ${formData.get('notes')}`
-                  });
+                  let newPatient;
+                  try {
+                    newPatient = await createPatient({
+                      name: newName,
+                      phone: newPhone,
+                      gender: formData.get('gender') as 'male' | 'female',
+                      age: parseInt(formData.get('age') as string) || 30,
+                      status: 'active',
+                      paymentStatus: 'pending',
+                      address: formData.get('address') as string,
+                      notes: `تم إنشاء الملف من حجز إلكتروني - ${formData.get('notes')}`
+                    });
+                  } catch (err: any) {
+                    if (err.message === 'patient_exists') {
+                      // Patient already exists, link to the existing one!
+                      if (confirm(`المريض "${newName}" موجود بالفعل في العيادة. هل تريد ربط هذا الحجز بملفه الحالي؟`)) {
+                        newPatient = { id: err.patientId };
+                      } else {
+                        setIsSavingPatient(false);
+                        return;
+                      }
+                    } else {
+                      throw err;
+                    }
+                  }
 
                   // 2. Link Appointment to New Patient (if request exists)
                   if (newPatient && selectedRequestForFile.id) {
-                    // Use the new helper to link locally!
                     const success = await linkPatientToRequest(
                       selectedRequestForFile.id,
                       newPatient.id
                     );
-
                     if (!success) console.error('Error linking appointment locally');
                   }
 
                   toast.success("تم إنشاء الملف وربطه بالحجز بنجاح");
                   setSelectedRequestForFile(null);
-
-                  // Update request state
                   refreshRequests();
                 } catch (error) {
                   console.error(error);
                   alert("حدث خطأ أثناء إنشاء الملف");
+                } finally {
+                  setIsSavingPatient(false);
                 }
               }} className="p-6 space-y-4">
 
@@ -781,10 +841,20 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg font-medium shadow-sm flex items-center gap-2"
+                    disabled={isSavingPatient}
+                    className={`px-6 py-2 text-white rounded-lg font-medium shadow-sm flex items-center gap-2 transition-all ${isSavingPatient ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
                   >
-                    <Save className="w-4 h-4" />
-                    إنشاء الملف وحفظ
+                    {isSavingPatient ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        جاري الحفظ...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        إنشاء الملف وحفظ
+                      </>
+                    )}
                   </button>
                 </div>
               </form>

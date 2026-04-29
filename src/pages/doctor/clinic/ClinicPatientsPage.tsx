@@ -1,27 +1,16 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Users,
-  Search,
-  Plus,
-  User,
-  Phone,
-  Mail,
-  MapPin,
-  Calendar,
-  FileText,
-  AlertCircle,
-  CheckCircle,
-  Clock,
-  Heart,
-  Trash2,
-  X
+  Users, Search, Plus, User, Phone, Mail, MapPin,
+  Calendar, FileText, AlertCircle, CheckCircle,
+  Clock, Heart, Trash2, X, Globe
 } from 'lucide-react';
 import { formatDate } from '../../../lib/utils';
 import { Card } from '../../../components/common/Card';
 import { BentoStatCard } from '../../../components/dashboard/BentoStatCard';
 import { useSubscriptionLimits } from '../../../hooks/useSubscriptionLimits';
 import { usePatients } from '../../../hooks/usePatients';
+import { supabase } from '../../../lib/supabase';
 
 interface ClinicPatientsPageProps {
   clinicId: string;
@@ -50,6 +39,8 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
     address: '',
     notes: ''
   });
+  const [createPortalAccount, setCreatePortalAccount] = useState(false);
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
 
   const handleCreatePatient = async () => {
     if (!newPatient.name || !newPatient.phone) {
@@ -63,6 +54,36 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
       return;
     }
     try {
+      let patientUserId = null;
+
+      if (createPortalAccount) {
+        setIsCreatingAccount(true);
+        // Invoke Edge Function to create auth.users account and send SMS
+        const { data: edgeData, error: edgeError } = await supabase.functions.invoke('send-patient-credentials', {
+          body: {
+            phone: newPatient.phone,
+            name: newPatient.name,
+            clinicName: 'عيادة الأسنان' // In a real app, pass actual clinic name
+          }
+        });
+
+        setIsCreatingAccount(false);
+
+        if (edgeError) {
+          console.error('Edge function error:', edgeError);
+          alert('تعذر إنشاء حساب البوابة. سيتم حفظ المريض محلياً فقط.');
+        } else if (edgeData?.error === 'patient_exists') {
+          alert('هذا المراجع لديه حساب بوابة بالفعل، يرجى ربط الملف لاحقاً.');
+        } else if (edgeData?.userId) {
+          patientUserId = edgeData.userId;
+          if (edgeData.smsStatus === 'sent') {
+            alert('تم إنشاء حساب البوابة وإرسال كلمة المرور عبر SMS بنجاح!');
+          } else {
+            alert('تم إنشاء حساب البوابة، لكن إرسال SMS يحتاج إلى إعداد Twilio.');
+          }
+        }
+      }
+
       await createPatient({
         name: newPatient.name,
         phone: newPatient.phone,
@@ -72,12 +93,15 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
         address: newPatient.address,
         notes: newPatient.notes,
         status: 'active',
-        paymentStatus: 'pending'
+        paymentStatus: 'pending',
+        patient_user_id: patientUserId
       });
       setShowModal(false);
       setNewPatient({ name: '', phone: '', age: '', gender: 'male', email: '', address: '', notes: '' });
+      setCreatePortalAccount(false);
       alert('تم إضافة المريض بنجاح');
     } catch (e) {
+      setIsCreatingAccount(false);
       alert('حدث خطأ');
     }
   };
@@ -307,8 +331,22 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
 
                   {/* Patient Header */}
                   <div className="flex items-center gap-4 mb-4">
-                    <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl text-white flex items-center justify-center shadow-blue-100 shadow-lg text-lg font-bold">
-                      {patient.name.charAt(0)}
+                    <div className="relative">
+                      <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl text-white flex items-center justify-center shadow-blue-100 shadow-lg text-lg font-bold">
+                        {patient.name.charAt(0)}
+                      </div>
+                      {/* Platform User Badge */}
+                      {(patient.patient_user_id || patient.user_id) && (
+                        <div 
+                          className="absolute -top-2 -right-2 bg-white rounded-full p-1 shadow-md border border-green-100 group-hover:scale-110 transition-transform duration-300"
+                          title="مرتبط بحساب المنصة"
+                        >
+                          <div className="relative">
+                            <Globe className="w-4 h-4 text-green-500" />
+                            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border-2 border-white animate-pulse" />
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-bold text-gray-900 truncate text-lg group-hover:text-blue-600 transition-colors">{patient.name}</h3>
@@ -527,11 +565,53 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
                   rows={3}
                 />
               </div>
+
+              {/* SMS & Portal Account Checkbox */}
+              <div className="pt-4 border-t border-gray-100 col-span-2">
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <div className="relative flex items-center justify-center mt-1">
+                    <input
+                      type="checkbox"
+                      checked={createPortalAccount}
+                      onChange={(e) => setCreatePortalAccount(e.target.checked)}
+                      className="w-5 h-5 border-2 border-gray-300 rounded text-blue-600 focus:ring-blue-500 transition-all cursor-pointer peer appearance-none checked:bg-blue-600 checked:border-blue-600"
+                    />
+                    <CheckCircle className="w-3.5 h-3.5 text-white absolute opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-900 group-hover:text-blue-700 transition-colors">
+                      إنشاء حساب بوابة المراجع وإرسال رسالة SMS
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      سيتم إنشاء حساب للمراجع على المنصة وإرسال رسالة نصية تحتوي على كلمة المرور ليتمكن من متابعة مواعيده.
+                    </p>
+                  </div>
+                </label>
+              </div>
             </div>
 
-            <div className="p-4 bg-gray-50 border-t flex justify-end gap-3">
-              <button onClick={() => setShowModal(false)} className="px-5 py-2 text-gray-600 hover:bg-gray-200 rounded-lg">إلغاء</button>
-              <button onClick={handleCreatePatient} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">حفظ</button>
+            <div className="p-6 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-end gap-3">
+              <button
+                onClick={() => setShowModal(false)}
+                className="px-6 py-2.5 text-gray-700 font-medium hover:bg-gray-200 bg-gray-100 rounded-xl transition-colors"
+                disabled={isCreatingAccount}
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={handleCreatePatient}
+                disabled={isCreatingAccount}
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl shadow-lg shadow-blue-200 transition-all active:scale-95 flex items-center gap-2"
+              >
+                {isCreatingAccount ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    جاري الإنشاء...
+                  </>
+                ) : (
+                  'حفظ المريض'
+                )}
+              </button>
             </div>
           </div>
         </div>

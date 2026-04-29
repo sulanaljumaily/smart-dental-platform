@@ -105,9 +105,9 @@ export const useClinics = () => {
             if (!user?.id) {
                 throw new Error('User must be logged in to add a clinic');
             }
-            
+
             console.log('[v0] Adding clinic with data:', { ...clinicData, owner_id: user.id });
-            
+
             const { data, error } = await supabase.from('clinics').insert({
                 ...clinicData,
                 owner_id: user.id
@@ -117,7 +117,7 @@ export const useClinics = () => {
                 console.error('[v0] Supabase error adding clinic:', error);
                 throw error;
             }
-            
+
             console.log('[v0] Clinic added successfully:', data);
             fetchClinics();
             return data;
