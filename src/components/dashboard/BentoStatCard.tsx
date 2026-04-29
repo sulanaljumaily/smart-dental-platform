@@ -135,21 +135,21 @@ export const BentoStatCard: React.FC<BentoStatCardProps> = ({
             onClick={onClick}
             style={{ animationDelay: `${delay}ms` }}
             className={`
-        relative overflow-hidden rounded-[2rem] p-6 border transition-all duration-300 group
+        relative overflow-hidden rounded-[2rem] p-4 sm:p-6 border transition-all duration-300 group
         ${style.bg} ${style.border} ${className}
         ${onClick ? 'cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-transparent' : ''}
         animate-in fade-in slide-in-from-bottom-4 fill-mode-backwards
       `}
         >
             {/* Decorative Background Icon */}
-            <Icon className={`absolute -bottom-4 -left-4 w-32 h-32 rotate-12 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6 ${style.decorative}`} strokeWidth={1.5} />
+            <Icon className={`absolute -bottom-4 -left-4 w-20 h-20 sm:w-32 sm:h-32 rotate-12 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6 ${style.decorative}`} strokeWidth={1.5} />
 
             <div className="relative z-10 flex flex-col h-full justify-between">
 
                 {/* Header: Icon & Title */}
                 <div className="flex justify-between items-start mb-4">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm ${style.iconBg} ${style.iconColor} group-hover:scale-110 transition-transform duration-300`}>
-                        <Icon className="w-6 h-6" />
+                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shadow-sm ${style.iconBg} ${style.iconColor} group-hover:scale-110 transition-transform duration-300`}>
+                        <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
 
                     {/* Trend Badge */}
@@ -169,7 +169,7 @@ export const BentoStatCard: React.FC<BentoStatCardProps> = ({
 
                 {/* Content: Value & Title */}
                 <div>
-                    <h3 className={`text-3xl font-bold mb-1 tracking-tight ${style.text}`}>
+                    <h3 className={`text-lg sm:text-3xl font-bold mb-1 tracking-tight ${style.text}`}>
                         {value}
                     </h3>
                     <p className={`font-medium text-sm ${style.subText}`}>

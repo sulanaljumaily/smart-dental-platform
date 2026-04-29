@@ -63,7 +63,8 @@ export const CompleteRegistrationModal: React.FC = () => {
   const [error, setError] = useState('');
 
   // Only show if user is authenticated but has no role yet (or defaulted to 'newuser')
-  if (!isAuthenticated || !user || (user.role && user.role !== 'newuser')) {
+  // Never show for patients — their role is set at registration
+  if (!isAuthenticated || !user || (user.role && user.role !== 'newuser') || user.role === 'patient') {
     return null;
   }
 

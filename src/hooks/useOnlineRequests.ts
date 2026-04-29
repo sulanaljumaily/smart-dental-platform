@@ -13,6 +13,7 @@ export interface OnlineRequest {
     hasFile?: boolean;
     notes?: string;
     patientId?: string;
+    patientUserId?: string;
     type?: string;
 }
 
@@ -56,6 +57,7 @@ export const useOnlineRequests = (clinicId?: string) => {
                     hasFile: !!apt.patient_id,
                     notes: apt.notes,
                     patientId: apt.patient_id,
+                    patientUserId: apt.patient_user_id,
                     type: apt.type
                 }));
                 setRequests(mapped);

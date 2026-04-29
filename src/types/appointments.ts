@@ -52,6 +52,7 @@ export interface Appointment {
   id: string;
   clinicId: string;     // Added
   patientId: string;
+  patientUserId?: string; // ID of the platform patient user, if linked
   patientName: string;
   patientPhone: string;
   doctorId: string;

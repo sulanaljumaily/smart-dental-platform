@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Calendar, Clock, User, Phone, Mail, CheckCircle, ChevronRight, AlertCircle, MapPin } from 'lucide-react';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { Calendar, Clock, User, Phone, CheckCircle, ChevronRight, AlertCircle, MapPin } from 'lucide-react';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
 import { useLanguage } from '../../contexts/LanguageContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 
 export const BookingPage: React.FC = () => {
     const { t } = useLanguage();
     const location = useLocation();
     const navigate = useNavigate();
+    const { user, isAuthenticated } = useAuth();
+    const isPatient = isAuthenticated && user?.role === 'patient';
 
     // Parse query params
     const searchParams = new URLSearchParams(location.search);
@@ -30,6 +33,17 @@ export const BookingPage: React.FC = () => {
         gender: '',
         province: ''
     });
+
+    // Auto-fill from account if authenticated
+    useEffect(() => {
+        if (isAuthenticated && user) {
+            setPatientData(prev => ({
+                ...prev,
+                name: user.name || prev.name,
+                phone: user.phone || prev.phone,
+            }));
+        }
+    }, [isAuthenticated, user]);
 
     // Clinic Data State
     const [clinicData, setClinicData] = useState<any>(null); // Using any for now to match strict type if not fully exported
@@ -140,16 +154,19 @@ export const BookingPage: React.FC = () => {
             const { error } = await supabase.from('appointments').insert({
                 clinic_id: parseInt(clinicId || '1'),
                 patient_name: patientData.name,
-                staff_id: doctorId ? Number(doctorId) : null, // Optional
-                doctor_name: 'غير محدد', // Default for online booking until assigned
+                staff_id: doctorId ? Number(doctorId) : null,
+                doctor_name: 'غير محدد',
                 appointment_date: formattedDate,
                 appointment_time: selectedTime,
                 type: 'كشف عام (أونلاين)',
-                treatment_type: 'كشف عام (أونلاين)', // Required by DB
-                status: 'pending', // Online Request
+                treatment_type: 'كشف عام (أونلاين)',
+                status: 'pending',
                 notes: `حجز إلكتروني - ${patientData.notes}\n\nبيانات إضافية:\nالعمر: ${patientData.age}\nالجنس: ${patientData.gender === 'male' ? 'ذكر' : 'أنثى'}\nالمحافظة: ${patientData.province}`,
                 phone_number: patientData.phone,
-                cost: 0
+                cost: 0,
+                // Link to patient account if logged in
+                patient_user_id: isPatient ? user!.id : null,
+                is_online_booking: true
             });
 
             if (error) throw error;
@@ -352,10 +369,29 @@ export const BookingPage: React.FC = () => {
 
                 {step === 2 && (
                     <Card className="p-6 animate-in slide-in-from-bottom-4">
-                        <h2 className="text-xl font-bold flex items-center gap-2 mb-6">
+                        <h2 className="text-xl font-bold flex items-center gap-2 mb-4">
                             <User className="w-5 h-5 text-primary" />
                             بيانات المريض
                         </h2>
+
+                        {/* Yellow alert for non-logged in users */}
+                        {!isPatient && (
+                            <div className="flex items-start gap-3 p-3 mb-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
+                                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-500" />
+                                <span>
+                                    ⚠️ سجّل دخولك كمراجع لمتابعة مواعيدك وخططك العلاجية تلقائياً.{' '}
+                                    <Link to="/patient-login" className="font-bold underline hover:text-amber-700">
+                                        تسجيل / دخول
+                                    </Link>
+                                </span>
+                            </div>
+                        )}
+                        {isPatient && (
+                            <div className="flex items-center gap-2 p-3 mb-4 bg-green-50 border border-green-200 rounded-xl text-sm text-green-800">
+                                <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                                <span>✅ سيُربط هذا الموعد بحسابك تلقائياً ويمكنك متابعته من مركز المراجعين</span>
+                            </div>
+                        )}
 
                         <div className="space-y-4 mb-8">
                             <div>

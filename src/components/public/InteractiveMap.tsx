@@ -82,13 +82,13 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       setMapCenter(location);
       setMapZoom(12);
 
-      // Filter clinics by 200km radius
+      // Filter clinics by 1000km radius
       const nearby = initialClinics.filter(clinic => {
         const dist = calculateDistance(
           location,
           { lat: clinic.location.lat, lng: clinic.location.lng }
         );
-        return dist <= 200;
+        return dist <= 1000;
       });
       setDisplayedClinics(nearby);
     } else {
@@ -131,10 +131,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   }
 
   return (
-    <section className="py-20 bg-gradient-to-br from-gray-50 via-blue-50/30 to-gray-50">
+    <section className="py-4 bg-gradient-to-br from-gray-50 via-blue-50/30 to-gray-50">
       <div className="container mx-auto px-4">
         {/* Section Header */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-8">
           <div className="inline-flex items-center px-4 py-2 bg-blue-100 rounded-full text-blue-700 font-semibold mb-4">
             <MapPin className="w-5 h-5 ml-2" />
             عيادات قريبة منك
@@ -142,13 +142,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
             اكتشف أفضل العيادات
           </h2>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
-            عيادات معتمدة ومجهزة بأحدث التقنيات في منطقتك
-          </p>
         </div>
 
         {/* Google Map with Floating Locate Me Button */}
-        <div className="relative mb-12 rounded-3xl overflow-hidden shadow-2xl group">
+        <div className="relative mb-8 rounded-3xl overflow-hidden shadow-2xl group">
           {/* Floating Locate Me Button - Positioned TOP-LEFT */}
           <div className="absolute top-6 left-6 z-10">
             <Button
@@ -294,7 +291,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         </div>
 
         {/* View All Link */}
-        <div className="text-center mt-12">
+        <div className="text-center mt-8">
           <Link to="/services#tab-clinics">
             <button className="px-8 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
               عرض جميع العيادات

@@ -8,7 +8,9 @@ import {
   ShoppingBag,
   LayoutDashboard,
   Package,
-  TestTube
+  TestTube,
+  Home,
+  HeartPulse
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -21,7 +23,7 @@ export const BottomNavigation: React.FC = () => {
     const excludedPages = [
       '/doctor-welcome', // صفحة استقبال الأطباء
       '/supplier-welcome', // صفحة استقبال الموردين
-      '/services', // الخدمات الطبية
+      // '/services', // Removed: we want to show bottom nav on services
       '/login',
       '/register',
       '/forgot-password',
@@ -29,10 +31,10 @@ export const BottomNavigation: React.FC = () => {
       '/terms-of-service'
     ];
 
-    // Add services sub-paths
-    if (path.startsWith('/services')) {
-      return true;
-    }
+    // Add services sub-paths (if there are specific service detail pages we want to hide it on, we can check here, but normally we want it)
+    // if (path.startsWith('/services/')) {
+    //   return true;
+    // }
 
     // Hide bottom navigation in Clinic Dashboard to prevent modal overlap
     if (path.includes('/doctor/clinic/')) {
@@ -42,10 +44,8 @@ export const BottomNavigation: React.FC = () => {
     return excludedPages.includes(path);
   };
 
-  // Don't show bottom navigation if:
-  // 1. User is not authenticated
-  // 2. Or user is on excluded pages
-  if (!isAuthenticated || isExcludedPage(location.pathname)) {
+  // Don't show bottom navigation if user is on excluded pages
+  if (isExcludedPage(location.pathname)) {
     return null;
   }
 
@@ -92,19 +92,38 @@ export const BottomNavigation: React.FC = () => {
     { id: 'store', label: 'المتجر', icon: ShoppingBag, path: '/store', activeOn: ['/store'] },
   ];
 
-  // --- Select Menu Based on Role ---
-  let navItems = genericMenu; // Default
+  // 5. Patient Menu (المراجعين) - Authenticated
+  const patientMenu = [
+    { id: 'store', label: 'المتجر', icon: ShoppingBag, path: '/patient/store', activeOn: ['/patient/store'] },
+    { id: 'patient', label: 'مركز المراجعين', icon: HeartPulse, path: '/patient', activeOn: ['/patient'] },
+    { id: 'services', label: 'الخدمات الطبية', icon: Stethoscope, path: '/services', activeOn: ['/services'] },
+  ];
 
-  if (user?.role === 'doctor') {
-    navItems = doctorMenu;
-  } else if (user?.role === 'supplier') {
-    navItems = supplierMenu;
-  } else if (user?.role === 'laboratory') {
-    navItems = labMenu;
-  } else if (user?.role === 'admin') {
-    navItems = adminMenu;
+  // 6. Public Menu (الزوار) - Unauthenticated
+  const publicMenu = [
+    { id: 'store', label: 'متجر المرضى', icon: ShoppingBag, path: '/patient/store', activeOn: ['/patient/store'] },
+    { id: 'home', label: 'الرئيسية', icon: Home, path: '/', activeOn: ['/', '/article'] },
+    { id: 'services', label: 'الخدمات الطبية', icon: Stethoscope, path: '/services', activeOn: ['/services'] },
+  ];
+
+  // --- Select Menu Based on Role ---
+  let navItems = publicMenu; // Default for unauthenticated
+
+  if (isAuthenticated) {
+    if (user?.role === 'doctor') {
+      navItems = doctorMenu;
+    } else if (user?.role === 'supplier') {
+      navItems = supplierMenu;
+    } else if (user?.role === 'laboratory') {
+      navItems = labMenu;
+    } else if (user?.role === 'admin') {
+      navItems = adminMenu;
+    } else if (user?.role === 'patient') {
+      navItems = patientMenu;
+    } else {
+      navItems = genericMenu; // Fallback for other auth roles if needed
+    }
   }
-  // 'staff', 'clinic-owner' fallback to genericMenu
 
   const isActive = (activeOn: string[]) => {
     return activeOn.some(path => {

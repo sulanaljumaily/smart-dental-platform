@@ -107,7 +107,8 @@ export const useAppointments = (clinicId?: string) => {
                 cost: a.cost,
                 patientPhone: a.patient_phone || '',
                 createdAt: a.created_at || '',
-                createdBy: a.created_by || ''
+                createdBy: a.created_by || '',
+                patientUserId: a.patient_user_id || undefined
             }));
 
             setAppointments(mappedAppointments);
@@ -160,7 +161,9 @@ export const useAppointments = (clinicId?: string) => {
                 type: updatedAppointment.type,
                 title: updatedAppointment.title,
                 priority: updatedAppointment.priority,
-                notes: updatedAppointment.notes
+                notes: updatedAppointment.notes,
+                staff_id: updatedAppointment.doctorId ? Number(updatedAppointment.doctorId) : null,
+                doctor_name: updatedAppointment.doctorName || null
             };
 
             const { error } = await supabase.from('appointments').update(updates).eq('id', updatedAppointment.id);

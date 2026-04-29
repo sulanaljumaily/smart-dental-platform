@@ -34,7 +34,7 @@ export const HomePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Modern Hero Section - For Patients */}
-      <section className="bg-gradient-to-br from-slate-50 via-white to-blue-50 text-gray-900 pt-24 pb-12 md:pt-32 md:pb-24 px-4 relative overflow-hidden">
+      <section className="bg-gradient-to-br from-slate-50 via-white to-blue-50 text-gray-900 pt-8 pb-4 md:pt-12 md:pb-8 px-4 relative overflow-hidden">
         {/* Advanced Background Pattern */}
         <div className="absolute inset-0 opacity-40 pointer-events-none">
           {/* Geometric Shapes */}
@@ -53,13 +53,13 @@ export const HomePage: React.FC = () => {
 
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-6xl mx-auto">
-            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            <div className="grid lg:grid-cols-2 gap-6 lg:gap-8 items-center">
               {/* Enhanced Text Content */}
               <div className="text-center lg:text-right space-y-6 md:space-y-8">
                 <div className="space-y-3 md:space-y-4">
                   <div className="inline-flex items-center px-4 py-2 bg-blue-100/80 backdrop-blur-sm rounded-full text-blue-700 text-xs md:text-sm font-medium border border-blue-200/50">
                     <span className="w-2 h-2 bg-blue-500 rounded-full mr-2 animate-pulse"></span>
-                    {settings.platform_title_ar || 'منصة عيادة الأسنان الذكية'}
+                    {settings.platform_title_ar || 'منصة طب الاسنان'}
                   </div>
                   <h1 className="text-4xl sm:text-5xl md:text-7xl font-black mb-4 md:mb-8 leading-tight tracking-tight">
                     <span className="bg-gradient-to-r from-gray-900 via-gray-800 to-blue-800 bg-clip-text text-transparent">
@@ -70,7 +70,7 @@ export const HomePage: React.FC = () => {
                     </span>
                   </h1>
                   <p className="text-lg md:text-2xl text-gray-600 leading-relaxed font-medium max-w-2xl mx-auto lg:mx-0">
-                    احصل على أفضل رعاية طبية شاملة ومتكاملة مع أطباء الأسنان الخبراء في العراق
+                    احصل على أفضل رعاية طبية شاملة ومتكاملة مع افضل اطباء الأسنان في العراق
                   </p>
                 </div>
 
@@ -84,20 +84,12 @@ export const HomePage: React.FC = () => {
                       </span>
                     </button>
                   </Link>
-                  <Link to="/services#diagnosis" className="group w-full sm:w-auto">
-                    <button className="relative w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 md:px-8 md:py-4 text-base md:text-lg font-bold text-gray-700 bg-white/80 backdrop-blur-sm rounded-xl md:rounded-2xl border-2 border-gray-200/50 hover:border-blue-300 hover:bg-white hover:shadow-lg transition-all duration-300 group-hover:scale-105">
-                      <span className="relative flex items-center">
-                        تشخيص مجاني
-                        <Stethoscope className="w-4 h-4 md:w-5 md:h-5 mr-2 text-blue-600" />
-                      </span>
-                    </button>
-                  </Link>
                 </div>
               </div>
 
 
               {/* Modern Statistics Section */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mt-8 lg:mt-0">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mt-4 lg:mt-0">
                 {[
                   {
                     number: 'عيادات',
@@ -130,7 +122,7 @@ export const HomePage: React.FC = () => {
                     className="group"
                   >
                     <div
-                      className="group relative p-4 lg:p-6 bg-white/70 backdrop-blur-xl rounded-2xl border border-white/20 shadow-lg hover:shadow-2xl transition-all duration-500 hover:scale-105 hover:bg-white/80 cursor-pointer h-full flex flex-col justify-center items-center"
+                      className="group relative p-3 lg:p-4 bg-white/70 backdrop-blur-xl rounded-2xl border border-white/20 shadow-lg hover:shadow-2xl transition-all duration-500 hover:scale-105 hover:bg-white/80 cursor-pointer h-full flex flex-col justify-center items-center"
                       style={{
                         animationDelay: `${index * 0.1}s`
                       }}
@@ -164,9 +156,9 @@ export const HomePage: React.FC = () => {
       <EducationalArticles />
 
       {/* Features Section - Why Choose Our Clinics */}
-      <section className="py-8 bg-white">
+      <section className="py-2 bg-white">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-6">
+          <div className="text-center mb-2">
             <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
               لماذا تختار عياداتنا؟
             </h2>
@@ -175,7 +167,7 @@ export const HomePage: React.FC = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 max-w-4xl mx-auto">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 max-w-4xl mx-auto">
             {[
               { icon: <Shield className="w-4 h-4" />, title: 'خدمات آمنة', desc: 'معتمدة من وزارة الصحة', color: 'from-blue-500 to-cyan-500' },
               { icon: <Award className="w-4 h-4" />, title: 'أطباء معتمدين', desc: 'أفضل أطباء العراق', color: 'from-green-500 to-emerald-500' },
@@ -184,7 +176,7 @@ export const HomePage: React.FC = () => {
             ].map((feature, index) => (
               <div
                 key={index}
-                className="text-center p-3 sm:p-4 bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300 hover:scale-105"
+                className="text-center p-2 sm:p-3 bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300 hover:scale-105"
               >
                 <div className={`w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br ${feature.color} rounded-lg flex items-center justify-center mx-auto mb-2 text-white`}>
                   {feature.icon}

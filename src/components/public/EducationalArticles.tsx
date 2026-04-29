@@ -8,10 +8,10 @@ export const EducationalArticles: React.FC = () => {
   const { articles, loading } = useArticles();
 
   return (
-    <section className="py-20 bg-white">
+    <section className="py-6 bg-white">
       <div className="container mx-auto px-4">
         {/* Section Header */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-8">
           <div className="inline-flex items-center px-4 py-2 bg-purple-100 rounded-full text-purple-700 font-semibold mb-4">
             <BookOpen className="w-5 h-5 ml-2" />
             مقالات تعليمية

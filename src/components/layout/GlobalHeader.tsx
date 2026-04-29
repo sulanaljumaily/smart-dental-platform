@@ -75,14 +75,14 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({
           gradient: 'from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'
         },
         {
-          text: 'هل أنت طبيب أسنان؟',
+          text: 'للأطباء',
           icon: <UserCog className="w-4 h-4 sm:w-6 sm:h-6" />,
           path: '/doctor-welcome',
           gradient: 'from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700'
         }
       ];
     } else {
-      // Default Public Pages
+      // Default Public Pages (/, /services)
       return [
         {
           text: 'الخدمات الطبية',
@@ -91,7 +91,13 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({
           gradient: 'from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600'
         },
         {
-          text: 'هل أنت طبيب أسنان؟',
+          text: 'تسجيل',
+          icon: <UserPlus className="w-4 h-4 sm:w-6 sm:h-6" />,
+          path: '/patient-login',
+          gradient: 'from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700'
+        },
+        {
+          text: 'للأطباء',
           icon: <UserCog className="w-4 h-4 sm:w-6 sm:h-6" />,
           path: '/doctor-welcome',
           gradient: 'from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700'
@@ -229,7 +235,11 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({
                     <div className="hidden sm:block text-right">
                       <p className="text-xs sm:text-sm font-bold text-gray-700 truncate max-w-[100px]">{user.name}</p>
                       <p className="text-[10px] sm:text-xs text-purple-600 font-medium">
-                        {user.role === 'admin' ? 'مسؤول النظام' : user.role === 'doctor' ? 'طبيب' : user.role === 'laboratory' ? 'معمل' : 'مستخدم'}
+                        {user.role === 'admin' ? 'مسؤول النظام'
+                          : user.role === 'doctor' ? 'طبيب'
+                          : user.role === 'laboratory' ? 'معمل'
+                          : user.role === 'patient' ? 'مراجع'
+                          : 'مستخدم'}
                       </p>
                     </div>
                   </button>
@@ -244,7 +254,11 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({
 
                       <button
                         onClick={() => {
-                          navigate(user.role === 'admin' ? '/admin' : user.role === 'laboratory' ? '/lab' : '/doctor');
+                          const dest = user.role === 'admin' ? '/admin'
+                            : user.role === 'laboratory' ? '/lab'
+                            : user.role === 'patient' ? '/patient'
+                            : '/doctor';
+                          navigate(dest);
                           setIsProfileOpen(false);
                         }}
                         className="w-full text-right px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-purple-600 flex items-center gap-2 transition-colors"

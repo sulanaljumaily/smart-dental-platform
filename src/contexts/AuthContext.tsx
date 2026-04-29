@@ -34,20 +34,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   });
 
   // Build user from auth metadata (fallback)
-  // For OAuth users without a profile, role will be null or 'newuser' to trigger CompleteRegistrationModal
   const buildUserFromMeta = (userId: string, email: string, meta?: any): User => ({
     id: userId,
     email: email,
-    name: meta?.full_name || meta?.name || email.split('@')[0],
-    role: (meta?.role as UserRole) || 'newuser',
+    name: meta?.full_name || email.split('@')[0],
+    role: (meta?.role as UserRole) || null,
     phone: meta?.phone || '',
-    avatar: meta?.avatar_url || meta?.picture || ''
+    avatar: ''
   });
+
+  // Auto-assign patient role if coming from patient OAuth flow
+  const assignPatientRoleIfNeeded = async (userId: string) => {
+    const isPendingPatient = localStorage.getItem('patient_oauth_pending') === '1';
+    if (!isPendingPatient) return;
+    localStorage.removeItem('patient_oauth_pending');
+    try {
+      await supabase.from('profiles').upsert([{ id: userId, role: 'patient' }], { onConflict: 'id' });
+      await supabase.auth.updateUser({ data: { role: 'patient' } });
+    } catch (err) {
+      console.warn('[Auth] Could not assign patient role via OAuth:', err);
+    }
+  };
 
   const fetchProfile = useCallback(async (userId: string, email: string) => {
     // Prevent concurrent fetches (race between login + onAuthStateChange)
     if (fetchingRef.current) return;
     fetchingRef.current = true;
+
+    // Handle patient OAuth pending flag before fetching profile
+    await assignPatientRoleIfNeeded(userId);
 
     try {
       const { data, error } = await supabase
@@ -131,24 +146,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (email: string, password: string, _role?: UserRole) => {
     try {
       setLoading(true);
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-
-      // Don't call fetchProfile here — onAuthStateChange handles it.
-      // This prevents the race condition (two concurrent fetchProfile calls).
-      if (data.user) {
-        toast.success('تم تسجيل الدخول بنجاح');
-      }
+      if (data.user) toast.success('تم تسجيل الدخول بنجاح');
     } catch (error: any) {
       console.error('[Auth] Login error:', error);
       if (mountedRef.current) setLoading(false);
       toast.error(error.message || 'فشل تسجيل الدخول');
       throw error;
     }
+  };
+
+  // Helper: login using phone number (builds synthetic email)
+  const loginWithPhone = async (phone: string, password: string) => {
+    const sanitized = phone.replace(/\D/g, '');
+    const email = `${sanitized}@patient.smartdental.com`;
+    return login(email, password, 'patient');
   };
 
   const register = async (email: string, password: string, name: string, role: UserRole, phone: string) => {

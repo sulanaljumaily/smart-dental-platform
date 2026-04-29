@@ -18,6 +18,8 @@ export interface PatientData {
     balance: number;
     medicalHistory?: string;
     notes?: string;
+    patient_user_id?: string;
+    user_id?: string;
 }
 
 export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
@@ -50,11 +52,6 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
                     return;
                 }
                 query = query.in('clinic_id', clinicIds);
-            } else {
-                // No clinicId and no clinicIds array provided — return empty to prevent fetching ALL patients
-                setPatients([]);
-                setLoading(false);
-                return;
             }
 
             query = query.order('created_at', { ascending: false });
@@ -78,7 +75,9 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
                 totalVisits: 1, // Mock
                 balance: 0,
                 medicalHistory: p.medical_history ? JSON.stringify(p.medical_history) : '',
-                notes: ''
+                notes: '',
+                patient_user_id: p.patient_user_id,
+                user_id: p.user_id
             }));
 
             setPatients(mappedPatients);
@@ -110,6 +109,22 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
 
     const createPatient = async (newPatient: any) => {
         try {
+            // Duplicate Check: Same name and phone in same clinic
+            const { data: existing } = await supabase
+                .from('patients')
+                .select('id')
+                .eq('clinic_id', clinicId || newPatient.clinicId || '101')
+                .eq('full_name', newPatient.name)
+                .eq('phone', newPatient.phone)
+                .is('deleted_at', null)
+                .maybeSingle();
+
+            if (existing) {
+                const error = new Error('patient_exists');
+                (error as any).patientId = existing.id;
+                throw error;
+            }
+
             const patientData = {
                 clinic_id: clinicId || newPatient.clinicId || '101',
                 full_name: newPatient.name,
@@ -120,7 +135,8 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
                 address: newPatient.address,
                 notes: newPatient.notes,
                 medical_history: newPatient.medicalHistory ? JSON.parse(JSON.stringify(newPatient.medicalHistory)) : [],
-                status: 'active'
+                status: 'active',
+                patient_user_id: newPatient.patient_user_id || null
             };
 
             const { data, error } = await supabase.from('patients').insert(patientData).select().single();
