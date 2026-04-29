@@ -9,6 +9,7 @@ interface ProductCardProps {
     onAddToCart: (id: string, e: React.MouseEvent) => void;
     onToggleWishlist?: (id: string, e: React.MouseEvent) => void;
     isWishlisted?: boolean;
+    onClick?: () => void;
     className?: string;
 }
 
