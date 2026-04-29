@@ -170,8 +170,8 @@ export const PatientDealsPage: React.FC = () => {
               <div key={product.id} className="col-span-1 h-[340px]">
                 <ProductCard
                   product={{ ...product, image: product.image_url }}
-                  onAddToCart={(id) => addToCart(product)}
-                  onToggleWishlist={toggleWishlist}
+                  onAddToCart={(id, e) => { e.stopPropagation(); addToCart(product); }}
+                  onToggleWishlist={(id, e) => { e.stopPropagation(); toggleWishlist(id); }}
                   isWishlisted={wishlistItems.has(product.id)}
                   onClick={() => navigate(`/patient/store/product/${product.id}`)}
                   className="h-full"

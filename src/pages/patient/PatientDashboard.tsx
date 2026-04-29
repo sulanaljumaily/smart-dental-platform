@@ -56,6 +56,8 @@ interface Appointment {
     name: string;
     image_url?: string;
   };
+  patient_id?: string;
+  patientId?: string;
 }
 
 export const PatientDashboard: React.FC = () => {
@@ -133,7 +135,7 @@ export const PatientDashboard: React.FC = () => {
       title: 'الموعد القادم',
       value: nextAppointment ? formatDate(nextAppointment.appointment_date) : 'لا يوجد',
       icon: Calendar,
-      color: 'teal' as const,
+      color: 'cyan' as const,
       delay: 100
     },
     {

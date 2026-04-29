@@ -210,8 +210,8 @@ export const PatientStoreHome: React.FC = () => {
                 <ProductCard
                   key={product.id}
                   product={product}
-                  onAddToCart={(id) => addToCart(product)}
-                  onToggleWishlist={toggleWishlist}
+                  onAddToCart={(id, e) => { e.stopPropagation(); addToCart(product); }}
+                  onToggleWishlist={(id, e) => { e.stopPropagation(); toggleWishlist(id); }}
                   isWishlisted={wishlistItems.has(product.id)}
                   onClick={() => navigate(`/patient/store/product/${product.id}`)}
                   className="min-w-[46%] md:min-w-[300px] snap-start h-[340px]"
@@ -232,8 +232,8 @@ export const PatientStoreHome: React.FC = () => {
                 <ProductCard
                   key={product.id}
                   product={product}
-                  onAddToCart={(id) => addToCart(product)}
-                  onToggleWishlist={toggleWishlist}
+                  onAddToCart={(id, e) => { e.stopPropagation(); addToCart(product); }}
+                  onToggleWishlist={(id, e) => { e.stopPropagation(); toggleWishlist(id); }}
                   isWishlisted={wishlistItems.has(product.id)}
                   onClick={() => navigate(`/patient/store/product/${product.id}`)}
                   className="min-w-[46%] md:min-w-[300px] snap-start h-[340px]"
