@@ -156,7 +156,6 @@ function AppContent() {
           <Route path="/" element={<HomePage />} />
           <Route path="/services" element={<ServicesPage />} />
           <Route path="/article/:id" element={<ArticleDetailPage />} />
-          <Route path="/diagnosis/ai" element={<SmartDiagnosisPage />} />
           <Route path="/smart" element={<DiagnosisDetailPage />} />
           <Route path="/diagnosis/:id" element={<DiagnosisDetailPage />} />
           <Route path="/booking" element={<BookingPage />} />
@@ -226,6 +225,9 @@ function AppContent() {
           <Route path="categories/:category" element={<ProductsPage />} />
           <Route path="categories/:category/:subCategory" element={<ProductsPage />} />
         </Route>
+
+        {/* Smart Diagnosis Page without Header/Footer */}
+        <Route path="/diagnosis/ai" element={<SmartDiagnosisPage />} />
 
         {/* Auth Routes (No Header) */}
         <Route path="/login" element={<LoginPage />} />
