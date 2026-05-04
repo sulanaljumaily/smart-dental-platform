@@ -28,7 +28,8 @@ export const BottomNavigation: React.FC = () => {
       '/register',
       '/forgot-password',
       '/privacy-policy',
-      '/terms-of-service'
+      '/terms-of-service',
+      '/diagnosis/ai'
     ];
 
     // Add services sub-paths (if there are specific service detail pages we want to hide it on, we can check here, but normally we want it)
