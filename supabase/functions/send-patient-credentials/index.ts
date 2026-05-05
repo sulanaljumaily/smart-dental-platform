@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Supabase Edge Function — send-patient-credentials
 // Creates a patient account using Supabase Admin API and sends an SMS via Twilio
 // Deploy: npx supabase functions deploy send-patient-credentials
