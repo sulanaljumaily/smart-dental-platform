@@ -1,0 +1,503 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+const IMAGE_ANALYSIS_SYSTEM = `You are an expert dental radiologist, oral pathologist, and dental imaging specialist with 20+ years of clinical experience.
+
+## Your Role
+Analyze dental radiographic images (panoramic, periapical, bitewing, CBCT, intraoral photos) with clinical precision.
+
+## Analysis Protocol
+1. **Classify image_type first**: panoramic_xray, periapical_xray, bitewing_xray, cbct_slice, intraoral_phone_photo, extraoral_face_photo, or unknown.
+2. **Image Quality Assessment**: Evaluate exposure, contrast, focus, positioning, diagnostic utility, and whether retake is recommended.
+3. **Use type-specific logic**: panoramic = jaws, impacted teeth, bone loss, apical lesions, missing teeth; phone photo = visible caries, gingivitis, swelling, fractures, calculus, stains; bitewing/periapical = interproximal caries, restorations, bone level, apical findings.
+4. **Systematic Tooth-by-Tooth Examination**: Check each visible tooth using FDI numbering system.
+5. **Pathology Detection**: Identify caries, periapical lesions, bone loss, root resorption, fractures, impacted teeth, cysts, calculus, and visible soft-tissue issues.
+6. **Bounding Box Localization**: For EACH detected issue, provide precise normalized bounding box coordinates [x, y, width, height] where values are 0-1 representing percentage of the ACTUAL image pixels, not displayed container. x=left edge, y=top edge.
+7. **Clinical Recommendations**: Provide clinical_description, evidence_visible, risk_if_untreated, treatment_steps, priority, estimated_sessions and phased treatment plan.
+
+## Localization Accuracy Rules
+- Draw the box around the visible abnormal finding itself, NOT the entire tooth unless the whole tooth is abnormal.
+- Before returning, mentally verify every box: left/top must start exactly at the lesion/problem area and width/height must tightly cover it.
+- For caries, box the radiolucent lesion; for periapical disease, box the apical radiolucency; for bone loss, box the affected crestal/vertical bone-loss region.
+- Never use percentages like 25 or 40. Coordinates MUST be raw decimals between 0 and 1 such as 0.25.
+- If the exact site is uncertain because image quality is poor, use a wider but still relevant box and reduce confidence below 0.70.
+
+## Important Guidelines
+- Be thorough but precise. Don't fabricate findings.
+- If image quality is poor, note it but still analyze what's visible.
+- Use FDI tooth numbering (11-48).
+- Provide confidence levels for each finding.
+- Always respond in Arabic.
+- Each issue MUST include a bounding box for visual annotation.
+- Produce a patient-friendly summary and doctor notes.
+- Never invent prices; use clinic catalog only if supplied.`;
+
+const clamp = (value: unknown, min = 0, max = 1) => {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return min;
+  return Math.min(max, Math.max(min, n));
+};
+
+const normalizeAnalysisResult = (result: any) => {
+  if (!result || typeof result !== "object") return result;
+
+  const issues = Array.isArray(result.issues) ? result.issues : [];
+  result.issues = issues.map((issue: any) => {
+    const rawBox = Array.isArray(issue?.box) ? issue.box : [];
+    let [x, y, width, height] = rawBox.map(Number);
+
+    if ([x, y, width, height].some((n) => Number.isFinite(n) && n > 1)) {
+      x = x / 100;
+      y = y / 100;
+      width = width / 100;
+      height = height / 100;
+    }
+
+    x = clamp(x);
+    y = clamp(y);
+    width = clamp(width, 0.03, 1 - x);
+    height = clamp(height, 0.03, 1 - y);
+
+    return {
+      ...issue,
+      confidence: clamp(issue?.confidence, 0, 1),
+      description: issue?.description || issue?.clinical_description || issue?.evidence_visible || issue?.label || "",
+      box: [x, y, width, height],
+    };
+  });
+
+  const planCost = result?.treatment_plan?.total_estimated_cost;
+  if (typeof planCost === "number" && typeof result.total_estimated_cost !== "number") {
+    result.total_estimated_cost = planCost;
+  }
+
+  return result;
+};
+
+const DEFAULT_SYSTEM_RULES: Record<string, string> = {
+  image_analysis: IMAGE_ANALYSIS_SYSTEM,
+  doctor_assistant: `You are a senior dental consultant assisting a dentist.
+1. Provide evidence-based advice for diagnosis and treatment planning.
+2. When asked about medications, verify patient history (if provided) for allergies.
+3. Keep responses concise and clinically relevant.
+4. Support Arabic queries.`,
+  patient_assistant: `You are a friendly and empathetic dental clinic receptionist/assistant.
+1. You work for "Smart Dental Platform".
+2. Answer patient questions about dental procedures simply.
+3. If they ask for medical advice, give general info but strictly advise visiting a doctor.
+4. Help with appointment scheduling information.
+5. Be polite and welcoming in Arabic.
+6. If active clinics are provided, recommend relevant registered clinics/doctors by specialty and location without claiming emergency certainty.
+7. For image questions, explain visible findings carefully and remind the patient that final diagnosis requires a dentist.`,
+};
+
+// Tool definition for structured dental analysis output
+const DENTAL_ANALYSIS_TOOL = {
+  type: "function",
+  function: {
+    name: "dental_analysis_report",
+    description: "Generate a structured dental analysis report with tooth annotations and bounding boxes",
+    parameters: {
+      type: "object",
+      properties: {
+        diagnosis: {
+          type: "string",
+          description: "Overall diagnosis summary in Arabic"
+        },
+        severity: {
+          type: "string",
+          enum: ["low", "medium", "high"],
+          description: "Overall severity level"
+        },
+        confidence: {
+          type: "number",
+          description: "Overall confidence score 0-1"
+        },
+        image_type: {
+          type: "string",
+          enum: ["panoramic_xray", "periapical_xray", "bitewing_xray", "cbct_slice", "intraoral_phone_photo", "extraoral_face_photo", "unknown"],
+          description: "Classified dental image type"
+        },
+        image_quality: {
+          type: "object",
+          properties: {
+            rating: { type: "string", enum: ["excellent", "good", "fair", "poor"] },
+            problems: { type: "array", items: { type: "string" } },
+            retake_recommended: { type: "boolean" }
+          },
+          required: ["rating", "problems", "retake_recommended"],
+          description: "Quality assessment and retake recommendation"
+        },
+        summary: {
+          type: "string",
+          description: "Detailed clinical summary in Arabic covering all findings"
+        },
+        issues: {
+          type: "array",
+          description: "Array of detected dental issues with precise locations",
+          items: {
+            type: "object",
+            properties: {
+              label: {
+                type: "string",
+                description: "Short label for the issue in Arabic (e.g. 'تسوس عميق - السن 36')"
+              },
+              tooth_number: {
+                type: "string",
+                description: "FDI tooth number (e.g. '36', '11', 'multiple')"
+              },
+              category: {
+                type: "string",
+                enum: ["caries", "bone_loss", "periapical", "fracture", "impaction", "calculus", "resorption", "other"],
+                description: "Category of the dental issue"
+              },
+              confidence: {
+                type: "number",
+                description: "Confidence score 0-1 for this specific finding"
+              },
+              severity: {
+                type: "string",
+                enum: ["low", "medium", "high"],
+                description: "Severity of this specific issue"
+              },
+              description: {
+                type: "string",
+                description: "Detailed description of the finding in Arabic"
+              },
+              clinical_description: { type: "string", description: "Precise clinical description in Arabic" },
+              evidence_visible: { type: "string", description: "Visible evidence that supports the finding" },
+              differential_diagnosis: { type: "array", items: { type: "string" } },
+              risk_if_untreated: { type: "string" },
+              box: {
+                type: "array",
+                items: { type: "number" },
+                description: "Bounding box [x, y, width, height] as normalized 0-1 values"
+              },
+              treatment_suggestion: {
+                type: "string",
+                description: "Suggested treatment in Arabic"
+              },
+              treatment_steps: { type: "array", items: { type: "string" } },
+              priority: { type: "string", enum: ["urgent", "high", "normal", "low"] },
+              estimated_sessions: { type: "number" },
+              matched_treatment_name: {
+                type: "string",
+                description: "Exact name of the treatment from clinic_treatments_catalog that best matches this issue. If no good match exists, leave empty."
+              },
+              matched_treatment_price: {
+                type: "number",
+                description: "Exact price (number only, no currency) from clinic_treatments_catalog for the matched treatment. 0 if no match."
+              },
+              treatment_match_status: {
+                type: "string",
+                enum: ["matched", "manual_pricing_needed"],
+                description: "'matched' if a treatment from the catalog was matched, otherwise 'manual_pricing_needed'."
+              }
+            },
+            required: ["label", "tooth_number", "category", "confidence", "severity", "description", "box"]
+          }
+        },
+        findings: {
+          type: "array",
+          items: { type: "string" },
+          description: "List of key findings in Arabic as bullet points"
+        },
+        recommendation: {
+          type: "string",
+          description: "Overall treatment recommendations in Arabic"
+        },
+        affected_teeth: {
+          type: "array",
+          items: { type: "string" },
+          description: "List of affected tooth numbers using FDI system"
+        },
+        total_estimated_cost: {
+          type: "number",
+          description: "Sum of matched_treatment_price across all issues with treatment_match_status='matched'. 0 if no catalog provided."
+        },
+        treatment_plan: {
+          type: "object",
+          properties: {
+            phases: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  description: { type: "string" },
+                  priority: { type: "string" },
+                  sessions: { type: "number" },
+                  items: { type: "array", items: { type: "string" } },
+                  estimated_cost: { type: "number" }
+                },
+                required: ["title", "description", "priority", "sessions", "items"]
+              }
+            },
+            total_sessions: { type: "number" },
+            total_estimated_cost: { type: "number" }
+          },
+          required: ["phases"]
+        },
+        doctor_notes: { type: "array", items: { type: "string" } },
+        patient_friendly_summary: { type: "string" },
+        follow_up_schedule: { type: "string" }
+      },
+      required: ["diagnosis", "severity", "confidence", "image_type", "image_quality", "summary", "issues", "findings", "recommendation"]
+    }
+  }
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
+
+    if (!LOVABLE_API_KEY) {
+      return new Response(
+        JSON.stringify({ error: "LOVABLE_API_KEY is not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const body = await req.json();
+    const {
+      agent_type,
+      message,
+      image_url,
+      image_base64,
+      image_mime_type,
+      context,
+      session_id,
+      clinic_id,
+      clinic_treatments_catalog,
+      history = [],
+    } = body;
+
+    if (!agent_type) {
+      return new Response(
+        JSON.stringify({ error: "agent_type is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // --- Load agent config from DB ---
+    let systemRules = DEFAULT_SYSTEM_RULES[agent_type] || DEFAULT_SYSTEM_RULES.patient_assistant;
+
+    if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+      try {
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const { data: agent } = await supabase
+          .from("ai_agents")
+          .select("system_rules, is_active, model")
+          .eq("id", agent_type)
+          .single();
+
+        if (agent) {
+          if (!agent.is_active) {
+            return new Response(
+              JSON.stringify({ error: "هذه الخدمة غير مفعلة حالياً." }),
+              { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+          if (agent.system_rules) {
+            systemRules = agent.system_rules;
+          }
+        }
+      } catch (e) {
+        console.warn("Could not load agent config from DB, using defaults:", e);
+      }
+    }
+
+    // --- Build messages array ---
+    let catalogInjection = "";
+    if (agent_type === "image_analysis" && Array.isArray(clinic_treatments_catalog) && clinic_treatments_catalog.length > 0) {
+      catalogInjection = `\n\n## CLINIC TREATMENT CATALOG (use ONLY these for cost estimation)\nThis clinic has the following authorized treatments and prices (in clinic's local currency, IQD). For each issue you detect, you MUST select the most appropriate treatment from this list and set:\n- matched_treatment_name = the EXACT name from this catalog\n- matched_treatment_price = the EXACT price from this catalog\n- treatment_match_status = "matched"\n\nIf no treatment in the catalog matches the issue, set matched_treatment_name="", matched_treatment_price=0, and treatment_match_status="manual_pricing_needed".\n\nDO NOT invent prices. DO NOT use prices outside this catalog. Compute total_estimated_cost as the sum of matched_treatment_price for issues with status="matched".\n\nCATALOG: ${JSON.stringify(clinic_treatments_catalog)}`;
+    } else if (agent_type === "image_analysis") {
+      catalogInjection = `\n\n## NO CLINIC CATALOG PROVIDED\nNo clinic treatment catalog was provided. For every issue, set matched_treatment_name="", matched_treatment_price=0, and treatment_match_status="manual_pricing_needed". Set total_estimated_cost=0.`;
+    }
+
+    const systemContent =
+      systemRules +
+      catalogInjection +
+      (context ? `\n\nبيانات السياق: ${JSON.stringify(context, null, 2)}` : "");
+
+    const messages: any[] = [{ role: "system", content: systemContent }];
+
+    // Add conversation history
+    if (Array.isArray(history) && history.length > 0) {
+      messages.push(...history);
+    }
+
+    const hasImage = !!(image_base64 || image_url);
+
+    // Build request body — upgrade to multimodal model whenever an image is attached
+    const requestBody: any = {
+      model: (agent_type === "image_analysis" || hasImage)
+        ? "google/gemini-2.5-pro"
+        : "google/gemini-3-flash-preview",
+      messages,
+      stream: false,
+    };
+
+    // Build user message — multimodal when an image is attached (any agent)
+    if (hasImage) {
+      const userContent: any[] = [];
+      const defaultPrompt = agent_type === "image_analysis"
+        ? "حلل هذه الصورة السنية بدقة عالية. حدد جميع المشاكل المرئية مع تحديد مواقعها بدقة على الصورة باستخدام bounding boxes. استخدم نظام ترقيم FDI للأسنان."
+        : "أرفقت لك صورة. افحصها بدقة وأجبني عما يظهر فيها مع نصائح مناسبة باللغة العربية.";
+
+      userContent.push({ type: "text", text: message || defaultPrompt });
+
+      if (image_base64) {
+        const mime = image_mime_type || "image/jpeg";
+        userContent.push({
+          type: "image_url",
+          image_url: { url: `data:${mime};base64,${image_base64}` },
+        });
+      } else {
+        userContent.push({
+          type: "image_url",
+          image_url: { url: image_url },
+        });
+      }
+      messages.push({ role: "user", content: userContent });
+
+      // Tool-calling structured output ONLY for the dedicated image_analysis agent
+      if (agent_type === "image_analysis") {
+        requestBody.tools = [DENTAL_ANALYSIS_TOOL];
+        requestBody.tool_choice = { type: "function", function: { name: "dental_analysis_report" } };
+      }
+    } else {
+      messages.push({ role: "user", content: message || "" });
+    }
+
+    // --- Call Lovable AI Gateway ---
+    const aiResponse = await fetch(
+      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      }
+    );
+
+    if (!aiResponse.ok) {
+      if (aiResponse.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "تم تجاوز الحد المسموح من الطلبات. يرجى المحاولة لاحقاً." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (aiResponse.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "رصيد الذكاء الاصطناعي غير كافٍ. يرجى إضافة رصيد." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const errText = await aiResponse.text();
+      console.error("AI Gateway error:", aiResponse.status, errText);
+      return new Response(
+        JSON.stringify({ error: "خطأ في خدمة الذكاء الاصطناعي" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const aiData = await aiResponse.json();
+    const tokensUsed = aiData.usage?.total_tokens || 0;
+
+    // --- Log usage ---
+    if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+      try {
+        const authHeader = req.headers.get("Authorization");
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          global: { headers: authHeader ? { Authorization: authHeader } : {} },
+        });
+
+        let userId: string | null = null;
+        if (authHeader) {
+          try {
+            const token = authHeader.replace("Bearer ", "");
+            const { data } = await supabase.auth.getUser(token);
+            userId = data?.user?.id || null;
+          } catch (_) {}
+        }
+
+        await supabase.from("ai_usage_logs").insert({
+          agent_id: agent_type,
+          user_id: userId,
+          clinic_id: clinic_id || null,
+          session_id: session_id || null,
+          tokens_used: tokensUsed,
+          request_type: agent_type,
+          user_type: userId ? "clinic" : "guest",
+        });
+      } catch (e) {
+        console.warn("Failed to log usage:", e);
+      }
+    }
+
+    // --- For image_analysis: extract tool call result ---
+    if (agent_type === "image_analysis") {
+      const choice = aiData.choices?.[0];
+      
+      // Try tool call first (structured output)
+      if (choice?.message?.tool_calls?.[0]) {
+        try {
+          const toolCall = choice.message.tool_calls[0];
+          const parsed = normalizeAnalysisResult(JSON.parse(toolCall.function.arguments));
+          
+          return new Response(
+            JSON.stringify({ success: true, type: "analysis", result: parsed, raw: toolCall.function.arguments }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        } catch (e) {
+          console.error("Failed to parse tool call result:", e);
+        }
+      }
+      
+      // Fallback: try to parse from content
+      const responseText = choice?.message?.content || "";
+      try {
+        const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/);
+        const jsonStr = jsonMatch ? jsonMatch[1] : responseText;
+        const parsed = normalizeAnalysisResult(JSON.parse(jsonStr));
+
+        return new Response(
+          JSON.stringify({ success: true, type: "analysis", result: parsed, raw: responseText }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (_) {
+        return new Response(
+          JSON.stringify({ success: true, type: "analysis", result: null, raw: responseText }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    const responseText = aiData.choices?.[0]?.message?.content || "";
+    return new Response(
+      JSON.stringify({ success: true, type: "chat", response: responseText }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (e) {
+    console.error("ai-agent error:", e);
+    return new Response(
+      JSON.stringify({ error: e instanceof Error ? e.message : "خطأ غير متوقع" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});

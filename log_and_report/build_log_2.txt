@@ -1,0 +1,7 @@
+src/pages/doctor/clinic/ClinicOverviewPage.tsx(29,10): error TS2459: Module '"@/hooks/useClinics"' declares 'Clinic' locally, but it is not exported.
+src/pages/doctor/DoctorClinicsPage.tsx(115,25): error TS2322: Type '{ lat: number; lng: number; }' is not assignable to type 'ReactNode'.
+src/pages/doctor/DoctorClinicsPage.tsx(123,33): error TS2339: Property 'openTime' does not exist on type 'Clinic'.
+src/pages/doctor/DoctorClinicsPage.tsx(123,53): error TS2339: Property 'closeTime' does not exist on type 'Clinic'.
+src/pages/doctor/DoctorClinicsPage.tsx(333,42): error TS2322: Type '{ lat: number; lng: number; }' is not assignable to type 'string | number | readonly string[]'.
+src/pages/doctor/DoctorMessagesPage.tsx(415,60): error TS2322: Type '{ lat: number; lng: number; }' is not assignable to type 'ReactNode'.
+src/pages/store/CartPage.tsx(94,45): error TS2339: Property 'split' does not exist on type '{ lat: number; lng: number; }'.

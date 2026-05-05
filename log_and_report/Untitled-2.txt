@@ -1,0 +1,48 @@
+[0] (500,308)<div  />
+	[1] (135,42)<button class='relative flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all duration-300 group text-gray-600 hover:text-gray-900 hover:bg-white/80' />
+		[2] (142,42)<span >النظرة العامة />
+	[3] (210,42)<button class='relative flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all duration-300 group text-gray-600 hover:text-gray-900 hover:bg-white/80' />
+		[4] (218,42)<span >المواعيد />
+	[5] (276,42)<button class='relative flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all duration-300 group text-gray-600 hover:text-gray-900 hover:bg-white/80' />
+		[6] (283,42)<span >المرضى />
+	[7] (338,42)<button class='relative flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all duration-300 group text-gray-600 hover:text-gray-900 hover:bg-white/80' />
+		[8] (346,42)<span >الطاقم />
+	[9] (400,42)<button class='relative flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all duration-300 group text-gray-600 hover:text-gray-900 hover:bg-white/80' />
+		[10] (408,42)<span >الأصول />
+	[11] (461,42)<button class='relative flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all duration-300 group text-gray-600 hover:text-gray-900 hover:bg-white/80' />
+		[12] (469,42)<span >المالية />
+	[13] (521,42)<button class='relative flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all duration-300 group text-gray-600 hover:text-gray-900 hover:bg-white/80' />
+		[14] (529,42)<span >التقارير />
+	[15] (596,42)<button class='relative flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all duration-300 group bg-gradient-to-r from-violet-500 to-violet-600 text-white shadow-lg shadow-emerald-500/25' />
+		[16] (604,42)<span >معامل الاسنان />
+	معامل الاسنان المحفوظة
+	قائمة المعامل المفضلة والمخصصة
+	إضافة معمل
+	م
+	يدوي
+	مختبر المدينة الخاص
+	المنصور, شارع 14 رمضان
+	التفاصيل
+	طلب
+	إضافة مختبر جديد
+	[17] (378,216)<button class='text-gray-400 hover:text-gray-600' />
+	[18] (607,287)<label class='text-sm font-medium text-gray-700'>اسم المختبر />
+	[19] (500,342)<input class='w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none' placeholder='اسم المختبر' />
+	[20] (607,412)<label class='text-sm font-medium text-gray-700'>رقم الهاتف />
+	[21] (500,467)<input class='w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none' placeholder='0770...' />
+	[22] (615,536)<label class='text-sm font-medium text-gray-700'>العنوان />
+	[23] (500,592)<input class='w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none' placeholder='المدينة، المنطقة' />
+	[24] (576,661)<label class='text-sm font-medium text-gray-700'>التخصصات (مفصولة بفاصلة) />
+	[25] (500,716)<input class='w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none' placeholder='تيجان, جسور, تقويم...' />
+	[26] (472,820)<button class='rounded-lg font-medium transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed bg-transparent text-gray-700 hover:bg-gray-100 border border-gray-300 px-4 py-2 text-base'>إلغاء />
+	[27] (407,820)<button class='rounded-lg font-medium transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed bg-primary text-primary-foreground hover:bg-primary-dark shadow-md px-4 py-2 text-base'>حفظ المختبر />
+	[28] (176,951)<a aria-label='الرئيسية' class='flex flex-col items-center justify-center px-2 py-1.5 rounded-xl transition-all min-w-[64px] no-underline duration-200 text-gray-500 hover:bg-gray-50 hover:text-gray-900' href='/doctor/home' />
+		[29] (176,971)<span >الرئيسية />
+	[30] (337,951)<a aria-label='المجتمع' class='flex flex-col items-center justify-center px-2 py-1.5 rounded-xl transition-all min-w-[64px] no-underline duration-200 text-gray-500 hover:bg-gray-50 hover:text-gray-900' href='/doctor/community' />
+		[31] (337,971)<span >المجتمع />
+	[32] (500,946)<a aria-label='مركز الأطباء' class='flex flex-col items-center justify-center px-2 py-1.5 rounded-xl transition-all min-w-[64px] no-underline duration-200 text-blue-600 bg-blue-50/80 -translate-y-1' href='/doctor' />
+		[33] (500,965)<span >مركز الأطباء />
+	[34] (663,951)<a aria-label='التوظيف' class='flex flex-col items-center justify-center px-2 py-1.5 rounded-xl transition-all min-w-[64px] no-underline duration-200 text-gray-500 hover:bg-gray-50 hover:text-gray-900' href='/doctor/jobs' />
+		[35] (663,971)<span >التوظيف />
+	[36] (824,951)<a aria-label='المتجر' class='flex flex-col items-center justify-center px-2 py-1.5 rounded-xl transition-all min-w-[64px] no-underline duration-200 text-gray-500 hover:bg-gray-50 hover:text-gray-900' href='/store' />
+		[37] (824,971)<span >المتجر />

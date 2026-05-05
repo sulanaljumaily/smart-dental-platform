@@ -1,0 +1,32 @@
+--- STAFF RLS POLICIES ---
+POLICY: Public read staff
+USING: true
+------------------------
+POLICY: Authenticated insert staff
+USING: null
+WITH CHECK: true
+------------------------
+POLICY: Authenticated update staff
+USING: true
+------------------------
+POLICY: Demo Read Staff
+USING: (clinic_id = ANY (ARRAY[1, 2]))
+------------------------
+POLICY: Users can view their own staff record
+USING: ((user_id = auth.uid()) OR (clinic_id IN ( SELECT clinic_members.clinic_id
+   FROM clinic_members
+  WHERE (clinic_members.user_id = auth.uid()))))
+------------------------
+POLICY: staff_select_v2
+USING: ((clinic_id IN ( SELECT user_clinic_ids() AS user_clinic_ids)) OR is_admin())
+------------------------
+POLICY: staff_insert_v2
+USING: null
+WITH CHECK: ((clinic_id IN ( SELECT user_clinic_ids() AS user_clinic_ids)) OR is_admin())
+------------------------
+POLICY: staff_update_v2
+USING: ((clinic_id IN ( SELECT user_clinic_ids() AS user_clinic_ids)) OR is_admin())
+------------------------
+POLICY: staff_delete_v2
+USING: ((clinic_id IN ( SELECT user_clinic_ids() AS user_clinic_ids)) OR is_admin())
+------------------------

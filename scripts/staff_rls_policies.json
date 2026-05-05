@@ -1,0 +1,56 @@
+[
+  {
+    "polname": "Public read staff",
+    "polcmd": "r",
+    "qual": "true",
+    "withcheck": null
+  },
+  {
+    "polname": "Authenticated insert staff",
+    "polcmd": "a",
+    "qual": null,
+    "withcheck": "true"
+  },
+  {
+    "polname": "Authenticated update staff",
+    "polcmd": "w",
+    "qual": "true",
+    "withcheck": null
+  },
+  {
+    "polname": "Demo Read Staff",
+    "polcmd": "r",
+    "qual": "(clinic_id = ANY (ARRAY[1, 2]))",
+    "withcheck": null
+  },
+  {
+    "polname": "Users can view their own staff record",
+    "polcmd": "r",
+    "qual": "((user_id = auth.uid()) OR (clinic_id IN ( SELECT clinic_members.clinic_id\n   FROM clinic_members\n  WHERE (clinic_members.user_id = auth.uid()))))",
+    "withcheck": null
+  },
+  {
+    "polname": "staff_select_v2",
+    "polcmd": "r",
+    "qual": "((clinic_id IN ( SELECT user_clinic_ids() AS user_clinic_ids)) OR is_admin())",
+    "withcheck": null
+  },
+  {
+    "polname": "staff_insert_v2",
+    "polcmd": "a",
+    "qual": null,
+    "withcheck": "((clinic_id IN ( SELECT user_clinic_ids() AS user_clinic_ids)) OR is_admin())"
+  },
+  {
+    "polname": "staff_update_v2",
+    "polcmd": "w",
+    "qual": "((clinic_id IN ( SELECT user_clinic_ids() AS user_clinic_ids)) OR is_admin())",
+    "withcheck": null
+  },
+  {
+    "polname": "staff_delete_v2",
+    "polcmd": "d",
+    "qual": "((clinic_id IN ( SELECT user_clinic_ids() AS user_clinic_ids)) OR is_admin())",
+    "withcheck": null
+  }
+]

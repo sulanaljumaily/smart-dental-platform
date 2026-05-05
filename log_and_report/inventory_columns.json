@@ -1,0 +1,128 @@
+[
+  {
+    "column_name": "id",
+    "column_default": "nextval('inventory_id_seq'::regclass)",
+    "is_nullable": "NO",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "clinic_id",
+    "column_default": null,
+    "is_nullable": "YES",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "item_name",
+    "column_default": null,
+    "is_nullable": "NO",
+    "data_type": "text"
+  },
+  {
+    "column_name": "quantity",
+    "column_default": "0",
+    "is_nullable": "NO",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "unit_price",
+    "column_default": null,
+    "is_nullable": "NO",
+    "data_type": "numeric"
+  },
+  {
+    "column_name": "min_stock",
+    "column_default": "10",
+    "is_nullable": "YES",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "unit",
+    "column_default": "'pcs'::text",
+    "is_nullable": "YES",
+    "data_type": "text"
+  },
+  {
+    "column_name": "supplier_name",
+    "column_default": null,
+    "is_nullable": "YES",
+    "data_type": "text"
+  },
+  {
+    "column_name": "supplier_phone",
+    "column_default": null,
+    "is_nullable": "YES",
+    "data_type": "text"
+  },
+  {
+    "column_name": "brand",
+    "column_default": null,
+    "is_nullable": "YES",
+    "data_type": "text"
+  },
+  {
+    "column_name": "location",
+    "column_default": null,
+    "is_nullable": "YES",
+    "data_type": "text"
+  },
+  {
+    "column_name": "condition",
+    "column_default": "'good'::text",
+    "is_nullable": "YES",
+    "data_type": "text"
+  },
+  {
+    "column_name": "status",
+    "column_default": "'available'::text",
+    "is_nullable": "YES",
+    "data_type": "text"
+  },
+  {
+    "column_name": "expiry_date",
+    "column_default": null,
+    "is_nullable": "YES",
+    "data_type": "date"
+  },
+  {
+    "column_name": "last_restock_date",
+    "column_default": null,
+    "is_nullable": "YES",
+    "data_type": "date"
+  },
+  {
+    "column_name": "notes",
+    "column_default": null,
+    "is_nullable": "YES",
+    "data_type": "text"
+  },
+  {
+    "column_name": "created_at",
+    "column_default": "now()",
+    "is_nullable": "YES",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "column_name": "updated_at",
+    "column_default": "now()",
+    "is_nullable": "YES",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "column_name": "min_quantity",
+    "column_default": "0",
+    "is_nullable": "YES",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "price",
+    "column_default": "0",
+    "is_nullable": "YES",
+    "data_type": "numeric"
+  },
+  {
+    "column_name": "category",
+    "column_default": null,
+    "is_nullable": "YES",
+    "data_type": "text"
+  }
+]

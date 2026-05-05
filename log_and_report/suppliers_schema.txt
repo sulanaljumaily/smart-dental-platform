@@ -1,0 +1,26 @@
+
+--- Schema for table: suppliers ---
+id                   | uuid            | NOT NULL | uuid_generate_v4()
+user_id              | uuid            | NULL | 
+name                 | text            | NOT NULL | 
+description          | text            | NULL | 
+logo                 | text            | NULL | 
+cover_image          | text            | NULL | 
+phone                | text            | NULL | 
+email                | text            | NULL | 
+address              | text            | NULL | 
+governorate          | text            | NULL | 
+is_verified          | boolean         | NULL | false
+rating               | numeric         | NULL | 5.0
+created_at           | timestamp with time zone | NULL | now()
+updated_at           | timestamp with time zone | NULL | now()
+profile_id           | uuid            | NULL | 
+website              | text            | NULL | 
+tax_number           | text            | NULL | 
+business_license     | text            | NULL | 
+established_year     | integer         | NULL | 
+first_name           | text            | NULL | 
+last_name            | text            | NULL | 
+documents            | jsonb           | NULL | '[]'::jsonb
+achievements         | jsonb           | NULL | '[]'::jsonb
+settings             | jsonb           | NULL | '{"showEmail": true, "showPhone": true, "showAddress": true}'::jsonb

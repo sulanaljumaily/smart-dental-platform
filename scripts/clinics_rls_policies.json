@@ -1,0 +1,26 @@
+[
+  {
+    "polname": "clinics_select_v2",
+    "polcmd": "r",
+    "qual": "((owner_id = auth.uid()) OR is_admin() OR (is_active = true))",
+    "withcheck": null
+  },
+  {
+    "polname": "clinics_insert_v2",
+    "polcmd": "a",
+    "qual": null,
+    "withcheck": "(is_doctor() OR is_admin())"
+  },
+  {
+    "polname": "clinics_update_v2",
+    "polcmd": "w",
+    "qual": "((owner_id = auth.uid()) OR is_admin())",
+    "withcheck": null
+  },
+  {
+    "polname": "clinics_delete_v2",
+    "polcmd": "d",
+    "qual": "((owner_id = auth.uid()) OR is_admin())",
+    "withcheck": null
+  }
+]

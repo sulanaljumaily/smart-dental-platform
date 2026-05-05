@@ -1,0 +1,78 @@
+
+--- Schema for table: dental_laboratories ---
+id                   | uuid            | NOT NULL | gen_random_uuid()
+user_id              | uuid            | NULL | 
+name                 | text            | NOT NULL | 
+is_active            | boolean         | NULL | true
+created_at           | timestamp with time zone | NULL | now()
+address              | text            | NULL | 
+phone                | text            | NULL | 
+email                | text            | NULL | 
+description          | text            | NULL | 
+logo_url             | text            | NULL | 
+services_list        | ARRAY           | NULL | 
+rating               | numeric         | NULL | 
+cover_image_url      | text            | NULL | 
+bank_information     | jsonb           | NULL | '{}'::jsonb
+social_links         | jsonb           | NULL | '{}'::jsonb
+notifications_settings | jsonb           | NULL | '{"email": true}'::jsonb
+commission_percentage | numeric         | NULL | 5.00
+pending_commission   | numeric         | NULL | 0.00
+is_verified          | boolean         | NULL | false
+establishment_year   | integer         | NULL | 
+license_expiry       | date            | NULL | 
+two_factor_auth      | boolean         | NULL | false
+email_notifications  | boolean         | NULL | true
+emergency_service    | boolean         | NULL | false
+auto_accept_orders   | boolean         | NULL | false
+delivery_radius      | integer         | NULL | 25
+total_ratings        | integer         | NULL | 0
+account_status       | text            | NULL | 'pending'::text
+is_accredited        | boolean         | NULL | false
+verified_at          | timestamp with time zone | NULL | 
+verified_by          | uuid            | NULL | 
+accredited_at        | timestamp with time zone | NULL | 
+accredited_by        | uuid            | NULL | 
+updated_at           | timestamp with time zone | NULL | now()
+governorate          | text            | NULL | 
+
+
+
+--- Schema for table: dental_lab_orders ---
+id                   | uuid            | NOT NULL | gen_random_uuid()
+clinic_id            | integer         | NULL | 
+laboratory_id        | uuid            | NULL | 
+custom_lab_name      | text            | NULL | 
+patient_id           | integer         | NULL | 
+patient_name         | text            | NOT NULL | 
+doctor_id            | uuid            | NULL | 
+staff_record_id      | integer         | NULL | 
+doctor_name          | text            | NULL | 
+order_number         | text            | NOT NULL | 
+service_name         | text            | NOT NULL | 
+service_details      | jsonb           | NULL | 
+status               | text            | NULL | 'pending'::text
+priority             | text            | NULL | 'normal'::text
+notes                | text            | NULL | 
+price                | numeric         | NULL | 
+final_amount         | numeric         | NULL | 
+expected_delivery_date | date            | NULL | 
+created_at           | timestamp with time zone | NULL | now()
+updated_at           | timestamp with time zone | NULL | now()
+images               | ARRAY           | NULL | '{}'::text[]
+rating               | integer         | NULL | 
+review_note          | text            | NULL | 
+modification_note    | text            | NULL | 
+payment_status       | text            | NULL | 'unpaid'::text
+delegate_id          | uuid            | NULL | 
+delegate_name        | text            | NULL | 
+is_return_cycle      | boolean         | NULL | false
+return_reason        | text            | NULL | 
+paid_amount          | numeric         | NULL | 0
+delivery_date        | date            | NULL | 
+files                | jsonb           | NULL | '[]'::jsonb
+description          | text            | NULL | 
+pickup_delegate_id   | uuid            | NULL | 
+pickup_delegate_name | text            | NULL | 
+delivery_delegate_id | uuid            | NULL | 
+delivery_delegate_name | text            | NULL | 

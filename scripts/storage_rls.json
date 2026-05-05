@@ -1,0 +1,176 @@
+[
+  {
+    "polname": "Public read products bucket",
+    "polcmd": "r",
+    "qual": "(bucket_id = 'products'::text)",
+    "withcheck": null
+  },
+  {
+    "polname": "Authenticated upload products bucket",
+    "polcmd": "a",
+    "qual": null,
+    "withcheck": "(bucket_id = 'products'::text)"
+  },
+  {
+    "polname": "Authenticated update products bucket",
+    "polcmd": "w",
+    "qual": "(bucket_id = 'products'::text)",
+    "withcheck": null
+  },
+  {
+    "polname": "Authenticated delete products bucket",
+    "polcmd": "d",
+    "qual": "(bucket_id = 'products'::text)",
+    "withcheck": null
+  },
+  {
+    "polname": "Public Access Platform Assets",
+    "polcmd": "r",
+    "qual": "(bucket_id = 'platform-assets'::text)",
+    "withcheck": null
+  },
+  {
+    "polname": "Public Read Access",
+    "polcmd": "r",
+    "qual": "(bucket_id = 'patient-docs'::text)",
+    "withcheck": null
+  },
+  {
+    "polname": "Authenticated Upload Access",
+    "polcmd": "a",
+    "qual": null,
+    "withcheck": "(bucket_id = 'patient-docs'::text)"
+  },
+  {
+    "polname": "Authenticated Update/Delete Access",
+    "polcmd": "w",
+    "qual": "(bucket_id = 'patient-docs'::text)",
+    "withcheck": null
+  },
+  {
+    "polname": "Authenticated Delete Access",
+    "polcmd": "d",
+    "qual": "(bucket_id = 'patient-docs'::text)",
+    "withcheck": null
+  },
+  {
+    "polname": "Auth Users Upload Platform Assets",
+    "polcmd": "a",
+    "qual": null,
+    "withcheck": "((bucket_id = 'platform-assets'::text) AND (auth.role() = 'authenticated'::text))"
+  },
+  {
+    "polname": "Auth Users Update Platform Assets",
+    "polcmd": "w",
+    "qual": "((bucket_id = 'platform-assets'::text) AND (auth.role() = 'authenticated'::text))",
+    "withcheck": null
+  },
+  {
+    "polname": "Public Access Documents",
+    "polcmd": "r",
+    "qual": "(bucket_id = 'documents'::text)",
+    "withcheck": null
+  },
+  {
+    "polname": "Auth Users Upload Documents",
+    "polcmd": "a",
+    "qual": null,
+    "withcheck": "((bucket_id = 'documents'::text) AND (auth.role() = 'authenticated'::text))"
+  },
+  {
+    "polname": "Public Access Community Posts Images",
+    "polcmd": "r",
+    "qual": "(bucket_id = 'community-posts'::text)",
+    "withcheck": null
+  },
+  {
+    "polname": "Auth Users Upload Post Images",
+    "polcmd": "a",
+    "qual": null,
+    "withcheck": "((bucket_id = 'community-posts'::text) AND (auth.role() = 'authenticated'::text))"
+  },
+  {
+    "polname": "Auth Users Delete Own Post Images",
+    "polcmd": "d",
+    "qual": "((bucket_id = 'community-posts'::text) AND ((auth.uid())::text = (storage.foldername(name))[1]))",
+    "withcheck": null
+  },
+  {
+    "polname": "Public Access Avatars",
+    "polcmd": "r",
+    "qual": "(bucket_id = 'avatars'::text)",
+    "withcheck": null
+  },
+  {
+    "polname": "Auth Users Upload Avatars",
+    "polcmd": "a",
+    "qual": null,
+    "withcheck": "((bucket_id = 'avatars'::text) AND (auth.role() = 'authenticated'::text))"
+  },
+  {
+    "polname": "Users Update Own Avatars",
+    "polcmd": "w",
+    "qual": "((bucket_id = 'avatars'::text) AND ((auth.uid())::text = (storage.foldername(name))[1]))",
+    "withcheck": null
+  },
+  {
+    "polname": "Allow authenticated uploads",
+    "polcmd": "a",
+    "qual": null,
+    "withcheck": "(bucket_id = 'clinics'::text)"
+  },
+  {
+    "polname": "Allow public viewing",
+    "polcmd": "r",
+    "qual": "(bucket_id = 'clinics'::text)",
+    "withcheck": null
+  },
+  {
+    "polname": "Allow public read supplier-logos",
+    "polcmd": "r",
+    "qual": "(bucket_id = 'supplier-logos'::text)",
+    "withcheck": null
+  },
+  {
+    "polname": "Allow authenticated upload supplier-logos",
+    "polcmd": "a",
+    "qual": null,
+    "withcheck": "(bucket_id = 'supplier-logos'::text)"
+  },
+  {
+    "polname": "Allow authenticated update supplier-logos",
+    "polcmd": "w",
+    "qual": "(bucket_id = 'supplier-logos'::text)",
+    "withcheck": null
+  },
+  {
+    "polname": "Allow authenticated delete supplier-logos",
+    "polcmd": "d",
+    "qual": "(bucket_id = 'supplier-logos'::text)",
+    "withcheck": null
+  },
+  {
+    "polname": "Public Access to Platform Assets",
+    "polcmd": "r",
+    "qual": "(bucket_id = 'platform-assets'::text)",
+    "withcheck": null
+  },
+  {
+    "polname": "Admins can upload platform assets",
+    "polcmd": "a",
+    "qual": null,
+    "withcheck": "((bucket_id = 'platform-assets'::text) AND (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'admin'::text)))))"
+  },
+  {
+    "polname": "Admins can update platform assets",
+    "polcmd": "w",
+    "qual": "((bucket_id = 'platform-assets'::text) AND (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'admin'::text)))))",
+    "withcheck": null
+  },
+  {
+    "polname": "Admins can delete platform assets",
+    "polcmd": "d",
+    "qual": "((bucket_id = 'platform-assets'::text) AND (EXISTS ( SELECT 1\n   FROM profiles\n  WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'admin'::text)))))",
+    "withcheck": null
+  }
+]

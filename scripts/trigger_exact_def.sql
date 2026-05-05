@@ -1,0 +1,1 @@
+CREATE TRIGGER on_clinic_created_seed AFTER INSERT ON public.clinics FOR EACH ROW EXECUTE FUNCTION seed_clinic_defaults()

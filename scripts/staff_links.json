@@ -1,0 +1,37 @@
+[
+  {
+    "id": 9,
+    "clinic_id": 1,
+    "user_id": "8118872f-aaa2-4322-a0d1-245b2c3bc366",
+    "auth_user_id": "8118872f-aaa2-4322-a0d1-245b2c3bc366",
+    "status": "active"
+  },
+  {
+    "id": 10,
+    "clinic_id": 2,
+    "user_id": "8118872f-aaa2-4322-a0d1-245b2c3bc366",
+    "auth_user_id": "8118872f-aaa2-4322-a0d1-245b2c3bc366",
+    "status": "active"
+  },
+  {
+    "id": 13,
+    "clinic_id": 1,
+    "user_id": "f61eddec-b35f-4c14-860f-5556b533a0e1",
+    "auth_user_id": null,
+    "status": "terminated"
+  },
+  {
+    "id": 12,
+    "clinic_id": 1,
+    "user_id": "f61eddec-b35f-4c14-860f-5556b533a0e1",
+    "auth_user_id": null,
+    "status": "terminated"
+  },
+  {
+    "id": 31,
+    "clinic_id": 1,
+    "user_id": "f61eddec-b35f-4c14-860f-5556b533a0e1",
+    "auth_user_id": "f61eddec-b35f-4c14-860f-5556b533a0e1",
+    "status": "active"
+  }
+]

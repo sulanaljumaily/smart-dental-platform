@@ -1,0 +1,7 @@
+[
+  {
+    "function_name": "seed_clinic_defaults",
+    "schema_name": "public",
+    "function_def": "CREATE OR REPLACE FUNCTION public.seed_clinic_defaults()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nBEGIN\n    -- Seed Treatments\n    INSERT INTO treatments (\n        clinic_id, name, category, base_price, cost_estimate, \n        profit_margin, popularity, expected_sessions, is_complex, default_phases\n    )\n    SELECT \n        NEW.id, name, category, base_price, cost_estimate, \n        profit_margin, popularity, expected_sessions, is_complex, default_phases\n    FROM system_treatment_templates;\n\n    -- Seed Inventory\n    INSERT INTO inventory (\n        clinic_id, item_name, category, min_quantity, unit, unit_price, quantity\n    )\n    SELECT \n        NEW.id, name, category, min_quantity, unit, price, 0 -- Start with 0 stock\n    FROM system_inventory_templates;\n\n    RETURN NEW;\nEND;\n$function$\n"
+  }
+]

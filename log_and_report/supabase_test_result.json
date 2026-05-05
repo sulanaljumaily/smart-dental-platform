@@ -1,0 +1,86 @@
+{
+  "success": true,
+  "dataLength": 2,
+  "error": null,
+  "data": [
+    {
+      "clinic": {
+        "id": 1,
+        "name": "عيادة النور التخصصية",
+        "email": null,
+        "phone": "07701111111",
+        "rating": 0,
+        "address": "شارع فلسطين",
+        "website": null,
+        "latitude": 33.32090335,
+        "owner_id": "8118872f-aaa2-4322-a0d1-245b2c3bc366",
+        "services": [
+          "زراعة فورية",
+          "تبييض بالليزر"
+        ],
+        "settings": {
+          "showOnMap": true,
+          "mapVisibility": false,
+          "articleSuggestions": true
+        },
+        "cover_url": "https://nhueyaeyutfmadbgghfe.supabase.co/storage/v1/object/public/clinics/clinic_1/cover/7u3e8d339zn_1769549384208.webp",
+        "image_url": "https://nhueyaeyutfmadbgghfe.supabase.co/storage/v1/object/public/clinics/clinic_1/logo/u9mknjsu23r_1769549376972.jpeg",
+        "is_active": true,
+        "longitude": 44.38032948,
+        "created_at": "2026-01-19T18:56:58.56579+00:00",
+        "updated_at": "2026-01-19T18:56:58.56579+00:00",
+        "description": "Updated Description from Verification Script: Professional Dental Care.",
+        "governorate": "بغداد",
+        "is_featured": true,
+        "specialties": [
+          "طب أسنان عام"
+        ],
+        "social_links": {},
+        "reviews_count": 0,
+        "working_hours": "08:00 - 20:00",
+        "commission_rate": 0,
+        "blue_badge_active": false,
+        "is_digital_booking": true,
+        "is_digital_booking_enabled": false
+      }
+    },
+    {
+      "clinic": {
+        "id": 2,
+        "name": "مركز الابتسامة الرقمي",
+        "email": null,
+        "phone": "07702222222",
+        "rating": 0,
+        "address": "المنصور",
+        "website": null,
+        "latitude": 33.30793406,
+        "owner_id": "8118872f-aaa2-4322-a0d1-245b2c3bc366",
+        "services": [],
+        "settings": {
+          "showOnMap": true,
+          "articleSuggestions": true
+        },
+        "cover_url": "https://nhueyaeyutfmadbgghfe.supabase.co/storage/v1/object/public/clinics/clinic_2/cover/i57kq0n68p_1769665945083.jpg",
+        "image_url": "https://nhueyaeyutfmadbgghfe.supabase.co/storage/v1/object/public/clinics/clinic_2/logo/utndmuqbf4_1769665928530.jpeg",
+        "is_active": true,
+        "longitude": 44.37654188,
+        "created_at": "2026-01-19T18:56:58.56579+00:00",
+        "updated_at": "2026-01-19T18:56:58.56579+00:00",
+        "description": "",
+        "governorate": "بغداد",
+        "is_featured": true,
+        "specialties": [
+          "تجميل الأسنان",
+          "طب أسنان عام"
+        ],
+        "social_links": {},
+        "reviews_count": 0,
+        "working_hours": "09:00 - 21:00",
+        "commission_rate": 0,
+        "blue_badge_active": false,
+        "is_digital_booking": true,
+        "is_digital_booking_enabled": false
+      }
+    }
+  ]
+}

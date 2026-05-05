@@ -1,0 +1,65 @@
+[
+  {
+    "staff_id": 1,
+    "full_name": "Dr. Ali Hussein",
+    "staff_email": "ali@example.com",
+    "staff_user_id": null,
+    "staff_auth_user_id": null,
+    "status": "active",
+    "profile_id": null
+  },
+  {
+    "staff_id": 9,
+    "full_name": "د. المالك",
+    "staff_email": "doctor.demo@smartdental.com",
+    "staff_user_id": "8118872f-aaa2-4322-a0d1-245b2c3bc366",
+    "staff_auth_user_id": null,
+    "status": "active",
+    "profile_id": "8118872f-aaa2-4322-a0d1-245b2c3bc366"
+  },
+  {
+    "staff_id": 10,
+    "full_name": "د. المالك",
+    "staff_email": "doctor.demo@smartdental.com",
+    "staff_user_id": "8118872f-aaa2-4322-a0d1-245b2c3bc366",
+    "staff_auth_user_id": null,
+    "status": "active",
+    "profile_id": "8118872f-aaa2-4322-a0d1-245b2c3bc366"
+  },
+  {
+    "staff_id": 5,
+    "full_name": "sand arkan",
+    "staff_email": "sandarkan@gmail.com",
+    "staff_user_id": null,
+    "staff_auth_user_id": null,
+    "status": "active",
+    "profile_id": null
+  },
+  {
+    "staff_id": 13,
+    "full_name": "sultan aljumaily",
+    "staff_email": "sultanaljumaily@gmail.com",
+    "staff_user_id": "f61eddec-b35f-4c14-860f-5556b533a0e1",
+    "staff_auth_user_id": null,
+    "status": "terminated",
+    "profile_id": "f61eddec-b35f-4c14-860f-5556b533a0e1"
+  },
+  {
+    "staff_id": 12,
+    "full_name": "sultan aljumaily",
+    "staff_email": "sultanaljumaily@gmail.com",
+    "staff_user_id": "f61eddec-b35f-4c14-860f-5556b533a0e1",
+    "staff_auth_user_id": null,
+    "status": "terminated",
+    "profile_id": "f61eddec-b35f-4c14-860f-5556b533a0e1"
+  },
+  {
+    "staff_id": 31,
+    "full_name": "sultan aljumaily",
+    "staff_email": "sultanaljumaily@gmail.com",
+    "staff_user_id": "f61eddec-b35f-4c14-860f-5556b533a0e1",
+    "staff_auth_user_id": "f61eddec-b35f-4c14-860f-5556b533a0e1",
+    "status": "active",
+    "profile_id": "f61eddec-b35f-4c14-860f-5556b533a0e1"
+  }
+]

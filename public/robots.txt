@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /doctor/
+Disallow: /supplier/
+Disallow: /laboratory/
+
+# Provide the link to your sitemap so search engines can find it
+Sitemap: https://dental-platform.com/sitemap.xml

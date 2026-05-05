@@ -1,0 +1,148 @@
+
+--- COLUMNS for profiles ---
+is_elite, experience, banned, is_syndicate, created_at, graduation_year, updated_at, id, bio, specialties, university, address, governorate, full_name, email, phone, role, avatar_url, specialty, hospital
+
+--- COLUMNS for clinics ---
+id, is_active, created_at, updated_at, is_digital_booking_enabled, commission_rate, social_links, settings, is_digital_booking, blue_badge_active, is_featured, latitude, longitude, rating, reviews_count, services, working_hours, owner_id, name, address, phone, email, specialties, governorate, website, cover_url, image_url, description
+
+--- COLUMNS for dental_laboratories ---
+id, user_id, emergency_service, auto_accept_orders, delivery_radius, total_ratings, is_accredited, verified_at, verified_by, accredited_at, accredited_by, updated_at, is_active, created_at, rating, bank_information, social_links, notifications_settings, commission_percentage, pending_commission, is_verified, establishment_year, license_expiry, two_factor_auth, email_notifications, name, cover_image_url, account_status, address, phone, email, description, logo_url, services_list, governorate
+
+--- COLUMNS for suppliers ---
+orders_count, user_id, is_verified, rating, created_at, updated_at, profile_id, established_year, documents, achievements, settings, commission_percentage, total_sales, pending_commission, id, name, description, logo, cover_image, phone, email, address, governorate, website, tax_number, business_license, last_name, first_name
+
+--- COLUMNS for subscription_requests ---
+id, doctor_id, plan_id, updated_at, agent_id, coupon_id, transaction_id, payment_details, user_id, is_settled, amount_paid, created_at, doctor_name, clinic_name, phone, email, status, payment_method, receipt_image_url, notes
+
+--- COLUMNS for payment_methods ---
+id, is_active, created_at, details, type, recipient_name, name, number, qr_code_url
+
+--- COLUMNS for subscription_plans ---
+gated_features, price, is_popular, limits, id, features, is_active, created_at, name, slug, duration, name_en
+
+--- Sample Profile ---
+{
+  "id": "8d0cc5e1-bee5-4d04-873e-5f0c922ff736",
+  "full_name": "مدير النظام (تجريبي)",
+  "email": "admin.demo@smartdental.com",
+  "phone": "",
+  "role": "admin",
+  "avatar_url": "https://nhueyaeyutfmadbgghfe.supabase.co/storage/v1/object/public/avatars/8d0cc5e1-bee5-4d04-873e-5f0c922ff736/1771282257088.jpg",
+  "created_at": "2026-01-19T19:38:33.929Z",
+  "updated_at": "2026-01-19T19:38:33.929Z",
+  "is_elite": false,
+  "is_syndicate": false,
+  "specialty": "",
+  "hospital": null,
+  "bio": "",
+  "experience": null,
+  "banned": false,
+  "specialties": [],
+  "university": "",
+  "graduation_year": null,
+  "address": "اليرموك",
+  "governorate": "بغداد"
+}
+
+--- Sample Lab ---
+{
+  "id": "39e5ca0e-cd81-4f45-becb-020a13041543",
+  "user_id": "cde7177b-c690-42a8-b6b7-11953bf83819",
+  "name": "مختبر بابل الرقمي",
+  "is_active": true,
+  "created_at": "2026-01-19T19:39:05.744Z",
+  "address": "العشار",
+  "phone": "07712345678",
+  "email": "lab.demo@smartdental.com",
+  "description": "",
+  "logo_url": null,
+  "services_list": null,
+  "rating": null,
+  "cover_image_url": null,
+  "bank_information": {},
+  "social_links": {},
+  "notifications_settings": {
+    "email": true
+  },
+  "commission_percentage": "5.00",
+  "pending_commission": "0.00",
+  "is_verified": true,
+  "establishment_year": null,
+  "license_expiry": null,
+  "two_factor_auth": false,
+  "email_notifications": true,
+  "emergency_service": false,
+  "auto_accept_orders": false,
+  "delivery_radius": 25,
+  "total_ratings": 0,
+  "account_status": "active",
+  "is_accredited": true,
+  "verified_at": "2026-01-25T22:26:00.420Z",
+  "verified_by": "8d0cc5e1-bee5-4d04-873e-5f0c922ff736",
+  "accredited_at": "2026-02-26T00:54:09.601Z",
+  "accredited_by": "8d0cc5e1-bee5-4d04-873e-5f0c922ff736",
+  "updated_at": "2026-02-26T00:54:09.601Z",
+  "governorate": "البصرة"
+}
+
+--- Sample Sub Req ---
+[
+  {
+    "id": "99dba2bc-341c-4bb7-9644-bb60dcb08d6c",
+    "doctor_id": "8118872f-aaa2-4322-a0d1-245b2c3bc366",
+    "plan_id": "90195a30-4557-46f6-9247-b3dd8bdb3354",
+    "doctor_name": "Doctor",
+    "clinic_name": null,
+    "phone": "سلطان ",
+    "email": "doctor.demo@smartdental.com",
+    "status": "approved",
+    "payment_method": "ZainCash",
+    "receipt_image_url": "https://nhueyaeyutfmadbgghfe.supabase.co/storage/v1/object/public/documents/subscriptions/8118872f-aaa2-4322-a0d1-245b2c3bc366/19n0q2xujkk_1769362524467.png",
+    "notes": null,
+    "created_at": "2026-01-25T17:35:27.125Z",
+    "updated_at": "2026-01-25T17:35:20.275Z",
+    "agent_id": null,
+    "coupon_id": null,
+    "transaction_id": null,
+    "payment_details": {
+      "agentId": "",
+      "receiptUrl": "https://nhueyaeyutfmadbgghfe.supabase.co/storage/v1/object/public/documents/subscriptions/8118872f-aaa2-4322-a0d1-245b2c3bc366/19n0q2xujkk_1769362524467.png",
+      "senderInfo": "سلطان ",
+      "receiptPath": "subscriptions/8118872f-aaa2-4322-a0d1-245b2c3bc366/19n0q2xujkk_1769362524467.png",
+      "discountApplied": 0
+    },
+    "user_id": null,
+    "is_settled": false,
+    "amount_paid": "0"
+  },
+  {
+    "id": "8d51b707-bd4a-46f6-a1cb-118e1133bb39",
+    "doctor_id": "f61eddec-b35f-4c14-860f-5556b533a0e1",
+    "plan_id": "c48e7cfa-5ba6-4c56-a9a8-cb4253d7d65d",
+    "doctor_name": null,
+    "clinic_name": null,
+    "phone": null,
+    "email": null,
+    "status": "approved",
+    "payment_method": "agent-method",
+    "receipt_image_url": null,
+    "notes": null,
+    "created_at": "2026-03-17T00:27:31.022Z",
+    "updated_at": "2026-03-17T00:27:31.022Z",
+    "agent_id": null,
+    "coupon_id": null,
+    "transaction_id": null,
+    "payment_details": {
+      "notes": "",
+      "method": "agent-method",
+      "agentId": "c61b273c-7b4f-47b2-b3c4-224a2369924f",
+      "receiptUrl": "https://nhueyaeyutfmadbgghfe.supabase.co/storage/v1/object/public/documents/receipts/cvjnagu9aul_1773707247989.webp",
+      "senderName": "sultan aljumaily",
+      "senderPhone": "07818641727",
+      "discount_applied": 0
+    },
+    "user_id": "f61eddec-b35f-4c14-860f-5556b533a0e1",
+    "is_settled": true,
+    "amount_paid": "100000"
+  }
+]
