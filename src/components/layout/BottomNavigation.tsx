@@ -102,7 +102,7 @@ export const BottomNavigation: React.FC = () => {
 
   // 6. Public Menu (الزوار) - Unauthenticated
   const publicMenu = [
-    { id: 'store', label: 'متجر المرضى', icon: ShoppingBag, path: '/patient/store', activeOn: ['/patient/store'] },
+    { id: 'store', label: 'المتجر', icon: ShoppingBag, path: '/patient/store', activeOn: ['/patient/store'] },
     { id: 'home', label: 'الرئيسية', icon: Home, path: '/', activeOn: ['/', '/article'] },
     { id: 'services', label: 'الخدمات الطبية', icon: Stethoscope, path: '/services', activeOn: ['/services'] },
   ];
