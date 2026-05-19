@@ -552,7 +552,7 @@ const AppointmentCard = ({ apt }: { apt: Appointment }) => {
   const timeInfo = formatTime12h(apt.appointment_time || (apt as any).time);
   
   // A record is linked and valid ONLY if it exists and hasn't been soft-deleted by the clinic
-  const hasValidPatient = apt.patient && !apt.patient.deleted_at;
+  const hasValidPatient = (apt as any).patient && !(apt as any).patient.deleted_at;
   const recordId = hasValidPatient ? (apt.patientId || (apt as any).patient_id) : null;
   const isLinked = !!recordId;
 
