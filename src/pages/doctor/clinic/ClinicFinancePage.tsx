@@ -177,7 +177,7 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
       {/* KPI Section */}
       <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <BentoStatCard
-          title="صافي الدخل"
+          title="الإيرادات"
           value={`${stats.income.toLocaleString()} د.ع`}
           icon={TrendingUp}
           color="emerald"

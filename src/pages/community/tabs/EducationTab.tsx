@@ -1,11 +1,29 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCommunity } from '../../../hooks/useCommunity';
 import { Calendar, BookOpen, Layers, Video, Box, ExternalLink, Play, Clock, Users, Bookmark, CheckCircle } from 'lucide-react';
 
 export const EducationTab: React.FC = () => {
     const { events, resources, models } = useCommunity();
-    const [activeSubTab, setActiveSubTab] = useState<'courses' | 'webinars' | 'resources' | '3d'>('courses');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const defaultSubTab = searchParams.get('subtab') as 'courses' | 'webinars' | 'resources' | '3d' || 'courses';
+    const [activeSubTab, setActiveSubTab] = useState<'courses' | 'webinars' | 'resources' | '3d'>(defaultSubTab);
+
+    useEffect(() => {
+        const subtab = searchParams.get('subtab');
+        if (subtab && ['courses', 'webinars', 'resources', '3d'].includes(subtab)) {
+            setActiveSubTab(subtab as any);
+        }
+    }, [searchParams]);
+
+    const handleSubTabChange = (tabId: string) => {
+        setActiveSubTab(tabId as any);
+        setSearchParams(prev => {
+            prev.set('tab', 'education'); // Ensure main tab stays
+            prev.set('subtab', tabId);
+            return prev;
+        }, { replace: true });
+    };
 
     const courses = events.filter(e => e.category === 'دورة').sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const webinars = events.filter(e => e.category === 'ندوة').sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -37,7 +55,7 @@ export const EducationTab: React.FC = () => {
                     {subTabs.map(tab => (
                         <button
                             key={tab.id}
-                            onClick={() => setActiveSubTab(tab.id as any)}
+                            onClick={() => handleSubTabChange(tab.id)}
                             className={`
                                 flex-1 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 whitespace-nowrap px-4
                                 ${activeSubTab === tab.id

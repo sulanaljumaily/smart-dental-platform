@@ -105,7 +105,7 @@ export const useAppointments = (clinicId?: string) => {
                 priority: a.priority || 'normal',
                 notes: a.notes,
                 cost: a.cost,
-                patientPhone: a.patient_phone || '',
+                patientPhone: a.patient_phone || a.phone_number || a.phone || '',
                 createdAt: a.created_at || '',
                 createdBy: a.created_by || '',
                 patientUserId: a.patient_user_id || undefined

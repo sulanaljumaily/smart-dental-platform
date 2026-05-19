@@ -6,6 +6,7 @@ export const useClinicReports = (clinicId: string) => {
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({
         monthlyRevenue: 0,
+        monthlyExpenses: 0,
         totalPatients: 0,
         profitMargin: 0,
         patientSatisfaction: 0,
@@ -23,12 +24,39 @@ export const useClinicReports = (clinicId: string) => {
         }
     }, [clinicId]);
 
+    const arabicMonths: Record<string, string> = {
+        'January': 'كانون الثاني',
+        'February': 'شباط',
+        'March': 'آذار',
+        'April': 'نيسان',
+        'May': 'أيار',
+        'June': 'حزيران',
+        'July': 'تموز',
+        'August': 'آب',
+        'September': 'أيلول',
+        'October': 'تشرين الأول',
+        'November': 'تشرين الثاني',
+        'December': 'كانون الأول'
+    };
+
+    const arabicAppointmentTypes: Record<string, string> = {
+        'consultation': 'كشف / استشارة',
+        'treatment': 'علاج',
+        'emergency': 'طوارئ',
+        'ortho': 'تقويم أسنان',
+        'followup': 'متابعة / مراجعة',
+        'كشف': 'كشف',
+        'كشف عام (أونلاين)': 'كشف عام (أونلاين)',
+        'طب أسنان عام (مساعد ذكي)': 'طب أسنان عام (مساعد ذكي)'
+    };
+
     const fetchReports = async () => {
         try {
             setLoading(true);
             const now = new Date();
             const start = startOfMonth(now).toISOString();
             const end = endOfMonth(now).toISOString();
+            const sixMonthsAgo = startOfMonth(subMonths(now, 5)).toISOString();
 
             // Parallel Data Fetching
             const [
@@ -50,21 +78,28 @@ export const useClinicReports = (clinicId: string) => {
                     .select('performance_stats')
                     .eq('clinic_id', clinicId),
                 supabase
-                    .from('financial_transactions') // Updated table name
-                    .select('amount, type, category')
+                    .from('financial_transactions') // Get 6 months of data for trend
+                    .select('amount, type, category, transaction_date')
                     .eq('clinic_id', clinicId)
-                    .gte('transaction_date', start)
+                    .gte('transaction_date', sixMonthsAgo)
                     .lte('transaction_date', end)
             ]);
 
-            // 1. Revenue Calculations
-            const monthlyRevenue = revenueData
-                ?.filter(t => t.type === 'income')
-                .reduce((sum, t) => sum + (t.amount || 0), 0) || 0;
+            // Filter for current month only
+            const currentMonthKey = format(now, 'yyyy-MM');
+            const currentMonthRevenueData = (revenueData || []).filter(t => {
+                if (!t.transaction_date) return false;
+                return format(new Date(t.transaction_date), 'yyyy-MM') === currentMonthKey;
+            });
 
-            const monthlyExpenses = revenueData
+            // 1. Revenue Calculations
+            const monthlyRevenue = currentMonthRevenueData
+                ?.filter(t => t.type === 'income')
+                .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0) || 0;
+
+            const monthlyExpenses = currentMonthRevenueData
                 ?.filter(t => t.type === 'expense')
-                .reduce((sum, t) => sum + (t.amount || 0), 0) || 0;
+                .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0) || 0;
 
             const profitMargin = monthlyRevenue > 0
                 ? Math.round(((monthlyRevenue - monthlyExpenses) / monthlyRevenue) * 100)
@@ -77,11 +112,11 @@ export const useClinicReports = (clinicId: string) => {
                 return acc;
             }, {});
 
-            const appointmentTypes = Object.entries(typesMap).map(([name, count]: [string, any]) => ({
-                name,
+            const appointmentTypes = Object.entries(typesMap).map(([originalName, count]: [string, any]) => ({
+                name: arabicAppointmentTypes[originalName] || originalName,
                 count,
-                percentage: Math.round((count / totalApps) * 100),
-                color: getColorForType(name)
+                percentage: totalApps > 0 ? Math.round((count / totalApps) * 100) : 0,
+                color: getColorForType(originalName)
             }));
 
             // 3. Staff Efficiency
@@ -89,19 +124,31 @@ export const useClinicReports = (clinicId: string) => {
                 acc + (curr.performance_stats?.rating || 0), 0) / (staff?.length || 1);
             const staffEfficiency = Math.round((avgRating || 0) * 20); // Scale 5 to 100
 
-            // 4. Monthly Trend (Last 6 Months)
-            // This would ideally be a separate aggregate query for performance
-            // For now, we mock previous months based on current for demo as real data is thin
+            // 4. Real Monthly Trend (Last 6 Months)
             const monthlyTrend = Array.from({ length: 6 }).map((_, i) => {
-                const d = subMonths(new Date(), 5 - i);
+                const d = subMonths(now, 5 - i);
+                const engMonth = format(d, 'MMMM');
+                const monthName = arabicMonths[engMonth] || engMonth;
+                const monthKey = format(d, 'yyyy-MM');
+                
+                // Calculate real revenue for this month
+                const monthlyRev = (revenueData || [])
+                    .filter(t => {
+                        if (t.type !== 'income' || !t.transaction_date) return false;
+                        const date = new Date(t.transaction_date);
+                        return format(date, 'yyyy-MM') === monthKey;
+                    })
+                    .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+
                 return {
-                    month: format(d, 'MMMM'),
-                    revenue: monthlyRevenue * (0.8 + Math.random() * 0.4) // Simulated variation
+                    month: monthName,
+                    revenue: monthlyRev
                 };
             });
 
             setStats({
                 monthlyRevenue,
+                monthlyExpenses,
                 totalPatients: patientCount || 0,
                 profitMargin,
                 patientSatisfaction: 92, // Hard to calc without survey data

@@ -138,15 +138,58 @@ export const BookingPage: React.FC = () => {
     const dates = getNextDays();
 
     const [submitting, setSubmitting] = useState(false);
+    // Scenario B: Optional account creation for guests during booking
+    const [wantsAccount, setWantsAccount] = useState(false);
+    const [accountPassword, setAccountPassword] = useState('');
+    const [accountPasswordConfirm, setAccountPasswordConfirm] = useState('');
+    const [accountError, setAccountError] = useState('');
 
     const handleBook = async () => {
         if (!selectedDate || !selectedTime || !patientData.name || !patientData.phone) return;
 
+        // Validate optional account creation fields
+        if (!isPatient && wantsAccount) {
+            if (accountPassword.length < 6) {
+                setAccountError('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+                return;
+            }
+        }
+        setAccountError('');
         setSubmitting(true);
+
+        let newUserId: string | null = null;
+
         try {
+            // Scenario B: Create portal account for guest during booking
+            if (!isPatient && wantsAccount && accountPassword) {
+                const phoneDigits = patientData.phone.replace(/\D/g, '');
+                const syntheticEmail = `${phoneDigits}@patient.smartdental.com`;
+                try {
+                    const { data: signUpData } = await supabase.auth.signUp({
+                        email: syntheticEmail,
+                        password: accountPassword,
+                        options: {
+                            data: { full_name: patientData.name, role: 'patient', phone: patientData.phone }
+                        }
+                    });
+                    if (signUpData.user) {
+                        newUserId = signUpData.user.id;
+                        await supabase.from('profiles').insert({
+                            id: newUserId,
+                            email: syntheticEmail,
+                            full_name: patientData.name,
+                            role: 'patient',
+                            phone: patientData.phone
+                        });
+                    }
+                } catch (regErr: any) {
+                    // Account may already exist — continue without linking
+                    console.warn('[BookingPage] Account creation skipped:', regErr.message);
+                }
+            }
+
             // Convert date string to YYYY-MM-DD
             const dateObj = new Date(selectedDate);
-            // Adjust for timezone offset to avoid previous day issue
             const offset = dateObj.getTimezoneOffset();
             const adjustedDate = new Date(dateObj.getTime() - (offset * 60 * 1000));
             const formattedDate = adjustedDate.toISOString().split('T')[0];
@@ -164,8 +207,8 @@ export const BookingPage: React.FC = () => {
                 notes: `حجز إلكتروني - ${patientData.notes}\n\nبيانات إضافية:\nالعمر: ${patientData.age}\nالجنس: ${patientData.gender === 'male' ? 'ذكر' : 'أنثى'}\nالمحافظة: ${patientData.province}`,
                 phone_number: patientData.phone,
                 cost: 0,
-                // Link to patient account if logged in
-                patient_user_id: isPatient ? user!.id : null,
+                // Link to account: existing patient, newly created during booking, or null (guest)
+                patient_user_id: isPatient ? user!.id : (newUserId ?? null),
                 is_online_booking: true
             });
 
@@ -472,6 +515,83 @@ export const BookingPage: React.FC = () => {
                                 />
                             </div>
                         </div>
+
+                        {/* Optional account creation for guests (Scenario B) */}
+                        {!isPatient && (
+                            <div className={`rounded-2xl overflow-hidden transition-all duration-300 ${
+                                wantsAccount
+                                    ? 'border-2 border-teal-400 shadow-md shadow-teal-100/60'
+                                    : 'border border-gray-200 hover:border-teal-200 hover:shadow-sm'
+                            }`}>
+                                {/* Card Header toggle row */}
+                                <label className="flex items-center gap-3 p-4 cursor-pointer bg-gradient-to-l from-teal-50/50 to-white select-none">
+                                    {/* Toggle switch */}
+                                    <div className={`relative w-10 h-5 rounded-full flex-shrink-0 transition-colors duration-300 ${
+                                        wantsAccount ? 'bg-teal-500' : 'bg-gray-200'
+                                    }`}>
+                                        <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-300 ${
+                                            wantsAccount ? 'right-0.5' : 'left-0.5'
+                                        }`} />
+                                        <input
+                                            type="checkbox"
+                                            checked={wantsAccount}
+                                            onChange={e => { setWantsAccount(e.target.checked); setAccountError(''); }}
+                                            className="sr-only"
+                                        />
+                                    </div>
+                                    {/* Icon */}
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-all duration-300 ${
+                                        wantsAccount ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-400'
+                                    }`}>
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                        </svg>
+                                    </div>
+                                    {/* Text */}
+                                    <div className="flex-1 min-w-0">
+                                        <p className={`font-bold text-sm transition-colors duration-200 ${wantsAccount ? 'text-teal-700' : 'text-gray-700'}`}>
+                                            إنشاء حساب مراجع
+                                            <span className="mr-1.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-400 align-middle">اختياري</span>
+                                        </p>
+                                        <p className="text-[11px] text-gray-400 mt-0.5 truncate">
+                                            تابع مواعيدك وسجلاتك من بوابة المراجعين
+                                        </p>
+                                    </div>
+                                </label>
+
+                                {/* Expandable: password only */}
+                                {wantsAccount && (
+                                    <div className="px-4 pb-4 pt-2 bg-teal-50/40 border-t border-teal-100/70 animate-in fade-in slide-in-from-top-1 duration-200 space-y-2">
+                                        <div className="relative">
+                                            <span className="absolute inset-y-0 right-3 flex items-center text-gray-300 pointer-events-none">
+                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                                </svg>
+                                            </span>
+                                            <input
+                                                type="password"
+                                                value={accountPassword}
+                                                onChange={e => setAccountPassword(e.target.value)}
+                                                placeholder="كلمة المرور (6 أحرف على الأقل)"
+                                                className="w-full pr-10 pl-3 py-2.5 bg-white border border-teal-200 rounded-xl text-sm focus:ring-2 focus:ring-teal-400 focus:border-teal-400 outline-none transition-all placeholder:text-gray-300"
+                                            />
+                                        </div>
+                                        {accountError && (
+                                            <p className="text-xs text-red-500 font-medium flex items-center gap-1 pr-1">
+                                                <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                {accountError}
+                                            </p>
+                                        )}
+                                        <p className="text-[11px] text-teal-500/80 font-medium pr-1">
+                                            ✓ رقم هاتفك سيكون معرّف حسابك تلقائياً
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
 
                         <div className="flex justify-between pt-6 border-t">
                             <Button

@@ -58,7 +58,7 @@ export const GroupDetailPage: React.FC = () => {
                 <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-t from-gray-900 via-transparent to-transparent opacity-80"></div>
 
                 <button
-                    onClick={() => navigate(-1)}
+                    onClick={() => navigate('/community?tab=groups')}
                     className="absolute top-6 right-6 bg-white/10 backdrop-blur-md p-2 rounded-full text-white hover:bg-white/20 transition-colors z-20"
                 >
                     <ArrowRight className="w-6 h-6" />

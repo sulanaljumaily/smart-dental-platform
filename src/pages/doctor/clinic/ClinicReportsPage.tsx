@@ -25,13 +25,7 @@ export const ClinicReportsPage: React.FC<ClinicReportsPageProps> = ({ clinicId }
   // Real Data Hook
   const { stats, loading } = useClinicReports(clinicId);
 
-  // Performance Metrics (derived from real data)
-  const performanceMetrics = [
-    { label: 'رضا المرضى', value: stats.patientSatisfaction, unit: '%', target: 95, trend: 2.1 },
-    { label: 'معدل الإكمال', value: 87.5, unit: '%', target: 90, trend: -1.2 }, // Still static?
-    { label: 'الكفاءة التشغيلية', value: stats.staffEfficiency, unit: '%', target: 85, trend: 3.4 },
-    { label: 'دوران المخزون', value: stats.inventoryTurnover, unit: 'مرات', target: 4.0, trend: 0.3 }
-  ];
+
 
   const reportTypes = [
     { id: 'financial', title: 'التقارير المالية', icon: DollarSign, color: 'blue' },
@@ -120,52 +114,15 @@ export const ClinicReportsPage: React.FC<ClinicReportsPageProps> = ({ clinicId }
           delay={300}
         />
         <BentoStatCard
-          title="رضا المرضى"
-          value={`${stats.patientSatisfaction}%`}
-          icon={Activity}
-          color="orange"
-          trend="up"
-          trendValue="1.8%"
+          title="الصرفيات"
+          value={`${(stats.monthlyExpenses || 0).toLocaleString()} د.ع`}
+          icon={TrendingDown}
+          color="red"
           delay={400}
         />
       </div>
 
-      {/* Performance Metrics */}
-      <Card>
-        <div className="p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">مؤشرات الأداء الرئيسية</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {performanceMetrics.map((metric, index) => (
-              <div key={index} className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">{metric.label}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg font-bold text-gray-900">
-                      {metric.value}{metric.unit}
-                    </span>
-                    <div className={`flex items-center gap-1 text-xs ${metric.trend > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {metric.trend > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                      <span>{Math.abs(metric.trend)}%</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                    style={{
-                      width: `${Math.min((metric.value / metric.target) * 100, 100)}%`
-                    }}
-                  ></div>
-                </div>
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>الهدف: {metric.target}{metric.unit}</span>
-                  <span>{((metric.value / metric.target) * 100).toFixed(1)}% من الهدف</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Card>
+
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -221,37 +178,6 @@ export const ClinicReportsPage: React.FC<ClinicReportsPageProps> = ({ clinicId }
         </Card>
       </div>
 
-      {/* Summary Statistics */}
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <BentoStatCard
-          title="مواعيد يومية"
-          value={stats.dailyAppointments}
-          icon={Calendar}
-          color="blue"
-          delay={500}
-        />
-        <BentoStatCard
-          title="كفاءة الفريق"
-          value={`${stats.staffEfficiency}%`}
-          icon={Activity}
-          color="green"
-          delay={600}
-        />
-        <BentoStatCard
-          title="دوران المخزون"
-          value={stats.inventoryTurnover}
-          icon={BarChart3}
-          color="purple"
-          delay={700}
-        />
-        <BentoStatCard
-          title="متوسط قيمة المريض"
-          value={stats.avgPatientValue.toLocaleString()}
-          icon={TrendingUp}
-          color="orange"
-          delay={800}
-        />
-      </div>
 
     </div>
   );

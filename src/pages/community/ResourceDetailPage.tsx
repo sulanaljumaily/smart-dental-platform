@@ -22,7 +22,7 @@ export const ResourceDetailPage: React.FC = () => {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <p>المصدر غير موجود</p>
-                <Button onClick={() => navigate(-1)}>عودة</Button>
+                <Button onClick={() => navigate('/community?tab=education&subtab=resources')}>عودة</Button>
             </div>
         );
     }
@@ -30,7 +30,7 @@ export const ResourceDetailPage: React.FC = () => {
     return (
         <div className="min-h-screen bg-gray-50 pb-20 pt-6">
             <div className="container mx-auto px-4 max-w-4xl">
-                <Button variant="ghost" className="mb-4 text-gray-500" onClick={() => navigate(-1)}>
+                <Button variant="ghost" className="mb-4 text-gray-500" onClick={() => navigate('/community?tab=education&subtab=resources')}>
                     <ArrowRight className="w-4 h-4 ml-2" />
                     عودة للمصادر
                 </Button>

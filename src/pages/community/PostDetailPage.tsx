@@ -23,7 +23,7 @@ export const PostDetailPage: React.FC = () => {
         return (
             <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
                 <h2 className="text-xl font-bold text-gray-900 mb-2">المنشور غير موجود</h2>
-                <Button onClick={() => navigate(-1)} variant="outline">
+                <Button onClick={() => navigate('/community?tab=overview')} variant="outline">
                     <ArrowRight className="w-4 h-4 ml-2" />
                     رجوع
                 </Button>
@@ -45,7 +45,7 @@ export const PostDetailPage: React.FC = () => {
             {/* Nav Back */}
             <div className="max-w-3xl mx-auto mb-6 flex items-center">
                 <button
-                    onClick={() => navigate(-1)}
+                    onClick={() => navigate('/community?tab=overview')}
                     className="flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors bg-white px-4 py-2 rounded-xl shadow-sm"
                 >
                     <ArrowRight className="w-5 h-5" />

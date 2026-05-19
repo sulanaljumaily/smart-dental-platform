@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { LayoutDashboard, BookOpen, Users, UserPlus, User } from 'lucide-react';
 import { OverviewTab } from './tabs/OverviewTab';
 import { EducationTab } from './tabs/EducationTab';
@@ -7,7 +8,24 @@ import { FriendsTab } from './tabs/FriendsTab';
 import { ProfileTab } from './tabs/ProfileTab';
 
 export const CommunityPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'education' | 'groups' | 'friends' | 'profile'>('overview');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const defaultTab = searchParams.get('tab') as 'overview' | 'education' | 'groups' | 'friends' | 'profile' || 'overview';
+  const [activeTab, setActiveTab] = useState<'overview' | 'education' | 'groups' | 'friends' | 'profile'>(defaultTab);
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && ['overview', 'education', 'groups', 'friends', 'profile'].includes(tab)) {
+      setActiveTab(tab as any);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId as any);
+    setSearchParams(prev => {
+      prev.set('tab', tabId);
+      return prev;
+    }, { replace: true });
+  };
 
   const tabs = [
     { id: 'overview', label: 'نظرة عامة', icon: LayoutDashboard },
@@ -28,7 +46,7 @@ export const CommunityPage: React.FC = () => {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => handleTabChange(tab.id)}
                 className={`relative flex items-center gap-1 sm:gap-1.5 px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all duration-300 group shrink-0 whitespace-nowrap ${
                   isActive
                     ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-lg shadow-indigo-500/25'

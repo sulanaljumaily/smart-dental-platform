@@ -164,6 +164,37 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return login(email, password, 'patient');
   };
 
+  /**
+   * autoLinkPatientData — Called after a patient account is created.
+   * Links any existing appointments/patient files with matching phone
+   * to the new user UUID. Handles Scenario C: booked without account, then registered.
+   */
+  const autoLinkPatientData = async (userId: string, phone: string) => {
+    const sanitizedPhone = phone.replace(/\D/g, '');
+    if (!sanitizedPhone) return;
+    try {
+      // Link appointments that match this phone and have no account yet
+      await supabase
+        .from('appointments')
+        .update({ patient_user_id: userId })
+        .eq('phone_number', sanitizedPhone)
+        .is('patient_user_id', null);
+
+      // Link patient files that match this phone and have no account yet
+      await supabase
+        .from('patients')
+        .update({ patient_user_id: userId })
+        .eq('phone', sanitizedPhone)
+        .is('patient_user_id', null)
+        .is('deleted_at', null);
+
+      console.log('[Auth] Auto-linked existing patient data for phone:', sanitizedPhone);
+    } catch (err) {
+      // Non-critical: log but don't break registration flow
+      console.warn('[Auth] Auto-link patient data failed (non-critical):', err);
+    }
+  };
+
   const register = async (email: string, password: string, name: string, role: UserRole, phone: string) => {
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -198,6 +229,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
 
         toast.success('تم إنشاء الحساب بنجاح');
+
+        // Auto-link existing appointments/patient files for patient accounts (Scenario C)
+        if (role === 'patient' && phone) {
+          await autoLinkPatientData(data.user.id, phone);
+        }
 
         // Notify Admins about new professional accounts
         if (role === 'supplier') {
