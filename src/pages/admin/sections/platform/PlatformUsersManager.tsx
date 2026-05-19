@@ -259,7 +259,28 @@ export const PlatformUsersManager: React.FC = () => {
                     onClose={() => setModalType(null)}
                     supplier={selectedUser}
                     onApprove={async (s) => {
-                        const { error: supErr } = await supabase.from('suppliers').update({ is_verified: true }).eq('id', s.id);
+                        const { data: existing } = await supabase.from('suppliers').select('id').eq('id', s.id).maybeSingle();
+                        let supErr = null;
+                        
+                        if (!existing) {
+                            const { error: insErr } = await supabase.from('suppliers').insert({
+                                id: s.id,
+                                user_id: s.id,
+                                name: s.companyName || s.ownerName || 'مورد جديد',
+                                is_verified: true,
+                                phone: s.phoneNumber || '',
+                                email: s.email || '',
+                                commission_percentage: 0
+                            });
+                            supErr = insErr;
+                        } else {
+                            const { error: updErr } = await supabase
+                                .from('suppliers')
+                                .update({ is_verified: true })
+                                .eq('id', s.id);
+                            supErr = updErr;
+                        }
+
                         // Also lift any ban on the profile
                         await supabase.from('profiles').update({ banned: false }).eq('id', s.id);
                         if (!supErr) {
@@ -271,22 +292,62 @@ export const PlatformUsersManager: React.FC = () => {
                         }
                     }}
                     onReject={async (s) => {
-                        const { error: supErr } = await supabase.from('suppliers').update({ is_verified: false }).eq('id', s.id);
+                        const { data: existing } = await supabase.from('suppliers').select('id').eq('id', s.id).maybeSingle();
+                        let supErr = null;
+
+                        if (!existing) {
+                            const { error: insErr } = await supabase.from('suppliers').insert({
+                                id: s.id,
+                                user_id: s.id,
+                                name: s.companyName || s.ownerName || 'مورد جديد',
+                                is_verified: false,
+                                phone: s.phoneNumber || '',
+                                email: s.email || '',
+                                commission_percentage: 0
+                            });
+                            supErr = insErr;
+                        } else {
+                            const { error: updErr } = await supabase
+                                .from('suppliers')
+                                .update({ is_verified: false })
+                                .eq('id', s.id);
+                            supErr = updErr;
+                        }
+
                         if (!supErr) {
                             toast.success('تم رفض حساب المورد');
                             setModalType(null);
                         } else {
                             toast.error('حدث خطأ في الرفض');
+                            console.error(supErr);
                         }
                     }}
                     onUpdateStatus={async (id, status) => {
                         const isSuspending = status === 'suspended';
                         const isActivating = status === 'approved';
-                        // Update suppliers.is_verified
-                        const { error: supErr } = await supabase
-                            .from('suppliers')
-                            .update({ is_verified: isActivating })
-                            .eq('id', id);
+                        
+                        const { data: existing } = await supabase.from('suppliers').select('id').eq('id', id).maybeSingle();
+                        let supErr = null;
+
+                        if (!existing) {
+                            const { error: insErr } = await supabase.from('suppliers').insert({
+                                id: id,
+                                user_id: id,
+                                name: selectedUser?.companyName || selectedUser?.name || 'مورد جديد',
+                                is_verified: isActivating,
+                                phone: selectedUser?.phoneNumber || selectedUser?.phone || '',
+                                email: selectedUser?.email || '',
+                                commission_percentage: 0
+                            });
+                            supErr = insErr;
+                        } else {
+                            const { error: updErr } = await supabase
+                                .from('suppliers')
+                                .update({ is_verified: isActivating })
+                                .eq('id', id);
+                            supErr = updErr;
+                        }
+
                         // Update profiles.banned (suspend = ban, activate = unban)
                         const { error: profErr } = await supabase
                             .from('profiles')

@@ -78,10 +78,41 @@ export const PendingRequestsManager = () => {
             }) || [];
 
             // 3. Fetch Pending Suppliers
-            const { data: suppliers } = await supabase
-                .from('suppliers')
-                .select('*')
-                .eq('status', 'pending');
+            const { data: pendingSupplierProfiles } = await supabase
+                .from('profiles')
+                .select('id, full_name, phone, email, created_at')
+                .eq('role', 'supplier');
+
+            const { data: dbSuppliers } = await supabase.from('suppliers').select('*');
+
+            const suppliers = pendingSupplierProfiles?.filter((p: any) => {
+                const supRec = dbSuppliers?.find(s => s.id === p.id || s.user_id === p.id || s.owner_id === p.id);
+                return !supRec || supRec.status === 'pending' || !supRec.is_verified;
+            }).map((p: any) => {
+                const supRec = dbSuppliers?.find(s => s.id === p.id || s.user_id === p.id || s.owner_id === p.id);
+                return {
+                    id: supRec ? supRec.id : p.id,
+                    companyName: supRec?.name || supRec?.company_name || p.full_name || 'مورد جديد',
+                    name: supRec?.name || p.full_name || 'مورد جديد',
+                    ownerName: p.full_name,
+                    phone: p.phone || supRec?.phone || supRec?.phone_number || '',
+                    phoneNumber: p.phone || supRec?.phone || supRec?.phone_number || '',
+                    phone_number: p.phone || supRec?.phone || supRec?.phone_number || '',
+                    email: p.email || supRec?.email || '',
+                    address: supRec?.address || supRec?.location || '',
+                    location: supRec?.address || supRec?.location || '',
+                    created_at: supRec?.created_at || p.created_at,
+                    status: 'pending',
+                    user_id: p.id,
+                    joinDate: supRec?.created_at || p.created_at,
+                    category: supRec?.category || 'تجهيزات طبية',
+                    commissionPercentage: supRec?.commission_percentage || 0,
+                    totalSales: supRec?.total_sales || 0,
+                    pendingCommission: supRec?.pending_commission || 0,
+                    rating: supRec?.rating || 5,
+                    productsCount: 0
+                };
+            }) || [];
 
             const formattedSubs = (subs || []).map(r => {
                 const planName = r.plan_id === 'plan-3' ? 'الباقة الشاملة' : r.plan_id === 'plan-2' ? 'الباقة المتقدمة' : 'الباقة الأساسية';
@@ -163,11 +194,37 @@ export const PendingRequestsManager = () => {
                 });
                 if (error) throw error;
             } else {
-                const { error } = await supabase
-                    .from('suppliers')
-                    .update({ status: 'approved' })
-                    .eq('id', id);
-                if (error) throw error;
+                // Check if supplier record exists
+                const { data: existing } = await supabase.from('suppliers').select('id').eq('id', id).maybeSingle();
+                
+                if (!existing) {
+                    const { data: byUser } = await supabase.from('suppliers').select('id').eq('user_id', id).maybeSingle();
+                    if (byUser) {
+                        const { error } = await supabase
+                            .from('suppliers')
+                            .update({ is_verified: true })
+                            .eq('id', byUser.id);
+                        if (error) throw error;
+                    } else {
+                        const supplierObj = accountRequests.find(s => s.id === id);
+                        const { error: insErr } = await supabase.from('suppliers').insert({
+                            id: id,
+                            user_id: id,
+                            name: supplierObj?.companyName || supplierObj?.name || 'مورد جديد',
+                            is_verified: true,
+                            phone: supplierObj?.phone || '',
+                            email: supplierObj?.email || '',
+                            commission_percentage: 0
+                        });
+                        if (insErr) throw insErr;
+                    }
+                } else {
+                    const { error } = await supabase
+                        .from('suppliers')
+                        .update({ is_verified: true })
+                        .eq('id', id);
+                    if (error) throw error;
+                }
             }
 
             toast.success(`تم تفعيل حساب ${type === 'lab' ? 'المختبر' : 'المورد'} بنجاح`);
@@ -445,18 +502,6 @@ export const PendingRequestsManager = () => {
                     ownerId={selectedOwnerId}
                     isOpen={showOwnerDetails}
                     onClose={() => setShowOwnerDetails(false)}
-                />
-            )}
-
-            {modalType === 'supplier' && (
-                <SupplierDetailModal
-                    supplier={selectedRequest}
-                    isOpen={true}
-                    onClose={() => setModalType(null)}
-                    onUpdateStatus={(id, status) => {
-                        if (status === 'approved') handleApproveAccount(id, 'supplier');
-                        setModalType(null);
-                    }}
                 />
             )}
         </div>

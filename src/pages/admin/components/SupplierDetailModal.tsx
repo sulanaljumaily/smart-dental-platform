@@ -263,11 +263,11 @@ export const SupplierDetailModal: React.FC<SupplierDetailModalProps> = ({
                                 <div className="flex gap-3">
                                     {supplier.status === 'pending' && (
                                         <>
-                                            <Button onClick={() => onApprove(supplier)} className="bg-green-600 hover:bg-green-700 text-white w-full">
+                                            <Button onClick={() => onApprove?.(supplier)} className="bg-green-600 hover:bg-green-700 text-white w-full">
                                                 <CheckCircle className="w-4 h-4 ml-2" />
                                                 موافقة
                                             </Button>
-                                            <Button variant="outline" onClick={() => onReject(supplier)} className="text-red-600 hover:bg-red-50 border-red-200 w-full">
+                                            <Button variant="outline" onClick={() => onReject?.(supplier)} className="text-red-600 hover:bg-red-50 border-red-200 w-full">
                                                 <XCircle className="w-4 h-4 ml-2" />
                                                 رفض
                                             </Button>
@@ -284,7 +284,7 @@ export const SupplierDetailModal: React.FC<SupplierDetailModalProps> = ({
                                         </Button>
                                     )}
                                     {supplier.status === 'suspended' && (
-                                        <Button onClick={() => onApprove(supplier)} className="bg-green-600 hover:bg-green-700 text-white flex-1">
+                                        <Button onClick={() => onApprove?.(supplier)} className="bg-green-600 hover:bg-green-700 text-white flex-1">
                                             <CheckCircle className="w-4 h-4 ml-2" />
                                             إعادة تفعيل الحساب
                                         </Button>
