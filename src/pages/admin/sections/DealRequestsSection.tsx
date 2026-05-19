@@ -75,9 +75,26 @@ export const DealRequestsSection: React.FC = () => {
             } else if (type === 'featured') {
                 updates = { is_featured: true, is_featured_request: false };
             } else if (type === 'offer') {
-                const discount = request.offer_request_percentage;
-                updates = { discount: discount, is_offer_request: false, offer_request_percentage: 0 };
-                // Ideally we keep offer_request_percentage as history/ref or clear it. Clearing it ensures no stale request.
+                const { data: prodData } = await supabase
+                    .from('products')
+                    .select('price, original_price')
+                    .eq('id', request.id)
+                    .single();
+
+                if (prodData) {
+                    const originalPrice = Number(prodData.original_price || prodData.price);
+                    const discount = Number(request.offer_request_percentage);
+                    const newPrice = Math.round(originalPrice * (1 - discount / 100));
+                    updates = {
+                        discount: discount,
+                        original_price: originalPrice,
+                        price: newPrice,
+                        is_offer_request: false,
+                        offer_request_percentage: 0
+                    };
+                } else {
+                    throw new Error('Product not found');
+                }
             }
 
             const { error } = await supabase

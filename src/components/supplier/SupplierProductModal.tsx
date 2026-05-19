@@ -633,31 +633,18 @@ export const SupplierProductModal: React.FC<SupplierProductModalProps> = ({
                                 <label className="flex items-center gap-2 cursor-pointer">
                                     <input
                                         type="checkbox"
-                                        checked={formData.target_audience.includes('clinic')}
+                                        checked={formData.target_audience.includes('clinic') || formData.target_audience.includes('lab')}
                                         onChange={(e) => {
-                                            const newAudience = e.target.checked
-                                                ? [...formData.target_audience, 'clinic']
-                                                : formData.target_audience.filter(a => a !== 'clinic');
+                                            const isChecked = e.target.checked;
+                                            let newAudience = formData.target_audience.filter(a => a !== 'clinic' && a !== 'lab');
+                                            if (isChecked) {
+                                                newAudience.push('clinic', 'lab');
+                                            }
                                             setFormData({ ...formData, target_audience: newAudience });
                                         }}
                                         className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                                     />
-                                    <span className="text-gray-700">العيادات والأطباء</span>
-                                </label>
-
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.target_audience.includes('lab')}
-                                        onChange={(e) => {
-                                            const newAudience = e.target.checked
-                                                ? [...formData.target_audience, 'lab']
-                                                : formData.target_audience.filter(a => a !== 'lab');
-                                            setFormData({ ...formData, target_audience: newAudience });
-                                        }}
-                                        className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                    />
-                                    <span className="text-gray-700">مختبرات الأسنان</span>
+                                    <span className="text-gray-700">العيادات، الأطباء ومختبرات الأسنان</span>
                                 </label>
 
                                 <label className="flex items-center gap-2 cursor-pointer">
@@ -665,9 +652,11 @@ export const SupplierProductModal: React.FC<SupplierProductModalProps> = ({
                                         type="checkbox"
                                         checked={formData.target_audience.includes('patient')}
                                         onChange={(e) => {
-                                            const newAudience = e.target.checked
-                                                ? [...formData.target_audience, 'patient']
-                                                : formData.target_audience.filter(a => a !== 'patient');
+                                            const isChecked = e.target.checked;
+                                            let newAudience = formData.target_audience.filter(a => a !== 'patient');
+                                            if (isChecked) {
+                                                newAudience.push('patient');
+                                            }
                                             setFormData({ ...formData, target_audience: newAudience });
                                         }}
                                         className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
@@ -677,20 +666,12 @@ export const SupplierProductModal: React.FC<SupplierProductModalProps> = ({
                             </div>
                             <p className="text-xs text-gray-500 mt-2">
                                 {formData.target_audience.length === 0
-                                    ? '⚠️ يرجى اختيار جمهور واحد على الأقل'
-                                    : formData.target_audience.length === 3
-                                        ? 'سيظهر المنتج للجميع (عيادات ومختبرات ومرضى)'
-                                        : formData.target_audience.includes('clinic') && formData.target_audience.includes('lab')
-                                            ? 'سيظهر المنتج للأطباء والعيادات ومختبرات الأسنان'
-                                            : formData.target_audience.includes('clinic') && formData.target_audience.includes('patient')
-                                                ? 'سيظهر المنتج للأطباء والعيادات وجمهور المرضى والمراجعين'
-                                                : formData.target_audience.includes('lab') && formData.target_audience.includes('patient')
-                                                    ? 'سيظهر المنتج لمختبرات الأسنان وجمهور المرضى والمراجعين'
-                                                    : formData.target_audience.includes('clinic')
-                                                        ? 'سيظهر المنتج فقط للأطباء والعيادات'
-                                                        : formData.target_audience.includes('lab')
-                                                            ? 'سيظهر المنتج فقط لمختبرات الأسنان'
-                                                            : 'سيظهر المنتج فقط للمرضى والمراجعين'}
+                                    ? '⚠️ يرجى اختيار جمهور مستهدف واحد على الأقل'
+                                    : (formData.target_audience.includes('clinic') || formData.target_audience.includes('lab')) && formData.target_audience.includes('patient')
+                                        ? 'سيظهر المنتج للجميع (الأطباء، العيادات، المختبرات، والمرضى)'
+                                        : (formData.target_audience.includes('clinic') || formData.target_audience.includes('lab'))
+                                            ? 'سيظهر المنتج في متجر الأطباء والمختبرات فقط'
+                                            : 'سيظهر المنتج في متجر المرضى فقط'}
                             </p>
                         </div>
                     </div>

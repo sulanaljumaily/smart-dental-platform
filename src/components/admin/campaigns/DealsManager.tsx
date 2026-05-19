@@ -39,7 +39,7 @@ export const DealsManager: React.FC<{ storeType?: 'professional' | 'patient' }> 
         let query = supabase
             .from('products')
             .select('*, supplier:suppliers(name)')
-            .eq('is_deal', true);
+            .gt('discount', 0);
 
         if (storeType === 'patient') {
             query = query.contains('target_audience', ['patient']);
@@ -69,7 +69,7 @@ export const DealsManager: React.FC<{ storeType?: 'professional' | 'patient' }> 
             .from('products')
             .select('id, name, price, image, images, supplier:suppliers(name)')
             .ilike('name', `%${searchTerm}%`)
-            .eq('is_deal', false); // Only fetch non-deals
+            .or('discount.is.null,discount.eq.0'); // Only fetch non-deals
 
         if (storeType === 'patient') {
             query = query.contains('target_audience', ['patient']);
@@ -92,14 +92,16 @@ export const DealsManager: React.FC<{ storeType?: 'professional' | 'patient' }> 
         if (!selectedProduct) return;
 
         try {
+            const originalPrice = Number(selectedProduct.price);
+            const discount = Number(dealConfig.discount_percentage);
+            const newPrice = Math.round(originalPrice * (1 - discount / 100));
+
             const { error } = await supabase
                 .from('products')
                 .update({
-                    is_deal: true,
-                    discount_percentage: dealConfig.discount_percentage,
-                    deal_badge: dealConfig.deal_badge,
-                    deal_start: dealConfig.deal_start,
-                    deal_end: dealConfig.deal_end
+                    discount: discount,
+                    original_price: originalPrice,
+                    price: newPrice
                 })
                 .eq('id', selectedProduct.id);
 
@@ -121,14 +123,32 @@ export const DealsManager: React.FC<{ storeType?: 'professional' | 'patient' }> 
 
     const handleEndDeal = async (id: string) => {
         if (!confirm('هل أنت متأكد من إنهاء هذا العرض؟')) return;
-        const { error } = await supabase
-            .from('products')
-            .update({ is_deal: false })
-            .eq('id', id);
 
-        if (!error) {
-            toast.success('تم إنهاء العرض');
-            fetchDeals();
+        try {
+            const { data: prodData } = await supabase
+                .from('products')
+                .select('price, original_price')
+                .eq('id', id)
+                .single();
+
+            if (prodData) {
+                const restoredPrice = Number(prodData.original_price || prodData.price);
+                const { error } = await supabase
+                    .from('products')
+                    .update({
+                        price: restoredPrice,
+                        discount: 0,
+                        original_price: null
+                    })
+                    .eq('id', id);
+
+                if (error) throw error;
+                toast.success('تم إنهاء العرض بنجاح');
+                fetchDeals();
+            }
+        } catch (err) {
+            console.error('Error ending deal:', err);
+            toast.error('فشل إنهاء العرض');
         }
     };
 
@@ -152,10 +172,10 @@ export const DealsManager: React.FC<{ storeType?: 'professional' | 'patient' }> 
             title: 'الخصم',
             render: (_, record) => (
                 <div>
-                    <span className="font-bold text-red-600">%{record.discount_percentage}</span>
-                    <div className="text-xs text-gray-400 line-through">{record.price.toLocaleString()}</div>
+                    <span className="font-bold text-red-600">%{record.discount || 0}</span>
+                    <div className="text-xs text-gray-400 line-through">{(record.original_price || record.price).toLocaleString()} د.ع</div>
                     <div className="text-xs font-bold text-green-600">
-                        {Math.round(record.price * (1 - record.discount_percentage / 100)).toLocaleString()}
+                        {record.price.toLocaleString()} د.ع
                     </div>
                 </div>
             )
@@ -165,7 +185,7 @@ export const DealsManager: React.FC<{ storeType?: 'professional' | 'patient' }> 
             title: 'شارة العرض',
             render: (_, record) => (
                 <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-bold">
-                    {record.deal_badge}
+                    {record.discount}% OFF
                 </span>
             )
         },
@@ -173,10 +193,8 @@ export const DealsManager: React.FC<{ storeType?: 'professional' | 'patient' }> 
             key: 'duration',
             title: 'المدة',
             render: (_, record) => (
-                <div className="text-xs">
-                    <div>{record.deal_start}</div>
-                    <div className="text-gray-400">إلى</div>
-                    <div>{record.deal_end}</div>
+                <div className="text-xs text-gray-500">
+                    عرض نشط مستمر
                 </div>
             )
         },

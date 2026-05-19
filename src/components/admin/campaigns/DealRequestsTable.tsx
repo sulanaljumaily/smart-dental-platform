@@ -136,19 +136,26 @@ export const DealRequestsTable: React.FC<{ storeType?: 'professional' | 'patient
             if (newStatus === 'approved') {
                 const request = requests.find(r => r.id === id);
                 if (request) {
-                    const startDate = new Date();
-                    const endDate = new Date();
-                    endDate.setDate(startDate.getDate() + (request.duration_days || 7));
-
-                    await supabase
+                    const { data: prodData } = await supabase
                         .from('products')
-                        .update({
-                            is_deal: true,
-                            discount_percentage: request.discount_percentage,
-                            deal_start: startDate.toISOString(),
-                            deal_end: endDate.toISOString()
-                        })
-                        .eq('id', request.product.id);
+                        .select('price, original_price')
+                        .eq('id', request.product.id)
+                        .single();
+
+                    if (prodData) {
+                        const originalPrice = Number(prodData.original_price || prodData.price);
+                        const discount = Number(request.discount_percentage);
+                        const newPrice = Math.round(originalPrice * (1 - discount / 100));
+
+                        await supabase
+                            .from('products')
+                            .update({
+                                discount: discount,
+                                original_price: originalPrice,
+                                price: newPrice
+                            })
+                            .eq('id', request.product.id);
+                    }
                 }
             }
 
@@ -164,9 +171,31 @@ export const DealRequestsTable: React.FC<{ storeType?: 'professional' | 'patient
     const handleDirectApprove = async (req: PatientProductRequest, type: 'new' | 'featured' | 'offer') => {
         try {
             let updates: any = {};
-            if (type === 'new') updates = { is_new: true, is_new_request: false };
-            else if (type === 'featured') updates = { is_featured: true, is_featured_request: false };
-            else updates = { discount_percentage: req.offer_request_percentage, is_deal: true, is_offer_request: false };
+            if (type === 'new') {
+                updates = { is_new: true, is_new_request: false };
+            } else if (type === 'featured') {
+                updates = { is_featured: true, is_featured_request: false };
+            } else {
+                const { data: prodData } = await supabase
+                    .from('products')
+                    .select('price, original_price')
+                    .eq('id', req.id)
+                    .single();
+
+                if (prodData) {
+                    const originalPrice = Number(prodData.original_price || prodData.price);
+                    const discount = Number(req.offer_request_percentage);
+                    const newPrice = Math.round(originalPrice * (1 - discount / 100));
+                    updates = {
+                        discount: discount,
+                        original_price: originalPrice,
+                        price: newPrice,
+                        is_offer_request: false
+                    };
+                } else {
+                    throw new Error('Product not found');
+                }
+            }
             
             const { error } = await supabase.from('products').update(updates).eq('id', req.id);
             if (error) throw error;
