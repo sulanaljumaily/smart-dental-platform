@@ -19,7 +19,7 @@ interface Coupon {
     end_date?: string;
 }
 
-export const CouponsManager: React.FC = () => {
+export const CouponsManager: React.FC<{ storeType?: 'professional' | 'patient' }> = ({ storeType = 'professional' }) => {
     const [coupons, setCoupons] = useState<Coupon[]>([]);
     const [loading, setLoading] = useState(true);
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -30,10 +30,17 @@ export const CouponsManager: React.FC = () => {
     const fetchCoupons = async () => {
         setLoading(true);
         try {
-            const { data, error } = await supabase
+            let query = supabase
                 .from('store_coupons')
-                .select('*')
-                .order('created_at', { ascending: false });
+                .select('*');
+
+            if (storeType === 'patient') {
+                query = query.ilike('code', 'PATIENT_%');
+            } else {
+                query = query.not('code', 'ilike', 'PATIENT_%');
+            }
+
+            const { data, error } = await query.order('created_at', { ascending: false });
 
             if (error) throw error;
             setCoupons(data as Coupon[]);
@@ -47,12 +54,17 @@ export const CouponsManager: React.FC = () => {
 
     useEffect(() => {
         fetchCoupons();
-    }, []);
+    }, [storeType]);
 
     const handleSave = async (formData: any) => {
         try {
+            let finalCode = formData.code.toUpperCase().trim();
+            if (storeType === 'patient' && !finalCode.startsWith('PATIENT_')) {
+                finalCode = 'PATIENT_' + finalCode;
+            }
+
             const couponData = {
-                code: formData.code.toUpperCase(),
+                code: finalCode,
                 discount_type: formData.discount_type,
                 discount_value: Number(formData.discount_value),
                 min_order_value: Number(formData.min_order_value),
@@ -187,13 +199,19 @@ export const CouponsManager: React.FC = () => {
             <div className="flex justify-between items-center">
                 <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                     <Tag className="w-6 h-6 text-purple-600" />
-                    إدارة قسائم التخفيض
+                    {storeType === 'patient' ? 'إدارة قسائم تخفيض متجر المرضى' : 'إدارة قسائم التخفيض (متجر الأطباء)'}
                 </h3>
                 <Button onClick={() => { setEditingCoupon({ status: 'active', discount_type: 'percentage' }); setIsFormOpen(true); }}>
                     <Plus className="w-4 h-4 ml-2" />
-                    إضافة قسيمة
+                    {storeType === 'patient' ? 'إضافة قسيمة للمرضى' : 'إضافة قسيمة'}
                 </Button>
             </div>
+
+            {storeType === 'patient' && (
+                <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 text-sm text-purple-800">
+                    💡 <strong>ملاحظة:</strong> سيتم إضافة البادئة <code className="font-bold bg-purple-100 px-1.5 py-0.5 rounded">PATIENT_</code> تلقائياً لأكواد خصم متجر المرضى لتجنب تداخلها مع قسائم متجر الأطباء والعيادات.
+                </div>
+            )}
 
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                 <AdminTable
@@ -205,7 +223,7 @@ export const CouponsManager: React.FC = () => {
             <FormModal
                 isOpen={isFormOpen}
                 onClose={() => setIsFormOpen(false)}
-                title={editingCoupon?.id ? 'تعديل القسيمة' : 'إضافة قسيمة جديدة'}
+                title={editingCoupon?.id ? 'تعديل القسيمة' : (storeType === 'patient' ? 'إضافة قسيمة جديدة لمتجر المرضى' : 'إضافة قسيمة جديدة')}
                 fields={formFields}
                 initialValues={editingCoupon || undefined}
                 onSubmit={handleSave}

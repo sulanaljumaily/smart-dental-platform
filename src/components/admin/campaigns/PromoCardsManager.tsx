@@ -16,7 +16,7 @@ interface PromotionalCard {
     badge_text?: string;
 }
 
-export const PromoCardsManager: React.FC = () => {
+export const PromoCardsManager: React.FC<{ storeType?: 'professional' | 'patient' }> = ({ storeType = 'professional' }) => {
     const [cards, setCards] = useState<PromotionalCard[]>([]);
     const [loading, setLoading] = useState(true);
     const [editingCard, setEditingCard] = useState<PromotionalCard | null>(null);
@@ -24,7 +24,7 @@ export const PromoCardsManager: React.FC = () => {
 
     useEffect(() => {
         fetchCards();
-    }, []);
+    }, [storeType]);
 
     const fetchCards = async () => {
         setLoading(true);
@@ -46,15 +46,16 @@ export const PromoCardsManager: React.FC = () => {
         e.preventDefault();
         if (!editingCard) return;
 
+        const activeSection = storeType === 'patient' ? 'patient_hero' : 'home_hero';
         const cardData = {
             title: editingCard.title,
             description: editingCard.description,
             image: editingCard.image,
             button_text: editingCard.button_text || 'تسوق الآن',
-            link: editingCard.link || '/store/deals',
+            link: editingCard.link || (storeType === 'patient' ? '/patient/store' : '/store/deals'),
             active: editingCard.active,
-            section: 'home_hero',
-            badge_text: editingCard.badge_text || '✨ عروض مميزة'
+            section: activeSection,
+            badge_text: editingCard.badge_text || (storeType === 'patient' ? '✨ عروض المراجعين' : '✨ عروض مميزة')
         };
 
         try {
@@ -101,7 +102,38 @@ export const PromoCardsManager: React.FC = () => {
 
     const seedDefaultCards = async () => {
         setLoading(true);
-        const defaultCards = [
+        const defaultCards = storeType === 'patient' ? [
+            {
+                title: 'فرش الأسنان الكهربائية الذكية',
+                description: 'أفضل فرش الأسنان التكنولوجية لحماية متكاملة ومستمرة بخصومات حصرية لمراجعي عياداتنا المعتمدة',
+                image: 'https://images.unsplash.com/photo-1606811841689-23dfddce3e95?w=1600&auto=format&fit=crop&q=80',
+                button_text: 'تصفح العروض',
+                link: '/patient/store',
+                active: true,
+                section: 'patient_hero',
+                badge_text: 'عناية ذكية'
+            },
+            {
+                title: 'أدوات العناية اليومية ونظافة الفم',
+                description: 'تشكيلة مميزة من معاجين الأسنان والمضمضة الطبية وخيوط الأسنان المائية الموصى بها طبياً',
+                image: 'https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?w=1600&auto=format&fit=crop&q=80',
+                button_text: 'تسوق الآن',
+                link: '/patient/store',
+                active: true,
+                section: 'patient_hero',
+                badge_text: 'عناية فموية'
+            },
+            {
+                title: 'عناية خاصة بأسنان الأطفال',
+                description: 'اجعل روتين العناية بالأسنان ممتعاً وآمناً لأطفالك مع منتجات خالية من الفلورايد وبخصومات حصرية',
+                image: 'https://images.unsplash.com/photo-1542608509-c1ca3702f22b?w=1600&auto=format&fit=crop&q=80',
+                button_text: 'عرض المنتجات',
+                link: '/patient/store',
+                active: true,
+                section: 'patient_hero',
+                badge_text: '✨ عروض الأطفال'
+            }
+        ] : [
             {
                 title: 'تجهيزات العيادات الحديثة',
                 description: 'خصم يصل إلى 20% على كراسي الأسنان',
@@ -147,20 +179,31 @@ export const PromoCardsManager: React.FC = () => {
         }
     };
 
-    // Filter for home page hero section
-    const homeCards = cards.filter(c => c.section === 'home_hero' || !c.section);
+    const activeSection = storeType === 'patient' ? 'patient_hero' : 'home_hero';
+    const homeCards = cards.filter(c => c.section === activeSection || (activeSection === 'home_hero' && !c.section));
 
     return (
         <div className="space-y-6">
-            {/* Home Hero Section */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                     <div>
-                        <h3 className="text-xl font-bold text-gray-900">البطاقة الترويجية في الصفحة العامة للمتجر</h3>
-                        <p className="text-gray-500 text-sm mt-1">إدارة العروض التي تظهر في الشريط المتحرك الرئيسي في المتجر</p>
+                        <h3 className="text-xl font-bold text-gray-900">
+                            {storeType === 'patient' ? 'البطاقات الترويجية في متجر المرضى' : 'البطاقة الترويجية في الصفحة العامة للمتجر'}
+                        </h3>
+                        <p className="text-gray-500 text-sm mt-1">
+                            {storeType === 'patient' ? 'إدارة العروض التي تظهر في الشريط المتحرك الرئيسي بمتجر المرضى والمراجعين' : 'إدارة العروض التي تظهر في الشريط المتحرك الرئيسي في متجر الأطباء والعيادات'}
+                        </p>
                     </div>
                     <Button onClick={() => {
-                        setEditingCard({ id: 'new', title: '', description: '', active: true, button_text: 'تسوق الآن', section: 'home_hero', badge_text: '✨ عروض مميزة' });
+                        setEditingCard({ 
+                            id: 'new', 
+                            title: '', 
+                            description: '', 
+                            active: true, 
+                            button_text: 'تسوق الآن', 
+                            section: activeSection, 
+                            badge_text: storeType === 'patient' ? '✨ عروض المراجعين' : '✨ عروض مميزة' 
+                        });
                         setIsFormOpen(true);
                     }}>
                         <Plus className="w-4 h-4 ml-2" />
@@ -176,7 +219,7 @@ export const PromoCardsManager: React.FC = () => {
                                 <p className="text-gray-500 font-medium">لا توجد عروض حالياً</p>
                                 <p className="text-gray-400 text-sm mt-1 mb-4">يمكنك إضافة عرض جديد أو استعادة العروض الافتراضية</p>
                                 <Button onClick={seedDefaultCards} className="bg-blue-600 text-white hover:bg-blue-700">
-                                    استعادة العروض الافتراضية للواجهة
+                                    {storeType === 'patient' ? 'استعادة العروض الافتراضية لمتجر المرضى' : 'استعادة العروض الافتراضية للواجهة'}
                                 </Button>
                             </div>
                         ) : (

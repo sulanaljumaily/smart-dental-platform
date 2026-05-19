@@ -14,7 +14,7 @@ interface FeaturedProduct {
     featured_order: number;
 }
 
-export const FeaturedManager: React.FC = () => {
+export const FeaturedManager: React.FC<{ storeType?: 'professional' | 'patient' }> = ({ storeType = 'professional' }) => {
     const [featured, setFeatured] = useState<FeaturedProduct[]>([]);
     const [loading, setLoading] = useState(true);
     const [isAdding, setIsAdding] = useState(false);
@@ -24,14 +24,21 @@ export const FeaturedManager: React.FC = () => {
     const fetchFeatured = async () => {
         try {
             setLoading(true);
-            const { data, error } = await supabase
+            let query = supabase
                 .from('products')
                 .select(`
-          id, name, images, price, featured_order,
-          supplier:suppliers(name)
-        `)
-                .eq('is_featured', true)
-                .order('featured_order', { ascending: true });
+                  id, name, images, price, featured_order,
+                  supplier:suppliers(name)
+                `)
+                .eq('is_featured', true);
+
+            if (storeType === 'patient') {
+                query = query.contains('target_audience', ['patient']);
+            } else {
+                query = query.not('target_audience', 'cs', '{"patient"}');
+            }
+
+            const { data, error } = await query.order('featured_order', { ascending: true });
 
             if (error) throw error;
 
@@ -50,21 +57,28 @@ export const FeaturedManager: React.FC = () => {
 
     useEffect(() => {
         fetchFeatured();
-    }, []);
+    }, [storeType]);
 
-    const handleSearch = async (query: string) => {
-        setSearchQuery(query);
-        if (query.length < 3) {
+    const handleSearch = async (queryStr: string) => {
+        setSearchQuery(queryStr);
+        if (queryStr.length < 3) {
             setSearchResults([]);
             return;
         }
 
-        const { data } = await supabase
+        let query = supabase
             .from('products')
             .select('id, name, images, price, supplier:suppliers(name)')
-            .ilike('name', `%${query}%`)
-            .eq('is_featured', false) // Only show non-featured
-            .limit(5);
+            .ilike('name', `%${queryStr}%`)
+            .eq('is_featured', false); // Only show non-featured
+
+        if (storeType === 'patient') {
+            query = query.contains('target_audience', ['patient']);
+        } else {
+            query = query.not('target_audience', 'cs', '{"patient"}');
+        }
+
+        const { data } = await query.limit(5);
 
         setSearchResults(data || []);
     };
@@ -106,7 +120,7 @@ export const FeaturedManager: React.FC = () => {
             <div className="p-6 border-b border-slate-100 flex justify-between items-center">
                 <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
                     <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
-                    المنتجات المميزة
+                    {storeType === 'patient' ? 'المنتجات المميزة لمتجر المرضى' : 'المنتجات المميزة (متجر الأطباء)'}
                 </h3>
                 <Button onClick={() => setIsAdding(!isAdding)} variant="outline" size="sm">
                     {isAdding ? 'إلغاء' : 'إضافة منتج'}
@@ -119,7 +133,7 @@ export const FeaturedManager: React.FC = () => {
                         <Search className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
                         <input
                             type="text"
-                            placeholder="ابحث عن منتج لإضافته للمميزة..."
+                            placeholder={storeType === 'patient' ? "ابحث عن منتج مراجعين لإضافته للمميزة..." : "ابحث عن منتج عيادات لإضافته للمميزة..."}
                             className="w-full pr-10 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-100 focus:border-blue-400 focus:outline-none transition-all"
                             value={searchQuery}
                             onChange={(e) => handleSearch(e.target.value)}

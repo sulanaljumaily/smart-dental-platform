@@ -18,7 +18,7 @@ interface DealProduct {
     supplier: { name: string };
 }
 
-export const DealsManager: React.FC = () => {
+export const DealsManager: React.FC<{ storeType?: 'professional' | 'patient' }> = ({ storeType = 'professional' }) => {
     const [deals, setDeals] = useState<DealProduct[]>([]);
     const [loading, setLoading] = useState(true);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -29,37 +29,63 @@ export const DealsManager: React.FC = () => {
     const [selectedProduct, setSelectedProduct] = useState<any>(null);
     const [dealConfig, setDealConfig] = useState({
         discount_percentage: 10,
-        deal_badge: 'عرض خاص',
+        deal_badge: storeType === 'patient' ? 'خصم مراجعين' : 'عرض خاص',
         deal_start: new Date().toISOString().split('T')[0],
         deal_end: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     });
 
     const fetchDeals = async () => {
         setLoading(true);
-        const { data, error } = await supabase
+        let query = supabase
             .from('products')
             .select('*, supplier:suppliers(name)')
-            .eq('is_deal', true)
-            .order('created_at', { ascending: false });
+            .eq('is_deal', true);
 
-        if (data) setDeals(data);
+        if (storeType === 'patient') {
+            query = query.contains('target_audience', ['patient']);
+        } else {
+            query = query.not('target_audience', 'cs', '{"patient"}');
+        }
+
+        const { data, error } = await query.order('created_at', { ascending: false });
+
+        if (data) {
+            const mapped = data.map((p: any) => ({
+                ...p,
+                image: p.image || p.images?.[0] || 'https://via.placeholder.com/100'
+            }));
+            setDeals(mapped);
+        }
         setLoading(false);
     };
 
     useEffect(() => {
         fetchDeals();
-    }, []);
+    }, [storeType]);
 
     const searchProducts = async () => {
         if (!searchTerm) return;
-        const { data } = await supabase
+        let query = supabase
             .from('products')
-            .select('id, name, price, image, supplier:suppliers(name)')
+            .select('id, name, price, image, images, supplier:suppliers(name)')
             .ilike('name', `%${searchTerm}%`)
-            .eq('is_deal', false) // Only fetch non-deals
-            .limit(5);
+            .eq('is_deal', false); // Only fetch non-deals
 
-        if (data) setSearchResults(data);
+        if (storeType === 'patient') {
+            query = query.contains('target_audience', ['patient']);
+        } else {
+            query = query.not('target_audience', 'cs', '{"patient"}');
+        }
+
+        const { data } = await query.limit(5);
+
+        if (data) {
+            const mapped = data.map((p: any) => ({
+                ...p,
+                image: p.image || p.images?.[0] || 'https://via.placeholder.com/100'
+            }));
+            setSearchResults(mapped);
+        }
     };
 
     const handleCreateDeal = async () => {
@@ -83,7 +109,7 @@ export const DealsManager: React.FC = () => {
             setSelectedProduct(null);
             setDealConfig({
                 discount_percentage: 10,
-                deal_badge: 'عرض خاص',
+                deal_badge: storeType === 'patient' ? 'خصم مراجعين' : 'عرض خاص',
                 deal_start: new Date().toISOString().split('T')[0],
                 deal_end: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
             });
@@ -168,10 +194,12 @@ export const DealsManager: React.FC = () => {
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <h3 className="text-lg font-bold text-gray-800">العروض النشطة</h3>
+                <h3 className="text-lg font-bold text-gray-800">
+                    {storeType === 'patient' ? 'عروض متجر المرضى النشطة' : 'العروض النشطة (متجر الأطباء)'}
+                </h3>
                 <Button onClick={() => setIsAddModalOpen(true)}>
                     <Plus className="w-4 h-4 ml-2" />
-                    إضافة عرض جديد
+                    {storeType === 'patient' ? 'إضافة عرض لمتجر المرضى' : 'إضافة عرض جديد'}
                 </Button>
             </div>
 
@@ -180,7 +208,7 @@ export const DealsManager: React.FC = () => {
             <AdminModal
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
-                title="إضافة عرض جديد"
+                title={storeType === 'patient' ? 'إضافة عرض جديد لمتجر المرضى' : 'إضافة عرض جديد'}
             >
                 <div className="space-y-6">
                     {/* Step 1: Search */}
@@ -191,7 +219,7 @@ export const DealsManager: React.FC = () => {
                                 <div className="flex gap-2">
                                     <input
                                         className="flex-1 border rounded-lg px-3 py-2"
-                                        placeholder="اسم المنتج..."
+                                        placeholder={storeType === 'patient' ? "اسم منتج المراجعين..." : "اسم المنتج..."}
                                         value={searchTerm}
                                         onChange={e => setSearchTerm(e.target.value)}
                                         onKeyDown={e => e.key === 'Enter' && searchProducts()}

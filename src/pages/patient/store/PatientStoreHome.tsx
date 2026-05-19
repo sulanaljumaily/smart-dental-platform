@@ -76,18 +76,42 @@ export const PatientStoreHome: React.FC = () => {
       setSuppliers(Array.from(uniqueSuppliersMap.values()));
     }
 
-    // Mock Promotions for Patient Store
-    setPromotions([
-      {
-        id: '1',
-        title: 'عناية متكاملة لأسنانك',
-        description: 'تسوق أفضل منتجات العناية بالأسنان بأسعار مخفضة للمراجعين',
-        image: 'https://images.unsplash.com/photo-1606811841689-23dfddce3e95?q=80&w=1600&auto=format&fit=crop',
-        buttonText: 'تصفح العروض',
-        link: '/patient/store',
-        badge_text: '✨ عروض المراجعين'
+    // Fetch Active Promotional Cards from Database
+    try {
+      const { data: promoCards } = await supabase
+        .from('promotional_cards')
+        .select('*')
+        .eq('section', 'patient_hero')
+        .eq('active', true);
+
+      if (promoCards && promoCards.length > 0) {
+        const mappedPromotions = promoCards.map((card: any) => ({
+          id: card.id,
+          title: card.title,
+          description: card.description,
+          image: card.image,
+          buttonText: card.button_text || 'تصفح العروض',
+          link: card.link || '/patient/store',
+          badge_text: card.badge_text || '✨ عروض المراجعين'
+        }));
+        setPromotions(mappedPromotions);
+      } else {
+        // Fallback to default mock if no promotional cards in db
+        setPromotions([
+          {
+            id: '1',
+            title: 'عناية متكاملة لأسنانك',
+            description: 'تسوق أفضل منتجات العناية بالأسنان بأسعار مخفضة للمراجعين',
+            image: 'https://images.unsplash.com/photo-1606811841689-23dfddce3e95?q=80&w=1600&auto=format&fit=crop',
+            buttonText: 'تصفح العروض',
+            link: '/patient/store',
+            badge_text: '✨ عروض المراجعين'
+          }
+        ]);
       }
-    ]);
+    } catch (err) {
+      console.error('Error fetching promotional cards:', err);
+    }
   };
 
   useEffect(() => {
@@ -134,7 +158,10 @@ export const PatientStoreHome: React.FC = () => {
                   </span>
                   <h2 className="text-3xl md:text-5xl font-bold mb-4 leading-tight">{promo.title}</h2>
                   <p className="text-lg md:text-xl text-teal-50 mb-8 max-w-xl leading-relaxed">{promo.description}</p>
-                  <Button className="bg-white text-teal-900 hover:bg-gray-100 border-0 px-8 py-3 rounded-xl font-bold transition-transform hover:scale-105 active:scale-95 shadow-lg">
+                  <Button 
+                    onClick={() => navigate(promo.link)}
+                    className="bg-white text-teal-900 hover:bg-gray-100 border-0 px-8 py-3 rounded-xl font-bold transition-transform hover:scale-105 active:scale-95 shadow-lg"
+                  >
                     {promo.buttonText}
                   </Button>
                 </div>
