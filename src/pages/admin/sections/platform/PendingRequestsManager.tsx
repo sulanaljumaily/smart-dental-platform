@@ -235,6 +235,49 @@ export const PendingRequestsManager = () => {
         }
     };
 
+    const handleRejectAccount = async (id: string, type: 'lab' | 'supplier') => {
+        try {
+            if (type === 'lab') {
+                toast.info('عملية الرفض للمختبرات غير مدعومة حالياً');
+            } else {
+                const { data: existing } = await supabase.from('suppliers').select('id').eq('id', id).maybeSingle();
+                if (!existing) {
+                    const { data: byUser } = await supabase.from('suppliers').select('id').eq('user_id', id).maybeSingle();
+                    if (byUser) {
+                        const { error } = await supabase
+                            .from('suppliers')
+                            .update({ is_verified: false })
+                            .eq('id', byUser.id);
+                        if (error) throw error;
+                    } else {
+                        const supplierObj = accountRequests.find(s => s.id === id);
+                        const { error: insErr } = await supabase.from('suppliers').insert({
+                            id: id,
+                            user_id: id,
+                            name: supplierObj?.companyName || supplierObj?.name || 'مورد جديد',
+                            is_verified: false,
+                            phone: supplierObj?.phone || '',
+                            email: supplierObj?.email || '',
+                            commission_percentage: 0
+                        });
+                        if (insErr) throw insErr;
+                    }
+                } else {
+                    const { error } = await supabase
+                        .from('suppliers')
+                        .update({ is_verified: false })
+                        .eq('id', id);
+                    if (error) throw error;
+                }
+                toast.success('تم رفض حساب المورد بنجاح');
+                fetchRequests();
+            }
+        } catch (e) {
+            console.error(e);
+            toast.error('حدث خطأ أثناء رفض الحساب');
+        }
+    };
+
     const handleViewDetails = (request: any) => {
         setSelectedRequest(request);
         setModalType(request.type);
@@ -487,12 +530,22 @@ export const PendingRequestsManager = () => {
                     isOpen={true}
                     onClose={() => setModalType(null)}
                     onUpdateStatus={(id, status) => {
-                        handleApproveAccount(id, 'supplier');
+                        if (status === 'approved') {
+                            handleApproveAccount(id, 'supplier');
+                        } else if (status === 'suspended' || status === 'rejected') {
+                            handleRejectAccount(id, 'supplier');
+                        }
                         setModalType(null);
                     }}
                     onClearCommission={async () => false}
-                    onApprove={() => handleApproveAccount(selectedRequest.id, 'supplier')}
-                    onReject={() => { }}
+                    onApprove={() => {
+                        handleApproveAccount(selectedRequest.id, 'supplier');
+                        setModalType(null);
+                    }}
+                    onReject={() => {
+                        handleRejectAccount(selectedRequest.id, 'supplier');
+                        setModalType(null);
+                    }}
                 />
             )}
 
