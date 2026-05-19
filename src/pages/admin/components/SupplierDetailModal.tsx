@@ -21,6 +21,7 @@ interface SupplierDetailModalProps {
     onClearCommission?: (supplierId: string, amount: number) => Promise<boolean>;
     onUpdateStatus?: (id: string, status: 'approved' | 'suspended' | 'rejected') => void;
     onUpdateCommission?: (supplierId: string, rate: number) => Promise<boolean>;
+    onUpdateStoreType?: (supplierId: string, type: 'professional' | 'patient' | 'both') => void;
 }
 
 export const SupplierDetailModal: React.FC<SupplierDetailModalProps> = ({
@@ -31,7 +32,8 @@ export const SupplierDetailModal: React.FC<SupplierDetailModalProps> = ({
     onReject,
     onClearCommission,
     onUpdateStatus,
-    onUpdateCommission
+    onUpdateCommission,
+    onUpdateStoreType
 }) => {
     const [activeTab, setActiveTab] = useState<'profile' | 'finance' | 'products' | 'orders' | 'settlements'>('profile');
     const [editRate, setEditRate] = useState<number>(supplier?.commissionPercentage || 0);
@@ -112,6 +114,7 @@ export const SupplierDetailModal: React.FC<SupplierDetailModalProps> = ({
             const { error } = await supabase.from('suppliers').update({ store_type: type }).eq('id', supplier.id);
             if (!error) {
                 setStoreType(type);
+                onUpdateStoreType?.(supplier.id, type);
                 const { toast } = await import('sonner');
                 toast.success('تم تحديث نوع المتجر');
             }

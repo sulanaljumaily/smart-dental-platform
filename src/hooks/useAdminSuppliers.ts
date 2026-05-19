@@ -23,6 +23,7 @@ export interface Supplier {
     description?: string;
     documents?: string[];
     logo?: string;
+    store_type?: 'professional' | 'patient' | 'both';
 }
 
 export function useAdminSuppliers() {
@@ -88,7 +89,8 @@ export function useAdminSuppliers() {
                         joinDate: s.created_at || new Date().toISOString(),
                         description: s.description,
                         documents: s.documents || [],
-                        logo: s.logo || profileData?.avatar_url || undefined
+                        logo: s.logo || profileData?.avatar_url || undefined,
+                        store_type: s.store_type || 'professional'
                     };
                 });
                 setSuppliers(mapped);
@@ -203,6 +205,23 @@ export function useAdminSuppliers() {
         }
     };
 
+    const updateStoreType = async (supplierId: string, type: 'professional' | 'patient' | 'both') => {
+        try {
+            setSuppliers(prev => prev.map(s => s.id === supplierId ? { ...s, store_type: type } : s));
+
+            const { error } = await supabase
+                .from('suppliers')
+                .update({ store_type: type })
+                .eq('id', supplierId);
+
+            if (error) throw error;
+            return true;
+        } catch (err) {
+            console.error('Error updating store type:', err);
+            return false;
+        }
+    };
+
     return {
         suppliers,
         loading,
@@ -210,6 +229,7 @@ export function useAdminSuppliers() {
         fetchSuppliers,
         updateCommissionRate,
         updateSupplierStatus,
-        clearCommission
+        clearCommission,
+        updateStoreType
     };
 }

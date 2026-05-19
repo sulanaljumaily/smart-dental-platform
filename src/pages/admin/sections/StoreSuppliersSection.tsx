@@ -268,7 +268,7 @@ const StoreSettingsTab = () => {
 // --- Main Component ---
 
 export const StoreSuppliersSection: React.FC = () => {
-  const { suppliers, loading: suppliersLoading, updateCommissionRate, updateSupplierStatus, fetchSuppliers, clearCommission } = useAdminSuppliers();
+  const { suppliers, loading: suppliersLoading, updateCommissionRate, updateSupplierStatus, fetchSuppliers, clearCommission, updateStoreType } = useAdminSuppliers();
   const { stats, loading: statsLoading } = useAdminStore();
 
   const [showSupplierModal, setShowSupplierModal] = useState(false);
@@ -737,6 +737,10 @@ export const StoreSuppliersSection: React.FC = () => {
           if (status === 'suspended') toast.success('تم تعليق حساب المورد');
           if (status === 'approved') toast.success('تم تفعيل حساب المورد');
           setSelectedSupplier(null);
+        }}
+        onUpdateStoreType={async (id, type) => {
+          await updateStoreType(id, type);
+          setSelectedSupplier(prev => prev && prev.id === id ? { ...prev, store_type: type } : prev);
         }}
         onClearCommission={async (id, amount) => {
           if (selectedSupplier) {

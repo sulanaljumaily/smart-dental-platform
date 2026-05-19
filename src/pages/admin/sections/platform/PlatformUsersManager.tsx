@@ -56,7 +56,8 @@ export const PlatformUsersManager: React.FC = () => {
                     commissionPercentage: data.commission_percentage || 0,
                     totalSales: data.total_sales || 0,
                     pendingCommission: data.pending_commission || 0,
-                    rating: data.rating || 0
+                    rating: data.rating || 0,
+                    store_type: data.store_type || 'professional'
                 };
                 setSelectedUser(mappedUser);
                 setModalType('supplier');
@@ -77,7 +78,8 @@ export const PlatformUsersManager: React.FC = () => {
                     commissionPercentage: 0,
                     totalSales: 0,
                     pendingCommission: 0,
-                    rating: 0
+                    rating: 0,
+                    store_type: 'professional'
                 };
                 setSelectedUser(fallbackUser);
                 setModalType('supplier');
@@ -394,6 +396,9 @@ export const PlatformUsersManager: React.FC = () => {
                             console.error(e);
                             return false;
                         }
+                    }}
+                    onUpdateStoreType={(id, type) => {
+                        setSelectedUser((prev: any) => prev && prev.id === id ? { ...prev, store_type: type } : prev);
                     }}
                 />
             )}

@@ -110,7 +110,8 @@ export const PendingRequestsManager = () => {
                     totalSales: supRec?.total_sales || 0,
                     pendingCommission: supRec?.pending_commission || 0,
                     rating: supRec?.rating || 5,
-                    productsCount: 0
+                    productsCount: 0,
+                    store_type: supRec?.store_type || 'professional'
                 };
             }) || [];
 
@@ -545,6 +546,9 @@ export const PendingRequestsManager = () => {
                     onReject={() => {
                         handleRejectAccount(selectedRequest.id, 'supplier');
                         setModalType(null);
+                    }}
+                    onUpdateStoreType={(id, type) => {
+                        setSelectedRequest((prev: any) => prev && prev.id === id ? { ...prev, store_type: type } : prev);
                     }}
                 />
             )}
