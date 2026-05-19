@@ -136,10 +136,15 @@ export function useSupplier() {
                 child_category: productData.childCategory || null, // Map childCategory
                 image_url: productData.image,
                 images: productData.images || (productData.image ? [productData.image] : []),
-                is_new: productData.isNew,
-                is_featured: productData.featured,
-                discount: productData.discount,
-                target_audience: productData.target_audience
+                is_new: productData.isNew ?? false,
+                is_featured: productData.featured ?? false,
+                discount: productData.discount ?? 0,
+                target_audience: productData.target_audience || ['clinic', 'lab'],
+                brand_id: productData.brand_id || null,
+                is_new_request: productData.isNewRequest ?? false,
+                is_featured_request: productData.isFeaturedRequest ?? false,
+                is_offer_request: productData.isOfferRequest ?? false,
+                offer_request_percentage: productData.offerDiscount || null
             };
 
             const { data, error } = await supabase
@@ -169,12 +174,22 @@ export function useSupplier() {
             if (updates.isNew !== undefined) payload.is_new = updates.isNew;
             if (updates.featured !== undefined) payload.is_featured = updates.featured;
 
+            // Map requests
+            if (updates.isNewRequest !== undefined) payload.is_new_request = updates.isNewRequest;
+            if (updates.isFeaturedRequest !== undefined) payload.is_featured_request = updates.isFeaturedRequest;
+            if (updates.isOfferRequest !== undefined) payload.is_offer_request = updates.isOfferRequest;
+            if (updates.offerDiscount !== undefined) payload.offer_request_percentage = updates.offerDiscount || null;
+
             // Clean up frontend-only keys
             delete payload.subCategory;
             delete payload.childCategory;
             delete payload.image;
             delete payload.isNew;
             delete payload.featured;
+            delete payload.isNewRequest;
+            delete payload.isFeaturedRequest;
+            delete payload.isOfferRequest;
+            delete payload.offerDiscount;
 
             const { error } = await supabase
                 .from('products')

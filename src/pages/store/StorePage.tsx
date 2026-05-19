@@ -22,7 +22,10 @@ export const StorePage: React.FC = () => {
   const [suppliers, setSuppliers] = useState<any[]>([]);
 
   useEffect(() => {
-    supabase.from('suppliers').select('*').limit(6) // status column doesn't exist
+    supabase.from('suppliers')
+      .select('*')
+      .in('store_type', ['professional', 'both'])
+      .limit(6)
       .then(({ data }) => {
         if (data) setSuppliers(data);
       });

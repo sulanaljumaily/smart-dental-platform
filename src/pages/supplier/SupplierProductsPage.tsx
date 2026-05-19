@@ -74,16 +74,11 @@ export const SupplierProductsPage: React.FC = () => {
   };
 
   const handleSaveProduct = async (data: any) => {
-    // Extract promotion fields and frontend-only flags
+    // Keep promotional flags and discounts on the product row as well
     const {
       promotionStartDate,
       promotionEndDate,
       promotionNotes,
-      isOfferRequest,
-      isNewRequest,
-      isFeaturedRequest,
-      offerDiscount,
-      brandId, // handled by brand_id inside modal but let's be safe
       ...productData
     } = data;
 
@@ -101,11 +96,10 @@ export const SupplierProductsPage: React.FC = () => {
     // Handle Promotion Request
     if (data.isOfferRequest && productId) {
       try {
-        // Check if there is already a pending request? Maybe just insert new one.
         const { error } = await supabase.from('deal_requests').insert([
           {
             product_id: productId,
-            supplier_id: savedProduct.supplier_id || savedProduct.supplierId, // Handle both cases
+            supplier_id: savedProduct.supplier_id || savedProduct.supplierId || savedProduct.supplier_id, // Handle both cases
             discount_percentage: data.offerDiscount,
             start_date: promotionStartDate,
             end_date: promotionEndDate,
@@ -116,7 +110,6 @@ export const SupplierProductsPage: React.FC = () => {
 
         if (error) {
           console.error('Error creating promotion request:', error);
-          // Optionally show toast error here
         } else {
           console.log('Promotion request created successfully');
         }

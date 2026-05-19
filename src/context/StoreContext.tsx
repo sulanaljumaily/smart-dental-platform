@@ -177,7 +177,12 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             }
 
             if (!suppliersResponse.error && suppliersResponse.data?.length) {
-                const dbSuppliers = suppliersResponse.data.map(s => ({
+                const dbSuppliers = suppliersResponse.data
+                    .filter(s => {
+                        const type = s.store_type || 'professional';
+                        return type === 'professional' || type === 'both';
+                    })
+                    .map(s => ({
                     id: s.id,
                     name: s.name,
                     description: s.description || '',
@@ -206,7 +211,11 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 // Only show products from VERIFIED suppliers
                 const approvedSupplierIds = new Set(mergedSuppliers.filter(s => s.verified).map(s => s.id));
                 const dbProducts = productsResponse.data
-                    .filter(p => p.supplier_id && approvedSupplierIds.has(p.supplier_id)) // FILTER HERE
+                    .filter(p => p.supplier_id && approvedSupplierIds.has(p.supplier_id))
+                    .filter(p => {
+                        const audience = p.target_audience || ['clinic', 'lab', 'both'];
+                        return audience.includes('clinic') || audience.includes('lab') || audience.includes('both');
+                    }) // FILTER HERE
                     .map(p => ({
                         id: p.id,
                         name: p.name,
@@ -216,7 +225,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                         stock: p.stock,
                         category: p.category,
                         image: p.image_url || 'https://via.placeholder.com/300',
-                        images: p.image_url ? [p.image_url] : [],
+                        images: p.images || (p.image_url ? [p.image_url] : []),
                         rating: Number(p.rating || 0),
                         reviews: p.reviews_count || 0,
                         isNew: p.is_new || (new Date().getTime() - new Date(p.created_at).getTime() < 7 * 24 * 60 * 60 * 1000),

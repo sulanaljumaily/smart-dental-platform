@@ -22,6 +22,7 @@ export const ProductDetailPage: React.FC = () => {
   const { wishlistItems, toggleWishlist } = useWishlist();
   const { cartItems } = useStoreCart(); // To check if item is in cart
   const [quantity, setQuantity] = useState(1);
+  const [activeImageIdx, setActiveImageIdx] = useState(0);
 
   // State for direct fetch if not in context
   const [fetchedProduct, setFetchedProduct] = useState<Product | null>(null);
@@ -220,19 +221,28 @@ export const ProductDetailPage: React.FC = () => {
           <div className="space-y-4">
             <div className="aspect-square bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 p-8 flex items-center justify-center group">
               <img
-                src={product.image || 'https://via.placeholder.com/600'}
+                src={(product.images && product.images.length > 0 ? product.images[activeImageIdx] : null) || product.image || 'https://via.placeholder.com/600'}
                 alt={product.name}
                 className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
               />
             </div>
-            {/* Thumbnails would go here - placeholder */}
-            <div className="grid grid-cols-4 gap-4">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="aspect-square bg-white rounded-xl border border-gray-100 p-2 cursor-pointer hover:border-blue-500 transition-colors">
-                  <img src={product.image || 'https://via.placeholder.com/150'} className="w-full h-full object-contain opacity-70 hover:opacity-100" />
-                </div>
-              ))}
-            </div>
+            {product.images && product.images.length > 1 && (
+              <div className="grid grid-cols-5 gap-3 mt-4">
+                {product.images.map((imgUrl: string, idx: number) => (
+                  <button
+                    key={idx}
+                    onClick={() => setActiveImageIdx(idx)}
+                    className={`aspect-square rounded-2xl overflow-hidden border-2 bg-white p-1 transition-all ${
+                      activeImageIdx === idx 
+                        ? 'border-blue-500 shadow-md scale-105' 
+                        : 'border-gray-100 hover:border-blue-200'
+                    }`}
+                  >
+                    <img src={imgUrl} className="w-full h-full object-contain" alt={`${product.name} - ${idx + 1}`} />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Product Info */}

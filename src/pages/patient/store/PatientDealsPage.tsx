@@ -30,7 +30,7 @@ export const PatientDealsPage: React.FC = () => {
         `)
         .contains('target_audience', ['patient'])
         .in('suppliers.store_type', ['patient', 'both'])
-        .eq('status', 'active')
+        .eq('is_active', true)
         .not('discount', 'is', null)
         .gt('discount', 0)
         .order('discount', { ascending: false });

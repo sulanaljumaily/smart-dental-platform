@@ -33,7 +33,7 @@ export const useAdminStore = () => {
 
             // 1. Products
             const { count: productCount } = await supabase.from('products').select('*', { count: 'exact', head: true });
-            const { count: activeProductCount } = await supabase.from('products').select('*', { count: 'exact', head: true }).eq('status', 'active');
+            const { count: activeProductCount } = await supabase.from('products').select('*', { count: 'exact', head: true }).eq('is_active', true);
 
             // 2. Suppliers
             const { count: supplierCount } = await supabase.from('suppliers').select('*', { count: 'exact', head: true });

@@ -22,6 +22,7 @@ export const PatientProductDetails: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [activeImageIdx, setActiveImageIdx] = useState(0);
 
   useEffect(() => {
     if (productId) {
@@ -127,11 +128,28 @@ export const PatientProductDetails: React.FC = () => {
           <div className="space-y-4">
             <div className="aspect-square bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 p-8 flex items-center justify-center group">
               <img
-                src={product.image_url || 'https://via.placeholder.com/600'}
+                src={(product.images && product.images.length > 0 ? product.images[activeImageIdx] : null) || product.image_url || 'https://via.placeholder.com/600'}
                 alt={product.name}
                 className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
               />
             </div>
+            {product.images && product.images.length > 1 && (
+              <div className="grid grid-cols-5 gap-3 mt-4">
+                {product.images.map((imgUrl: string, idx: number) => (
+                  <button
+                    key={idx}
+                    onClick={() => setActiveImageIdx(idx)}
+                    className={`aspect-square rounded-2xl overflow-hidden border-2 bg-white p-1 transition-all ${
+                      activeImageIdx === idx 
+                        ? 'border-teal-500 shadow-md scale-105' 
+                        : 'border-gray-100 hover:border-teal-200'
+                    }`}
+                  >
+                    <img src={imgUrl} className="w-full h-full object-contain" alt={`${product.name} - ${idx + 1}`} />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Product Info */}
@@ -177,64 +195,50 @@ export const PatientProductDetails: React.FC = () => {
             </div>
 
             {/* Price & Action Card */}
-            <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-6 md:p-8 sticky bottom-4">
-              <div className="flex items-center justify-between mb-8">
+            <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 md:p-6 sticky bottom-[80px]">
+              <div className="flex items-center justify-between mb-4">
                 <div>
-                  <div className="flex items-baseline gap-3">
-                    <span className="text-4xl font-bold text-teal-600">{formatCurrency(product.price)}</span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl md:text-3xl font-bold text-teal-600">{formatCurrency(product.price)}</span>
                   </div>
-                  <p className="text-sm text-gray-500 mt-1">شاملة جميع الرسوم والضرائب</p>
+                  <p className="text-xs text-gray-400 mt-0.5">شاملة جميع الرسوم والضرائب</p>
                 </div>
 
                 {/* Quantity */}
-                <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-1 border border-gray-200">
+                <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-0.5 border border-gray-200">
                   <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="p-2 hover:bg-white rounded-lg shadow-sm transition-all"
+                    className="p-1.5 hover:bg-white rounded-md shadow-sm transition-all"
                   >
-                    <Minus className="w-4 h-4 text-gray-600" />
+                    <Minus className="w-3.5 h-3.5 text-gray-600" />
                   </button>
-                  <span className="w-8 text-center font-bold text-lg">{quantity}</span>
+                  <span className="w-6 text-center font-bold text-base">{quantity}</span>
                   <button
                     onClick={() => setQuantity(quantity + 1)}
-                    className="p-2 hover:bg-white rounded-lg shadow-sm transition-all"
+                    className="p-1.5 hover:bg-white rounded-md shadow-sm transition-all"
                   >
-                    <Plus className="w-4 h-4 text-gray-600" />
+                    <Plus className="w-3.5 h-3.5 text-gray-600" />
                   </button>
                 </div>
               </div>
 
-              <div className="flex gap-4">
+              <div className="flex gap-3">
                 <Button
                   onClick={handleAddToCart}
-                  className="flex-1 text-lg py-4 h-auto rounded-xl gap-3 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 shadow-xl shadow-teal-200/50"
+                  className="flex-1 text-sm md:text-base py-2.5 h-auto rounded-xl gap-2 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 shadow-lg shadow-teal-200/40"
                 >
-                  <ShoppingCart className="w-6 h-6" />
+                  <ShoppingCart className="w-5 h-5" />
                   إضافة للسلة
                 </Button>
                 <button 
                   onClick={() => toggleWishlist(product.id)}
-                  className={`px-6 rounded-xl border-2 transition-all ${wishlistItems.has(product.id) ? 'border-red-200 bg-red-50 text-red-500' : 'border-gray-200 hover:border-red-200 hover:bg-red-50 text-gray-400 hover:text-red-500'}`}
+                  className={`px-4 rounded-xl border-2 transition-all ${wishlistItems.has(product.id) ? 'border-red-200 bg-red-50 text-red-500' : 'border-gray-200 hover:border-red-200 hover:bg-red-50 text-gray-400 hover:text-red-500'}`}
                 >
-                  <Heart className={`w-7 h-7 ${wishlistItems.has(product.id) ? 'fill-current' : ''}`} />
+                  <Heart className={`w-5 h-5 ${wishlistItems.has(product.id) ? 'fill-current' : ''}`} />
                 </button>
               </div>
 
-              {/* Trust Badges Row */}
-              <div className="grid grid-cols-3 gap-4 mt-8 pt-6 border-t border-gray-100">
-                <div className="flex flex-col items-center gap-2 text-center group">
-                  <Truck className="w-6 h-6 text-gray-400 group-hover:text-teal-500 transition-colors" />
-                  <span className="text-xs font-medium text-gray-500">شحن سريع</span>
-                </div>
-                <div className="flex flex-col items-center gap-2 text-center group">
-                  <Shield className="w-6 h-6 text-gray-400 group-hover:text-teal-500 transition-colors" />
-                  <span className="text-xs font-medium text-gray-500">دفع آمن</span>
-                </div>
-                <div className="flex flex-col items-center gap-2 text-center group">
-                  <AlertCircle className="w-6 h-6 text-gray-400 group-hover:text-teal-500 transition-colors" />
-                  <span className="text-xs font-medium text-gray-500">دعم 24/7</span>
-                </div>
-              </div>
+
             </div>
           </div>
         </div>

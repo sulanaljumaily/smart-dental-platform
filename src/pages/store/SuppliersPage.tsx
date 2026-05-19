@@ -39,7 +39,8 @@ export default function SuppliersPage() {
             try {
                 const { data, error } = await supabase
                     .from('suppliers')
-                    .select('*'); // Fetch all suppliers (status column doesn't exist)
+                    .select('*')
+                    .in('store_type', ['professional', 'both']);
 
                 if (error) throw error;
                 setSuppliers(data || []);
@@ -85,84 +86,66 @@ export default function SuppliersPage() {
             <div className="max-w-7xl mx-auto px-4 py-6 text-right">
 
                 {/* Filters Section (Bento Style) */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <div className="grid grid-cols-3 gap-2 md:gap-4 mb-6">
 
                     {/* City Select */}
-                    <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm relative group">
-                        <label className="text-xs font-bold text-slate-400 mb-2 block flex items-center gap-2">
-                            <MapPin className="w-3 h-3" />
-                            المحافظة
+                    <div className="bg-white p-2.5 md:p-4 rounded-2xl md:rounded-3xl border border-slate-200 shadow-sm relative group flex flex-col justify-between">
+                        <label className="text-[10px] md:text-xs font-bold text-slate-400 mb-1.5 block flex items-center gap-1 md:gap-2">
+                            <MapPin className="w-2.5 h-2.5 md:w-3.5 md:h-3.5 text-indigo-500 shrink-0" />
+                            <span className="truncate">المحافظة</span>
                         </label>
-                        <select
-                            value={selectedCity}
-                            onChange={(e) => setSelectedCity(e.target.value)}
-                            className="w-full bg-slate-50 border-none rounded-xl text-slate-800 font-bold focus:ring-2 focus:ring-indigo-500 cursor-pointer appearance-none p-3"
-                        >
-                            <option value="all">كل العراق</option>
-                            {cities.map(city => <option key={city} value={city}>{city}</option>)}
-                        </select>
-                        <ChevronDown className="absolute left-6 bottom-7 w-4 h-4 text-slate-400 pointer-events-none" />
+                        <div className="relative">
+                            <select
+                                value={selectedCity}
+                                onChange={(e) => setSelectedCity(e.target.value)}
+                                className="w-full bg-slate-50 border-none rounded-lg md:rounded-xl text-slate-800 font-bold focus:ring-2 focus:ring-indigo-500 cursor-pointer appearance-none py-1.5 px-2 pl-6 md:py-2.5 md:px-4 md:pl-10 text-[10px] md:text-sm"
+                            >
+                                <option value="all">كل العراق</option>
+                                {cities.map(city => <option key={city} value={city}>{city}</option>)}
+                            </select>
+                            <ChevronDown className="absolute left-1.5 md:left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-slate-400 pointer-events-none" />
+                        </div>
                     </div>
 
                     {/* Sort Select */}
-                    <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm relative">
-                        <label className="text-xs font-bold text-slate-400 mb-2 block flex items-center gap-2">
-                            <Filter className="w-3 h-3" />
-                            الترتيب
+                    <div className="bg-white p-2.5 md:p-4 rounded-2xl md:rounded-3xl border border-slate-200 shadow-sm relative flex flex-col justify-between">
+                        <label className="text-[10px] md:text-xs font-bold text-slate-400 mb-1.5 block flex items-center gap-1 md:gap-2">
+                            <Filter className="w-2.5 h-2.5 md:w-3.5 md:h-3.5 text-indigo-500 shrink-0" />
+                            <span className="truncate">الترتيب</span>
                         </label>
-                        <div className="flex items-center gap-2 bg-slate-50 rounded-xl p-1">
-                            <button onClick={() => setSortBy('rating')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${sortBy === 'rating' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>التقييم</button>
-                            <button onClick={() => setSortBy('alpha-asc')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex justify-center items-center gap-1 ${sortBy === 'alpha-asc' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>
-                                <ArrowDownAZ className="w-3 h-3" /> أ-ي
+                        <div className="flex items-center gap-0.5 md:gap-1 bg-slate-50 rounded-lg md:rounded-xl p-0.5 md:p-1 h-[28px] md:h-[40px]">
+                            <button onClick={() => setSortBy('rating')} className={`flex-1 py-0.5 md:py-1.5 rounded-md md:rounded-lg text-[9px] md:text-xs font-bold transition-all ${sortBy === 'rating' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>التقييم</button>
+                            <button onClick={() => setSortBy('alpha-asc')} className={`flex-1 py-0.5 md:py-1.5 rounded-md md:rounded-lg text-[9px] md:text-xs font-bold transition-all flex justify-center items-center gap-0.5 md:gap-1 ${sortBy === 'alpha-asc' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>
+                                <ArrowDownAZ className="w-2.5 h-2.5 md:w-3.5 md:h-3.5 shrink-0" /> <span className="hidden xs:inline">أ-ي</span><span className="xs:hidden">أ</span>
                             </button>
-                            <button onClick={() => setSortBy('alpha-desc')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex justify-center items-center gap-1 ${sortBy === 'alpha-desc' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>
-                                <ArrowUpAZ className="w-3 h-3" /> ي-أ
+                            <button onClick={() => setSortBy('alpha-desc')} className={`flex-1 py-0.5 md:py-1.5 rounded-md md:rounded-lg text-[9px] md:text-xs font-bold transition-all flex justify-center items-center gap-0.5 md:gap-1 ${sortBy === 'alpha-desc' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>
+                                <ArrowUpAZ className="w-2.5 h-2.5 md:w-3.5 md:h-3.5 shrink-0" /> <span className="hidden xs:inline">ي-أ</span><span className="xs:hidden">ي</span>
                             </button>
                         </div>
                     </div>
 
                     {/* Specialty Select */}
-                    <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm relative">
-                        <label className="text-xs font-bold text-slate-400 mb-2 block flex items-center gap-2">
-                            <Factory className="w-3 h-3" />
-                            التصنيف / التخصص
+                    <div className="bg-white p-2.5 md:p-4 rounded-2xl md:rounded-3xl border border-slate-200 shadow-sm relative flex flex-col justify-between">
+                        <label className="text-[10px] md:text-xs font-bold text-slate-400 mb-1.5 block flex items-center gap-1 md:gap-2">
+                            <Factory className="w-2.5 h-2.5 md:w-3.5 md:h-3.5 text-indigo-500 shrink-0" />
+                            <span className="truncate">التصنيف</span>
                         </label>
-                        <select
-                            value={selectedSpecialty}
-                            onChange={(e) => setSelectedSpecialty(e.target.value)}
-                            className="w-full bg-slate-50 border-none rounded-xl text-slate-800 font-bold focus:ring-2 focus:ring-indigo-500 cursor-pointer appearance-none p-3"
-                        >
-                            <option value="all">جميع التخصصات</option>
-                            {specialties.map(spec => <option key={spec.id} value={spec.id}>{spec.label}</option>)}
-                        </select>
-                        <ChevronDown className="absolute left-6 bottom-7 w-4 h-4 text-slate-400 pointer-events-none" />
+                        <div className="relative">
+                            <select
+                                value={selectedSpecialty}
+                                onChange={(e) => setSelectedSpecialty(e.target.value)}
+                                className="w-full bg-slate-50 border-none rounded-lg md:rounded-xl text-slate-800 font-bold focus:ring-2 focus:ring-indigo-500 cursor-pointer appearance-none py-1.5 px-2 pl-6 md:py-2.5 md:px-4 md:pl-10 text-[10px] md:text-sm"
+                            >
+                                <option value="all">جميع التخصصات</option>
+                                {specialties.map(spec => <option key={spec.id} value={spec.id}>{spec.label}</option>)}
+                            </select>
+                            <ChevronDown className="absolute left-1.5 md:left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 md:w-4 md:h-4 text-slate-400 pointer-events-none" />
+                        </div>
                     </div>
                 </div>
 
                 {/* Bento Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-[280px]">
-
-                    {/* Featured / Info Card */}
-                    <div className="md:col-span-2 bg-gradient-to-br from-indigo-900 to-blue-900 rounded-3xl p-8 relative overflow-hidden flex flex-col justify-center text-white">
-                        <div className="relative z-10">
-                            <h2 className="text-3xl font-bold mb-4">نخبة الموردين</h2>
-                            <p className="text-blue-100 text-lg mb-8 max-w-md leading-relaxed">
-                                تصفح قائمة الموردين المعتمدين لدينا. نضمن لك جودة المنتجات وسرعة التوصيل مع شركائنا المميزين.
-                            </p>
-                            <div className="flex gap-4">
-                                <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10">
-                                    <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                                    <span className="text-sm font-medium">موثوق 100%</span>
-                                </div>
-                                <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10">
-                                    <Package className="w-5 h-5 text-amber-400" />
-                                    <span className="text-sm font-medium">+5000 منتج</span>
-                                </div>
-                            </div>
-                        </div>
-                        {/* Decor */}
-                        <Factory className="absolute -bottom-10 -left-10 w-64 h-64 text-white opacity-5 rotate-12" />
-                    </div>
 
                     {/* Suppliers Cards */}
                     {filteredSuppliers.map((supplier, idx) => {

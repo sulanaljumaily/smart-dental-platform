@@ -28,6 +28,7 @@ export const PatientStoreHome: React.FC = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
   const [dealsProducts, setDealsProducts] = useState<any[]>([]);
+  const [newProducts, setNewProducts] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [promotions, setPromotions] = useState<any[]>([]);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -49,12 +50,12 @@ export const PatientStoreHome: React.FC = () => {
     const { data: prods } = await supabase
       .from('products')
       .select(`
-        id, name, price, original_price, discount, image_url, rating, is_new, is_featured, created_at,
+        id, name, price, original_price, discount, image_url, rating, is_new, is_featured, created_at, category,
         supplier:suppliers!inner(name, store_type, id, logo)
       `)
       .contains('target_audience', ['patient'])
       .in('suppliers.store_type', ['patient', 'both'])
-      .eq('status', 'active')
+      .eq('is_active', true)
       .limit(50);
 
     if (prods) {
@@ -65,6 +66,12 @@ export const PatientStoreHome: React.FC = () => {
       setProducts(mappedProds);
       setFeaturedProducts(mappedProds.filter(p => p.is_featured));
       setDealsProducts(mappedProds.filter(p => p.discount && p.discount > 0));
+      
+      // Determine Latest Products: those marked is_new === true, or fallback to sorting by created_at desc
+      const sortedByDate = [...mappedProds].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      const markedNew = mappedProds.filter(p => p.is_new);
+      const latestProds = markedNew.length >= 4 ? markedNew : sortedByDate;
+      setNewProducts(latestProds);
       
       // Extract unique suppliers
       const uniqueSuppliersMap = new Map();
@@ -223,7 +230,7 @@ export const PatientStoreHome: React.FC = () => {
           </div>
 
 
-          {/* 3. Deals Section */}
+                  {/* 3. Deals Section */}
           <div className="col-span-1 md:col-span-4 mt-8">
             <div className="flex items-center justify-between mb-6">
               <div>
@@ -245,6 +252,43 @@ export const PatientStoreHome: React.FC = () => {
                 />
               ))}
             </div>
+          </div>
+
+          {/* New Products Section (أحدث المنتجات) */}
+          <div className="col-span-1 md:col-span-4 mt-8">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-2xl font-bold text-teal-900 flex items-center gap-2">
+                  <span className="w-2 h-6 bg-teal-500 rounded-full"></span> أحدث المنتجات
+                </h3>
+                <p className="text-xs text-gray-500 mt-1">منتجات جديدة ومميزة تمت إضافتها مؤخراً لجمال وصحة أسنانك</p>
+              </div>
+              <button 
+                onClick={() => navigate('/patient/store/products?category=' + encodeURIComponent('المنتجات الجديدة'))}
+                className="text-sm font-bold text-teal-600 hover:text-teal-700 flex items-center gap-1 hover:underline bg-transparent border-0"
+              >
+                عرض الكل <ChevronLeft className="w-4 h-4" />
+              </button>
+            </div>
+            {newProducts.length === 0 ? (
+              <div className="bg-white border border-slate-100 rounded-3xl p-12 text-center text-gray-400">
+                لا توجد منتجات جديدة متوفرة حالياً.
+              </div>
+            ) : (
+              <div className="flex gap-4 overflow-x-auto pb-8 snap-x scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
+                {newProducts.slice(0, 10).map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onAddToCart={(id, e) => { e.stopPropagation(); addToCart(product); }}
+                    onToggleWishlist={(id, e) => { e.stopPropagation(); toggleWishlist(id); }}
+                    isWishlisted={wishlistItems.has(product.id)}
+                    onClick={() => navigate(`/patient/store/product/${product.id}`)}
+                    className="min-w-[37%] md:min-w-[300px] snap-start h-[260px] md:h-[340px] border border-teal-50/50 hover:border-teal-100 transition-all duration-300"
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
           {/* 4. Featured Products */}

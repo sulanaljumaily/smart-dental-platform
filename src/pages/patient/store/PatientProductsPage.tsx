@@ -34,10 +34,15 @@ export const PatientProductsPage: React.FC = () => {
                 `)
                 .contains('target_audience', ['patient'])
                 .in('suppliers.store_type', ['patient', 'both'])
-                .eq('status', 'active');
+                .eq('is_active', true)
+                .order('created_at', { ascending: false });
 
             if (categoryName) {
-                req = req.eq('category', categoryName);
+                if (categoryName === 'المنتجات الجديدة') {
+                    req = req.eq('is_new', true);
+                } else {
+                    req = req.eq('category', categoryName);
+                }
             }
 
             const { data } = await req;

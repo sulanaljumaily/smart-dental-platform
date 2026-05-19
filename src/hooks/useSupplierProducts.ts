@@ -137,7 +137,7 @@ export const useSupplierProducts = () => {
         }
     };
 
-    const addProduct = async (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const addProduct = async (product: any) => {
         try {
             const supplierIdToUse = await getSupplierIdForUser();
             if (!supplierIdToUse) throw new Error('Not a registered supplier');
@@ -152,8 +152,16 @@ export const useSupplierProducts = () => {
                     image_url: product.imageUrl,
                     images: product.images || (product.imageUrl ? [product.imageUrl] : []),
                     category: product.category,
+                    sub_category: product.subCategory,
+                    child_category: product.childCategory,
                     stock: product.stock,
-                    is_active: product.isActive
+                    is_active: product.isActive !== false,
+                    target_audience: product.targetAudience || product.target_audience || ['clinic', 'lab'],
+                    brand_id: product.brandId || product.brand_id || null,
+                    is_new_request: product.isNewRequest ?? false,
+                    is_featured_request: product.isFeaturedRequest ?? false,
+                    is_offer_request: product.isOfferRequest ?? false,
+                    offer_request_percentage: product.offerRequestPercentage || product.offerDiscount || null
                 }])
                 .select()
                 .single();
@@ -167,20 +175,31 @@ export const useSupplierProducts = () => {
         }
     };
 
-    const updateProduct = async (id: string, updates: Partial<Product>) => {
+    const updateProduct = async (id: string, updates: Partial<any>) => {
         try {
             const supplierIdToUse = await getSupplierIdForUser();
             if (!supplierIdToUse) throw new Error('Not a registered supplier');
 
             const updateData: any = {};
             if (updates.name) updateData.name = updates.name;
-            if (updates.description) updateData.description = updates.description;
-            if (updates.price) updateData.price = updates.price;
+            if (updates.description !== undefined) updateData.description = updates.description;
+            if (updates.price !== undefined) updateData.price = updates.price;
             if (updates.imageUrl) updateData.image_url = updates.imageUrl;
             if (updates.images) updateData.images = updates.images;
             if (updates.category) updateData.category = updates.category;
+            if (updates.subCategory !== undefined) updateData.sub_category = updates.subCategory;
+            if (updates.childCategory !== undefined) updateData.child_category = updates.childCategory;
             if (updates.stock !== undefined) updateData.stock = updates.stock;
             if (updates.isActive !== undefined) updateData.is_active = updates.isActive;
+            if (updates.targetAudience !== undefined) updateData.target_audience = updates.targetAudience;
+            if (updates.target_audience !== undefined) updateData.target_audience = updates.target_audience;
+            if (updates.brandId !== undefined) updateData.brand_id = updates.brandId || null;
+            if (updates.brand_id !== undefined) updateData.brand_id = updates.brand_id || null;
+            if (updates.isNewRequest !== undefined) updateData.is_new_request = updates.isNewRequest;
+            if (updates.isFeaturedRequest !== undefined) updateData.is_featured_request = updates.isFeaturedRequest;
+            if (updates.isOfferRequest !== undefined) updateData.is_offer_request = updates.isOfferRequest;
+            if (updates.offerRequestPercentage !== undefined) updateData.offer_request_percentage = updates.offerRequestPercentage || null;
+            if (updates.offerDiscount !== undefined) updateData.offer_request_percentage = updates.offerDiscount || null;
             updateData.updated_at = new Date().toISOString();
 
             const { error } = await supabase

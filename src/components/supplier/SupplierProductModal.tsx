@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, Upload, X, Check, Save, Megaphone, Calendar, Percent, MessageSquare } from 'lucide-react';
 import { BrandCreationModal } from '../brands/BrandCreationModal';
 import { Button } from '../common/Button';
@@ -51,9 +51,14 @@ export const SupplierProductModal: React.FC<SupplierProductModalProps> = ({
     const [isBrandListOpen, setIsBrandListOpen] = useState(false);
     const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
 
+    const brandRef = useRef<HTMLDivElement>(null);
+
     const filteredBrands = brands.filter(b => b.name.toLowerCase().includes(brandSearch.toLowerCase()));
 
     // Removed old handleCreateBrand
+
+    const [supplierStoreType, setSupplierStoreType] = useState<'professional' | 'patient' | 'both'>('professional');
+    const [patientCategories, setPatientCategories] = useState<{ id: string; name: string }[]>([]);
 
     const [formData, setFormData] = useState<ProductFormData>({
         name: '',
@@ -78,6 +83,61 @@ export const SupplierProductModal: React.FC<SupplierProductModalProps> = ({
 
     const [saving, setSaving] = useState(false);
     const [uploading, setUploading] = useState(false);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (brandRef.current && !brandRef.current.contains(event.target as Node)) {
+                setIsBrandListOpen(false);
+                // If brandId is not set, clear brandSearch so it doesn't look selected when it isn't!
+                if (!formData.brandId) {
+                    setBrandSearch('');
+                } else {
+                    // Reset brandSearch to the selected brand's name
+                    const selectedBrand = brands.find(b => b.id === formData.brandId);
+                    if (selectedBrand) {
+                        setBrandSearch(selectedBrand.name);
+                    }
+                }
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [formData.brandId, brands]);
+
+    useEffect(() => {
+        const loadSupplierAndCategories = async () => {
+            try {
+                const { data: { user: currentUser } } = await supabase.auth.getUser();
+                if (!currentUser) return;
+
+                const { data: supplier } = await supabase
+                    .from('suppliers')
+                    .select('store_type')
+                    .or(`user_id.eq.${currentUser.id},profile_id.eq.${currentUser.id}`)
+                    .maybeSingle();
+
+                if (supplier) {
+                    setSupplierStoreType(supplier.store_type || 'professional');
+                }
+
+                const { data: patientCats } = await supabase
+                    .from('patient_store_categories')
+                    .select('id, name')
+                    .eq('is_active', true)
+                    .order('sort_order');
+
+                if (patientCats) {
+                    setPatientCategories(patientCats);
+                }
+            } catch (err) {
+                console.error('Error fetching supplier details or patient categories:', err);
+            }
+        };
+
+        if (isOpen) {
+            loadSupplierAndCategories();
+        }
+    }, [isOpen]);
 
     useEffect(() => {
         if (initialData) {
@@ -313,8 +373,8 @@ export const SupplierProductModal: React.FC<SupplierProductModalProps> = ({
                         </div>
 
                         {/* BRAND SELECTION */}
-                        <div className="col-span-2 relative">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">العلامة التجارية (Brand)</label>
+                        <div className="col-span-2 relative" ref={brandRef}>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">العلامة التجارية (Brand) (اختياري)</label>
 
                             <div className="flex gap-2">
                                 <div className="relative flex-1">
@@ -394,17 +454,35 @@ export const SupplierProductModal: React.FC<SupplierProductModalProps> = ({
                                     required
                                     value={formData.category}
                                     onChange={(e) => {
+                                        const selectedCatName = e.target.value;
+                                        const isPatient = patientCategories.some(cat => cat.name === selectedCatName);
                                         setFormData({
                                             ...formData,
-                                            category: e.target.value,
+                                            category: selectedCatName,
                                             subCategory: '',
-                                            childCategory: ''
+                                            childCategory: '',
+                                            target_audience: isPatient ? ['patient'] : ['clinic', 'lab']
                                         });
                                     }}
-                                    className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all outline-none bg-white"
+                                    className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all outline-none bg-white font-medium"
                                 >
                                     <option value="">اختر الفئة الرئيسية</option>
-                                    {CATEGORIES.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                                    {supplierStoreType === 'professional' && (
+                                        CATEGORIES.map(c => <option key={c.id} value={c.name}>{c.name}</option>)
+                                    )}
+                                    {supplierStoreType === 'patient' && (
+                                        patientCategories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)
+                                    )}
+                                    {supplierStoreType === 'both' && (
+                                        <>
+                                            <optgroup label="🏥 فئات متجر الأطباء">
+                                                {CATEGORIES.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                                            </optgroup>
+                                            <optgroup label="👤 فئات متجر المرضى">
+                                                {patientCategories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                                            </optgroup>
+                                        </>
+                                    )}
                                 </select>
                             </div>
 
@@ -412,7 +490,7 @@ export const SupplierProductModal: React.FC<SupplierProductModalProps> = ({
                                 <label className="block text-sm font-medium text-gray-700 mb-2">الفئة الفرعية</label>
                                 <select
                                     required={subCategories.length > 0}
-                                    disabled={!formData.category}
+                                    disabled={!formData.category || subCategories.length === 0}
                                     value={formData.subCategory || ''}
                                     onChange={(e) => {
                                         setFormData({
@@ -423,7 +501,9 @@ export const SupplierProductModal: React.FC<SupplierProductModalProps> = ({
                                     }}
                                     className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all outline-none bg-white disabled:bg-gray-100 disabled:text-gray-400"
                                 >
-                                    <option value="">اختر الفئة الفرعية</option>
+                                    <option value="">
+                                        {subCategories.length === 0 ? 'لا توجد فئات فرعية' : 'اختر الفئة الفرعية'}
+                                    </option>
                                     {subCategories.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                                 </select>
                             </div>
@@ -436,7 +516,9 @@ export const SupplierProductModal: React.FC<SupplierProductModalProps> = ({
                                     onChange={(e) => setFormData({ ...formData, childCategory: e.target.value })}
                                     className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all outline-none bg-white disabled:bg-gray-100 disabled:text-gray-400"
                                 >
-                                    <option value="">اختر النوع المحدد</option>
+                                    <option value="">
+                                        {childCategories.length === 0 ? 'لا توجد أنواع محددة' : 'اختر النوع المحدد'}
+                                    </option>
                                     {childCategories.map(c => <option key={c} value={c}>{c}</option>)}
                                 </select>
                             </div>
@@ -577,15 +659,38 @@ export const SupplierProductModal: React.FC<SupplierProductModalProps> = ({
                                     />
                                     <span className="text-gray-700">مختبرات الأسنان</span>
                                 </label>
+
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={formData.target_audience.includes('patient')}
+                                        onChange={(e) => {
+                                            const newAudience = e.target.checked
+                                                ? [...formData.target_audience, 'patient']
+                                                : formData.target_audience.filter(a => a !== 'patient');
+                                            setFormData({ ...formData, target_audience: newAudience });
+                                        }}
+                                        className="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                    />
+                                    <span className="text-gray-700">المرضى والمراجعين</span>
+                                </label>
                             </div>
                             <p className="text-xs text-gray-500 mt-2">
                                 {formData.target_audience.length === 0
                                     ? '⚠️ يرجى اختيار جمهور واحد على الأقل'
-                                    : formData.target_audience.length === 2
-                                        ? 'سيظهر المنتج للجميع (عيادات ومختبرات)'
-                                        : formData.target_audience.includes('clinic')
-                                            ? 'سيظهر المنتج فقط للأطباء والعيادات'
-                                            : 'سيظهر المنتج فقط للمختبرات'}
+                                    : formData.target_audience.length === 3
+                                        ? 'سيظهر المنتج للجميع (عيادات ومختبرات ومرضى)'
+                                        : formData.target_audience.includes('clinic') && formData.target_audience.includes('lab')
+                                            ? 'سيظهر المنتج للأطباء والعيادات ومختبرات الأسنان'
+                                            : formData.target_audience.includes('clinic') && formData.target_audience.includes('patient')
+                                                ? 'سيظهر المنتج للأطباء والعيادات وجمهور المرضى والمراجعين'
+                                                : formData.target_audience.includes('lab') && formData.target_audience.includes('patient')
+                                                    ? 'سيظهر المنتج لمختبرات الأسنان وجمهور المرضى والمراجعين'
+                                                    : formData.target_audience.includes('clinic')
+                                                        ? 'سيظهر المنتج فقط للأطباء والعيادات'
+                                                        : formData.target_audience.includes('lab')
+                                                            ? 'سيظهر المنتج فقط لمختبرات الأسنان'
+                                                            : 'سيظهر المنتج فقط للمرضى والمراجعين'}
                             </p>
                         </div>
                     </div>
