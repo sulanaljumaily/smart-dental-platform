@@ -25,7 +25,7 @@ export const WebinarDetailPage: React.FC = () => {
         return (
             <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
                 <h2 className="text-xl font-bold text-gray-900 mb-2">الندوة غير موجودة</h2>
-                <Button onClick={() => navigate(-1)} variant="outline">
+                <Button onClick={() => navigate('/community?tab=education&subtab=webinars')} variant="outline">
                     <ArrowRight className="w-4 h-4 ml-2" />
                     رجوع
                 </Button>
@@ -45,7 +45,7 @@ export const WebinarDetailPage: React.FC = () => {
 
                 {/* Navbar Overlay */}
                 <div className="absolute top-0 w-full p-4 flex justify-between items-center z-10">
-                    <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/20 transition-all">
+                    <button onClick={() => navigate('/community?tab=education&subtab=webinars')} className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/20 transition-all">
                         <ArrowRight className="w-5 h-5" />
                     </button>
                     <div className="flex gap-2">

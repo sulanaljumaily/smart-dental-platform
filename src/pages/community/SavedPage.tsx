@@ -186,7 +186,7 @@ export const SavedPage: React.FC = () => {
             <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
                 <div className="container mx-auto px-4 py-4">
                     <div className="flex items-center gap-4 mb-4">
-                        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+                        <Button variant="ghost" size="sm" onClick={() => navigate('/community?tab=profile')}>
                             <ArrowRight className="w-5 h-5" />
                         </Button>
                         <h1 className="text-2xl font-black text-gray-900">المحفوظات</h1>

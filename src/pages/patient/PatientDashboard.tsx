@@ -84,21 +84,23 @@ export const PatientDashboard: React.FC = () => {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      // Fetch Appointments
+      // Fetch Appointments — UUID only (strict, no phone fallback)
+      // Also fetch patient.deleted_at to know if the clinic deleted the record
       const { data: aptData, error: aptError } = await supabase
         .from('appointments')
-        .select('*, clinic:clinics(name, image_url)')
-        .or(`patient_user_id.eq.${user?.id},phone_number.eq.${user?.phone}`)
+        .select('*, clinic:clinics(name, image_url), patient:patients(id, deleted_at)')
+        .eq('patient_user_id', user!.id)
         .order('appointment_date', { ascending: true });
 
       if (aptError) throw aptError;
       setAppointments(aptData || []);
 
-      // Fetch Medical Records (Across all clinics)
+      // Fetch Medical Records — UUID only (strict)
       const { data: recordsData } = await supabase
         .from('patients')
         .select('*, clinic:clinics(*)')
-        .or(`patient_user_id.eq.${user?.id},user_id.eq.${user?.id}`);
+        .eq('patient_user_id', user!.id)
+        .is('deleted_at', null);
       
       setMedicalRecords(recordsData || []);
 
@@ -548,30 +550,53 @@ const AppointmentCard = ({ apt }: { apt: Appointment }) => {
   };
 
   const timeInfo = formatTime12h(apt.appointment_time || (apt as any).time);
+  
+  // A record is linked and valid ONLY if it exists and hasn't been soft-deleted by the clinic
+  const hasValidPatient = apt.patient && !apt.patient.deleted_at;
+  const recordId = hasValidPatient ? (apt.patientId || (apt as any).patient_id) : null;
+  const isLinked = !!recordId;
 
   const getCardStyles = () => {
     const aptDate = parseISO(apt.appointment_date);
     const today = startOfDay(new Date());
     
+    // Add interactive styles only if linked
+    const interactiveClasses = isLinked 
+      ? 'hover:shadow-2xl hover:-translate-y-1.5 cursor-pointer group' 
+      : 'opacity-90 grayscale-[10%] cursor-default';
+
     if (isBefore(aptDate, today)) {
-      return 'bg-rose-50/50 border-rose-100 hover:border-rose-200';
+      return `bg-rose-50/50 border-rose-100 ${isLinked ? 'hover:border-rose-200' : ''} ${interactiveClasses}`;
     }
     
     const diff = differenceInDays(aptDate, today);
     if (diff <= 1) {
-      return 'bg-amber-50/50 border-amber-100 hover:border-amber-200';
+      return `bg-amber-50/50 border-amber-100 ${isLinked ? 'hover:border-amber-200' : ''} ${interactiveClasses}`;
     }
     
-    return 'bg-teal-50/30 border-teal-100 hover:border-teal-200';
+    return `bg-teal-50/30 border-teal-100 ${isLinked ? 'hover:border-teal-200' : ''} ${interactiveClasses}`;
   };
 
   return (
     <div 
-      onClick={() => navigate(`/patient/record/${apt.patientId || (apt as any).patient_id}`)}
-      className={`p-4 sm:p-5 rounded-[2.5rem] border shadow-sm hover:shadow-2xl hover:-translate-y-1.5 transition-all group cursor-pointer flex items-center gap-4 sm:gap-6 relative overflow-hidden ${getCardStyles()}`}
+      onClick={() => {
+        if (isLinked) {
+          navigate(`/patient/record/${recordId}`);
+        } else {
+          // Appointment confirmed but no patient file yet — inform user
+          import('sonner').then(({ toast }) => {
+            toast.info('العيادة لم تقم بإنشاء ملف طبي لك حتى الآن', {
+                description: 'ستتمكن من الدخول للملف فور قيام العيادة بتأكيد الموعد وإنشاء الملف.'
+            });
+          });
+        }
+      }}
+      className={`p-4 sm:p-5 rounded-[2.5rem] border shadow-sm transition-all flex items-center gap-4 sm:gap-6 relative overflow-hidden ${getCardStyles()}`}
     >
       {/* Decorative Gradient Background */}
-      <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/5 blur-[60px] group-hover:bg-teal-500/10 transition-colors pointer-events-none" />
+      {isLinked && (
+          <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/5 blur-[60px] group-hover:bg-teal-500/10 transition-colors pointer-events-none" />
+      )}
       
       {/* 1. Clinic Image (Right/Start) */}
       <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-2xl bg-gray-50 border border-gray-100 overflow-hidden shrink-0 group-hover:scale-105 transition-transform duration-500 shadow-inner">
@@ -616,8 +641,14 @@ const AppointmentCard = ({ apt }: { apt: Appointment }) => {
           <p className="text-xl sm:text-2xl font-black text-gray-900 group-hover:scale-110 transition-transform tabular-nums">{timeInfo.time}</p>
         </div>
 
-        <div className="hidden sm:flex w-10 h-10 bg-gray-50 rounded-2xl items-center justify-center text-gray-300 group-hover:bg-teal-600 group-hover:text-white transition-all shadow-sm">
-          <ArrowLeft className="w-5 h-5 rtl:rotate-180" />
+        <div className={`hidden sm:flex w-10 h-10 rounded-2xl items-center justify-center transition-all shadow-sm ${
+            isLinked ? 'bg-gray-50 text-gray-300 group-hover:bg-teal-600 group-hover:text-white' : 'bg-gray-100/50 text-gray-300'
+        }`}>
+          {isLinked ? (
+              <ArrowLeft className="w-5 h-5 rtl:rotate-180" />
+          ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 opacity-50"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          )}
         </div>
       </div>
     </div>

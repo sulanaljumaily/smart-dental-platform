@@ -125,6 +125,26 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
                 throw error;
             }
 
+            // Auto-lookup portal account by phone (Scenario E)
+            // If no patient_user_id was explicitly provided, check if a portal account
+            // exists with the same phone number and link the file automatically
+            let patientUserId = newPatient.patient_user_id || null;
+
+            if (!patientUserId && newPatient.phone) {
+                const sanitizedPhone = newPatient.phone.replace(/\D/g, '');
+                const { data: matchingProfile } = await supabase
+                    .from('profiles')
+                    .select('id')
+                    .eq('phone', sanitizedPhone)
+                    .eq('role', 'patient')
+                    .maybeSingle();
+
+                if (matchingProfile) {
+                    patientUserId = matchingProfile.id;
+                    console.log('[usePatients] Auto-linked patient file to portal account:', patientUserId);
+                }
+            }
+
             const patientData = {
                 clinic_id: clinicId || newPatient.clinicId || '101',
                 full_name: newPatient.name,
@@ -136,7 +156,7 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
                 notes: newPatient.notes,
                 medical_history: newPatient.medicalHistory ? JSON.parse(JSON.stringify(newPatient.medicalHistory)) : [],
                 status: 'active',
-                patient_user_id: newPatient.patient_user_id || null
+                patient_user_id: patientUserId
             };
 
             const { data, error } = await supabase.from('patients').insert(patientData).select().single();

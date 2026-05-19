@@ -2770,7 +2770,7 @@ export const ClinicPatientProfile = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <p className="text-red-500 font-bold text-lg">لم يتم العثور على المريض</p>
-          <Button className="mt-4" onClick={() => navigate('/doctor')}>
+          <Button className="mt-4" onClick={() => window.history.length > 2 ? navigate(-1) : navigate(`/doctor/clinic/${clinicId}`)}>
             العودة للقائمة
           </Button>
         </div>
@@ -2785,7 +2785,7 @@ export const ClinicPatientProfile = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" onClick={() => navigate('/doctor')}>
+              <Button variant="ghost" size="sm" onClick={() => window.history.length > 2 ? navigate(-1) : navigate(`/doctor/clinic/${clinicId}`)}>
                 <ArrowRight className="w-5 h-5" />
               </Button>
               <div>
@@ -3136,7 +3136,7 @@ export const ClinicPatientProfile = () => {
           description: selectedFinanceSessionId ? `دفعة مالية - جلسة علاج (Plan: ${selectedFinancePlanId})` : '',
         }}
         onSave={handleSaveFinance}
-        lockFields={financePrefillData ? ['amount', 'patient', 'treatment'] : (selectedFinancePlanId ? ['amount', 'patient', 'treatment'] : [])}
+        lockFields={financePrefillData ? ['patient', 'treatment'] : (selectedFinancePlanId ? ['patient', 'treatment'] : [])}
       />
 
       {/* General Treatment Modal */}

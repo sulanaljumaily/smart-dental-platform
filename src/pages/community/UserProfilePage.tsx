@@ -249,7 +249,7 @@ export const UserProfilePage: React.FC = () => {
             {/* Nav Back & Notifications */}
             <div className="max-w-7xl mx-auto mb-6 flex items-center justify-between">
                 <button
-                    onClick={() => navigate(-1)}
+                    onClick={() => window.history.length > 2 ? navigate(-1) : navigate('/community')}
                     className="flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors bg-white px-4 py-2 rounded-xl shadow-sm"
                 >
                     <ArrowRight className="w-5 h-5" />

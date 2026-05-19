@@ -31,7 +31,7 @@ export const NotificationsPage: React.FC = () => {
             <div className="max-w-3xl mx-auto">
                 <div className="flex items-center gap-4 mb-8">
                     <button
-                        onClick={() => navigate(-1)}
+                        onClick={() => navigate('/community?tab=profile')}
                         className="bg-white p-2 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-500"
                     >
                         <ArrowRight className="w-5 h-5" />

@@ -201,38 +201,162 @@ class AIService {
     }
 
     /**
-     * Call the ai-agent edge function for all AI requests
+     * Call the AI Provider API directly from the browser
      */
-    private async callEdgeFunction(payload: Record<string, any>): Promise<any> {
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
-
-        const headers: Record<string, string> = {
-            'Content-Type': 'application/json',
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        };
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
+    private async callDirectAPI(config: AIAgentConfig, messages: any[], imageBase64?: string, imageMimeType?: string, isJsonFormat: boolean = false): Promise<any> {
+        const { provider, model, apiKey, temperature } = config;
+        
+        if (!apiKey || apiKey.trim() === '') {
+            throw new Error('مفتاح API غير متوفر لهذا الوكيل. يرجى إضافته من إعدادات المنصة.');
         }
 
-        const response = await fetch(EDGE_FUNCTION_URL, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(payload),
-        });
+        if (provider === 'openai' || provider === 'deepseek') {
+            const endpoint = provider === 'deepseek' ? 'https://api.deepseek.com/v1/chat/completions' : 'https://api.openai.com/v1/chat/completions';
+            
+            const formattedMessages = messages.map(m => {
+                if (m.role === 'user' && imageBase64) {
+                    return {
+                        role: 'user',
+                        content: [
+                            { type: 'text', text: m.content },
+                            { type: 'image_url', image_url: { url: `data:${imageMimeType || 'image/jpeg'};base64,${imageBase64}` } }
+                        ]
+                    };
+                }
+                return { role: m.role, content: m.content };
+            });
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ error: 'خطأ غير متوقع' }));
-            if (response.status === 429) {
-                throw new Error('تم تجاوز الحد المسموح من الطلبات. يرجى المحاولة لاحقاً.');
+            const body: any = {
+                model: model || (provider === 'deepseek' ? 'deepseek-chat' : 'gpt-4o'),
+                messages: formattedMessages,
+                temperature: temperature || 0.5,
+            };
+
+            if (isJsonFormat && provider === 'openai') {
+                body.response_format = { type: 'json_object' };
             }
-            if (response.status === 402) {
-                throw new Error('رصيد الذكاء الاصطناعي غير كافٍ.');
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify(body)
+            });
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error?.message || `خطأ في الاتصال بمزود ${provider}`);
             }
-            throw new Error(errorData.error || 'خطأ في خدمة الذكاء الاصطناعي');
+
+            const data = await response.json();
+            return {
+                response: data.choices[0]?.message?.content || '',
+                raw: JSON.stringify(data)
+            };
+        } 
+        else if (provider === 'google') {
+            const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-2.5-pro'}:generateContent?key=${apiKey}`;
+            
+            let systemInstruction = messages.find(m => m.role === 'system')?.content;
+            const history = messages.filter(m => m.role !== 'system').map(m => {
+                const parts: any[] = [{ text: m.content }];
+                if (m.role === 'user' && imageBase64 && m === messages[messages.length - 1]) {
+                    parts.push({
+                        inline_data: {
+                            mime_type: imageMimeType || 'image/jpeg',
+                            data: imageBase64
+                        }
+                    });
+                }
+                return {
+                    role: m.role === 'assistant' ? 'model' : 'user',
+                    parts
+                };
+            });
+
+            const body: any = {
+                contents: history,
+                generationConfig: {
+                    temperature: temperature || 0.5
+                }
+            };
+            if (systemInstruction) {
+                body.systemInstruction = { parts: [{ text: systemInstruction }] };
+            }
+            if (isJsonFormat) {
+                body.generationConfig.responseMimeType = "application/json";
+            }
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error?.message || `خطأ في الاتصال بمزود ${provider}`);
+            }
+
+            const data = await response.json();
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            return {
+                response: text,
+                raw: JSON.stringify(data)
+            };
+        }
+        else if (provider === 'anthropic') {
+            const endpoint = 'https://api.anthropic.com/v1/messages';
+            
+            const system = messages.find(m => m.role === 'system')?.content;
+            const history = messages.filter(m => m.role !== 'system').map(m => {
+                const content: any[] = [{ type: 'text', text: m.content }];
+                if (m.role === 'user' && imageBase64 && m === messages[messages.length - 1]) {
+                    content.push({
+                        type: 'image',
+                        source: {
+                            type: 'base64',
+                            media_type: imageMimeType || 'image/jpeg',
+                            data: imageBase64
+                        }
+                    });
+                }
+                return { role: m.role, content };
+            });
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey,
+                    'anthropic-version': '2023-06-01',
+                    'anthropic-dangerously-allow-browser': 'true'
+                },
+                body: JSON.stringify({
+                    model: model || 'claude-3-5-sonnet-20241022',
+                    system,
+                    messages: history,
+                    temperature: temperature || 0.5,
+                    max_tokens: 4096
+                })
+            });
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error?.message || `خطأ في الاتصال بمزود ${provider}`);
+            }
+
+            const data = await response.json();
+            const text = data.content?.find((c: any) => c.type === 'text')?.text || '';
+            return {
+                response: text,
+                raw: JSON.stringify(data)
+            };
         }
 
-        return response.json();
+        throw new Error(`مزود الخدمة (${provider}) غير مدعوم حالياً.`);
     }
 
     async analyzeImage(
@@ -250,58 +374,75 @@ class AIService {
         if (!config.isActive) throw new Error('خدمة تحليل الصور غير مفعلة');
 
         try {
-            const payload: Record<string, any> = {
-                agent_type: 'image_analysis',
-                image_url: imageUrl,
-                message: context || 'حلل هذه الصورة السنية بدقة وأعط تقريراً تفصيلياً.',
-                session_id: sessionId,
-                clinic_id: clinicId,
-            };
-
-            // Send base64 data if available (preferred method)
-            if (base64Data) {
-                payload.image_base64 = base64Data;
-                payload.image_mime_type = mimeType || 'image/jpeg';
-            }
-
-            // Send clinic treatments catalog for accurate pricing
+            // Build Context
+            let fullContext = config.systemRules;
             if (clinicTreatments && clinicTreatments.length > 0) {
-                payload.clinic_treatments_catalog = clinicTreatments;
+                fullContext += `\n\n## CLINIC TREATMENT CATALOG (use ONLY these for cost estimation)\nCATALOG: ${JSON.stringify(clinicTreatments)}`;
+            }
+            
+            fullContext += `\n\nYou MUST return the response strictly in JSON format matching this structure:
+{
+  "diagnosis": "Summary in Arabic",
+  "severity": "low/medium/high",
+  "confidence": 0.9,
+  "image_type": "panoramic_xray etc",
+  "image_quality": { "rating": "good", "problems": [], "retake_recommended": false },
+  "summary": "Detailed clinical summary in Arabic",
+  "issues": [
+    { "label": "issue label", "tooth_number": "FDI", "category": "caries", "confidence": 0.8, "severity": "high", "description": "desc", "box": [x, y, w, h] }
+  ],
+  "findings": ["finding 1"],
+  "recommendation": "Recommendations"
+}`;
+
+            const messages = [
+                { role: 'system', content: fullContext },
+                { role: 'user', content: context || 'حلل هذه الصورة السنية بدقة وأعط تقريراً تفصيلياً.' }
+            ];
+
+            const data = await this.callDirectAPI(config, messages, base64Data, mimeType, true);
+            let parsedResult: any = null;
+
+            try {
+                // Find JSON block
+                const jsonMatch = data.response.match(/```(?:json)?\s*([\s\S]*?)```/);
+                const jsonStr = jsonMatch ? jsonMatch[1] : data.response;
+                parsedResult = JSON.parse(jsonStr);
+            } catch (e) {
+                console.warn('Failed to parse AI JSON response:', e);
             }
 
-            const data = await this.callEdgeFunction(payload);
-
-            if (data.result) {
+            if (parsedResult) {
                 return {
-                    issues: data.result.issues || [],
-                    summary: data.result.summary || data.result.diagnosis || '',
-                    recommendation: data.result.recommendation || '',
-                    diagnosis: data.result.diagnosis,
-                    severity: data.result.severity,
-                    confidence: data.result.confidence,
-                    image_type: data.result.image_type,
-                    image_quality: data.result.image_quality,
-                    treatment_plan: data.result.treatment_plan,
-                    doctor_notes: data.result.doctor_notes,
-                    patient_friendly_summary: data.result.patient_friendly_summary,
-                    follow_up_schedule: data.result.follow_up_schedule,
-                    findings: data.result.findings || [],
-                    total_estimated_cost: data.result.total_estimated_cost,
+                    issues: parsedResult.issues || [],
+                    summary: parsedResult.summary || parsedResult.diagnosis || '',
+                    recommendation: parsedResult.recommendation || '',
+                    diagnosis: parsedResult.diagnosis,
+                    severity: parsedResult.severity,
+                    confidence: parsedResult.confidence,
+                    image_type: parsedResult.image_type,
+                    image_quality: parsedResult.image_quality,
+                    treatment_plan: parsedResult.treatment_plan,
+                    doctor_notes: parsedResult.doctor_notes,
+                    patient_friendly_summary: parsedResult.patient_friendly_summary,
+                    follow_up_schedule: parsedResult.follow_up_schedule,
+                    findings: parsedResult.findings || [],
+                    total_estimated_cost: parsedResult.total_estimated_cost,
                     has_clinic_catalog: !!(clinicTreatments && clinicTreatments.length > 0),
-                    metadata: { isMock: false, provider: 'lovable-ai', model: 'gemini-2.5-pro' }
+                    metadata: { isMock: false, provider: config.provider, model: config.model }
                 } as AIAnalysisResult;
             }
 
             return {
                 issues: [],
-                summary: data.raw || 'تم التحليل',
+                summary: data.response || 'تم التحليل',
                 recommendation: '',
-                findings: [data.raw || ''],
-                metadata: { isMock: false, provider: 'lovable-ai', model: 'gemini-2.5-pro' }
+                findings: [data.response || ''],
+                metadata: { isMock: false, provider: config.provider, model: config.model }
             };
-        } catch (error) {
+        } catch (error: any) {
             console.error('[AI-Service] Analysis Failed:', error);
-            throw error;
+            throw new Error(error.message || 'فشل تحليل الصورة');
         }
     }
 
@@ -322,51 +463,97 @@ class AIService {
         if (!config.isActive) return 'نأسف، هذه الخدمة غير مفعلة حالياً.';
 
         try {
-            const payload: Record<string, any> = {
-                agent_type: agentType,
-                message,
-                context: contextObj,
-                session_id: sessionId,
-                clinic_id: clinicId ? parseInt(clinicId) : undefined,
-                history,
-            };
-
-            if (imageBase64) {
-                payload.image_base64 = imageBase64;
-                payload.image_mime_type = imageMimeType || 'image/jpeg';
+            let systemContent = config.systemRules;
+            if (contextObj) {
+                systemContent += `\n\nبيانات السياق الإضافية:\n${JSON.stringify(contextObj, null, 2)}`;
             }
 
-            const data = await this.callEdgeFunction(payload);
+            const messages: any[] = [{ role: 'system', content: systemContent }];
+            
+            if (history && history.length > 0) {
+                messages.push(...history);
+            }
 
-            return data.response || data.raw || 'لم يتم تلقي رد.';
+            messages.push({ role: 'user', content: message });
+
+            const data = await this.callDirectAPI(config, messages, imageBase64, imageMimeType);
+
+            // Log usage if clinic/user ID is provided (fire and forget)
+            if (clinicId || userId) {
+                supabase.from('ai_usage_logs').insert({
+                    agent_id: agentType,
+                    user_id: userId,
+                    clinic_id: clinicId ? parseInt(clinicId) : null,
+                    session_id: sessionId,
+                    tokens_used: 0, // Not easily extracted without detailed parsing per provider
+                    request_type: 'chat',
+                    user_type: userId ? 'clinic' : 'guest'
+                }).then(({ error }) => { if (error) console.warn('Failed to log AI usage', error); });
+            }
+
+            return data.response;
         } catch (error: any) {
             console.error('[AI-Service] Chat Failed:', error);
-            return error.message || 'عذراً، حدث خطأ أثناء الاتصال بالخادم الذكي.';
+            return `عذراً، حدث خطأ أثناء الاتصال بالمساعد الذكي: ${error.message}`;
         }
     }
 
     async listModels(config: AIAgentConfig): Promise<{ id: string; name: string; description?: string }[]> {
-        // Mock implementation for UI
         if (config.provider === 'openai') {
-            return [
-                { id: 'gpt-4.1', name: 'GPT-4.1' },
-                { id: 'gpt-4o', name: 'GPT-4o' }
-            ];
+            try {
+                const response = await fetch('https://api.openai.com/v1/models', {
+                    headers: { 'Authorization': `Bearer ${config.apiKey}` }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.data
+                        .filter((m: any) => m.id.includes('gpt') || m.id.includes('o1') || m.id.includes('o3') || m.id.includes('o4'))
+                        .map((m: any) => ({ id: m.id, name: m.id }));
+                }
+            } catch (e) {
+                console.warn('Failed to fetch OpenAI models', e);
+            }
+            return [{ id: 'gpt-4o', name: 'GPT-4o' }, { id: 'gpt-4o-mini', name: 'GPT-4o mini' }];
+        } else if (config.provider === 'google') {
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${config.apiKey}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.models
+                        .filter((m: any) => m.name.includes('gemini'))
+                        .map((m: any) => {
+                            const id = m.name.replace('models/', '');
+                            return { id, name: m.displayName || id, description: m.description };
+                        });
+                }
+            } catch (e) {
+                console.warn('Failed to fetch Google models', e);
+            }
+            return [{ id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' }, { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' }];
         } else if (config.provider === 'anthropic') {
             return [
-                { id: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5' }
+                { id: 'claude-3-7-sonnet-20250219', name: 'Claude 3.7 Sonnet' },
+                { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet' }
             ];
-        } else if (config.provider === 'google') {
-            return [
-                { id: 'gemini-2.5-pro-preview-03-25', name: 'Gemini 2.5 Pro Preview' }
-            ];
+        } else if (config.provider === 'deepseek') {
+            try {
+                const response = await fetch('https://api.deepseek.com/v1/models', {
+                    headers: { 'Authorization': `Bearer ${config.apiKey}` }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.data.map((m: any) => ({ id: m.id, name: m.id }));
+                }
+            } catch (e) {
+                console.warn('Failed to fetch DeepSeek models', e);
+            }
+            return [{ id: 'deepseek-chat', name: 'DeepSeek V3' }, { id: 'deepseek-reasoner', name: 'DeepSeek R1' }];
         }
         return [];
     }
 
     async testConnection(config: AIAgentConfig, prompt: string, testImageUrl?: string): Promise<string> {
         try {
-            // Re-use chat logic or simple ping depending on real implementation
             return await this.chat(config.id, prompt, null, undefined, undefined, undefined, testImageUrl ? undefined : undefined, undefined, undefined);
         } catch (e: any) {
             throw new Error(e.message || 'فشل الاتصال');

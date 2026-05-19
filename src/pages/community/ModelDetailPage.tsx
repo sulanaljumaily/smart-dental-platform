@@ -18,7 +18,7 @@ export const ModelDetailPage: React.FC = () => {
                     <h2 className="text-xl font-bold text-gray-900 mb-2">النموذج غير موجود</h2>
                     <p className="text-gray-500 text-sm mb-6">عذراً، لم نتمكن من العثور على النموذج المطلوب أو ربما تم حذفه.</p>
                     <button 
-                        onClick={() => navigate(-1)}
+                        onClick={() => navigate('/community?tab=education&subtab=3d')}
                         className="w-full bg-blue-600 text-white rounded-xl py-3 font-medium hover:bg-blue-700 transition"
                     >
                         العودة للخلف
@@ -61,7 +61,7 @@ export const ModelDetailPage: React.FC = () => {
                 {/* Navbar Overlay */}
                 <div className="absolute top-0 w-full p-4 flex justify-between items-center z-10 pointer-events-none">
                     {/* Pointer events none to let clicks pass to iframe, but buttons need pointer-events-auto */}
-                    <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/20 transition-all pointer-events-auto">
+                    <button onClick={() => navigate('/community?tab=education&subtab=3d')} className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/20 transition-all pointer-events-auto">
                         <ArrowRight className="w-5 h-5" />
                     </button>
                     <div className="flex gap-2 pointer-events-auto">

@@ -34,7 +34,7 @@ export const MyLearningPage: React.FC = () => {
             <div className="bg-white sticky top-0 z-30 shadow-sm px-4 py-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <button
-                        onClick={() => navigate(-1)}
+                        onClick={() => navigate('/community?tab=profile')}
                         className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors"
                     >
                         <ArrowRight className="w-5 h-5" />

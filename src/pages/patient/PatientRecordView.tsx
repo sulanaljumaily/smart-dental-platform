@@ -37,7 +37,7 @@ export const PatientRecordView: React.FC = () => {
   const fetchPatientRecord = async () => {
     setLoading(true);
     try {
-      // Fetch by ID and ensure it belongs to the logged-in user
+      // Fetch by ID and ensure it belongs to the logged-in patient account
       const { data, error } = await supabase
         .from('patients')
         .select(`
@@ -45,7 +45,8 @@ export const PatientRecordView: React.FC = () => {
           clinic:clinics(*)
         `)
         .eq('id', id)
-        .or(`patient_user_id.eq.${user!.id},user_id.eq.${user!.id}`)
+        .eq('patient_user_id', user!.id)
+        .is('deleted_at', null)
         .maybeSingle();
 
       if (error) {
