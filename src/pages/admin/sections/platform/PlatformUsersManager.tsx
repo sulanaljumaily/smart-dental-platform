@@ -212,11 +212,7 @@ export const PlatformUsersManager: React.FC = () => {
 
     return (
         <div className="space-y-4">
-            <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-100">
-                <div>
-                    <h3 className="font-bold text-gray-900">المستخدمين المسجلين</h3>
-                    <p className="text-gray-500 text-sm">عرض كافة المستخدمين في المنصة</p>
-                </div>
+            <div className="flex justify-end items-center bg-white p-4 rounded-xl border border-gray-100">
                 <div className="flex items-center gap-2">
                     <select
                         value={roleFilter}

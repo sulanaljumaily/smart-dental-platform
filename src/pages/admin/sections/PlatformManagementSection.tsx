@@ -309,7 +309,7 @@ export const PlatformManagementSection: React.FC<PlatformManagementSectionProps>
 
   const renderSettingsTab = () => (
     <div className="max-w-5xl mx-auto space-y-6">
-      <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm">
+      <div className="bg-white rounded-2xl sm:rounded-[2rem] p-4 sm:p-8 border border-gray-100 shadow-sm">
         <div className="flex items-center gap-4 mb-8 pb-6 border-b border-gray-100">
           <div className="p-3.5 bg-blue-50 text-blue-600 rounded-2xl border border-blue-100">
             <Settings className="w-6 h-6" />
@@ -321,10 +321,10 @@ export const PlatformManagementSection: React.FC<PlatformManagementSectionProps>
         </div>
 
         {/* Platform Logo */}
-        <div className="mb-8 p-6 bg-gray-50 rounded-2xl border border-gray-100">
+        <div className="mb-8 p-4 sm:p-6 bg-gray-50 rounded-2xl border border-gray-100">
           <label className="block text-sm font-bold text-gray-700 mb-4">شعار المنصة (Logo)</label>
-          <div className="flex items-center gap-6">
-            <div className="relative group">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-right gap-6">
+            <div className="relative group shrink-0">
               <div className="w-24 h-24 rounded-2xl border-2 border-dashed border-gray-300 bg-white flex items-center justify-center overflow-hidden hover:border-blue-500 transition-colors">
                 {settings.logo_url ? (
                   <img src={settings.logo_url} alt="Platform Logo" className="w-full h-full object-contain p-2" />
@@ -488,7 +488,7 @@ export const PlatformManagementSection: React.FC<PlatformManagementSectionProps>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm hover:shadow-md transition-all group cursor-pointer">
+        <div className="bg-white rounded-2xl sm:rounded-[2rem] p-6 sm:p-8 border border-gray-100 shadow-sm hover:shadow-md transition-all group cursor-pointer">
           <div className="flex items-center gap-4 mb-6">
             <div className="p-3 bg-green-50 text-green-600 rounded-2xl border border-green-100 hover:bg-green-100 transition-colors">
               <Database className="w-5 h-5" />
@@ -505,7 +505,7 @@ export const PlatformManagementSection: React.FC<PlatformManagementSectionProps>
           </button>
         </div>
 
-        <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm hover:shadow-md transition-all group cursor-pointer">
+        <div className="bg-white rounded-2xl sm:rounded-[2rem] p-6 sm:p-8 border border-gray-100 shadow-sm hover:shadow-md transition-all group cursor-pointer">
           <div className="flex items-center gap-4 mb-6">
             <div className="p-3 bg-purple-50 text-purple-600 rounded-2xl border border-purple-100 hover:bg-purple-100 transition-colors">
               <Globe className="w-5 h-5" />
@@ -534,11 +534,11 @@ export const PlatformManagementSection: React.FC<PlatformManagementSectionProps>
 
         return (
           <div key={method.id} className="relative group">
-            <div className="h-full bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300">
+            <div className="h-full bg-white rounded-2xl sm:rounded-[2rem] p-4 sm:p-8 border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300">
               <div className="relative z-10">
-                <div className="flex justify-between items-start mb-8">
-                  <div className="flex items-center gap-5">
-                    <div className={`w-18 h-18 rounded-2xl flex items-center justify-center text-3xl font-bold border-2 ${bgClass} p-5`}>
+                <div className="flex flex-col sm:flex-row justify-between items-center sm:items-start gap-4 mb-8">
+                  <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-right gap-5">
+                    <div className={`w-18 h-18 rounded-2xl flex items-center justify-center text-3xl font-bold border-2 ${bgClass} p-5 shrink-0`}>
                       {isZain ? 'Z' : 'Q'}
                     </div>
                     <div>
@@ -549,7 +549,7 @@ export const PlatformManagementSection: React.FC<PlatformManagementSectionProps>
                     </div>
                   </div>
 
-                  <button className="p-2.5 rounded-xl bg-gray-50 text-gray-500 hover:bg-white hover:text-blue-600 hover:shadow-md transition-all border border-transparent hover:border-gray-100">
+                  <button className="p-2.5 rounded-xl bg-gray-50 text-gray-500 hover:bg-white hover:text-blue-600 hover:shadow-md transition-all border border-transparent hover:border-gray-100 shrink-0">
                     <PenTool className="w-5 h-5" />
                   </button>
                 </div>
@@ -663,12 +663,12 @@ export const PlatformManagementSection: React.FC<PlatformManagementSectionProps>
 
   const renderAgentsTab = () => (
     <div className="space-y-6">
-      <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
         <div>
           <h3 className="font-bold text-lg text-gray-900">الوكلاء المعتمدون</h3>
           <p className="text-gray-500 text-sm">إدارة وكلاء المبيعات في المحافظات</p>
         </div>
-        <Button onClick={() => { setSelectedAgent(null); setShowAgentModal(true); }} className="bg-blue-600 hover:bg-blue-700 text-white shadow-md">
+        <Button onClick={() => { setSelectedAgent(null); setShowAgentModal(true); }} className="bg-blue-600 hover:bg-blue-700 text-white shadow-md w-full sm:w-auto justify-center">
           <Plus className="w-4 h-4 ml-2" />
           إضافة وكيل
         </Button>
@@ -687,51 +687,46 @@ export const PlatformManagementSection: React.FC<PlatformManagementSectionProps>
   return (
     <div className="space-y-8 min-h-screen bg-gray-50/50 p-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-3xl font-bold text-gray-900">إدارة المنصة</h2>
-          <p className="text-gray-600">التحكم الكامل في إعدادات النظام والمدفوعات</p>
-        </div>
-
-        <div className="flex p-1 bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
+      <div className="flex justify-end w-full">
+        <div className="w-full md:w-auto flex p-1 bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto scrollbar-hide no-scrollbar">
           <button
             onClick={() => setActiveTab('users')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'users' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap shrink-0 ${activeTab === 'users' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             <Users className="w-4 h-4" />
             المستخدمين
           </button>
           <button
             onClick={() => setActiveTab('pending_requests')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'pending_requests' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap shrink-0 ${activeTab === 'pending_requests' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             <Clock className="w-4 h-4" />
             الطلبات المعلقة
           </button>
           <button
             onClick={() => setActiveTab('activities')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'activities' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap shrink-0 ${activeTab === 'activities' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             <Activity className="w-4 h-4" />
             سجل النشاطات
           </button>
           <button
             onClick={() => setActiveTab('settings')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'settings' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap shrink-0 ${activeTab === 'settings' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             <Settings className="w-4 h-4" />
             الإعدادات
           </button>
           <button
             onClick={() => setActiveTab('payment')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'payment' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap shrink-0 ${activeTab === 'payment' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             <CreditCard className="w-4 h-4" />
             طرق الدفع
           </button>
           <button
             onClick={() => setActiveTab('agents')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'agents' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap shrink-0 ${activeTab === 'agents' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             <Users className="w-4 h-4" />
             الوكلاء

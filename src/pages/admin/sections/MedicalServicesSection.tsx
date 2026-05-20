@@ -869,21 +869,7 @@ const FeaturedClinicsManager = () => {
     return (
         <div className="space-y-6">
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl p-6 text-white shadow-lg shadow-purple-200">
-                    <div className="flex justify-between items-start mb-4">
-                        <div className="p-3 bg-white/20 rounded-xl backdrop-blur-md">
-                            <Star className="w-6 h-6 text-white" />
-                        </div>
-                        <span className="text-purple-100 text-sm font-medium">العيادات المميزة</span>
-                    </div>
-                    <div className="flex items-end gap-2">
-                        <h3 className="text-3xl font-bold mb-1">{featuredCount}</h3>
-                        <span className="text-purple-200 text-sm mb-2">عيادة</span>
-                    </div>
-                    <p className="text-purple-100 text-sm opacity-80 mt-2">تظهر في الصفحة الرئيسية بدعم من المنصة</p>
-                </div>
-
+            <div className="max-w-md">
                 <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-20 h-20 bg-blue-50 rounded-bl-[4rem] -mr-4 -mt-4 opacity-50"></div>
 
