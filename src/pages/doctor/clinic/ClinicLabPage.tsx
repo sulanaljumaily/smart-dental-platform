@@ -400,7 +400,7 @@ export default function ClinicLabPage({ clinicId }: ClinicLabPageProps) {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">معامل الاسنان المحفوظة</h2>
+          <h2 className="text-2xl font-bold text-gray-900">المعامل المحفوظة</h2>
           <p className="text-gray-600 mt-1">قائمة المعامل المفضلة والمخصصة</p>
         </div>
         <div className="flex gap-2">
@@ -721,21 +721,21 @@ export default function ClinicLabPage({ clinicId }: ClinicLabPageProps) {
         <div className="flex gap-6 border-b border-gray-100">
           <button
             onClick={() => setActiveSubTab('case-management')}
-            className={`pb - 4 px - 2 font - medium transition - colors relative ${activeSubTab === 'case-management' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'} `}
+            className={`pb-4 px-2 font-medium transition-colors relative ${activeSubTab === 'case-management' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
           >
-            طلبات معامل الاسنان
+            طلبات المعامل
             {activeSubTab === 'case-management' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-t-full" />}
           </button>
           <button
             onClick={() => setActiveSubTab('saved-labs')}
-            className={`pb - 4 px - 2 font - medium transition - colors relative ${activeSubTab === 'saved-labs' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'} `}
+            className={`pb-4 px-2 font-medium transition-colors relative ${activeSubTab === 'saved-labs' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
           >
-            معامل الاسنان المحفوظة
+            المعامل المحفوظة
             {activeSubTab === 'saved-labs' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-t-full" />}
           </button>
           <button
             onClick={() => setActiveSubTab('platform-labs')}
-            className={`pb - 4 px - 2 font - medium transition - colors relative ${activeSubTab === 'platform-labs' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'} `}
+            className={`pb-4 px-2 font-medium transition-colors relative ${activeSubTab === 'platform-labs' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
           >
             معامل المنصة
             {activeSubTab === 'platform-labs' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-t-full" />}

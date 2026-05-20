@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Briefcase, LayoutDashboard, Stethoscope, Package, Monitor, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, Stethoscope, Package, Monitor, ClipboardList } from 'lucide-react';
 import { Card } from '../../../components/common/Card';
 
 // Import sub-sections
@@ -33,17 +33,6 @@ export const ClinicAssetsPage: React.FC<ClinicAssetsPageProps> = ({ clinicId = '
 
     return (
         <div className="space-y-6">
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                <div className="flex items-center gap-4">
-                    <div className="p-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl shadow-lg shadow-emerald-200">
-                        <Briefcase className="w-8 h-8" />
-                    </div>
-                    <div>
-                        <h2 className="text-2xl font-bold text-gray-900">الأصول والخدمات</h2>
-                        <p className="text-gray-600">إدارة شاملة للعلاجات، المخزون، والأجهزة الطبية</p>
-                    </div>
-                </div>
-            </div>
 
             {/* Navigation Tabs */}
             <Card>
@@ -58,12 +47,12 @@ export const ClinicAssetsPage: React.FC<ClinicAssetsPageProps> = ({ clinicId = '
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors border-b-2 whitespace-nowrap ${activeTab === tab.id
+                                className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${activeTab === tab.id
                                     ? 'border-emerald-600 text-emerald-600 bg-emerald-50/50'
                                     : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50'
                                     }`}
                             >
-                                <tab.icon className="w-5 h-5" />
+                                <tab.icon className="w-4 h-4" />
                                 {tab.label}
                             </button>
                         ))}

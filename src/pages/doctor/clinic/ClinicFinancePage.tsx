@@ -358,25 +358,27 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
   const renderIncomeTab = () => (
     <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
       <Card>
-        <div className="p-6 border-b border-gray-100 flex flex-wrap justify-between items-center gap-4">
-          <div>
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <TrendingUp className="w-6 h-6 text-green-600" />
+        <div className="p-4 sm:p-6 border-b border-gray-100 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-base sm:text-lg md:text-xl font-bold flex items-center gap-1.5 sm:gap-2 text-gray-900 truncate">
+              <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-green-600 shrink-0" />
               سجل الإيرادات المتكامل
             </h2>
-            <p className="text-sm text-gray-500 mt-1">تتبع جميع الإيرادات اليدوية والآلية</p>
+            <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1 hidden xs:block truncate">تتبع جميع الإيرادات اليدوية والآلية</p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => refresh()}>
-              <RefreshCw className="w-4 h-4 ml-2" /> تحديث
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <Button variant="outline" size="sm" onClick={() => refresh()} className="p-2 sm:px-3 sm:py-1.5 flex items-center gap-1">
+              <RefreshCw className="w-4 h-4 sm:ml-1" />
+              <span className="hidden sm:inline">تحديث</span>
             </Button>
-            <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/20" onClick={() => {
+            <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/20 p-2 sm:px-3 sm:py-1.5 flex items-center gap-1" onClick={() => {
               setModalType('income');
               setPreselectedPatientId(undefined);
               setSelectedTransaction(null);
               setShowModal(true);
             }}>
-              <Plus className="w-4 h-4 ml-2" /> إيراد يدوي
+              <Plus className="w-4 h-4 sm:ml-1" />
+              <span className="hidden sm:inline">إيراد يدوي</span>
             </Button>
           </div>
         </div>
@@ -513,25 +515,27 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
   const renderExpensesTab = () => (
     <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
       <Card>
-        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-          <div>
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <TrendingDown className="w-6 h-6 text-red-600" />
+        <div className="p-4 sm:p-6 border-b border-gray-100 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-base sm:text-lg md:text-xl font-bold flex items-center gap-1.5 sm:gap-2 text-gray-900 truncate">
+              <TrendingDown className="w-5 h-5 sm:w-6 sm:h-6 text-red-600 shrink-0" />
               سجل المصروفات المتكامل
             </h2>
-            <p className="text-sm text-gray-500 mt-1">تتبع الرواتب، المشتريات، والمصاريف التشغيلية</p>
+            <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1 hidden xs:block truncate">تتبع الرواتب، المشتريات، والمصاريف التشغيلية</p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => refresh()}>
-              <RefreshCw className="w-4 h-4 ml-2" /> تحديث
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <Button variant="outline" size="sm" onClick={() => refresh()} className="p-2 sm:px-3 sm:py-1.5 flex items-center gap-1">
+              <RefreshCw className="w-4 h-4 sm:ml-1" />
+              <span className="hidden sm:inline">تحديث</span>
             </Button>
-            <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20" onClick={() => {
+            <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20 p-2 sm:px-3 sm:py-1.5 flex items-center gap-1" onClick={() => {
               setModalType('expense');
               setPreselectedPatientId(undefined);
               setSelectedTransaction(null);
               setShowModal(true);
             }}>
-              <Plus className="w-4 h-4 ml-2" /> مصروف يدوي
+              <Plus className="w-4 h-4 sm:ml-1" />
+              <span className="hidden sm:inline">مصروف يدوي</span>
             </Button>
           </div>
         </div>
@@ -680,19 +684,7 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              المالية والحسابات
-              <button onClick={() => refresh()} className="p-1 rounded-full hover:bg-gray-100 text-gray-400 hover:text-blue-600 transition-colors" title="تحديث البيانات">
-                <RefreshCw className="w-5 h-5" />
-              </button>
-            </h1>
-            <p className="text-gray-500">نظرة عامة على الإيرادات والمصروفات والأرباح</p>
-          </div>
-        </div>
-
+      <div className="flex justify-end">
         <div className="flex bg-gray-100 p-1 rounded-lg">
           <button onClick={() => setActiveTab('overview')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'overview' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>نظرة عامة</button>
           <button onClick={() => setActiveTab('income')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'income' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>الإيرادات</button>

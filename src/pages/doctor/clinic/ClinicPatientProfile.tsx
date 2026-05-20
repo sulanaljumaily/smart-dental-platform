@@ -823,7 +823,7 @@ export const ClinicPatientProfile = () => {
         })()}
 
         {/* Merged Medical History Section */}
-        <div className="col-span-2 md:col-span-4 mt-4 pt-4 border-t border-gray-200">
+        <div className="col-span-2 md:col-span-4 mt-1 pt-3 border-t border-gray-200">
           {renderMedicalHistoryTab()}
         </div>
       </div>

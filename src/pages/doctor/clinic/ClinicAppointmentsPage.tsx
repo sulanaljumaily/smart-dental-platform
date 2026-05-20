@@ -340,16 +340,7 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
 
           {/* Actions */}
           <div className="flex flex-wrap gap-3 w-full lg:w-auto justify-end">
-            <div className="relative group">
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors w-4 h-4" />
-              <input
-                type="text"
-                placeholder="بحث عن مريض..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="pr-10 pl-4 py-2.5 border border-gray-200 rounded-xl text-sm w-full sm:w-64 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all outline-none"
-              />
-            </div>
+
 
             <div className="relative">
               <select

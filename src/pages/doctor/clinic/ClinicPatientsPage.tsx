@@ -223,10 +223,10 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
         <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
 
           {/* Search and Filters */}
-          <div className="flex flex-col sm:flex-row gap-3 flex-1 w-full">
+          <div className="flex flex-row flex-wrap sm:flex-nowrap gap-3 flex-1 w-full">
 
             {/* Search */}
-            <div className="relative flex-1 max-w-md group">
+            <div className="relative w-full sm:flex-1 sm:max-w-md group">
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors w-4 h-4" />
               <input
                 type="text"
@@ -238,11 +238,11 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
             </div>
 
             {/* Status Filter */}
-            <div className="relative">
+            <div className="relative w-[calc(50%-6px)] sm:w-40">
               <select
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
-                className="appearance-none w-full sm:w-40 px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none cursor-pointer"
+                className="appearance-none w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none cursor-pointer"
               >
                 <option value="all">جميع الحالات</option>
                 <option value="active">نشط</option>
@@ -252,11 +252,11 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
             </div>
 
             {/* Payment Filter */}
-            <div className="relative">
+            <div className="relative w-[calc(50%-6px)] sm:w-40">
               <select
                 value={selectedPayment}
                 onChange={(e) => setSelectedPayment(e.target.value)}
-                className="appearance-none w-full sm:w-40 px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none cursor-pointer"
+                className="appearance-none w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none cursor-pointer"
               >
                 <option value="all">جميع المدفوعات</option>
                 <option value="paid">مدفوع</option>
@@ -465,30 +465,36 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
       </Card>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <div className="p-4 text-center">
-            <Users className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-gray-900">{stats.active}</div>
-            <p className="text-sm text-gray-600">مرضى نشطين</p>
-          </div>
-        </Card>
+      <div className="grid grid-cols-3 gap-3 sm:gap-4">
+        <BentoStatCard
+          title="مرضى نشطين"
+          value={stats.active}
+          icon={Users}
+          color="blue"
+          trend="up"
+          trendValue="نشط"
+          delay={100}
+        />
 
-        <Card>
-          <div className="p-4 text-center">
-            <Heart className="w-8 h-8 text-red-500 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-gray-900">{stats.emergency}</div>
-            <p className="text-sm text-gray-600">حالات طوارئ</p>
-          </div>
-        </Card>
+        <BentoStatCard
+          title="حالات طوارئ"
+          value={stats.emergency}
+          icon={Heart}
+          color="red"
+          trend={stats.emergency > 0 ? "down" : "neutral"}
+          trendValue="طوارئ"
+          delay={200}
+        />
 
-        <Card>
-          <div className="p-4 text-center">
-            <CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" />
-            <div className="text-2xl font-bold text-gray-900">{stats.total - stats.pendingPayments}</div>
-            <p className="text-sm text-gray-600">مدفوعات مكتملة</p>
-          </div>
-        </Card>
+        <BentoStatCard
+          title="مدفوعات مكتملة"
+          value={stats.total - stats.pendingPayments}
+          icon={CheckCircle}
+          color="green"
+          trend="neutral"
+          trendValue="مكتمل"
+          delay={300}
+        />
       </div>
 
       {/* Add Patient Modal */}

@@ -46,40 +46,39 @@ export const ClinicReportsPage: React.FC<ClinicReportsPageProps> = ({ clinicId }
       {/* Header Controls */}
       <Card>
         <div className="p-6">
-          <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">التقارير والإحصائيات</h1>
-              <p className="text-gray-600">تقارير شاملة ومتقدمة لأداء العيادة</p>
+          <div className="flex flex-row flex-wrap sm:flex-nowrap gap-3 items-center justify-between w-full">
+            <div className="flex flex-row flex-wrap sm:flex-nowrap gap-3 flex-1 w-full">
+              <div className="relative w-[calc(50%-6px)] sm:w-40">
+                <select
+                  value={selectedPeriod}
+                  onChange={(e) => setSelectedPeriod(e.target.value)}
+                  className="appearance-none w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none cursor-pointer"
+                >
+                  <option value="week">هذا الأسبوع</option>
+                  <option value="month">هذا الشهر</option>
+                  <option value="quarter">هذا الربع</option>
+                  <option value="year">هذا العام</option>
+                </select>
+              </div>
+
+              <div className="relative w-[calc(50%-6px)] sm:w-40">
+                <select
+                  value={selectedType}
+                  onChange={(e) => setSelectedType(e.target.value)}
+                  className="appearance-none w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none cursor-pointer"
+                >
+                  <option value="all">جميع التقارير</option>
+                  <option value="financial">مالية</option>
+                  <option value="operational">تشغيلية</option>
+                  <option value="performance">أداء</option>
+                </select>
+              </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <select
-                value={selectedPeriod}
-                onChange={(e) => setSelectedPeriod(e.target.value)}
-                className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="week">هذا الأسبوع</option>
-                <option value="month">هذا الشهر</option>
-                <option value="quarter">هذا الربع</option>
-                <option value="year">هذا العام</option>
-              </select>
-
-              <select
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
-                className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="all">جميع التقارير</option>
-                <option value="financial">مالية</option>
-                <option value="operational">تشغيلية</option>
-                <option value="performance">أداء</option>
-              </select>
-
-              <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                <Download className="w-4 h-4" />
-                <span className="text-sm font-medium">تصدير</span>
-              </button>
-            </div>
+            <button className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-sm whitespace-nowrap">
+              <Download className="w-4 h-4" />
+              <span className="text-sm font-medium">تصدير</span>
+            </button>
           </div>
         </div>
       </Card>

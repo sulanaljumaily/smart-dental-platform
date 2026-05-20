@@ -228,108 +228,78 @@ export const ClinicStaffPage: React.FC<ClinicStaffPageProps> = ({ clinicId }) =>
           delay={200}
         />
         <BentoStatCard
-          title="متوسط التقييم"
-          value={`${stats.avgRating.toFixed(1)}/5`}
-          icon={Star}
-          color="purple"
-          trend="up"
-          trendValue="2.1%"
-          delay={300}
-        />
-        <BentoStatCard
-          title="معدل الحضور"
-          value={`${stats.avgAttendance}%`}
-          icon={Clock}
-          color="orange"
-          delay={400}
-        />
-      </div>
-
-      {/* Additional Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <BentoStatCard
           title="المساعدين"
           value={stats.assistants}
           icon={UserCheck}
           color="emerald"
-          delay={500}
+          delay={300}
         />
         <BentoStatCard
           title="الممرضين"
           value={stats.nurses}
           icon={User}
           color="red"
-          delay={600}
-        />
-        <BentoStatCard
-          title="الإداريين"
-          value={stats.admin}
-          icon={Users}
-          color="indigo"
-          delay={700}
-        />
-        <BentoStatCard
-          title="الراتب الإجمالي"
-          value={`${(stats.totalSalary / 1000000).toFixed(1)}م`}
-          icon={TrendingUp}
-          color="amber"
-          delay={800}
+          delay={400}
         />
       </div>
 
       {/* Controls */}
-      <Card>
-        <div className="p-6">
-          <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+      <Card className="p-0 overflow-hidden">
+        <div className="py-2.5 px-4 sm:py-3 sm:px-6">
+          <div className="flex flex-col lg:flex-row gap-4 items-center justify-between w-full">
 
             {/* Search and Filters */}
-            <div className="flex flex-col sm:flex-row gap-3 flex-1">
+            <div className="flex flex-row items-center gap-2 sm:gap-3 flex-1 w-full">
 
               {/* Search */}
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <div className="relative flex-1 sm:max-w-md group">
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors w-4 h-4" />
                 <input
                   type="text"
                   placeholder="البحث في الموظفين..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pr-10 pl-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all outline-none"
                 />
               </div>
 
               {/* Position Filter */}
-              <select
-                value={selectedPosition}
-                onChange={(e) => setSelectedPosition(e.target.value)}
-                className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="all">جميع المناصب</option>
-                <option value="doctor">أطباء</option>
-                <option value="assistant">مساعدين</option>
-                <option value="nurse">ممرضين</option>
-                <option value="receptionist">مستقبل</option>
-                <option value="admin">إداريين</option>
-                <option value="technician">فنيين</option>
-              </select>
+              <div className="relative w-[90px] sm:w-40 flex-shrink-0">
+                <select
+                  value={selectedPosition}
+                  onChange={(e) => setSelectedPosition(e.target.value)}
+                  className="appearance-none w-full px-2 sm:px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none cursor-pointer"
+                >
+                  <option value="all">المنصب</option>
+                  <option value="doctor">أطباء</option>
+                  <option value="assistant">مساعدين</option>
+                  <option value="nurse">ممرضين</option>
+                  <option value="receptionist">مستقبل</option>
+                  <option value="admin">إداريين</option>
+                  <option value="technician">فنيين</option>
+                </select>
+              </div>
 
               {/* Status Filter */}
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                className="px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="all">جميع الحالات</option>
-                <option value="active">نشط</option>
-                <option value="on_leave">إجازة</option>
-                <option value="suspended">موقوف</option>
-                <option value="terminated">منتهي الخدمة</option>
-              </select>
+              <div className="relative w-[90px] sm:w-40 flex-shrink-0">
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  className="appearance-none w-full px-2 sm:px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none cursor-pointer"
+                >
+                  <option value="all">الحالة</option>
+                  <option value="active">نشط</option>
+                  <option value="on_leave">إجازة</option>
+                  <option value="suspended">موقوف</option>
+                  <option value="terminated">منتهي الخدمة</option>
+                </select>
+              </div>
             </div>
 
             {/* Actions */}
             <div className="flex items-center gap-3">
               {/* Activity Log Button */}
-              {(isOwner || currentStaffPermissions?.activityLog) && (
+              {isOwner && (
                 <button
                   onClick={() => setShowActivityLogModal(true)}
                   className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
