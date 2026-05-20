@@ -11,13 +11,15 @@ interface BrandCreationModalProps {
     onClose: () => void;
     onSuccess: (brand: any) => void;
     initialName?: string;
+    defaultTargetAudience?: string[];
 }
 
 export const BrandCreationModal: React.FC<BrandCreationModalProps> = ({
     isOpen,
     onClose,
     onSuccess,
-    initialName = ''
+    initialName = '',
+    defaultTargetAudience
 }) => {
     const { user } = useAuth();
     const { createBrand } = useBrands();
@@ -27,13 +29,17 @@ export const BrandCreationModal: React.FC<BrandCreationModalProps> = ({
     const [loading, setLoading] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
     const [checkingRole, setCheckingRole] = useState(true);
+    const [targetAudience, setTargetAudience] = useState<string[]>(['clinic', 'lab']);
 
     useEffect(() => {
         if (isOpen) {
             setName(initialName);
+            if (defaultTargetAudience) {
+                setTargetAudience(defaultTargetAudience);
+            }
             checkUserRole();
         }
-    }, [isOpen, initialName]);
+    }, [isOpen, initialName, defaultTargetAudience]);
 
     const checkUserRole = async () => {
         if (!user) return;
@@ -60,7 +66,7 @@ export const BrandCreationModal: React.FC<BrandCreationModalProps> = ({
         setLoading(true);
         try {
             // isAdmin determines if verification is automatic
-            const newBrand = await createBrand(name, logo || undefined, description, isAdmin);
+            const newBrand = await createBrand(name, logo || undefined, description, isAdmin, targetAudience);
 
             if (newBrand) {
                 onSuccess(newBrand);
@@ -78,6 +84,7 @@ export const BrandCreationModal: React.FC<BrandCreationModalProps> = ({
         setName('');
         setDescription('');
         setLogo(null);
+        setTargetAudience(defaultTargetAudience || ['clinic', 'lab']);
         onClose();
     };
 
@@ -117,6 +124,47 @@ export const BrandCreationModal: React.FC<BrandCreationModalProps> = ({
                             placeholder="مثال: 3M, Dentsply..."
                             autoFocus
                         />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                            الجمهور المستهدف <span className="text-red-500">*</span>
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setTargetAudience(['clinic', 'lab'])}
+                                className={`py-2 px-3 rounded-xl border text-xs font-semibold transition-all duration-200 ${
+                                    targetAudience.includes('clinic') && !targetAudience.includes('patient')
+                                        ? 'bg-blue-50 border-blue-400 text-blue-700 shadow-sm'
+                                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                }`}
+                            >
+                                الأطباء والمختبرات
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setTargetAudience(['patient'])}
+                                className={`py-2 px-3 rounded-xl border text-xs font-semibold transition-all duration-200 ${
+                                    targetAudience.includes('patient') && !targetAudience.includes('clinic')
+                                        ? 'bg-teal-50 border-teal-400 text-teal-700 shadow-sm'
+                                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                }`}
+                            >
+                                المرضى
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setTargetAudience(['clinic', 'lab', 'patient'])}
+                                className={`py-2 px-3 rounded-xl border text-xs font-semibold transition-all duration-200 ${
+                                    targetAudience.includes('clinic') && targetAudience.includes('patient')
+                                        ? 'bg-purple-50 border-purple-400 text-purple-700 shadow-sm'
+                                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                }`}
+                            >
+                                الجميع
+                            </button>
+                        </div>
                     </div>
 
                     <div>

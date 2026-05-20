@@ -275,7 +275,7 @@ export const AppointmentList: React.FC<AppointmentListProps> = ({
                 onClick={() => setSelectedAppointments([])}
                 className="text-xs text-gray-500 hover:text-gray-700"
               >
-                إلغاء التحديد
+                إلغاء
               </button>
             </div>
           )}

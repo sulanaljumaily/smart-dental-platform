@@ -11,7 +11,9 @@ export const PatientBrandsPage: React.FC = () => {
   const { brands, loading } = useBrands();
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredBrands = brands.filter(brand =>
+  const patientBrands = brands.filter(brand => !brand.target_audience || brand.target_audience.includes('patient'));
+
+  const filteredBrands = patientBrands.filter(brand =>
     brand.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     brand.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -42,7 +44,7 @@ export const PatientBrandsPage: React.FC = () => {
           <div className="col-span-2 md:col-span-2 bg-gradient-to-br from-teal-900 to-cyan-900 rounded-3xl p-6 text-white relative overflow-hidden flex flex-col justify-between min-h-[180px]">
             <div className="relative z-10">
               <h2 className="text-2xl font-bold mb-2">شركاء النجاح</h2>
-              <p className="text-teal-200 text-sm mb-4">نفتخر بتقديم منتجات من {brands.length} علامة تجارية عالمية موثوقة.</p>
+              <p className="text-teal-200 text-sm mb-4">نفتخر بتقديم منتجات من {patientBrands.length} علامة تجارية عالمية موثوقة.</p>
             </div>
             <div className="flex gap-3 relative z-10">
               <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 flex flex-col items-center flex-1 border border-white/10">

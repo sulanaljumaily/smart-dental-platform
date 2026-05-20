@@ -10,7 +10,9 @@ export default function BrandsPage() {
   const { brands, loading } = useBrands();
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filteredBrands = brands.filter(brand =>
+  const clinicBrands = brands.filter(brand => !brand.target_audience || brand.target_audience.includes('clinic') || brand.target_audience.includes('lab'));
+
+  const filteredBrands = clinicBrands.filter(brand =>
     brand.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     brand.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -41,7 +43,7 @@ export default function BrandsPage() {
           <div className="col-span-2 md:col-span-2 bg-gradient-to-br from-indigo-900 to-blue-900 rounded-3xl p-6 text-white relative overflow-hidden flex flex-col justify-between min-h-[180px]">
             <div className="relative z-10">
               <h2 className="text-2xl font-bold mb-2">شركاء النجاح</h2>
-              <p className="text-blue-200 text-sm mb-4">نفتخر بتقديم منتجات من {brands.length} علامة تجارية عالمية موثوقة.</p>
+              <p className="text-blue-200 text-sm mb-4">نفتخر بتقديم منتجات من {clinicBrands.length} علامة تجارية عالمية موثوقة.</p>
             </div>
             <div className="flex gap-3 relative z-10">
               <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 flex flex-col items-center flex-1 border border-white/10">

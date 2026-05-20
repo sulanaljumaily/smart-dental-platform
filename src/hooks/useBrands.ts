@@ -25,7 +25,7 @@ export const useBrands = () => {
         }
     };
 
-    const createBrand = async (name: string, logo?: File, description?: string, isVerified: boolean = false) => {
+    const createBrand = async (name: string, logo?: File, description?: string, isVerified: boolean = false, targetAudience: string[] = ['clinic', 'lab']) => {
         try {
             // Check if exists
             const { data: existing } = await supabase.from('brands').select('id').ilike('name', name).single();
@@ -47,7 +47,8 @@ export const useBrands = () => {
                 name,
                 logo: logoUrl,
                 description,
-                is_verified: isVerified
+                is_verified: isVerified,
+                target_audience: targetAudience
             }).select().single();
 
             if (error) throw error;

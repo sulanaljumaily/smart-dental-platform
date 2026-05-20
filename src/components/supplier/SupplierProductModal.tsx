@@ -53,8 +53,6 @@ export const SupplierProductModal: React.FC<SupplierProductModalProps> = ({
 
     const brandRef = useRef<HTMLDivElement>(null);
 
-    const filteredBrands = brands.filter(b => b.name.toLowerCase().includes(brandSearch.toLowerCase()));
-
     // Removed old handleCreateBrand
 
     const [supplierStoreType, setSupplierStoreType] = useState<'professional' | 'patient' | 'both'>('professional');
@@ -79,6 +77,30 @@ export const SupplierProductModal: React.FC<SupplierProductModalProps> = ({
         promotionEndDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         promotionNotes: '',
         target_audience: ['clinic', 'lab']
+    });
+
+    const filteredBrands = brands.filter(b => {
+        if (!b.name.toLowerCase().includes(brandSearch.toLowerCase())) return false;
+        
+        const brandAudience = b.target_audience || ['clinic', 'lab'];
+        const prodAudience = formData.target_audience || ['clinic', 'lab'];
+        
+        const prodIsForPatient = prodAudience.includes('patient');
+        const prodIsForClinicOrLab = prodAudience.includes('clinic') || prodAudience.includes('lab');
+        
+        const brandIsForPatient = brandAudience.includes('patient');
+        const brandIsForClinicOrLab = brandAudience.includes('clinic') || brandAudience.includes('lab');
+        
+        if (prodIsForPatient && !prodIsForClinicOrLab) {
+            return brandIsForPatient;
+        }
+        if (prodIsForClinicOrLab && !prodIsForPatient) {
+            return brandIsForClinicOrLab;
+        }
+        if (prodIsForPatient && prodIsForClinicOrLab) {
+            return brandIsForPatient || brandIsForClinicOrLab;
+        }
+        return true;
     });
 
     const [saving, setSaving] = useState(false);
@@ -697,6 +719,7 @@ export const SupplierProductModal: React.FC<SupplierProductModalProps> = ({
                     setIsBrandModalOpen(false);
                 }}
                 initialName={brandSearch}
+                defaultTargetAudience={formData.target_audience}
             />
         </div>
     );

@@ -96,6 +96,7 @@ export interface Patient {
   clinicId?: string;
   status?: 'active' | 'inactive' | 'emergency';
   paymentStatus?: 'paid' | 'pending' | 'overdue';
+  patientUserId?: string | null;
 }
 
 export interface Staff {
@@ -226,6 +227,7 @@ export interface Brand {
   productCount: number;
   categories: string[];
   specialties: string[];
+  target_audience?: string[];
 }
 
 export interface Order {

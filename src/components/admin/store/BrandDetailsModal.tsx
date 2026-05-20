@@ -179,7 +179,7 @@ export const BrandDetailsModal: React.FC<BrandDetailsModalProps> = ({
                                         <label className="block text-sm text-gray-500 mb-1">الوصف</label>
                                         <p className="text-gray-700 leading-relaxed">{brand?.description || 'لا يوجد وصف متاح'}</p>
                                     </div>
-                                    <div className="flex gap-8">
+                                    <div className="flex gap-8 flex-wrap">
                                         <div>
                                             <label className="block text-sm text-gray-500 mb-1">تاريخ الإنشاء</label>
                                             <p className="text-gray-900 font-medium">
@@ -189,6 +189,36 @@ export const BrandDetailsModal: React.FC<BrandDetailsModalProps> = ({
                                         <div>
                                             <label className="block text-sm text-gray-500 mb-1">عدد المنتجات المرتبطة</label>
                                             <p className="text-gray-900 font-medium">{products.length} منتج</p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm text-gray-500 mb-1">الجمهور المستهدف</label>
+                                            <div className="mt-1">
+                                                {(() => {
+                                                    const aud = brand?.target_audience || ['clinic', 'lab'];
+                                                    const isPatient = aud.includes('patient');
+                                                    const isClinicOrLab = aud.includes('clinic') || aud.includes('lab');
+                                                    
+                                                    if (isPatient && isClinicOrLab) {
+                                                        return (
+                                                            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-700 border border-purple-200">
+                                                                الجميع (الأطباء والجمهور العام)
+                                                            </span>
+                                                        );
+                                                    } else if (isPatient) {
+                                                        return (
+                                                            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-teal-100 text-teal-700 border border-teal-200">
+                                                                المرضى فقط
+                                                            </span>
+                                                        );
+                                                    } else {
+                                                        return (
+                                                            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200">
+                                                                الأطباء والمختبرات
+                                                            </span>
+                                                        );
+                                                    }
+                                                })()}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

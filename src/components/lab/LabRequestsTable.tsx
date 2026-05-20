@@ -630,7 +630,7 @@ export const LabRequestsTable: React.FC<LabRequestsTableProps> = ({
                   onClick={() => setSelectedRequests([])}
                   className="text-sm text-gray-600 hover:text-gray-900"
                 >
-                  إلغاء التحديد
+                  إلغاء
                 </button>
               )}
             </div>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { ToothCondition } from '../../types/treatment';
-import { Check, MousePointerClick } from 'lucide-react';
+import { Check, MousePointerClick, Sparkles } from 'lucide-react';
 import { Button } from '../common/Button';
 
 interface TeethChartProps {
@@ -13,6 +13,7 @@ interface TeethChartProps {
     onSelectionComplete?: () => void;
     onCancelSelection?: () => void;
     onEnableSelection?: () => void;
+    onGeneralTreatmentClick?: () => void;
 }
 
 export const TeethChart: React.FC<TeethChartProps> = ({
@@ -23,7 +24,8 @@ export const TeethChart: React.FC<TeethChartProps> = ({
     onSelectionChange,
     onSelectionComplete,
     onCancelSelection,
-    onEnableSelection
+    onEnableSelection,
+    onGeneralTreatmentClick
 }) => {
 
     const toggleToothSelection = (toothNumber: number) => {
@@ -138,9 +140,19 @@ export const TeethChart: React.FC<TeethChartProps> = ({
     return (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 transition-all duration-300 relative">
             <div className="flex justify-between items-center mb-6 border-b pb-4">
-                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                    مخطط الأسنان التفاعلي
-                </h3>
+                {onGeneralTreatmentClick ? (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onGeneralTreatmentClick}
+                        className="bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 text-white shadow-sm border-0 flex items-center gap-2 text-xs font-bold py-2 px-3 h-8"
+                    >
+                        <Sparkles className="w-3.5 h-3.5 text-white" />
+                        إضافة علاج عام (كل الأسنان)
+                    </Button>
+                ) : (
+                    <div />
+                )}
 
                 <div className="flex items-center gap-3">
                     {/* Multi-Selection Controls */}
@@ -149,7 +161,7 @@ export const TeethChart: React.FC<TeethChartProps> = ({
                             <span className="text-sm font-bold text-indigo-700">{selectedTeethNumbers.length} محدد</span>
                             <div className="w-px h-5 bg-indigo-200 mx-1"></div>
                             <Button size="sm" variant="ghost" className="text-gray-500 hover:text-gray-700 h-8 px-3" onClick={onCancelSelection}>
-                                إلغاء التحديد
+                                إلغاء
                             </Button>
                             <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm h-8 px-4" onClick={onSelectionComplete} disabled={selectedTeethNumbers.length === 0}>
                                 إكمال
@@ -191,14 +203,14 @@ export const TeethChart: React.FC<TeethChartProps> = ({
             </div>
 
             {/* Legend */}
-            <div className="mt-8 pt-4 border-t border-gray-100 grid grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 text-xs text-gray-600">
-                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-white border border-gray-300 rounded-sm"></div> سليم</div>
-                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-red-100 border border-red-400 rounded-sm relative"><div className="absolute inset-0 bg-red-500 rounded-full scale-50"></div></div> تسوس</div>
-                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-blue-100 border border-blue-400 rounded-sm"></div> حشوة</div>
-                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-purple-100 border border-purple-400 rounded-sm"></div> عصب</div>
-                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-yellow-50 border border-yellow-400 rounded-sm"></div> تلبيس</div>
-                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-gray-200 border border-gray-400 rounded-sm"></div> زرعة</div>
-                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-gray-50 border border-dashed border-gray-300 rounded-sm opacity-50"></div> مفقود</div>
+            <div className="mt-8 pt-4 border-t border-gray-100 grid grid-cols-4 md:grid-cols-4 lg:grid-cols-7 gap-1.5 text-[10px] sm:text-xs text-gray-600">
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-white border border-gray-300 rounded-sm"></div> سليم</div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-red-100 border border-red-400 rounded-sm relative"><div className="absolute inset-0 bg-red-500 rounded-full scale-50"></div></div> تسوس</div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-blue-100 border border-blue-400 rounded-sm"></div> حشوة</div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-purple-100 border border-purple-400 rounded-sm"></div> عصب</div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-yellow-50 border border-yellow-400 rounded-sm"></div> تلبيس</div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-gray-200 border border-gray-400 rounded-sm"></div> زرعة</div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-gray-50 border border-dashed border-gray-300 rounded-sm opacity-50"></div> مفقود</div>
             </div>
         </div>
     );

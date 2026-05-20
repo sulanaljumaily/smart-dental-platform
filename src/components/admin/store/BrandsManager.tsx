@@ -14,6 +14,7 @@ interface Brand {
     is_verified: boolean;
     created_at: string;
     products_count?: number; // Post-processed
+    target_audience?: string[];
 }
 
 import { BrandDetailsModal } from './BrandDetailsModal';
@@ -26,7 +27,7 @@ export const BrandsManager: React.FC = () => {
     // Edit/Create Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
-    const [formData, setFormData] = useState({ name: '', description: '', logo: '' });
+    const [formData, setFormData] = useState({ name: '', description: '', logo: '', target_audience: ['clinic', 'lab'] as string[] });
     const [uploading, setUploading] = useState(false);
 
     // Details Modal State
@@ -165,6 +166,35 @@ export const BrandsManager: React.FC = () => {
             render: (val) => <span className="text-sm text-gray-600 line-clamp-1 max-w-xs">{val || '-'}</span>
         },
         {
+            key: 'target_audience',
+            title: 'الجمهور المستهدف',
+            render: (_, record) => {
+                const aud = record.target_audience || ['clinic', 'lab'];
+                const isPatient = aud.includes('patient');
+                const isClinicOrLab = aud.includes('clinic') || aud.includes('lab');
+                
+                if (isPatient && isClinicOrLab) {
+                    return (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-700 border border-purple-200">
+                            الجميع
+                        </span>
+                    );
+                } else if (isPatient) {
+                    return (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-teal-100 text-teal-700 border border-teal-200">
+                            المرضى
+                        </span>
+                    );
+                } else {
+                    return (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200">
+                            الأطباء والمختبرات
+                        </span>
+                    );
+                }
+            }
+        },
+        {
             key: 'is_verified',
             title: 'الحالة',
             sortable: true,
@@ -208,7 +238,8 @@ export const BrandsManager: React.FC = () => {
                             setFormData({
                                 name: record.name,
                                 description: record.description || '',
-                                logo: record.logo || ''
+                                logo: record.logo || '',
+                                target_audience: record.target_audience || ['clinic', 'lab']
                             });
                             setIsModalOpen(true);
                         }}
@@ -244,7 +275,7 @@ export const BrandsManager: React.FC = () => {
                 </div>
                 <Button onClick={() => {
                     setEditingBrand(null);
-                    setFormData({ name: '', description: '', logo: '' });
+                    setFormData({ name: '', description: '', logo: '', target_audience: ['clinic', 'lab'] });
                     setIsModalOpen(true);
                 }}>
                     <Plus className="w-4 h-4 ml-2" />
@@ -300,6 +331,44 @@ export const BrandsManager: React.FC = () => {
                             value={formData.description}
                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                         />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium mb-2">الجمهور المستهدف</label>
+                        <div className="grid grid-cols-3 gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, target_audience: ['clinic', 'lab'] })}
+                                className={`py-2 px-3 rounded-xl border text-xs font-semibold transition-all duration-200 ${
+                                    formData.target_audience?.includes('clinic') && !formData.target_audience?.includes('patient')
+                                        ? 'bg-blue-50 border-blue-400 text-blue-700 shadow-sm'
+                                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                }`}
+                            >
+                                الأطباء والمختبرات
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, target_audience: ['patient'] })}
+                                className={`py-2 px-3 rounded-xl border text-xs font-semibold transition-all duration-200 ${
+                                    formData.target_audience?.includes('patient') && !formData.target_audience?.includes('clinic')
+                                        ? 'bg-teal-50 border-teal-400 text-teal-700 shadow-sm'
+                                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                }`}
+                            >
+                                المرضى
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, target_audience: ['clinic', 'lab', 'patient'] })}
+                                className={`py-2 px-3 rounded-xl border text-xs font-semibold transition-all duration-200 ${
+                                    formData.target_audience?.includes('clinic') && formData.target_audience?.includes('patient')
+                                        ? 'bg-purple-50 border-purple-400 text-purple-700 shadow-sm'
+                                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                }`}
+                            >
+                                الجميع
+                            </button>
+                        </div>
                     </div>
                     <div className="pt-4 flex justify-end gap-2">
                         <Button variant="ghost" onClick={() => setIsModalOpen(false)}>إلغاء</Button>

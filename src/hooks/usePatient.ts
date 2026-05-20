@@ -42,6 +42,7 @@ export const usePatient = (patientId: string | undefined) => {
                     status: data.status,
                     medicalHistory: data.medical_history,
                     clinicId: data.clinic_id,
+                    patientUserId: data.patient_user_id,
 
                     // JSONB Fields
                     medicalHistoryData: data.medical_history_data || {
