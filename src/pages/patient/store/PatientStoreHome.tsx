@@ -59,10 +59,28 @@ export const PatientStoreHome: React.FC = () => {
       .limit(50);
 
     if (prods) {
-      const mappedProds = prods.map((p: any) => ({
-        ...p,
-        supplier_name: p.supplier?.name,
-      }));
+      const mappedProds = prods.map((p: any) => {
+        let price = p.price;
+        let originalPrice = p.original_price;
+
+        // Fallback if original_price is null or equal to price but discount is present
+        if (p.discount && p.discount > 0) {
+          if (!originalPrice || originalPrice <= price) {
+            originalPrice = price;
+            price = Math.round(originalPrice * (1 - p.discount / 100));
+          }
+        }
+
+        return {
+          ...p,
+          price,
+          original_price: originalPrice,
+          originalPrice,
+          image: p.image_url,
+          supplier_name: p.supplier?.name,
+          supplierName: p.supplier?.name
+        };
+      });
       setProducts(mappedProds);
       setFeaturedProducts(mappedProds.filter(p => p.is_featured));
       setDealsProducts(mappedProds.filter(p => p.discount && p.discount > 0));

@@ -17,7 +17,11 @@ export const useBrands = () => {
 
             if (error) throw error;
 
-            setBrands(data || []);
+            const formatted = (data || []).map((b: any) => ({
+                ...b,
+                verified: b.is_verified
+            }));
+            setBrands(formatted);
         } catch (error) {
             console.error('Error fetching brands:', error);
         } finally {

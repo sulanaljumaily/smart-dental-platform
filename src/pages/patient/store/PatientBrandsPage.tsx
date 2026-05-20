@@ -40,25 +40,6 @@ export const PatientBrandsPage: React.FC = () => {
         {/* Bento Grid layout */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 auto-rows-max">
 
-          {/* Stats Tile (Double Width) */}
-          <div className="col-span-2 md:col-span-2 bg-gradient-to-br from-teal-900 to-cyan-900 rounded-3xl p-6 text-white relative overflow-hidden flex flex-col justify-between min-h-[180px]">
-            <div className="relative z-10">
-              <h2 className="text-2xl font-bold mb-2">شركاء النجاح</h2>
-              <p className="text-teal-200 text-sm mb-4">نفتخر بتقديم منتجات من {patientBrands.length} علامة تجارية عالمية موثوقة.</p>
-            </div>
-            <div className="flex gap-3 relative z-10">
-              <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 flex flex-col items-center flex-1 border border-white/10">
-                <Award className="w-5 h-5 text-amber-400 mb-1" />
-                <span className="text-xs font-bold">منتجات أصلية</span>
-              </div>
-              <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 flex flex-col items-center flex-1 border border-white/10">
-                <Globe className="w-5 h-5 text-cyan-400 mb-1" />
-                <span className="text-xs font-bold">شحن دولي</span>
-              </div>
-            </div>
-            <ShieldCheck className="absolute -bottom-6 -left-6 w-32 h-32 text-teal-500 opacity-20 rotate-12" />
-          </div>
-
           {/* Brand Cards */}
           {filteredBrands.map((brand) => (
             <div
@@ -98,18 +79,6 @@ export const PatientBrandsPage: React.FC = () => {
               </div>
             </div>
           ))}
-
-          {/* Promo Card */}
-          <div className="col-span-1 md:col-span-2 bg-gradient-to-br from-teal-50 to-cyan-50 rounded-3xl p-6 border border-teal-100 flex items-center justify-between">
-            <div>
-              <h3 className="font-bold text-teal-900 mb-1">لم تجد علامتك؟</h3>
-              <p className="text-xs text-teal-700 mb-4">نحن نضيف منتجات وعلامات تجارية جديدة أسبوعياً.</p>
-              <Button variant="outline" size="sm" className="bg-white border-teal-200 text-teal-700 hover:bg-teal-100">
-                اطلب علامة تجارية
-              </Button>
-            </div>
-            <Package className="w-20 h-20 text-teal-200" />
-          </div>
         </div>
       </div>
 

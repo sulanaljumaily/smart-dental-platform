@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Award, Package, ChevronLeft, Search, ShieldCheck, Globe } from 'lucide-react';
+import { Package, ChevronLeft, Search, ShieldCheck, Globe } from 'lucide-react';
 import { useBrands } from '../../hooks/useBrands';
 import { Button } from '../../components/common/Button';
 import { BottomNavigation } from '../../components/layout/BottomNavigation';
@@ -38,25 +38,6 @@ export default function BrandsPage() {
 
         {/* Bento Grid layout */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 auto-rows-max">
-
-          {/* Stats Tile (Double Width) */}
-          <div className="col-span-2 md:col-span-2 bg-gradient-to-br from-indigo-900 to-blue-900 rounded-3xl p-6 text-white relative overflow-hidden flex flex-col justify-between min-h-[180px]">
-            <div className="relative z-10">
-              <h2 className="text-2xl font-bold mb-2">شركاء النجاح</h2>
-              <p className="text-blue-200 text-sm mb-4">نفتخر بتقديم منتجات من {clinicBrands.length} علامة تجارية عالمية موثوقة.</p>
-            </div>
-            <div className="flex gap-3 relative z-10">
-              <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 flex flex-col items-center flex-1 border border-white/10">
-                <Award className="w-5 h-5 text-amber-400 mb-1" />
-                <span className="text-xs font-bold">منتجات أصلية</span>
-              </div>
-              <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 flex flex-col items-center flex-1 border border-white/10">
-                <Globe className="w-5 h-5 text-cyan-400 mb-1" />
-                <span className="text-xs font-bold">شحن دولي</span>
-              </div>
-            </div>
-            <ShieldCheck className="absolute -bottom-6 -left-6 w-32 h-32 text-indigo-500 opacity-20 rotate-12" />
-          </div>
 
           {/* Brand Cards */}
           {filteredBrands.map((brand, i) => {

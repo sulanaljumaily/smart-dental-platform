@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, Search, Filter, Download, Eye, Edit, Trash2 } from 'lucide-react';
+import { ChevronDown, Eye, Edit, Trash2 } from 'lucide-react';
 
 export interface Column {
   key: string;
@@ -89,89 +89,9 @@ export const AdminTable: React.FC<AdminTableProps> = ({
     }
   };
 
-  const handleExport = () => {
-    const csvContent = [
-      columns.map(col => col.title).join(','),
-      ...sortedData.map(row =>
-        columns.map(col => {
-          const value = row[col.key];
-          return typeof value === 'string' && value.includes(',')
-            ? `"${value}"`
-            : value;
-        }).join(',')
-      )
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${title || 'data'}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
 
   return (
     <div className={`bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden ${className}`}>
-      {/* Title & Toolbar */}
-      {(title || searchable || filterable || exportable) && (
-        <div className="px-8 py-6 border-b border-gray-100">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            {title && (
-              <h3 className="text-xl font-bold text-gray-900">{title}</h3>
-            )}
-
-            <div className="flex items-center gap-3">
-              {searchable && (
-                <div className="relative">
-                  <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="text"
-                    placeholder="البحث..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="pl-4 pr-10 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-gray-50/50"
-                  />
-                </div>
-              )}
-
-              {filterable && filterOptions && filterOptions.length > 0 ? (
-                <div className="relative flex items-center">
-                  <Filter className="absolute right-3 w-4 h-4 text-gray-400 pointer-events-none" />
-                  <select
-                    value={filterValue || ''}
-                    onChange={(e) => onFilterChange?.(e.target.value)}
-                    className="pl-8 pr-9 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm font-medium text-gray-600 appearance-none cursor-pointer outline-none hover:bg-gray-50 transition-colors bg-[none]"
-                    style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
-                  >
-                    <option value="">كل أنواع الحسابات</option>
-                    {filterOptions.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute left-3 w-4 h-4 text-gray-400 pointer-events-none" />
-                </div>
-              ) : filterable ? (
-                <button className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors text-gray-600">
-                  <Filter className="w-4 h-4" />
-                  <span>فلترة</span>
-                </button>
-              ) : null}
-
-              {exportable && (
-                <button
-                  onClick={handleExport}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors shadow-lg shadow-gray-200"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>تصدير</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Table */}
       <div className="overflow-x-auto">

@@ -45,8 +45,22 @@ export const PatientProductDetails: React.FC = () => {
         .single();
 
       if (data) {
+        let price = data.price;
+        let originalPrice = data.original_price;
+
+        // Fallback if original_price is null or equal to price but discount is present
+        if (data.discount && data.discount > 0) {
+          if (!originalPrice || originalPrice <= price) {
+            originalPrice = price;
+            price = Math.round(originalPrice * (1 - data.discount / 100));
+          }
+        }
+
         setProduct({
           ...data,
+          price,
+          original_price: originalPrice,
+          originalPrice,
           supplierName: data.supplier?.name || 'Unknown Supplier',
           brandName: data.brand?.name || 'Generic'
         });
@@ -126,7 +140,26 @@ export const PatientProductDetails: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
           {/* Product Images */}
           <div className="space-y-4">
-            <div className="aspect-square bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 p-8 flex items-center justify-center group">
+            <div className="aspect-square bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 p-8 flex items-center justify-center group relative">
+              {/* Badges Overlay */}
+              <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
+                {product.discount && product.discount > 0 && (
+                  <span className="bg-rose-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md animate-pulse">
+                    خصم {product.discount}%
+                  </span>
+                )}
+                {product.is_featured && (
+                  <span className="bg-amber-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md">
+                    مميز ✨
+                  </span>
+                )}
+                {product.is_new && (
+                  <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-md">
+                    جديد 🆕
+                  </span>
+                )}
+              </div>
+
               <img
                 src={(product.images && product.images.length > 0 ? product.images[activeImageIdx] : null) || product.image_url || 'https://via.placeholder.com/600'}
                 alt={product.name}
@@ -156,7 +189,7 @@ export const PatientProductDetails: React.FC = () => {
           <div className="flex flex-col h-full">
             <div className="flex-1">
               <div className="mb-6">
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex flex-wrap items-center gap-2 mb-2">
                   <span className="bg-teal-100 text-teal-700 px-3 py-1 rounded-full text-xs font-bold">
                     {product.category}
                   </span>
@@ -198,8 +231,15 @@ export const PatientProductDetails: React.FC = () => {
             <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4 md:p-6 sticky bottom-[80px]">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl md:text-3xl font-bold text-teal-600">{formatCurrency(product.price)}</span>
+                  <div className="flex flex-col">
+                    {product.original_price && product.original_price > product.price && (
+                      <span className="text-sm text-gray-400 line-through">
+                        {formatCurrency(product.original_price)}
+                      </span>
+                    )}
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl md:text-3xl font-bold text-teal-600">{formatCurrency(product.price)}</span>
+                    </div>
                   </div>
                   <p className="text-xs text-gray-400 mt-0.5">شاملة جميع الرسوم والضرائب</p>
                 </div>
