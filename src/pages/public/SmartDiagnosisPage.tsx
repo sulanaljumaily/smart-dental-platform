@@ -4,7 +4,7 @@ import { useConversation } from '@elevenlabs/react';
 import {
   Brain, MessageCircle, User, Image as ImageIcon, X, MapPin, Calendar as CalendarIcon,
   Mic, Volume2, Send, Phone, Check, ChevronLeft, ChevronRight, Sparkles, Stethoscope, Baby, Scissors,
-  Smile, Activity, Crown, Clock, PhoneOff, Loader2, Heart, Bone, Pill
+  Smile, Activity, Crown, Clock, PhoneOff, Loader2, Heart, Bone, Pill, AlertCircle
 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { aiService } from '../../services/ai/AIService';
@@ -71,7 +71,7 @@ function normalizeGov(raw?: string | null): string | null {
   return null;
 }
 
-type Step = 'intro' | 'specialty' | 'governorate' | 'clinics' | 'date' | 'time' | 'patient' | 'confirmed';
+type Step = 'intro' | 'specialty' | 'governorate' | 'clinics' | 'date' | 'time' | 'patient' | 'confirmed' | 'register' | 'completed' | 'guest_confirmed';
 
 type CardKind =
   | { kind: 'specialty' }
@@ -80,7 +80,10 @@ type CardKind =
   | { kind: 'date' }
   | { kind: 'time' }
   | { kind: 'patient' }
-  | { kind: 'confirmation' };
+  | { kind: 'confirmation' }
+  | { kind: 'register' }
+  | { kind: 'completed' }
+  | { kind: 'guest_confirmed' };
 
 type ChatMessage = {
   id: string;
@@ -134,6 +137,12 @@ export const SmartDiagnosisPage: React.FC = () => {
     if (!sid) { sid = crypto.randomUUID(); localStorage.setItem('smart_diagnosis_session_id', sid); }
     return sid;
   });
+
+  const [createdAppointmentId, setCreatedAppointmentId] = useState<number | null>(null);
+  const [registerPassword, setRegisterPassword] = useState('');
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [registerError, setRegisterError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -304,7 +313,7 @@ export const SmartDiagnosisPage: React.FC = () => {
       const adjusted = new Date(dateObj.getTime() - offset * 60 * 1000);
       const formattedDate = adjusted.toISOString().split('T')[0];
 
-      const { error } = await supabase.from('appointments').insert({
+      const { data, error } = await supabase.from('appointments').insert({
         clinic_id: parseInt(b.clinic.id),
         patient_name: b.patient.name,
         doctor_name: 'سيتم التحديد من العيادة',
@@ -316,16 +325,86 @@ export const SmartDiagnosisPage: React.FC = () => {
         notes: `حجز عبر المساعد الذكي\nالعمر: ${b.patient.age || '—'}\nالجنس: ${b.patient.gender === 'male' ? 'ذكر' : b.patient.gender === 'female' ? 'أنثى' : '—'}\nالمحافظة: ${b.governorate || '—'}`,
         phone_number: b.patient.phone,
         cost: 0,
-      });
+      }).select('id').single();
       if (error) throw error;
 
-      pushAi(`تم تأكيد حجزك بنجاح! ✅\n\n**${b.clinic.name}**\n📅 ${formattedDate}\n🕐 ${b.time}\n📞 ستتواصل معك العيادة قريباً على ${b.patient.phone}`, { kind: 'confirmation' });
-      setStep('confirmed');
+      if (data) {
+        setCreatedAppointmentId(data.id);
+      }
+
+      pushAi(`تم تأكيد حجزك بنجاح! ✅\n\n**${b.clinic.name}**\n📅 ${formattedDate}\n🕐 ${b.time}\n📞 ستتواصل معك العيادة قريباً على ${b.patient.phone}`, { kind: 'register' });
+      setStep('register');
     } catch (e) {
       console.error(e);
       pushAi('عذراً، حدث خطأ أثناء الحجز. يرجى المحاولة مرة أخرى.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleRegisterAccount = async () => {
+    const b = bookingRef.current;
+    if (!registerPassword || registerPassword.length < 6) {
+      setRegisterError('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+      return;
+    }
+    setRegisterError('');
+    setIsRegistering(true);
+    try {
+      const phoneDigits = b.patient.phone.replace(/\D/g, '');
+      const syntheticEmail = `${phoneDigits}@patient.smartdental.com`;
+      
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: syntheticEmail,
+        password: registerPassword,
+        options: {
+          data: {
+            full_name: b.patient.name,
+            role: 'patient',
+            phone: b.patient.phone
+          }
+        }
+      });
+
+      if (signUpError) throw signUpError;
+
+      if (signUpData.user) {
+        const newUserId = signUpData.user.id;
+        
+        // Create user profile in profiles table
+        const { error: profileError } = await supabase.from('profiles').insert({
+          id: newUserId,
+          email: syntheticEmail,
+          full_name: b.patient.name,
+          role: 'patient',
+          phone: b.patient.phone
+        });
+
+        if (profileError) {
+          console.error('[profiles creation error]:', profileError);
+        }
+
+        // Link the appointment
+        if (createdAppointmentId) {
+          const { error: linkError } = await supabase.from('appointments')
+            .update({ patient_user_id: newUserId })
+            .eq('id', createdAppointmentId);
+            
+          if (linkError) {
+            console.error('[linking error]:', linkError);
+          }
+        }
+        
+        pushAi('تم إنشاء حساب لك بنجاح! 🎉 أدخل مركز المراجعين لتتبع حالتك ورؤية مواعيدك.', { kind: 'completed' });
+        setStep('completed');
+      } else {
+        throw new Error('تعذر إنشاء الحساب');
+      }
+    } catch (err: any) {
+      console.error('Registration failed:', err);
+      setRegisterError(err?.message || 'حدث خطأ غير متوقع أثناء إنشاء الحساب. يرجى المحاولة لاحقاً.');
+    } finally {
+      setIsRegistering(false);
     }
   };
 
@@ -902,7 +981,7 @@ ${GOVERNORATES.join('، ')}
     }
     if (card.kind === 'patient') {
       return (
-        <div className="mt-3 bg-white border border-gray-200 rounded-2xl p-3 space-y-2">
+        <div className="mt-3 bg-white border border-gray-200 rounded-2xl p-3 space-y-2 text-right">
           <input
             type="text" placeholder="الاسم الكامل"
             value={booking.patient.name}
@@ -915,6 +994,17 @@ ${GOVERNORATES.join('، ')}
             onChange={e => setBooking(p => ({ ...p, patient: { ...p.patient, phone: e.target.value } }))}
             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-right"
           />
+          <select
+            value={booking.governorate || ''}
+            onChange={e => setBooking(p => ({ ...p, governorate: e.target.value }))}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-blue-500 outline-none bg-white text-right"
+            aria-label="المحافظة"
+          >
+            <option value="">المحافظة (بغداد، البصرة، ...)</option>
+            {GOVERNORATES.map(gov => (
+              <option key={gov} value={gov}>{gov}</option>
+            ))}
+          </select>
           <div className="grid grid-cols-2 gap-2">
             <input
               type="number" placeholder="العمر"
@@ -925,7 +1015,7 @@ ${GOVERNORATES.join('، ')}
             <select
               value={booking.patient.gender}
               onChange={e => setBooking(p => ({ ...p, patient: { ...p.patient, gender: e.target.value as any } }))}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-blue-500 outline-none bg-white"
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-blue-500 outline-none bg-white text-right"
               aria-label="اختيار الجنس"
             >
               <option value="">الجنس</option>
@@ -934,7 +1024,7 @@ ${GOVERNORATES.join('، ')}
             </select>
           </div>
           <button
-            disabled={!booking.patient.name || !booking.patient.phone || isLoading}
+            disabled={!booking.patient.name || !booking.patient.phone || !booking.governorate || isLoading}
             onClick={handleConfirmBooking}
             className="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-bold py-2.5 rounded-xl text-sm disabled:opacity-50 transition-all flex items-center justify-center gap-2"
           >
@@ -954,6 +1044,167 @@ ${GOVERNORATES.join('، ')}
           <button onClick={() => navigate('/')} className="mt-3 text-xs font-bold text-emerald-700 hover:underline">
             العودة للرئيسية
           </button>
+        </div>
+      );
+    }
+    if (card.kind === 'register') {
+      return (
+        <div className="mt-3 bg-gradient-to-br from-indigo-50/75 via-blue-50/50 to-white border border-blue-100 rounded-3xl p-5 shadow-lg space-y-4 text-right relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-blue-100/30 rounded-full blur-xl -mr-8 -mt-8" />
+          
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-200">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-sm text-slate-800">إنشاء حساب مراجع</h3>
+              <p className="text-[11px] text-slate-500 mt-0.5">تابع مواعيدك وخطتك العلاجية تلقائياً</p>
+            </div>
+          </div>
+
+          <p className="text-xs text-slate-600 leading-relaxed">
+            أنشئ حساب مراجع الآن لربط هذا الموعد وتلقي الإشعارات وتتبع حالة الحجز مباشرة من مركز المراجعين.
+          </p>
+
+          <div className="space-y-2">
+            <div className="relative">
+              <span className="absolute inset-y-0 right-3 flex items-center text-slate-400 pointer-events-none">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </span>
+              <input
+                type={showPassword ? "text" : "password"}
+                value={registerPassword}
+                onChange={e => { setRegisterPassword(e.target.value); setRegisterError(''); }}
+                placeholder="أدخل كلمة مرور (6 أحرف على الأقل)"
+                className="w-full pr-10 pl-10 py-2.5 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400 text-right"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 left-3 flex items-center text-slate-400 hover:text-blue-600 transition-colors"
+                aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
+              >
+                {showPassword ? (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                )}
+              </button>
+            </div>
+            {registerError && (
+              <p className="text-[11px] text-red-500 font-bold flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                {registerError}
+              </p>
+            )}
+            <p className="text-[10px] text-emerald-600 font-semibold pr-1">
+              ✓ رقم هاتفك سيكون اسم المستخدم الخاص بك لتسجيل الدخول
+            </p>
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <button
+              onClick={handleRegisterAccount}
+              disabled={isRegistering || !registerPassword}
+              className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold py-2.5 rounded-xl text-xs disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-md shadow-blue-100"
+            >
+              {isRegistering ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+              إكمال إنشاء الحساب
+            </button>
+            <button
+              onClick={() => {
+                pushAi('تم تأكيد حجزك كزائر بنجاح! يرجى انتظار اتصال من العيادة لتأكيد موعدك.', { kind: 'guest_confirmed' });
+                setStep('guest_confirmed');
+              }}
+              className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2.5 rounded-xl text-xs transition-all"
+            >
+              تخطي
+            </button>
+          </div>
+        </div>
+      );
+    }
+    if (card.kind === 'completed') {
+      return (
+        <div className="mt-3 bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200 rounded-3xl p-5 text-center space-y-3">
+          <div className="w-12 h-12 mx-auto bg-emerald-500 rounded-full flex items-center justify-center shadow-md shadow-emerald-100">
+            <Check className="w-6 h-6 text-white" />
+          </div>
+          <div className="font-extrabold text-sm text-emerald-800">تم إنشاء الحساب بنجاح! 🎉</div>
+          <p className="text-xs text-emerald-700/90 leading-relaxed font-semibold">
+            تم ربط موعدك بحسابك الجديد بنجاح. يمكنك الآن الدخول إلى مركز المراجعين لتتبع حالتك.
+          </p>
+          <div className="flex gap-2 pt-2">
+            <button
+              onClick={() => navigate('/patient')}
+              className="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-extrabold py-2.5 rounded-xl text-xs transition-all shadow-md shadow-emerald-100"
+            >
+              دخول مركز المراجعين
+            </button>
+            <button
+              onClick={() => navigate('/')}
+              className="bg-white border border-emerald-200 hover:bg-emerald-50 text-emerald-700 font-bold px-4 py-2.5 rounded-xl text-xs transition-all"
+            >
+              الرئيسية
+            </button>
+          </div>
+        </div>
+      );
+    }
+    if (card.kind === 'guest_confirmed') {
+      const clinicPhone = booking.clinic?.phone;
+      return (
+        <div className="mt-3 bg-gradient-to-br from-teal-50 to-cyan-50/50 border border-teal-100 rounded-3xl p-5 text-center space-y-4 shadow-md relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-teal-100/30 rounded-full blur-lg -mr-6 -mt-6" />
+          
+          <div className="w-12 h-12 mx-auto bg-teal-500 rounded-full flex items-center justify-center shadow-md shadow-teal-100 text-white">
+            <Check className="w-6 h-6" />
+          </div>
+
+          <div className="space-y-1 text-right">
+            <div className="font-extrabold text-sm text-teal-900">تمت جدولة موعدك كزائر بنجاح! 🎉</div>
+            <p className="text-xs text-slate-600 font-medium">العيادة المحجوزة: <span className="font-bold text-slate-800">{booking.clinic?.name}</span></p>
+          </div>
+
+          <div className="bg-white/80 backdrop-blur border border-teal-100/50 rounded-2xl p-3.5 text-right space-y-2.5 text-xs text-slate-700">
+            <div className="flex items-start gap-2">
+              <span className="w-2 h-2 rounded-full bg-teal-500 mt-1.5 shrink-0" />
+              <p className="leading-relaxed">
+                يرجى <strong>انتظار اتصال هاتفي من العيادة قريباً</strong> لتأكيد الموعد نهائياً وتحديد الطبيب المعالج.
+              </p>
+            </div>
+            {clinicPhone && (
+              <div className="flex items-start gap-2 pt-1.5 border-t border-slate-100">
+                <span className="w-2 h-2 rounded-full bg-cyan-500 mt-1.5 shrink-0" />
+                <div className="leading-relaxed flex-1">
+                  يمكنك أيضاً <strong>الاتصال بالعيادة مباشرة</strong> للاستفسار أو التأكيد السريع:
+                  <div className="mt-2 flex items-center justify-between bg-slate-50 border border-slate-200/80 rounded-xl p-2 font-mono text-sm text-slate-800">
+                    <a href={`tel:${clinicPhone}`} className="flex items-center gap-1.5 text-teal-600 hover:text-teal-700 font-bold">
+                      <Phone className="w-4 h-4" />
+                      <span>{clinicPhone}</span>
+                    </a>
+                    <span className="text-[10px] text-slate-400 font-sans">رقم الهاتف</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={() => navigate('/')}
+              className="flex-1 bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white font-extrabold py-2.5 rounded-xl text-xs transition-all shadow-md shadow-teal-100"
+            >
+              العودة للرئيسية
+            </button>
+          </div>
         </div>
       );
     }
