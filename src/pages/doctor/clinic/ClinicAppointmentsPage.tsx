@@ -127,6 +127,44 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
   const [sendingMsg, setSendingMsg] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<'chats' | 'settings'>('chats');
 
+  // Activate Portal Modal States
+  const [selectedPatientForActivation, setSelectedPatientForActivation] = useState<{
+    id: string;
+    name: string;
+    phone: string;
+    patient_user_id?: string | null;
+  } | null>(null);
+  const [isActivatingPortal, setIsActivatingPortal] = useState(false);
+  const [activationPhoneExists, setActivationPhoneExists] = useState<boolean | null>(null);
+  const [checkingActivationPhone, setCheckingActivationPhone] = useState(false);
+
+  // Effect to verify if phone exists on activation click
+  useEffect(() => {
+    if (!selectedPatientForActivation) {
+      setActivationPhoneExists(null);
+      return;
+    }
+
+    const verifyPhone = async () => {
+      setCheckingActivationPhone(true);
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('phone', selectedPatientForActivation.phone.trim())
+          .maybeSingle();
+
+        setActivationPhoneExists(!!data);
+      } catch (err) {
+        console.error('Error verifying phone:', err);
+      } finally {
+        setCheckingActivationPhone(false);
+      }
+    };
+
+    verifyPhone();
+  }, [selectedPatientForActivation]);
+
   // Load WhatsApp settings
   const fetchWhatsappSettings = async () => {
     try {
@@ -1032,51 +1070,16 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                             </div>
                           </div>
 
-                          {!isPortalActive && (
+                           {!isPortalActive && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (confirm(`هل تريد تنشيط حساب بوابة المراجع لـ "${p.name}"؟ سيتم إرسال بيانات الدخول عبر Twilio.`)) {
-                                  // Call Activation Handler
-                                  (async () => {
-                                    try {
-                                      toast.loading('جاري تنشيط حساب المريض...');
-                                      const { data: edgeData, error: edgeError } = await supabase.functions.invoke('send-patient-credentials', {
-                                        body: {
-                                          phone: p.phone,
-                                          name: p.name,
-                                          clinicName: 'عيادتنا للأسنان'
-                                        }
-                                      });
-                                      toast.dismiss();
-
-                                      if (edgeError) throw edgeError;
-                                      if (edgeData?.error === 'patient_exists') {
-                                        toast.warning('هذا المراجع لديه حساب بالفعل');
-                                      } else if (edgeData?.userId) {
-                                        const { error: updateError } = await supabase
-                                          .from('patients')
-                                          .update({ patient_user_id: edgeData.userId })
-                                          .eq('id', p.id);
-                                        
-                                        if (updateError) throw updateError;
-                                        toast.success('تم تنشيط الحساب وإرسال credentials بنجاح!');
-                                        // Update state locally
-                                        p.patient_user_id = edgeData.userId;
-                                        setActiveChatPatient({
-                                          id: p.id,
-                                          patient_user_id: edgeData.userId,
-                                          name: p.name,
-                                          phone: p.phone
-                                        });
-                                      }
-                                    } catch (err: any) {
-                                      toast.dismiss();
-                                      console.error(err);
-                                      toast.error('فشل تنشيط الحساب: ' + err.message);
-                                    }
-                                  })();
-                                }
+                                setSelectedPatientForActivation({
+                                  id: p.id,
+                                  name: p.name,
+                                  phone: p.phone,
+                                  patient_user_id: p.patient_user_id
+                                });
                               }}
                               className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-xs font-bold transition-all border border-amber-100 flex-shrink-0"
                             >
@@ -1843,8 +1846,169 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
         </div>
       )}
 
+      {/* Activate Portal Confirmation Modal */}
+      {selectedPatientForActivation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-300 border border-gray-100">
+            <div className="px-6 py-5 border-b border-gray-150 flex justify-between items-center bg-gradient-to-r from-blue-50 to-indigo-50">
+              <div className="flex items-center gap-2">
+                <Globe className="w-5 h-5 text-blue-600 animate-pulse" />
+                <h3 className="font-bold text-lg text-blue-900">تنشيط بوابة المراجع الذكية</h3>
+              </div>
+              <button
+                onClick={() => setSelectedPatientForActivation(null)}
+                className="text-gray-400 hover:text-gray-600 transition-colors text-2xl"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex items-center gap-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl text-white flex items-center justify-center text-lg font-bold shadow-md">
+                  {selectedPatientForActivation.name.charAt(0)}
+                </div>
+                <div>
+                  <h4 className="font-bold text-gray-900">{selectedPatientForActivation.name}</h4>
+                  <p className="text-xs text-gray-500 font-mono mt-0.5" dir="ltr">{selectedPatientForActivation.phone}</p>
+                </div>
+              </div>
+
+              <div className="transition-all duration-300">
+                {checkingActivationPhone ? (
+                  <div className="flex items-center justify-center py-4 gap-2 text-sm text-blue-600 bg-blue-50/50 rounded-2xl border border-blue-100">
+                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    <span>جاري التحقق من رقم الهاتف في المنصة...</span>
+                  </div>
+                ) : activationPhoneExists ? (
+                  <div className="flex items-start gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-100 text-amber-800">
+                    <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-xs">
+                      <h5 className="font-bold text-sm text-amber-900 mb-1">الحساب مسجل مسبقاً!</h5>
+                      <p className="leading-relaxed opacity-95">رقم الهاتف مرتبط بالفعل بحساب بوابة نشط في منصة سمارت دنتال.</p>
+                      <p className="leading-relaxed opacity-90 mt-1 font-bold text-amber-950">عند التنشيط، سيتم ربط هذا الملف الطبي بالحساب الحالي مباشرة دون تعديل كلمة المرور الخاصة بالمراجع.</p>
+                    </div>
+                  </div>
+                ) : activationPhoneExists === false ? (
+                  <div className="flex items-start gap-3 p-4 rounded-2xl bg-green-50 border border-green-100 text-green-800">
+                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-xs">
+                      <h5 className="font-bold text-sm text-green-950 mb-1">حساب جديد جاهز للتنشيط!</h5>
+                      <p className="leading-relaxed opacity-95">رقم الهاتف متاح لإنشاء حساب بوابة مراجع جديد بالكامل.</p>
+                      <p className="leading-relaxed opacity-90 mt-1">سيتم توليد كلمة مرور مؤقتة وتنشيط البوابة وإرسال تفاصيل الدخول تلقائياً للمريض عبر الواتساب والرسائل النصية.</p>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-gray-100 bg-gray-50 rounded-b-3xl flex justify-end gap-3">
+              <button
+                onClick={() => setSelectedPatientForActivation(null)}
+                className="px-5 py-2.5 text-gray-700 font-medium hover:bg-gray-200 bg-gray-100 rounded-xl transition-all"
+                disabled={isActivatingPortal}
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={async () => {
+                  if (!selectedPatientForActivation) return;
+                  setIsActivatingPortal(true);
+                  try {
+                    if (activationPhoneExists) {
+                      // Link directly
+                      const { data: profileData, error: profileErr } = await supabase
+                        .from('profiles')
+                        .select('id')
+                        .eq('phone', selectedPatientForActivation.phone.trim())
+                        .maybeSingle();
+
+                      if (profileErr) throw profileErr;
+                      if (!profileData) throw new Error('فشل العثور على الحساب المطابق');
+
+                      const { error: updateErr } = await supabase
+                        .from('patients')
+                        .update({ patient_user_id: profileData.id })
+                        .eq('id', selectedPatientForActivation.id);
+
+                      if (updateErr) throw updateErr;
+                      toast.success('تم ربط ملف المريض بالحساب النشط بنجاح!');
+
+                      // Update state locally
+                      selectedPatientForActivation.patient_user_id = profileData.id;
+                      setActiveChatPatient({
+                        id: selectedPatientForActivation.id,
+                        patient_user_id: profileData.id,
+                        name: selectedPatientForActivation.name,
+                        phone: selectedPatientForActivation.phone
+                      });
+                      if (refresh) refresh();
+                    } else {
+                      // Call Edge Function
+                      const { data: edgeData, error: edgeError } = await supabase.functions.invoke('send-patient-credentials', {
+                        body: {
+                          phone: selectedPatientForActivation.phone,
+                          name: selectedPatientForActivation.name,
+                          clinicName: 'عيادة الأسنان'
+                        }
+                      });
+
+                      if (edgeError) throw edgeError;
+
+                      if (edgeData?.error === 'patient_exists') {
+                        toast.warning('هذا المراجع لديه حساب بالفعل');
+                      } else if (edgeData?.userId) {
+                        const { error: updateError } = await supabase
+                          .from('patients')
+                          .update({ patient_user_id: edgeData.userId })
+                          .eq('id', selectedPatientForActivation.id);
+
+                        if (updateError) throw updateError;
+                        toast.success('تم تنشيط البوابة وإرسال بيانات الدخول بنجاح!');
+
+                        selectedPatientForActivation.patient_user_id = edgeData.userId;
+                        setActiveChatPatient({
+                          id: selectedPatientForActivation.id,
+                          patient_user_id: edgeData.userId,
+                          name: selectedPatientForActivation.name,
+                          phone: selectedPatientForActivation.phone
+                        });
+                        if (refresh) refresh();
+                      }
+                    }
+                    setSelectedPatientForActivation(null);
+                  } catch (err: any) {
+                    console.error(err);
+                    toast.error('تعذر إكمال التنشيط: ' + err.message);
+                  } finally {
+                    setIsActivatingPortal(false);
+                  }
+                }}
+                disabled={isActivatingPortal || checkingActivationPhone}
+                className={`px-6 py-2.5 font-bold text-white rounded-xl shadow-lg transition-all active:scale-95 flex items-center gap-2 ${
+                  activationPhoneExists
+                    ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-200'
+                    : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'
+                }`}
+              >
+                {isActivatingPortal ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>جاري التنشيط...</span>
+                  </>
+                ) : activationPhoneExists ? (
+                  'ربط الملف الآن'
+                ) : (
+                  'تنشيط الحساب وإرسال البيانات'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Legacy Edit Modal Removed - Replaced by Unified AppointmentModal */}
 
-    </div >
+    </div>
   );
 };

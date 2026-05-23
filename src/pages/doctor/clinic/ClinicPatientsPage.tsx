@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import {
   Users, Search, Plus, User, Phone, Mail, MapPin,
   Calendar, FileText, AlertCircle, CheckCircle,
-  Clock, Heart, Trash2, X, Globe
+  Clock, Heart, Trash2, X, Globe, Settings, Bell, XCircle, MessageSquare, Send
 } from 'lucide-react';
 import { formatDate } from '../../../lib/utils';
 import { Card } from '../../../components/common/Card';
@@ -41,6 +42,309 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
   });
   const [createPortalAccount, setCreatePortalAccount] = useState(false);
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+  
+  const [phoneCheckStatus, setPhoneCheckStatus] = useState<{
+    checked: boolean;
+    exists: boolean;
+    profileName?: string;
+    profileId?: string;
+    checking: boolean;
+  }>({ checked: false, exists: false, checking: false });
+
+  // Phone Check Effect
+  useEffect(() => {
+    if (!createPortalAccount) {
+      setPhoneCheckStatus({ checked: false, exists: false, checking: false });
+      return;
+    }
+
+    const cleanPhone = newPatient.phone.trim();
+    if (cleanPhone.length < 8) {
+      setPhoneCheckStatus({ checked: false, exists: false, checking: false });
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setPhoneCheckStatus(prev => ({ ...prev, checking: true }));
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, name')
+          .eq('phone', cleanPhone)
+          .maybeSingle();
+
+        if (data) {
+          setPhoneCheckStatus({
+            checked: true,
+            exists: true,
+            profileName: data.name,
+            profileId: data.id,
+            checking: false
+          });
+        } else {
+          setPhoneCheckStatus({
+            checked: true,
+            exists: false,
+            checking: false
+          });
+        }
+      } catch (err) {
+        console.error('Error checking phone registration:', err);
+        setPhoneCheckStatus(prev => ({ ...prev, checking: false }));
+      }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [newPatient.phone, createPortalAccount]);
+
+  // ==========================================
+  // Patient Settings & Reminders Modal States
+  // ==========================================
+  const [selectedPatientForSettings, setSelectedPatientForSettings] = useState<any | null>(null);
+  const [isActivatingPortalForSettings, setIsActivatingPortalForSettings] = useState(false);
+  const [patientSettingsPhoneExists, setPatientSettingsPhoneExists] = useState<boolean | null>(null);
+  const [checkingSettingsPhone, setCheckingSettingsPhone] = useState(false);
+
+  // Appointment Reminder Drawer States
+  const [selectedAptForReminder, setSelectedAptForReminder] = useState<any | null>(null);
+  const [reminderMethod, setReminderMethod] = useState<'platform' | 'whatsapp_web' | 'twilio' | 'ultramsg' | 'greenapi'>('platform');
+  const [reminderMessage, setReminderMessage] = useState('');
+  const [sendingReminder, setSendingReminder] = useState(false);
+  const [whatsappSettings, setWhatsappSettings] = useState<any>(null);
+  const [patientAppointments, setPatientAppointments] = useState<any[]>([]);
+  const [loadingAppointments, setLoadingAppointments] = useState(false);
+
+  // Load WhatsApp settings
+  const fetchWhatsappSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('whatsapp_settings')
+        .select('*')
+        .eq('clinic_id', parseInt(clinicId))
+        .maybeSingle();
+
+      if (data) {
+        setWhatsappSettings(data);
+      } else {
+        setWhatsappSettings({
+          clinic_id: parseInt(clinicId),
+          provider: 'whatsapp_web',
+          phone_number: '',
+          api_key: '',
+          api_url: '',
+          is_active: true
+        });
+      }
+    } catch (e) {
+      console.error('Error fetching settings:', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchWhatsappSettings();
+  }, [clinicId]);
+
+  // Effect to verify phone registration inside patient settings modal
+  useEffect(() => {
+    if (!selectedPatientForSettings) {
+      setPatientSettingsPhoneExists(null);
+      setPatientAppointments([]);
+      return;
+    }
+
+    const checkPhoneAndFetchAppointments = async () => {
+      setCheckingSettingsPhone(true);
+      setLoadingAppointments(true);
+      try {
+        // 1. Check if phone is registered in profiles
+        const { data } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('phone', selectedPatientForSettings.phone.trim())
+          .maybeSingle();
+        setPatientSettingsPhoneExists(!!data);
+
+        // 2. Fetch appointments for this patient
+        const { data: aptData } = await supabase
+          .from('appointments')
+          .select('*')
+          .eq('patient_id', selectedPatientForSettings.id)
+          .order('appointment_date', { ascending: false });
+
+        if (aptData) {
+          const mapped = aptData.map((a: any) => ({
+            id: a.id,
+            clinicId: a.clinic_id?.toString(),
+            patientId: a.patient_id?.toString(),
+            patientName: a.patient_name,
+            date: a.appointment_date || a.date,
+            time: a.appointment_time || a.time || a.start_time,
+            status: a.status,
+            type: a.type || a.appointment_type,
+            patientPhone: a.patient_phone || a.phone_number || a.phone || '',
+            patientUserId: a.patient_user_id || undefined
+          }));
+          setPatientAppointments(mapped);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setCheckingSettingsPhone(false);
+        setLoadingAppointments(false);
+      }
+    };
+
+    checkPhoneAndFetchAppointments();
+  }, [selectedPatientForSettings]);
+
+  // Set default reminder text when appointment is selected inside patients tab
+  useEffect(() => {
+    if (selectedAptForReminder && selectedPatientForSettings) {
+      const pName = selectedPatientForSettings.name;
+      const timeStr = selectedAptForReminder.time;
+      const dateStr = selectedAptForReminder.date;
+      const isPlatformUser = !!(selectedPatientForSettings.patient_user_id || selectedPatientForSettings.user_id);
+      setReminderMethod(isPlatformUser ? 'platform' : 'whatsapp_web');
+      setReminderMessage(
+        `مرحباً مراجعنا العزيز ${pName}، نود تذكيرك بموعدك القادم في عيادتنا للأسنان بتاريخ ${dateStr} الساعة ${timeStr}. نتمنى لك دوام الصحة والعافية.`
+      );
+    }
+  }, [selectedAptForReminder, selectedPatientForSettings]);
+
+  // Paid WhatsApp direct helpers
+  const sendTwilioMessage = async (to: string, body: string, settings: any) => {
+    const { api_key, api_url, phone_number } = settings;
+    if (!api_url || !api_key || !phone_number) {
+      throw new Error('يرجى التحقق من إعدادات Twilio (Account SID, Auth Token, Sender Phone)');
+    }
+    const isWhatsApp = phone_number.startsWith('whatsapp:');
+    const fromVal = phone_number;
+    const toVal = isWhatsApp ? (to.startsWith('whatsapp:') ? to : `whatsapp:${to}`) : to;
+
+    const url = `https://api.twilio.com/2010-04-01/Accounts/${api_url}/Messages.json`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Basic ' + btoa(`${api_url}:${api_key}`),
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: new URLSearchParams({ To: toVal, From: fromVal, Body: body }).toString()
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.message || 'فشل إرسال رسالة Twilio');
+    }
+    return await response.json();
+  };
+
+  const sendUltramsgMessage = async (to: string, body: string, settings: any) => {
+    const { api_key, api_url } = settings;
+    if (!api_key || !api_url) {
+      throw new Error('يرجى التحقق من إعدادات Ultramsg (Instance ID, Token)');
+    }
+    const cleanTo = to.replace(/\D/g, '');
+    const url = `https://api.ultramsg.com/${api_url}/messages/chat`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ token: api_key, to: cleanTo, body }).toString()
+    });
+    if (!response.ok) throw new Error('فشل إرسال رسالة Ultramsg');
+    return await response.json();
+  };
+
+  const sendGreenApiMessage = async (to: string, body: string, settings: any) => {
+    const { api_key, api_url } = settings;
+    if (!api_key || !api_url) {
+      throw new Error('يرجى التحقق من إعدادات Green API (idInstance, apiTokenInstance)');
+    }
+    const cleanTo = to.replace(/\D/g, '') + '@c.us';
+    const url = `https://api.green-api.com/waInstance${api_url}/sendMessage/${api_key}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chatId: cleanTo, message: body })
+    });
+    if (!response.ok) throw new Error('فشل إرسال رسالة Green API');
+    return await response.json();
+  };
+
+  const handleSendReminder = async () => {
+    if (!selectedAptForReminder || !selectedPatientForSettings) return;
+    const phone = selectedPatientForSettings.phone;
+    const recipientUserId = selectedPatientForSettings.patient_user_id || selectedPatientForSettings.user_id;
+
+    if (!phone && reminderMethod !== 'platform') {
+      toast.error('لا يمكن الإرسال: لا يتوفر رقم هاتف مسجل للمراجع');
+      return;
+    }
+
+    setSendingReminder(true);
+    try {
+      if (reminderMethod === 'platform') {
+        if (!recipientUserId) {
+          toast.error('رقم الهاتف غير مرتبط ببوابة المنصة. يرجى التنشيط أولاً.');
+          setSendingReminder(false);
+          return;
+        }
+
+        const { error } = await supabase
+          .from('direct_messages')
+          .insert({
+            clinic_id: parseInt(clinicId),
+            recipient_id: recipientUserId,
+            content: reminderMessage,
+            type: 'reminder',
+            metadata: {
+              appointment_id: selectedAptForReminder.id,
+              date: selectedAptForReminder.date,
+              time: selectedAptForReminder.time,
+              type: selectedAptForReminder.type
+            }
+          });
+
+        if (error) throw error;
+        toast.success('تم إرسال التذكير بنجاح لصندوق وارد المريض!');
+      } else if (reminderMethod === 'whatsapp_web') {
+        const cleanPhone = phone.replace(/\D/g, '');
+        const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(reminderMessage)}`;
+        window.open(url, '_blank');
+        toast.success('تم فتح نافذة WhatsApp Web لإرسال الرسالة');
+      } else {
+        if (!whatsappSettings || !whatsappSettings.is_active) {
+          throw new Error('يرجى تهيئة وتفعيل بوابة الواتساب المدفوعة في إعدادات المحادثات أولاً.');
+        }
+
+        if (reminderMethod === 'twilio') {
+          await sendTwilioMessage(phone, reminderMessage, whatsappSettings);
+        } else if (reminderMethod === 'ultramsg') {
+          await sendUltramsgMessage(phone, reminderMessage, whatsappSettings);
+        } else if (reminderMethod === 'greenapi') {
+          await sendGreenApiMessage(phone, reminderMessage, whatsappSettings);
+        }
+
+        if (recipientUserId) {
+          await supabase
+            .from('direct_messages')
+            .insert({
+              clinic_id: parseInt(clinicId),
+              recipient_id: recipientUserId,
+              content: `[تذكير مرسل عبر الواتساب]:\n${reminderMessage}`,
+              type: 'reminder',
+              metadata: { provider: reminderMethod }
+            });
+        }
+        toast.success(`تم إرسال التذكير بنجاح عبر ${reminderMethod}`);
+      }
+      setSelectedAptForReminder(null);
+    } catch (err: any) {
+      console.error(err);
+      toast.error('تعذر إرسال التذكير: ' + err.message);
+    } finally {
+      setSendingReminder(false);
+    }
+  };
 
   const handleCreatePatient = async () => {
     if (!newPatient.name || !newPatient.phone) {
@@ -57,29 +361,34 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
       let patientUserId = null;
 
       if (createPortalAccount) {
-        setIsCreatingAccount(true);
-        // Invoke Edge Function to create auth.users account and send SMS
-        const { data: edgeData, error: edgeError } = await supabase.functions.invoke('send-patient-credentials', {
-          body: {
-            phone: newPatient.phone,
-            name: newPatient.name,
-            clinicName: 'عيادة الأسنان' // In a real app, pass actual clinic name
-          }
-        });
+        if (phoneCheckStatus.exists && phoneCheckStatus.profileId) {
+          patientUserId = phoneCheckStatus.profileId;
+          alert(`هذا الرقم مسجل بالمنصة بالفعل. تم ربط المريض تلقائياً بحسابه المسجل باسم "${phoneCheckStatus.profileName}".`);
+        } else {
+          setIsCreatingAccount(true);
+          // Invoke Edge Function to create auth.users account and send SMS
+          const { data: edgeData, error: edgeError } = await supabase.functions.invoke('send-patient-credentials', {
+            body: {
+              phone: newPatient.phone,
+              name: newPatient.name,
+              clinicName: 'عيادة الأسنان' // In a real app, pass actual clinic name
+            }
+          });
 
-        setIsCreatingAccount(false);
+          setIsCreatingAccount(false);
 
-        if (edgeError) {
-          console.error('Edge function error:', edgeError);
-          alert('تعذر إنشاء حساب البوابة. سيتم حفظ المريض محلياً فقط.');
-        } else if (edgeData?.error === 'patient_exists') {
-          alert('هذا المراجع لديه حساب بوابة بالفعل، يرجى ربط الملف لاحقاً.');
-        } else if (edgeData?.userId) {
-          patientUserId = edgeData.userId;
-          if (edgeData.smsStatus === 'sent' || edgeData.whatsappStatus === 'sent') {
-            alert('تم إنشاء حساب البوابة وإرسال بيانات الدخول عبر SMS و WhatsApp بنجاح!');
-          } else {
-            alert('تم إنشاء حساب البوابة، لكن إرسال الرسائل (SMS / WhatsApp) يتطلب تهيئة متغيرات بيئة Twilio.');
+          if (edgeError) {
+            console.error('Edge function error:', edgeError);
+            alert('تعذر إنشاء حساب البوابة. سيتم حفظ المريض محلياً فقط.');
+          } else if (edgeData?.error === 'patient_exists') {
+            alert('هذا المراجع لديه حساب بوابة بالفعل، يرجى ربط الملف لاحقاً.');
+          } else if (edgeData?.userId) {
+            patientUserId = edgeData.userId;
+            if (edgeData.smsStatus === 'sent' || edgeData.whatsappStatus === 'sent') {
+              alert('تم إنشاء حساب البوابة وإرسال بيانات الدخول عبر SMS و WhatsApp بنجاح!');
+            } else {
+              alert('تم إنشاء حساب البوابة، لكن إرسال الرسائل (SMS / WhatsApp) يتطلب تهيئة متغيرات بيئة Twilio.');
+            }
           }
         }
       }
@@ -405,6 +714,16 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
                     >
                       عرض الملف
                     </button>
+                     <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedPatientForSettings(patient);
+                      }}
+                      className="w-10 flex items-center justify-center bg-gray-50 text-gray-600 rounded-xl hover:bg-gray-100 transition-colors border border-gray-200"
+                      title="إعدادات المريض"
+                    >
+                      <Settings className="w-4 h-4" />
+                    </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -527,6 +846,30 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
                   className="w-full border rounded-lg p-2.5"
                   placeholder="077..."
                 />
+                {createPortalAccount && (
+                  <div className="mt-1.5 transition-all duration-300">
+                    {phoneCheckStatus.checking ? (
+                      <div className="flex items-center gap-1.5 text-xs text-blue-600">
+                        <div className="w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                        <span>جاري التحقق من الرقم...</span>
+                      </div>
+                    ) : phoneCheckStatus.exists ? (
+                      <div className="flex items-start gap-1.5 text-xs text-amber-600 bg-amber-50 p-2 rounded-lg border border-amber-100 mt-1">
+                        <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-bold">مسجل مسبقاً باسم:</p>
+                          <p className="opacity-95">{phoneCheckStatus.profileName}</p>
+                          <p className="text-[10px] opacity-75 mt-0.5">سيتم ربط الملف بالحساب القائم تلقائياً.</p>
+                        </div>
+                      </div>
+                    ) : phoneCheckStatus.checked ? (
+                      <div className="flex items-center gap-1.5 text-xs text-green-600 bg-green-50 p-2 rounded-lg border border-green-100 mt-1">
+                        <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                        <span>رقم جديد ومتاح للتنشيط!</span>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -616,6 +959,461 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
                   </>
                 ) : (
                   'حفظ المريض'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Patient Settings Modal */}
+      {selectedPatientForSettings && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-300 border border-gray-100">
+            <div className="px-6 py-5 border-b border-gray-150 flex justify-between items-center bg-gradient-to-r from-blue-50 to-indigo-50">
+              <div className="flex items-center gap-2.5">
+                <Settings className="w-5 h-5 text-gray-750 animate-pulse" />
+                <h3 className="font-bold text-lg text-gray-900">إعدادات ملف المراجع</h3>
+              </div>
+              <button
+                onClick={() => setSelectedPatientForSettings(null)}
+                className="text-gray-400 hover:text-gray-600 transition-colors text-2xl"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Patient Quick Info Card */}
+              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl text-white flex items-center justify-center text-lg font-bold shadow-md">
+                    {selectedPatientForSettings.name.charAt(0)}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-900">{selectedPatientForSettings.name}</h4>
+                    <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                      <span>{selectedPatientForSettings.age} سنة</span>
+                      <span>•</span>
+                      <span dir="ltr" className="font-mono">{selectedPatientForSettings.phone}</span>
+                    </div>
+                  </div>
+                </div>
+                <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${getStatusColor(selectedPatientForSettings.status)}`}>
+                  {getStatusLabel(selectedPatientForSettings.status)}
+                </span>
+              </div>
+
+              {/* Settings Action Blocks */}
+              <div className="space-y-4">
+                {/* Portal Account Status & Action Block */}
+                <div className="p-4 rounded-2xl border border-gray-150 bg-white shadow-sm space-y-3.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Globe className="w-4.5 h-4.5 text-blue-600" />
+                      <h5 className="font-bold text-sm text-gray-900">حساب البوابة الإلكترونية للمراجع</h5>
+                    </div>
+                    {!!(selectedPatientForSettings.patient_user_id || selectedPatientForSettings.user_id) ? (
+                      <span className="px-2 py-0.5 bg-green-50 text-green-700 text-xs font-bold rounded-md border border-green-100 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-ping" />
+                        نشط ومرتبط
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-xs font-bold rounded-md border border-amber-100">
+                        غير نشط
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-gray-500 leading-relaxed">
+                    تتيح البوابة الإلكترونية للمراجع حجز المواعيد ذاتياً، والدردشة مع المساعد الذكي AI، واستعراض خططه العلاجية المعتمدة فورياً.
+                  </p>
+
+                  {checkingSettingsPhone ? (
+                    <div className="flex items-center gap-2 text-xs text-blue-600 bg-blue-50/50 p-2 rounded-xl border border-blue-100">
+                      <div className="w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                      <span>جاري فحص حالة رقم المريض في المنصة...</span>
+                    </div>
+                  ) : patientSettingsPhoneExists && !(selectedPatientForSettings.patient_user_id || selectedPatientForSettings.user_id) ? (
+                    <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 text-xs text-amber-800 space-y-1.5">
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <AlertCircle className="w-4 h-4 text-amber-600" />
+                        <span>تم العثور على حساب مسجل!</span>
+                      </div>
+                      <p className="opacity-90">رقم هاتف هذا المراجع لديه حساب بوابة نشط بالفعل في المنصة.</p>
+                      <button
+                        onClick={async () => {
+                          setIsActivatingPortalForSettings(true);
+                          try {
+                            const { data: profileData, error: profileErr } = await supabase
+                              .from('profiles')
+                              .select('id')
+                              .eq('phone', selectedPatientForSettings.phone.trim())
+                              .maybeSingle();
+
+                            if (profileErr) throw profileErr;
+                            if (!profileData) throw new Error('فشل العثور على الحساب المطابق');
+
+                            const { error: updateErr } = await supabase
+                              .from('patients')
+                              .update({ patient_user_id: profileData.id })
+                              .eq('id', selectedPatientForSettings.id);
+
+                            if (updateErr) throw updateErr;
+                            toast.success('تم ربط ملف المراجع بالحساب النشط بنجاح!');
+
+                            // Update local patient object
+                            selectedPatientForSettings.patient_user_id = profileData.id;
+                            setSelectedPatientForSettings({ ...selectedPatientForSettings });
+                          } catch (err: any) {
+                            console.error(err);
+                            toast.error('فشل الربط: ' + err.message);
+                          } finally {
+                            setIsActivatingPortalForSettings(false);
+                          }
+                        }}
+                        className="px-3.5 py-1.5 bg-amber-600 text-white font-bold rounded-lg text-[11px] hover:bg-amber-700 transition-colors w-full mt-1.5"
+                        disabled={isActivatingPortalForSettings}
+                      >
+                        {isActivatingPortalForSettings ? 'جاري ربط الملف...' : 'ربط الملف بالحساب النشط فوراً'}
+                      </button>
+                    </div>
+                  ) : !(selectedPatientForSettings.patient_user_id || selectedPatientForSettings.user_id) ? (
+                    <button
+                      onClick={async () => {
+                        setIsActivatingPortalForSettings(true);
+                        try {
+                          const { data: edgeData, error: edgeError } = await supabase.functions.invoke('send-patient-credentials', {
+                            body: {
+                              phone: selectedPatientForSettings.phone,
+                              name: selectedPatientForSettings.name,
+                              clinicName: 'عيادة الأسنان'
+                            }
+                          });
+
+                          if (edgeError) throw edgeError;
+
+                          if (edgeData?.error === 'patient_exists') {
+                            toast.warning('هذا المراجع لديه حساب بالفعل');
+                          } else if (edgeData?.userId) {
+                            const { error: updateError } = await supabase
+                              .from('patients')
+                              .update({ patient_user_id: edgeData.userId })
+                              .eq('id', selectedPatientForSettings.id);
+
+                            if (updateError) throw updateError;
+                            toast.success('تم تنشيط الحساب بنجاح وإرسال بيانات الدخول!');
+
+                            selectedPatientForSettings.patient_user_id = edgeData.userId;
+                            setSelectedPatientForSettings({ ...selectedPatientForSettings });
+                          }
+                        } catch (err: any) {
+                          console.error(err);
+                          toast.error('تعذر تنشيط الحساب: ' + err.message);
+                        } finally {
+                          setIsActivatingPortalForSettings(false);
+                        }
+                      }}
+                      className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-100 flex items-center justify-center gap-1.5 transition-all"
+                      disabled={isActivatingPortalForSettings}
+                    >
+                      {isActivatingPortalForSettings ? (
+                        <>
+                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <span>جاري إنشاء وتنشيط البوابة...</span>
+                        </>
+                      ) : (
+                        <>
+                          <User className="w-4 h-4" />
+                          <span>تنشيط حساب المراجع وإرسال بيانات الدخول</span>
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <div className="p-3 bg-green-50 rounded-xl border border-green-100 text-xs text-green-850 flex items-center justify-between">
+                      <span>البوابة الإلكترونية نشطة ومتاحة للاستخدام.</span>
+                      <button
+                        onClick={async () => {
+                          setIsActivatingPortalForSettings(true);
+                          try {
+                            const { data, error } = await supabase.functions.invoke('send-patient-credentials', {
+                              body: {
+                                phone: selectedPatientForSettings.phone,
+                                name: selectedPatientForSettings.name,
+                                clinicName: 'عيادة الأسنان'
+                              }
+                            });
+                            if (error) throw error;
+                            toast.success('تمت إعادة إرسال بيانات الدخول بنجاح للمراجع!');
+                          } catch (e: any) {
+                            toast.error('تعذر إعادة الإرسال: ' + e.message);
+                          } finally {
+                            setIsActivatingPortalForSettings(false);
+                          }
+                        }}
+                        className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg text-[10px]"
+                        disabled={isActivatingPortalForSettings}
+                      >
+                        {isActivatingPortalForSettings ? 'جاري الإرسال...' : 'إعادة إرسال بيانات الدخول'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Appointment Reminder Block */}
+                <div className="p-4 rounded-2xl border border-gray-150 bg-white shadow-sm space-y-3.5">
+                  <div className="flex items-center gap-2">
+                    <Bell className="w-4.5 h-4.5 text-amber-500 animate-bounce" />
+                    <h5 className="font-bold text-sm text-gray-900">رسائل التذكير والمواعيد</h5>
+                  </div>
+
+                  <p className="text-xs text-gray-500 leading-relaxed">
+                    تذكير المريض بمواعيده القادمة وجلساته العلاجية القادمة لضمان الحضور والالتزام بالجدول العلاجي.
+                  </p>
+
+                  {loadingAppointments ? (
+                    <div className="flex items-center justify-center py-2 text-xs text-gray-400">
+                      <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin ml-2"></div>
+                      <span>جاري جلب مواعيد المريض...</span>
+                    </div>
+                  ) : patientAppointments.length === 0 ? (
+                    <div className="text-center p-3 bg-gray-50 border border-gray-100 rounded-xl">
+                      <p className="text-xs text-gray-500 font-medium">لا توجد مواعيد مجدولة لهذا المريض في العيادة حالياً.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1">
+                      <p className="text-xs font-bold text-gray-700">اختر موعداً لإرسال تذكير به:</p>
+                      {patientAppointments.map((apt) => (
+                        <div
+                          key={apt.id}
+                          onClick={() => {
+                            setSelectedAptForReminder(apt);
+                          }}
+                          className="p-3 bg-gray-50 hover:bg-amber-50/40 hover:border-amber-200 border border-gray-150 rounded-xl cursor-pointer flex items-center justify-between text-xs transition-all"
+                        >
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-gray-900">{apt.date}</span>
+                              <span className="w-1.5 h-1.5 bg-gray-300 rounded-full" />
+                              <span className="text-gray-500 font-mono" dir="ltr">{apt.time}</span>
+                            </div>
+                            <p className="text-gray-400 font-medium text-[10px]">{apt.type}</p>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                            apt.status === 'confirmed' || apt.status === 'scheduled' ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {apt.status === 'confirmed' ? 'مؤكد' : apt.status === 'scheduled' ? 'مجدول' : apt.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-gray-100 bg-gray-50 rounded-b-3xl flex justify-end">
+              <button
+                onClick={() => setSelectedPatientForSettings(null)}
+                className="px-6 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl text-xs font-bold transition-colors"
+              >
+                إغلاق الإعدادات
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Appointment Reminder Slide-over Drawer inside Patients Page */}
+      {selectedAptForReminder && selectedPatientForSettings && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="absolute inset-0" onClick={() => setSelectedAptForReminder(null)} />
+
+          <div className="relative w-full max-w-lg bg-white/95 backdrop-blur-md h-full shadow-2xl flex flex-col z-10 animate-in slide-in-from-left lg:slide-in-from-right duration-300 border-r border-gray-200">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-150 flex items-center justify-between bg-blue-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                  <Bell className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg text-gray-900">إرسال تذكير بالموعد</h3>
+                  <p className="text-xs text-gray-500">
+                    للمريض: {selectedPatientForSettings.name}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedAptForReminder(null)}
+                className="p-1.5 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-lg transition-colors"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Patient Verification Status */}
+              {(() => {
+                const isPlatformUser = !!(selectedPatientForSettings.patient_user_id || selectedPatientForSettings.user_id);
+                return (
+                  <div className={`p-4 rounded-xl border flex items-start gap-3 ${
+                    isPlatformUser
+                      ? 'bg-emerald-50/70 border-emerald-100 text-emerald-800'
+                      : 'bg-amber-50/70 border-amber-100 text-amber-800'
+                  }`}>
+                    <Globe className={`w-5 h-5 mt-0.5 ${isPlatformUser ? 'text-emerald-600' : 'text-amber-600'}`} />
+                    <div>
+                      <h4 className="font-bold text-sm">
+                        {isPlatformUser ? 'المراجع مسجل بالمنصة ونشط' : 'حساب المنصة غير نشط لهذا المراجع'}
+                      </h4>
+                      <p className="text-xs mt-1 leading-relaxed opacity-90">
+                        {isPlatformUser
+                          ? 'يمكنك إرسال التذكير مباشرة إلى صندوق الوارد الخاص به في تطبيق المريض كبطاقة تفاعلية.'
+                          : 'يمكنك تنشيط البوابة له أولاً لتمكينه من تلقي الرسائل، أو إرسال التذكير عبر قنوات الواتساب/SMS.'}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Reminder Channel Selector */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-3">اختر قناة الإرسال</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Platform Inbox (if registered) */}
+                  {(() => {
+                    const isPlatformUser = !!(selectedPatientForSettings.patient_user_id || selectedPatientForSettings.user_id);
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => isPlatformUser && setReminderMethod('platform')}
+                        className={`p-3.5 rounded-xl border-2 text-right transition-all flex flex-col justify-between h-24 ${
+                          !isPlatformUser ? 'opacity-40 cursor-not-allowed border-gray-150 bg-gray-50' :
+                          reminderMethod === 'platform'
+                            ? 'border-blue-600 bg-blue-50/40 text-blue-900 shadow-sm'
+                            : 'border-gray-200 hover:border-gray-300 text-gray-700 bg-white'
+                        }`}
+                      >
+                        <Globe className={`w-5 h-5 ${reminderMethod === 'platform' ? 'text-blue-600' : 'text-gray-400'}`} />
+                        <div>
+                          <span className="block font-bold text-xs">صندوق وارد المنصة</span>
+                          <span className="text-[10px] opacity-75">إرسال كبطاقة تفاعلية</span>
+                        </div>
+                      </button>
+                    );
+                  })()}
+
+                  {/* Free WhatsApp Web */}
+                  <button
+                    type="button"
+                    onClick={() => setReminderMethod('whatsapp_web')}
+                    className={`p-3.5 rounded-xl border-2 text-right transition-all flex flex-col justify-between h-24 ${
+                      reminderMethod === 'whatsapp_web'
+                        ? 'border-green-600 bg-green-50/40 text-green-900 shadow-sm'
+                        : 'border-gray-200 hover:border-gray-300 text-gray-700 bg-white'
+                    }`}
+                  >
+                    <MessageSquare className={`w-5 h-5 ${reminderMethod === 'whatsapp_web' ? 'text-green-600' : 'text-gray-400'}`} />
+                    <div>
+                      <span className="block font-bold text-xs">واتساب مجاني (رقم العيادة)</span>
+                      <span className="text-[10px] opacity-75">فتح نافذة WhatsApp Web</span>
+                    </div>
+                  </button>
+
+                  {/* Twilio */}
+                  <button
+                    type="button"
+                    onClick={() => setReminderMethod('twilio')}
+                    className={`p-3.5 rounded-xl border-2 text-right transition-all flex flex-col justify-between h-24 ${
+                      reminderMethod === 'twilio'
+                        ? 'border-indigo-600 bg-indigo-50/40 text-indigo-900 shadow-sm'
+                        : 'border-gray-200 hover:border-gray-300 text-gray-700 bg-white'
+                    }`}
+                  >
+                    <Settings className={`w-5 h-5 ${reminderMethod === 'twilio' ? 'text-indigo-600' : 'text-gray-400'}`} />
+                    <div>
+                      <span className="block font-bold text-xs">Twilio SMS / WhatsApp</span>
+                      <span className="text-[10px] opacity-75">إرسال تلقائي مدفوع</span>
+                    </div>
+                  </button>
+
+                  {/* Ultramsg */}
+                  <button
+                    type="button"
+                    onClick={() => setReminderMethod('ultramsg')}
+                    className={`p-3.5 rounded-xl border-2 text-right transition-all flex flex-col justify-between h-24 ${
+                      reminderMethod === 'ultramsg'
+                        ? 'border-purple-600 bg-purple-50/40 text-purple-900 shadow-sm'
+                        : 'border-gray-200 hover:border-gray-300 text-gray-700 bg-white'
+                    }`}
+                  >
+                    <Settings className={`w-5 h-5 ${reminderMethod === 'ultramsg' ? 'text-purple-600' : 'text-gray-400'}`} />
+                    <div>
+                      <span className="block font-bold text-xs">بوابة Ultramsg</span>
+                      <span className="text-[10px] opacity-75">إرسال بالخلفية عبر API</span>
+                    </div>
+                  </button>
+
+                  {/* Green API */}
+                  <button
+                    type="button"
+                    onClick={() => setReminderMethod('greenapi')}
+                    className={`p-3.5 rounded-xl border-2 text-right transition-all flex flex-col justify-between h-24 col-span-2 ${
+                      reminderMethod === 'greenapi'
+                        ? 'border-emerald-600 bg-emerald-50/40 text-emerald-900 shadow-sm'
+                        : 'border-gray-200 hover:border-gray-300 text-gray-700 bg-white'
+                    }`}
+                  >
+                    <Settings className={`w-5 h-5 ${reminderMethod === 'greenapi' ? 'text-emerald-600' : 'text-gray-400'}`} />
+                    <div>
+                      <span className="block font-bold text-xs">بوابة Green API</span>
+                      <span className="text-[10px] opacity-75">إرسال بالخلفية عبر API</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Message Template / Textarea */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">نص رسالة التذكير</label>
+                <textarea
+                  value={reminderMessage}
+                  onChange={(e) => setReminderMessage(e.target.value)}
+                  rows={6}
+                  className="w-full border border-gray-200 rounded-xl p-3.5 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none resize-none leading-relaxed"
+                  placeholder="نص التذكير..."
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-gray-150 bg-gray-50/50 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setSelectedAptForReminder(null)}
+                className="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-xl font-medium text-sm transition-colors"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                onClick={handleSendReminder}
+                disabled={sendingReminder || !reminderMessage.trim()}
+                className={`px-6 py-2.5 text-white rounded-xl font-bold text-sm shadow-md flex items-center gap-2 transition-all ${
+                  sendingReminder ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 active:scale-98'
+                }`}
+              >
+                {sendingReminder ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    جاري الإرسال...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    إرسال التذكير الآن
+                  </>
                 )}
               </button>
             </div>
