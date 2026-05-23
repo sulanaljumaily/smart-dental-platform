@@ -45,20 +45,45 @@ export const useOnlineRequests = (clinicId?: string) => {
             if (error) throw error;
 
             if (data) {
-                const mapped: OnlineRequest[] = data.map((apt: any) => ({
-                    id: apt.id,
-                    patientName: apt.patient_name || 'مريض غير مسجل',
-                    source: apt.created_via || 'online',
-                    date: apt.appointment_date || apt.date,
-                    time: apt.appointment_time || apt.time,
-                    phone: apt.phone_number || apt.phone || '',
-                    status: apt.status,
-                    hasFile: !!apt.patient_id,
-                    notes: apt.notes,
-                    patientId: apt.patient_id,
-                    patientUserId: apt.patient_user_id,
-                    type: apt.type
-                }));
+                const userIds = data.map((apt: any) => apt.patient_user_id).filter(Boolean);
+                const clinicIds = data.map((apt: any) => apt.clinic_id).filter(Boolean);
+                
+                let existingPatientsMap: Record<string, string> = {};
+                
+                if (userIds.length > 0 && clinicIds.length > 0) {
+                    const { data: patientsData } = await supabase
+                        .from('patients')
+                        .select('id, patient_user_id, clinic_id')
+                        .in('clinic_id', clinicIds)
+                        .in('patient_user_id', userIds)
+                        .is('deleted_at', null);
+                        
+                    if (patientsData) {
+                        patientsData.forEach(p => {
+                            if (p.patient_user_id && p.clinic_id) {
+                                existingPatientsMap[`${p.clinic_id}_${p.patient_user_id}`] = p.id;
+                            }
+                        });
+                    }
+                }
+
+                const mapped: OnlineRequest[] = data.map((apt: any) => {
+                    const resolvedPatientId = apt.patient_id || (apt.patient_user_id && apt.clinic_id ? existingPatientsMap[`${apt.clinic_id}_${apt.patient_user_id}`] : null);
+                    return {
+                        id: apt.id,
+                        patientName: apt.patient_name || 'مريض غير مسجل',
+                        source: apt.created_via || 'online',
+                        date: apt.appointment_date || apt.date,
+                        time: apt.appointment_time || apt.time,
+                        phone: apt.phone_number || apt.phone || '',
+                        status: apt.status,
+                        hasFile: !!resolvedPatientId,
+                        notes: apt.notes,
+                        patientId: resolvedPatientId,
+                        patientUserId: apt.patient_user_id,
+                        type: apt.type
+                    };
+                });
                 setRequests(mapped);
             }
         } catch (err) {

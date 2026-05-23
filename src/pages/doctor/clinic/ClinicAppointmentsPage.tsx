@@ -27,7 +27,10 @@ import {
   Paperclip,
   User,
   Check,
-  ChevronLeft
+  ChevronLeft,
+  ChevronRight,
+  Star,
+  Activity
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../../../components/common/Card';
@@ -199,7 +202,17 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
   useEffect(() => {
     if (selectedAptForReminder) {
       const pName = getPatientName(selectedAptForReminder.patientId, selectedAptForReminder.patientName);
-      const timeStr = selectedAptForReminder.time;
+      const formatTime12h = (time24: string) => {
+        if (!time24) return '';
+        const [h, m] = time24.split(':');
+        let hours = parseInt(h, 10);
+        const ampm = hours >= 12 ? 'مساءً' : 'صباحاً';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        return `${hours.toString().padStart(2, '0')}:${m} ${ampm}`;
+      };
+
+      const timeStr = formatTime12h(selectedAptForReminder.time);
       const dateStr = selectedAptForReminder.date;
       const typeStr = getTypeLabel(selectedAptForReminder.type);
       
@@ -332,10 +345,17 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
             recipient_id: recipientUserId,
             content: reminderMessage,
             type: 'reminder',
-            metadata: {
+          metadata: {
               appointment_id: selectedAptForReminder.id,
               date: selectedAptForReminder.date,
-              time: selectedAptForReminder.time,
+              time: (() => {
+                const [h, m] = selectedAptForReminder.time.split(':');
+                let hours = parseInt(h, 10);
+                const ampm = hours >= 12 ? 'مساءً' : 'صباحاً';
+                hours = hours % 12;
+                hours = hours ? hours : 12;
+                return `${hours.toString().padStart(2, '0')}:${m} ${ampm}`;
+              })(),
               type: selectedAptForReminder.type
             }
           });
@@ -1008,185 +1028,298 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
           </div>
 
           {activeSubTab === 'chats' ? (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
-              {/* Patient Chat Sidebar */}
-              <div className="lg:col-span-1 bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex flex-col h-full overflow-hidden">
-                <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
-                  <Users className="w-5 h-5 text-gray-400" /> مراجعي العيادة
-                </h3>
-                {/* Search in Sidebar */}
-                <div className="relative mb-4">
-                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <input
-                    type="text"
-                    placeholder="ابحث بالاسم أو الهاتف..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pr-9 pl-4 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition-all"
-                  />
-                </div>
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm h-[600px] flex flex-col overflow-hidden relative">
+              {/* Patient Chat Sidebar (Shown when NO patient is selected) */}
+              {!activeChatPatient ? (
+                <div className="flex-1 flex flex-col p-4 overflow-hidden animate-in fade-in duration-300">
+                  <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                    <Users className="w-5 h-5 text-gray-400" /> مراجعي العيادة
+                  </h3>
+                  {/* Search in Sidebar */}
+                  <div className="relative mb-4">
+                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type="text"
+                      placeholder="ابحث بالاسم أو الهاتف..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pr-9 pl-4 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                    />
+                  </div>
 
-                {/* Patient List */}
-                <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-                  {patients
-                    .filter(p => searchTerm === '' || p.name.includes(searchTerm) || p.phone.includes(searchTerm))
-                    .map(p => {
-                      const isPortalActive = !!p.patient_user_id;
-                      const isSelected = activeChatPatient?.id === p.id;
+                  {/* Patient List */}
+                  <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                    {patients
+                      .filter(p => searchTerm === '' || p.name.includes(searchTerm) || p.phone.includes(searchTerm))
+                      .map(p => {
+                        const isPortalActive = !!p.patient_user_id;
+                        const isSelected = activeChatPatient?.id === p.id;
 
-                      return (
-                        <div
-                          key={p.id}
-                          onClick={() => {
-                            if (isPortalActive) {
-                              setActiveChatPatient({
-                                id: p.id,
-                                patient_user_id: p.patient_user_id,
-                                name: p.name,
-                                phone: p.phone
-                              });
-                            }
-                          }}
-                          className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 ${
-                            isPortalActive ? 'cursor-pointer' : 'opacity-70 cursor-default'
-                          } ${
-                            isSelected
-                              ? 'bg-blue-50/70 border-blue-200 shadow-sm'
-                              : 'bg-white hover:bg-gray-50 border-gray-150'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl text-white flex items-center justify-center font-bold text-sm shadow-sm flex-shrink-0">
-                              {p.name.charAt(0)}
-                            </div>
-                            <div className="min-w-0">
-                              <h4 className="font-bold text-gray-900 text-sm truncate flex items-center gap-1.5">
-                                {p.name}
-                                {isPortalActive && (
-                                  <Globe className="w-3.5 h-3.5 text-green-500" title="البوابة نشطة" />
-                                )}
-                              </h4>
-                              <p className="text-xs text-gray-500 truncate" dir="ltr">{p.phone}</p>
-                            </div>
-                          </div>
-
-                           {!isPortalActive && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedPatientForActivation({
+                        return (
+                          <div
+                            key={p.id}
+                            onClick={() => {
+                              if (isPortalActive) {
+                                setActiveChatPatient({
                                   id: p.id,
+                                  patient_user_id: p.patient_user_id,
                                   name: p.name,
-                                  phone: p.phone,
-                                  patient_user_id: p.patient_user_id
+                                  phone: p.phone
                                 });
-                              }}
-                              className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-xs font-bold transition-all border border-amber-100 flex-shrink-0"
-                            >
-                              تنشيط البوابة
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-
-              {/* Chat Viewport */}
-              <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col h-full overflow-hidden relative">
-                {activeChatPatient ? (
-                  <>
-                    {/* Chat Header */}
-                    <div className="p-4 border-b bg-gray-50/50 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-bold">
-                          {activeChatPatient.name.charAt(0)}
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-gray-900 text-sm flex items-center gap-2">
-                            {activeChatPatient.name}
-                            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                          </h4>
-                          <p className="text-xs text-gray-500" dir="ltr">{activeChatPatient.phone}</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => navigate(`/doctor/clinic/${clinicId}/patient/${activeChatPatient.id}`)}
-                        className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-100 rounded-lg text-xs font-bold transition-all"
-                      >
-                        عرض ملف المريض
-                      </button>
-                    </div>
-
-                    {/* Messages Body */}
-                    <div className="flex-1 p-4 overflow-y-auto bg-gray-50/30 space-y-4">
-                      {chatMessages.length === 0 ? (
-                        <div className="text-center py-20 text-gray-400 text-sm">
-                          لا توجد رسائل سابقة. ابدأ بمراسلة المراجع الآن.
-                        </div>
-                      ) : (
-                        chatMessages.map((msg) => {
-                          const isMe = msg.sender_id === user?.id;
-                          const isReminder = msg.type === 'reminder';
-
-                          if (isReminder) {
-                            return (
-                              <div
-                                key={msg.id}
-                                className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
-                              >
-                                <div className="max-w-[85%] bg-gradient-to-br from-blue-50/80 to-indigo-50/80 backdrop-blur-sm border border-blue-100 rounded-2xl p-4 shadow-sm text-right">
-                                  <div className="flex items-center gap-2 text-blue-700 font-bold mb-2 text-xs">
-                                    <Bell className="w-4 h-4 animate-bounce" />
-                                    <span>تذكير بموعد حجز إلكتروني مرسل</span>
-                                  </div>
-                                  <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed mb-3">
-                                    {msg.content}
-                                  </p>
-                                  {msg.metadata && (
-                                    <div className="bg-white/80 rounded-xl p-2.5 border border-blue-50/50 text-xs grid grid-cols-2 gap-2 text-gray-600">
-                                      <div>🗓️ التاريخ: {msg.metadata.date}</div>
-                                      <div>⏰ الوقت: {msg.metadata.time}</div>
-                                      <div className="col-span-2">🦷 الإجراء: {getTypeLabel(msg.metadata.type)}</div>
-                                    </div>
-                                  )}
-                                  <div className="text-[10px] text-gray-400 mt-2 text-left">
-                                    {new Date(msg.created_at).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' })}
-                                  </div>
-                                </div>
+                              }
+                            }}
+                            className={`p-3.5 rounded-xl border transition-all flex items-center justify-between gap-3 ${
+                              isPortalActive ? 'cursor-pointer' : 'opacity-70 cursor-default'
+                            } ${
+                              isSelected
+                                ? 'bg-blue-50/70 border-blue-200 shadow-sm'
+                                : 'bg-white hover:bg-gray-50 border-gray-150'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-11 h-11 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl text-white flex items-center justify-center font-bold text-sm shadow-sm flex-shrink-0">
+                                {p.name.charAt(0)}
                               </div>
-                            );
-                          }
+                              <div className="min-w-0 text-right">
+                                <h4 className="font-bold text-gray-900 text-sm truncate flex items-center gap-1.5 justify-start">
+                                  {p.name}
+                                  {isPortalActive && (
+                                    <Globe className="w-3.5 h-3.5 text-green-500" title="البوابة نشطة" />
+                                  )}
+                                </h4>
+                                <p className="text-xs text-gray-500 truncate mt-0.5" dir="ltr">{p.phone}</p>
+                              </div>
+                            </div>
 
+                            {!isPortalActive && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedPatientForActivation({
+                                    id: p.id,
+                                    name: p.name,
+                                    phone: p.phone,
+                                    patient_user_id: p.patient_user_id
+                                  });
+                                }}
+                                className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-xs font-bold transition-all border border-amber-100 flex-shrink-0"
+                              >
+                                تنشيط البوابة
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              ) : (
+                /* Chat Viewport (Shown when a patient IS selected) */
+                <div className="flex-1 flex flex-col h-full overflow-hidden relative animate-in slide-in-from-left duration-300">
+                  {/* Chat Header */}
+                  <div className="p-4 border-b bg-gray-50/50 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {/* Back Button */}
+                      <button
+                        onClick={() => setActiveChatPatient(null)}
+                        className="p-2 hover:bg-gray-100 active:bg-gray-200 rounded-xl text-gray-500 transition-colors flex items-center justify-center border border-gray-200/60 bg-white shadow-sm ml-1"
+                        title="رجوع للقائمة"
+                      >
+                        <ChevronRight className="w-5 h-5 text-gray-600" />
+                      </button>
+                      <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-bold">
+                        {activeChatPatient.name.charAt(0)}
+                      </div>
+                      <div className="text-right">
+                        <h4 className="font-bold text-gray-900 text-sm flex items-center gap-2 justify-start">
+                          {activeChatPatient.name}
+                          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                        </h4>
+                        <p className="text-xs text-gray-500 mt-0.5" dir="ltr">{activeChatPatient.phone}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => navigate(`/doctor/clinic/${clinicId}/patient/${activeChatPatient.id}`)}
+                      className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-100 rounded-lg text-xs font-bold transition-all"
+                    >
+                      عرض ملف المريض
+                    </button>
+                  </div>
+
+                  {/* Messages Body */}
+                  <div className="flex-1 p-4 overflow-y-auto bg-gray-50/30 space-y-4">
+                    {chatMessages.length === 0 ? (
+                      <div className="text-center py-20 text-gray-400 text-sm">
+                        لا توجد رسائل سابقة. ابدأ بمراسلة المراجع الآن.
+                      </div>
+                    ) : (
+                      chatMessages.map((msg) => {
+                        const isMe = msg.sender_id === user?.id;
+                        const isReminder = msg.type === 'reminder';
+
+                        if (isReminder) {
                           return (
                             <div
                               key={msg.id}
                               className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
                             >
-                              <div
-                                className={`max-w-[70%] px-4 py-3 rounded-2xl text-sm shadow-sm relative ${
-                                  isMe
-                                    ? 'bg-blue-600 text-white rounded-br-none'
-                                    : 'bg-white text-gray-800 border border-gray-150 rounded-bl-none'
-                                }`}
-                              >
-                                <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
-                                <div
-                                  className={`text-[9px] mt-1 text-left ${
-                                    isMe ? 'text-blue-100' : 'text-gray-400'
-                                  }`}
-                                >
+                              <div className="max-w-[85%] bg-gradient-to-br from-blue-50/80 to-indigo-50/80 backdrop-blur-sm border border-blue-100 rounded-2xl p-4 shadow-sm text-right">
+                                <div className="flex items-center gap-2 text-blue-700 font-bold mb-2 text-xs">
+                                  <Bell className="w-4 h-4 animate-bounce" />
+                                  <span>تذكير بموعد حجز إلكتروني مرسل</span>
+                                </div>
+                                <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed mb-3">
+                                  {msg.content}
+                                </p>
+                                {msg.metadata && (
+                                  <div className="bg-white/80 rounded-xl p-2.5 border border-blue-50/50 text-xs grid grid-cols-2 gap-2 text-gray-600">
+                                    <div>🗓️ التاريخ: {msg.metadata.date}</div>
+                                    <div>⏰ الوقت: {msg.metadata.time}</div>
+                                    <div className="col-span-2">🦷 الإجراء: {getTypeLabel(msg.metadata.type)}</div>
+                                  </div>
+                                )}
+                                <div className="text-[10px] text-gray-400 mt-2 text-left">
                                   {new Date(msg.created_at).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' })}
                                 </div>
                               </div>
                             </div>
                           );
-                        })
-                      )}
+                        }
+
+                        if (msg.type === 'confirmation' || msg.content === 'لقد قمت بتأكيد حضوري للموعد المحدد عبر المنصة. شكراً لكم.') {
+                          return (
+                            <div
+                              key={msg.id}
+                              className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
+                            >
+                              <div className="max-w-[85%] bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-2xl p-4 shadow-sm text-right">
+                                <div className="flex items-center gap-2 text-emerald-700 font-bold mb-2 text-xs">
+                                  <CheckCircle className="w-4 h-4" />
+                                  <span>تأكيد حضور المراجع للموعد المجدول</span>
+                                </div>
+                                <p className="text-sm text-gray-700 font-bold leading-relaxed mb-3">
+                                  لقد قام المراجع بتأكيد حضوره للموعد المجدول عبر المنصة.
+                                </p>
+                                {msg.metadata && (msg.metadata.date || msg.metadata.time) && (
+                                  <div className="bg-white/80 rounded-xl p-2.5 border border-emerald-50 text-xs grid grid-cols-2 gap-2 text-gray-600 font-bold">
+                                    {msg.metadata.date && <div>🗓️ التاريخ: {msg.metadata.date}</div>}
+                                    {msg.metadata.time && <div>⏰ الوقت: {msg.metadata.time}</div>}
+                                  </div>
+                                )}
+                                <div className="text-[10px] text-gray-400 mt-2 text-left">
+                                  {new Date(msg.created_at).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' })}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div
+                            key={msg.id}
+                            className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
+                          >
+                            <div
+                              className={`max-w-[70%] px-4 py-3 rounded-2xl text-sm shadow-sm relative ${
+                                isMe
+                                  ? 'bg-blue-600 text-white rounded-br-none shadow-blue-100'
+                                  : 'bg-white text-gray-800 border border-gray-150 rounded-bl-none'
+                              }`}
+                            >
+                              <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                              <div
+                                className={`text-[9px] mt-1 text-left ${
+                                  isMe ? 'text-blue-100' : 'text-gray-400'
+                                }`}
+                              >
+                                {new Date(msg.created_at).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Chat Input */}
+                  <div className="p-3 border-t bg-white flex flex-col gap-2.5">
+                    {/* Quick Actions Row */}
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide shrink-0" dir="rtl">
+                      {/* 1. Appointment Reminder */}
+                      <button
+                        onClick={() => {
+                          const latestApt = appointments
+                            .filter(apt => apt.patientId === activeChatPatient.id)
+                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+                          if (latestApt) {
+                            setSelectedAptForReminder(latestApt);
+                          } else {
+                            toast.error("لا يوجد مواعيد مسجلة لهذا المريض لتذكيره بها");
+                          }
+                        }}
+                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-100/50 hover:border-indigo-200 rounded-xl px-3 py-1.5 text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95 shadow-sm shrink-0"
+                      >
+                        <Bell className="w-3.5 h-3.5" />
+                        <span>تذكير بالموعد</span>
+                      </button>
+
+                      {/* 2. Ask Patient Feedback */}
+                      <button
+                        onClick={async () => {
+                          if (sendingMsg || !activeChatPatient?.patient_user_id || !user?.id) return;
+                          try {
+                            const { error } = await supabase
+                              .from('direct_messages')
+                              .insert({
+                                sender_id: user.id,
+                                recipient_id: activeChatPatient.patient_user_id,
+                                content: '📊 أخذ رأي المراجع: يرجى تقييم زيارتكم للعيادة وتجربتكم معنا.',
+                                type: 'widget',
+                                metadata: { widget_type: 'feedback', role: 'assistant' }
+                              });
+                            if (error) throw error;
+                            toast.success('تم إرسال بطاقة طلب التقييم للمريض بنجاح');
+                            fetchChatMessages(activeChatPatient.patient_user_id);
+                          } catch (err: any) {
+                            console.error(err);
+                            toast.error('فشل إرسال التقييم: ' + err.message);
+                          }
+                        }}
+                        className="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-100/50 hover:border-amber-200 rounded-xl px-3 py-1.5 text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95 shadow-sm shrink-0"
+                      >
+                        <Star className="w-3.5 h-3.5" />
+                        <span>أخذ رأي المراجع</span>
+                      </button>
+
+                      {/* 3. Send Treatment Plan */}
+                      <button
+                        onClick={async () => {
+                          if (sendingMsg || !activeChatPatient?.patient_user_id || !user?.id) return;
+                          try {
+                            const { error } = await supabase
+                              .from('direct_messages')
+                              .insert({
+                                sender_id: user.id,
+                                recipient_id: activeChatPatient.patient_user_id,
+                                content: '🦷 بطاقة الخطة العلاجية: استعراض حالة الأسنان وجلسات العلاج المجدولة.',
+                                type: 'widget',
+                                metadata: { widget_type: 'treatments', role: 'assistant' }
+                              });
+                            if (error) throw error;
+                            toast.success('تم إرسال بطاقة الخطة العلاجية للمريض بنجاح');
+                            fetchChatMessages(activeChatPatient.patient_user_id);
+                          } catch (err: any) {
+                            console.error(err);
+                            toast.error('فشل إرسال الخطة العلاجية: ' + err.message);
+                          }
+                        }}
+                        className="bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-100/50 hover:border-teal-200 rounded-xl px-3 py-1.5 text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95 shadow-sm shrink-0"
+                      >
+                        <Activity className="w-3.5 h-3.5" />
+                        <span>إرسال الخطة العلاجية</span>
+                      </button>
                     </div>
 
-                    {/* Chat Input */}
-                    <div className="p-3 border-t bg-white flex items-center gap-2">
+                    <div className="flex items-center gap-2">
                       <textarea
                         value={newMessageText}
                         onChange={(e) => setNewMessageText(e.target.value)}
@@ -1203,24 +1336,14 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                       <button
                         onClick={handleSendMessage}
                         disabled={sendingMsg || !newMessageText.trim()}
-                        className="p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-50"
+                        className="p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center shrink-0"
                       >
                         <Send className="w-5 h-5" />
                       </button>
                     </div>
-                  </>
-                ) : (
-                  <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-gray-50/20">
-                    <div className="w-20 h-20 bg-blue-50/80 rounded-3xl flex items-center justify-center border border-blue-100 mb-4 animate-pulse">
-                      <MessageSquare className="w-10 h-10 text-blue-500" />
-                    </div>
-                    <h4 className="font-bold text-gray-800 text-lg mb-2">تواصل مباشر وفوري مع مراجعيك</h4>
-                    <p className="text-gray-500 text-sm max-w-sm leading-relaxed">
-                      اختر مراجعاً مفعل الحساب من القائمة الجانبية لبدء المحادثة، أو قم بتنشيط البوابة للمراجع لإرسال تفاصيل حسابه تلقائياً.
-                    </p>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           ) : (
             /* WhatsApp Credentials Setup Dashboard */
@@ -1385,16 +1508,26 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
               <div key={req.id} className="bg-white p-5 rounded-xl border border-orange-100 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h4 className="font-bold text-gray-900 flex items-center gap-1.5">
-                      {req.patientName}
-                      {req.patientUserId && (
-                        <span title="لديه حساب في المنصة" className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full flex items-center gap-0.5 border border-blue-100">
+                    <h4 className="font-bold text-gray-900 flex items-center gap-1.5 flex-wrap">
+                      <span className="truncate max-w-[120px] sm:max-w-[160px]">{req.patientName}</span>
+                      {req.hasFile ? (
+                        <span title="مريض مسجل مسبقاً في العيادة" className="text-[10px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded-full flex items-center gap-1 border border-emerald-100 font-bold shrink-0">
+                          <CheckCircle className="w-2.5 h-2.5" /> مريض العيادة
+                        </span>
+                      ) : req.patientUserId ? (
+                        <span title="لديه حساب في المنصة" className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full flex items-center gap-0.5 border border-blue-100 shrink-0">
                           <Globe className="w-2.5 h-2.5" /> المنصة
                         </span>
-                      )}
+                      ) : null}
                     </h4>
-                    <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                    <p className="text-xs text-gray-500 mt-1 flex items-center gap-1 flex-wrap">
                       <MapPin className="w-3 h-3" /> عبر {req.source === 'map' ? 'الخريطة' : 'التطبيق'}
+                      {req.hasFile && (
+                        <>
+                          <span className="text-gray-300 mx-0.5">•</span>
+                          <span className="text-emerald-600 font-bold text-[10px] bg-emerald-50 px-1.5 rounded">{req.type === 'followup' ? 'طلب متابعة' : 'طلب موعد'}</span>
+                        </>
+                      )}
                     </p>
                   </div>
                   <div className="text-left">
@@ -1423,10 +1556,10 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                         handleConfirmRequest(req);
                       }
                     }}
-                    className={`flex-1 text-white py-2 rounded-lg text-sm font-medium transition-colors ${!req.hasFile ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+                    className={`flex-1 text-white py-2 rounded-lg text-sm font-medium transition-colors ${!req.hasFile ? 'bg-gray-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700'}`}
                     disabled={!req.hasFile && false} // Just visual, we handle click to show alert
                   >
-                    تأكيد الحجز
+                    تأكيد الموعد
                   </button>
 
                   <button
@@ -1444,8 +1577,8 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                       <UserPlus className="w-3 h-3" /> إنشاء ملف للمريض
                     </button>
                   ) : (
-                    <div className="flex-1 py-1.5 text-xs text-green-600 bg-green-50 rounded-lg flex items-center justify-center gap-1 font-bold cursor-default">
-                      <CheckCircle className="w-3 h-3" /> الملف جاهز
+                    <div className="flex-1 py-1.5 text-xs text-emerald-600 bg-emerald-50/50 rounded-lg flex items-center justify-center gap-1 font-bold cursor-default border border-emerald-100/50">
+                      <CheckCircle className="w-3 h-3" /> ملف طبي متوفر
                     </div>
                   )}
                   <a

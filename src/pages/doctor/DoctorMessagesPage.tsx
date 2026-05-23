@@ -24,14 +24,20 @@ export const DoctorMessagesPage: React.FC = () => {
 
   const location = useLocation();
 
+  // Filter conversations to only include active clinic staff members
+  const staffUserIds = new Set(
+    staff.map(s => s.userId || s.id).filter(Boolean)
+  );
+  const filteredConversations = conversations.filter(conv => staffUserIds.has(conv.id));
+
   useEffect(() => {
     if (location.state?.startConversationWith) {
       const targetUser = location.state.startConversationWith;
       setSelectedConversationId(targetUser.id);
-    } else if (conversations.length > 0 && !selectedConversationId) {
-      setSelectedConversationId(conversations[0].id);
+    } else if (filteredConversations.length > 0 && !selectedConversationId) {
+      setSelectedConversationId(filteredConversations[0].id);
     }
-  }, [location.state, conversations]);
+  }, [location.state, filteredConversations]);
 
   const handleSendMessage = async () => {
     if (!messageText.trim() || !selectedConversationId) return;
@@ -49,7 +55,7 @@ export const DoctorMessagesPage: React.FC = () => {
   };
 
   const currentPartnerStaff = staff.find(s => (s.userId === selectedConversationId || s.id === selectedConversationId));
-  const currentChatPartnerInfo = conversations.find(c => c.id === selectedConversationId) || {
+  const currentChatPartnerInfo = filteredConversations.find(c => c.id === selectedConversationId) || {
     partnerName: currentPartnerStaff?.name || 'مستخدم',
     messages: []
   };
@@ -64,7 +70,7 @@ export const DoctorMessagesPage: React.FC = () => {
   // Helper maps for unread counts
   const staffUnreadMap = new Map();
   
-  conversations.forEach(conv => {
+  filteredConversations.forEach(conv => {
     if (conv.unreadCount > 0) {
       staffUnreadMap.set(conv.id, conv.unreadCount);
     }
