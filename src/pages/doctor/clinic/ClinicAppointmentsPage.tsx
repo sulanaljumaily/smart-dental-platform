@@ -1116,65 +1116,170 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                 /* Chat Viewport (Shown when a patient IS selected) */
                 <div className="flex-1 flex flex-col h-full overflow-hidden relative animate-in slide-in-from-left duration-300">
                   {/* Chat Header */}
-                  <div className="p-4 border-b bg-gray-50/50 flex items-center justify-between">
+                  <div className="px-4 py-3 border-b bg-white flex items-center justify-between shadow-sm shrink-0">
                     <div className="flex items-center gap-3">
                       {/* Back Button */}
                       <button
                         onClick={() => setActiveChatPatient(null)}
-                        className="p-2 hover:bg-gray-100 active:bg-gray-200 rounded-xl text-gray-500 transition-colors flex items-center justify-center border border-gray-200/60 bg-white shadow-sm ml-1"
+                        className="p-2 hover:bg-gray-100 active:bg-gray-200 rounded-xl text-gray-500 transition-colors flex items-center justify-center border border-gray-200/60 bg-white shadow-sm"
                         title="رجوع للقائمة"
                       >
                         <ChevronRight className="w-5 h-5 text-gray-600" />
                       </button>
-                      <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-bold">
-                        {activeChatPatient.name.charAt(0)}
+                      <div className="relative">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-black text-sm shadow-md">
+                          {activeChatPatient.name.charAt(0)}
+                        </div>
+                        <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white" />
                       </div>
                       <div className="text-right">
-                        <h4 className="font-bold text-gray-900 text-sm flex items-center gap-2 justify-start">
-                          {activeChatPatient.name}
-                          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                        </h4>
-                        <p className="text-xs text-gray-500 mt-0.5" dir="ltr">{activeChatPatient.phone}</p>
+                        <h4 className="font-black text-gray-900 text-sm">{activeChatPatient.name}</h4>
+                        <p className="text-[10px] text-emerald-600 font-bold mt-0.5 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse inline-block" />
+                          متصل الآن
+                        </p>
                       </div>
                     </div>
                     <button
                       onClick={() => navigate(`/doctor/clinic/${clinicId}/patient/${activeChatPatient.id}`)}
-                      className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-100 rounded-lg text-xs font-bold transition-all"
+                      className="px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 hover:from-blue-100 hover:to-indigo-100 border border-blue-100 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
                     >
-                      عرض ملف المريض
+                      <FileText className="w-3.5 h-3.5" />
+                      الملف الطبي
                     </button>
                   </div>
 
                   {/* Messages Body */}
-                  <div className="flex-1 p-4 overflow-y-auto bg-gray-50/30 space-y-4">
+                  <div className="flex-1 p-4 overflow-y-auto space-y-3" dir="rtl" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #f0f4ff 100%)' }}>
                     {chatMessages.length === 0 ? (
-                      <div className="text-center py-20 text-gray-400 text-sm">
-                        لا توجد رسائل سابقة. ابدأ بمراسلة المراجع الآن.
+                      <div className="flex flex-col items-center justify-center h-full gap-5 py-10">
+                        <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-3xl flex items-center justify-center shadow-inner">
+                          <MessageSquare className="w-10 h-10 text-indigo-400" />
+                        </div>
+                        <div className="text-center">
+                          <p className="font-black text-gray-700">لا توجد رسائل بعد</p>
+                          <p className="text-xs text-gray-400 mt-1.5 leading-relaxed">ابدأ المحادثة مع <span className="font-bold text-gray-600">{activeChatPatient.name}</span><br/>باستخدام الأزرار أدناه أو اكتب رسالة مباشرةً</p>
+                        </div>
+                        <div className="grid grid-cols-1 gap-2 w-full max-w-[200px]">
+                          {[
+                            { icon: '🔔', text: 'أرسل تذكير بالموعد', color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
+                            { icon: '🦷', text: 'أرسل الخطة العلاجية', color: 'text-teal-600 bg-teal-50 border-teal-100' },
+                            { icon: '⭐', text: 'اطلب تقييم المراجع', color: 'text-amber-600 bg-amber-50 border-amber-100' },
+                          ].map((s, i) => (
+                            <div key={i} className={`flex items-center gap-2 rounded-xl px-3 py-2 border ${s.color} text-xs font-bold shadow-sm`}>
+                              <span>{s.icon}</span> {s.text}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     ) : (
                       chatMessages.map((msg) => {
-                        const isMe = msg.sender_id === user?.id;
-                        const isReminder = msg.type === 'reminder';
+                        const isMe     = msg.sender_id === user?.id;
+                        const isAI     = msg.metadata?.is_ai === true && msg.metadata?.role === 'assistant';
+                        const isReminder     = msg.type === 'reminder';
+                        const isWidget = msg.type === 'widget';
+                        const isConfirmation = msg.type === 'confirmation' || msg.content === 'لقد قمت بتأكيد حضوري للموعد المحدد عبر المنصة. شكراً لكم.';
+
+
+                        if (isWidget) {
+                          const wType = msg.metadata?.widget_type;
+
+                          // ─── Premium Feedback Response Card ───
+                          if (wType === 'feedback_response') {
+                            const fRating = msg.metadata?.rating || 0;
+                            const fComment = msg.metadata?.comment || '';
+                            const fPatientName = msg.metadata?.patient_name || 'المراجع';
+                            return (
+                              <div key={msg.id} className="flex justify-end">
+                                <div className="max-w-[88%] w-full bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 border border-amber-200 rounded-3xl shadow-md overflow-hidden">
+                                  {/* Card Header */}
+                                  <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-3 flex items-center justify-between">
+                                    <div className="flex items-center gap-2 text-white">
+                                      <Star className="w-4 h-4 fill-white" />
+                                      <span className="font-black text-sm">تقييم جديد من المراجع</span>
+                                    </div>
+                                    <span className="text-[10px] text-amber-100 font-bold">
+                                      {new Date(msg.created_at).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  </div>
+                                  {/* Card Body */}
+                                  <div className="p-4 space-y-3" dir="rtl">
+                                    {/* Patient name */}
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-white font-black text-xs shadow-sm">
+                                        {fPatientName.charAt(0)}
+                                      </div>
+                                      <span className="font-black text-gray-800 text-sm">{fPatientName}</span>
+                                    </div>
+                                    {/* Stars */}
+                                    <div className="flex items-center gap-1">
+                                      {[1,2,3,4,5].map(s => (
+                                        <Star key={s} className={`w-6 h-6 transition-all ${s <= fRating ? 'fill-amber-400 text-amber-500' : 'text-gray-200 fill-gray-100'}`} />
+                                      ))}
+                                      <span className="mr-1 text-sm font-black text-gray-700">{fRating}<span className="text-gray-400 font-bold">/5</span></span>
+                                    </div>
+                                    {/* Comment */}
+                                    {fComment && (
+                                      <div className="bg-white/80 rounded-2xl p-3 border border-amber-100 text-xs text-gray-700 font-bold leading-relaxed italic">
+                                        "{fComment}"
+                                      </div>
+                                    )}
+                                    {/* Rating label */}
+                                    <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-black ${
+                                      fRating >= 5 ? 'bg-emerald-100 text-emerald-700' :
+                                      fRating >= 4 ? 'bg-blue-100 text-blue-700' :
+                                      fRating >= 3 ? 'bg-amber-100 text-amber-700' :
+                                      'bg-red-100 text-red-700'
+                                    }`}>
+                                      <span>{fRating >= 5 ? '🌟 ممتاز' : fRating >= 4 ? '👍 جيد جداً' : fRating >= 3 ? '👌 جيد' : '⚠️ يحتاج تحسين'}</span>
+                                      <span>— تم الحفظ في سجل التقييمات</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          // ─── Generic Widget Badge ───
+                          const wConfig: Record<string, { icon: string; label: string; color: string; bg: string; border: string }> = {
+                            booking: { icon: '📅', label: 'بطاقة حجز موعد جديد', color: 'text-indigo-700', bg: 'from-indigo-50 to-blue-50', border: 'border-indigo-100' },
+                            appointments: { icon: '⏰', label: 'بطاقة استعراض المواعيد', color: 'text-purple-700', bg: 'from-purple-50 to-violet-50', border: 'border-purple-100' },
+                            treatments: { icon: '🦷', label: 'بطاقة الخطة العلاجية', color: 'text-teal-700', bg: 'from-teal-50 to-cyan-50', border: 'border-teal-100' },
+                            info: { icon: 'ℹ️', label: 'بطاقة معلومات العيادة', color: 'text-emerald-700', bg: 'from-emerald-50 to-green-50', border: 'border-emerald-100' },
+                            feedback: { icon: '⭐', label: 'بطاقة طلب التقييم — تم الإرسال للمراجع', color: 'text-amber-700', bg: 'from-amber-50 to-orange-50', border: 'border-amber-100' },
+                          };
+                          const conf = wConfig[wType] || { icon: '📌', label: 'بطاقة تفاعلية', color: 'text-gray-700', bg: 'from-gray-50 to-gray-50', border: 'border-gray-100' };
+                          return (
+                            <div key={msg.id} className={`flex ${isMe ? 'justify-start' : 'justify-end'}`}>
+                              <div className={`max-w-[82%] bg-gradient-to-br ${conf.bg} border ${conf.border} rounded-2xl px-4 py-3 shadow-sm flex items-center gap-3`}>
+                                <span className="text-xl shrink-0">{conf.icon}</span>
+                                <div>
+                                  <p className={`font-black text-xs ${conf.color}`}>{conf.label}</p>
+                                  <p className="text-[10px] text-gray-400 font-bold mt-0.5">
+                                    {isMe ? 'أرسلتها للمراجع' : 'أرسلها المراجع'}
+                                    {' · '}
+                                    {new Date(msg.created_at).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' })}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
 
                         if (isReminder) {
                           return (
-                            <div
-                              key={msg.id}
-                              className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
-                            >
-                              <div className="max-w-[85%] bg-gradient-to-br from-blue-50/80 to-indigo-50/80 backdrop-blur-sm border border-blue-100 rounded-2xl p-4 shadow-sm text-right">
+                            <div key={msg.id} className={`flex ${isMe ? 'justify-start' : 'justify-end'}`}>
+                              <div className="max-w-[85%] bg-gradient-to-br from-blue-50/90 to-indigo-50/90 border border-blue-100 rounded-2xl p-4 shadow-sm">
                                 <div className="flex items-center gap-2 text-blue-700 font-bold mb-2 text-xs">
-                                  <Bell className="w-4 h-4 animate-bounce" />
-                                  <span>تذكير بموعد حجز إلكتروني مرسل</span>
+                                  <Bell className="w-3.5 h-3.5 animate-bounce" />
+                                  <span>تذكير بموعد — تم الإرسال</span>
                                 </div>
-                                <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed mb-3">
-                                  {msg.content}
-                                </p>
+                                <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed mb-3 font-medium">{msg.content}</p>
                                 {msg.metadata && (
-                                  <div className="bg-white/80 rounded-xl p-2.5 border border-blue-50/50 text-xs grid grid-cols-2 gap-2 text-gray-600">
-                                    <div>🗓️ التاريخ: {msg.metadata.date}</div>
-                                    <div>⏰ الوقت: {msg.metadata.time}</div>
-                                    <div className="col-span-2">🦷 الإجراء: {getTypeLabel(msg.metadata.type)}</div>
+                                  <div className="bg-white/80 rounded-xl p-2.5 border border-blue-50/50 text-xs grid grid-cols-2 gap-2 text-gray-600 font-bold">
+                                    <div>🗓️ {msg.metadata.date}</div>
+                                    <div>⏰ {msg.metadata.time}</div>
+                                    <div className="col-span-2">🦷 {getTypeLabel(msg.metadata.type)}</div>
                                   </div>
                                 )}
                                 <div className="text-[10px] text-gray-400 mt-2 text-left">
@@ -1185,28 +1290,127 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                           );
                         }
 
-                        if (msg.type === 'confirmation' || msg.content === 'لقد قمت بتأكيد حضوري للموعد المحدد عبر المنصة. شكراً لكم.') {
+                        if (isConfirmation) {
                           return (
-                            <div
-                              key={msg.id}
-                              className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
-                            >
-                              <div className="max-w-[85%] bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-2xl p-4 shadow-sm text-right">
+                            <div key={msg.id} className={`flex ${isMe ? 'justify-start' : 'justify-end'}`}>
+                              <div className="max-w-[85%] bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-2xl p-4 shadow-sm">
                                 <div className="flex items-center gap-2 text-emerald-700 font-bold mb-2 text-xs">
-                                  <CheckCircle className="w-4 h-4" />
-                                  <span>تأكيد حضور المراجع للموعد المجدول</span>
+                                  <CheckCircle className="w-3.5 h-3.5" />
+                                  <span>تأكيد حضور المراجع</span>
                                 </div>
                                 <p className="text-sm text-gray-700 font-bold leading-relaxed mb-3">
-                                  لقد قام المراجع بتأكيد حضوره للموعد المجدول عبر المنصة.
+                                  أكد المراجع حضوره للموعد المجدول عبر المنصة.
                                 </p>
                                 {msg.metadata && (msg.metadata.date || msg.metadata.time) && (
-                                  <div className="bg-white/80 rounded-xl p-2.5 border border-emerald-50 text-xs grid grid-cols-2 gap-2 text-gray-600 font-bold">
-                                    {msg.metadata.date && <div>🗓️ التاريخ: {msg.metadata.date}</div>}
-                                    {msg.metadata.time && <div>⏰ الوقت: {msg.metadata.time}</div>}
+                                  <div className="bg-white/80 rounded-xl p-2.5 border border-emerald-50 text-xs flex gap-4 text-gray-600 font-bold">
+                                    {msg.metadata.date && <span>🗓️ {msg.metadata.date}</span>}
+                                    {msg.metadata.time && <span>⏰ {msg.metadata.time}</span>}
                                   </div>
                                 )}
                                 <div className="text-[10px] text-gray-400 mt-2 text-left">
                                   {new Date(msg.created_at).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' })}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        // ─── Detect old-format feedback text messages & render as premium card ───
+                        const isFeedbackText = !isMe && (
+                          msg.content?.includes('لقد قام المراجع بتقييم') ||
+                          msg.content?.includes('تقييم المراجع:') ||
+                          msg.metadata?.widget_type === 'feedback_response'
+                        );
+
+                        if (isFeedbackText) {
+                          // Extract rating from content if metadata missing
+                          const fRating = msg.metadata?.rating || (() => {
+                            const match = msg.content?.match(/(\d)\s*من\s*5/);
+                            return match ? parseInt(match[1]) : 0;
+                          })();
+                          const fComment = msg.metadata?.comment || (() => {
+                            const match = msg.content?.match(/ملاحظات المراجع:\s*(.+)/s);
+                            const raw = match ? match[1].trim() : '';
+                            return raw === 'لا توجد تعليقات إضافية.' ? '' : raw;
+                          })();
+                          const fPatientName = msg.metadata?.patient_name || activeChatPatient?.name || 'المراجع';
+
+                          return (
+                            <div key={msg.id} className="flex justify-end">
+                              <div className="max-w-[90%] w-full bg-gradient-to-br from-amber-50 via-orange-50/80 to-yellow-50 border border-amber-200/80 rounded-3xl shadow-lg shadow-amber-100/50 overflow-hidden animate-in fade-in duration-300">
+                                {/* ── Header ── */}
+                                <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 px-5 py-3.5 flex items-center justify-between">
+                                  <div className="flex items-center gap-2.5 text-white">
+                                    <div className="w-7 h-7 bg-white/20 rounded-xl flex items-center justify-center">
+                                      <Star className="w-4 h-4 fill-white text-white" />
+                                    </div>
+                                    <div>
+                                      <p className="font-black text-sm leading-none">تقييم جديد من المراجع</p>
+                                      <p className="text-[10px] text-amber-100 mt-0.5 font-bold">وصل للتو — محفوظ في سجل التقييمات</p>
+                                    </div>
+                                  </div>
+                                  <span className="text-[10px] text-amber-200 font-bold bg-white/10 px-2 py-1 rounded-lg">
+                                    {new Date(msg.created_at).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                </div>
+
+                                {/* ── Body ── */}
+                                <div className="p-4 space-y-3.5" dir="rtl">
+                                  {/* Patient name row */}
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="w-9 h-9 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-white font-black text-sm shadow-md shadow-amber-200/60">
+                                      {fPatientName.charAt(0)}
+                                    </div>
+                                    <div>
+                                      <p className="font-black text-gray-900 text-sm">{fPatientName}</p>
+                                      <p className="text-[10px] text-gray-400 font-bold">أرسل تقييمه للعيادة</p>
+                                    </div>
+                                  </div>
+
+                                  {/* Stars row */}
+                                  <div className="bg-white/70 rounded-2xl px-4 py-3 border border-amber-100 flex items-center justify-between">
+                                    <div className="flex items-center gap-1">
+                                      {[1, 2, 3, 4, 5].map(s => (
+                                        <Star
+                                          key={s}
+                                          className={`w-7 h-7 drop-shadow-sm transition-all ${
+                                            s <= fRating
+                                              ? 'fill-amber-400 text-amber-500 scale-110'
+                                              : 'fill-gray-100 text-gray-200'
+                                          }`}
+                                        />
+                                      ))}
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="font-black text-2xl text-gray-900 leading-none">{fRating}<span className="text-gray-300 text-base font-bold">/5</span></p>
+                                      <p className="text-[10px] text-gray-400 font-bold">
+                                        {fRating === 5 ? 'ممتاز' : fRating === 4 ? 'جيد جداً' : fRating === 3 ? 'جيد' : fRating === 2 ? 'مقبول' : 'ضعيف'}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  {/* Comment */}
+                                  {fComment && (
+                                    <div className="bg-white/80 rounded-2xl px-4 py-3 border border-amber-100/80 relative">
+                                      <div className="absolute -top-2 right-4 w-4 h-4 bg-amber-400 rounded-full flex items-center justify-center">
+                                        <span className="text-white text-[8px] font-black">"</span>
+                                      </div>
+                                      <p className="text-sm text-gray-700 font-bold leading-relaxed italic pt-1">
+                                        {fComment}
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  {/* Rating badge */}
+                                  <div className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-black border ${
+                                    fRating >= 5 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                    fRating >= 4 ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                    fRating >= 3 ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                    'bg-red-50 text-red-700 border-red-200'
+                                  }`}>
+                                    <span>{fRating >= 5 ? '🌟' : fRating >= 4 ? '👍' : fRating >= 3 ? '👌' : '⚠️'}</span>
+                                    <span>{fRating >= 5 ? 'تقييم ممتاز — استمر بهذا المستوى!' : fRating >= 4 ? 'تقييم جيد جداً — أداء رائع!' : fRating >= 3 ? 'تقييم جيد — هناك مجال للتحسين' : 'تقييم منخفض — يحتاج مراجعة'}</span>
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -1214,23 +1418,16 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                         }
 
                         return (
-                          <div
-                            key={msg.id}
-                            className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
-                          >
+                          <div key={msg.id} className={`flex ${isMe ? 'justify-start' : 'justify-end'}`}>
                             <div
-                              className={`max-w-[70%] px-4 py-3 rounded-2xl text-sm shadow-sm relative ${
+                              className={`max-w-[72%] px-4 py-3 rounded-2xl text-sm shadow-sm ${
                                 isMe
-                                  ? 'bg-blue-600 text-white rounded-br-none shadow-blue-100'
-                                  : 'bg-white text-gray-800 border border-gray-150 rounded-bl-none'
+                                  ? 'bg-white border border-gray-100 text-gray-800 rounded-br-sm'
+                                  : 'bg-gradient-to-br from-blue-600 to-indigo-700 text-white rounded-bl-sm shadow-blue-200/50'
                               }`}
                             >
-                              <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
-                              <div
-                                className={`text-[9px] mt-1 text-left ${
-                                  isMe ? 'text-blue-100' : 'text-gray-400'
-                                }`}
-                              >
+                              <p className="whitespace-pre-wrap leading-relaxed font-medium">{msg.content}</p>
+                              <div className={`text-[9px] mt-1.5 text-left ${isMe ? 'text-gray-400' : 'text-blue-200'}`}>
                                 {new Date(msg.created_at).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' })}
                               </div>
                             </div>
@@ -1240,106 +1437,115 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                     )}
                   </div>
 
-                  {/* Chat Input */}
-                  <div className="p-3 border-t bg-white flex flex-col gap-2.5">
-                    {/* Quick Actions Row */}
-                    <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide shrink-0" dir="rtl">
-                      {/* 1. Appointment Reminder */}
-                      <button
-                        onClick={() => {
-                          const latestApt = appointments
-                            .filter(apt => apt.patientId === activeChatPatient.id)
-                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-                          if (latestApt) {
-                            setSelectedAptForReminder(latestApt);
-                          } else {
-                            toast.error("لا يوجد مواعيد مسجلة لهذا المريض لتذكيره بها");
-                          }
-                        }}
-                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-100/50 hover:border-indigo-200 rounded-xl px-3 py-1.5 text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95 shadow-sm shrink-0"
-                      >
-                        <Bell className="w-3.5 h-3.5" />
-                        <span>تذكير بالموعد</span>
-                      </button>
+                  {/* Premium Chat Input Area */}
+                  <div className="border-t bg-white shrink-0">
+                    {/* Premium Quick Actions Bar */}
+                    <div className="px-3 pt-2.5 pb-1.5">
+                      <div className="flex items-center gap-2 overflow-x-auto pb-0.5 scrollbar-hide" dir="rtl">
+                        {/* 1. Appointment Reminder */}
+                        <button
+                          onClick={() => {
+                            const latestApt = appointments
+                              .filter(apt => apt.patientId === activeChatPatient.id)
+                              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+                            if (latestApt) {
+                              setSelectedAptForReminder(latestApt);
+                            } else {
+                              toast.error("لا يوجد مواعيد مسجلة لهذا المريض لتذكيره بها");
+                            }
+                          }}
+                          className="group relative overflow-hidden bg-gradient-to-br from-indigo-500 to-blue-600 text-white rounded-2xl px-3.5 py-2 text-[11px] font-black transition-all flex items-center gap-1.5 active:scale-95 shadow-md shadow-indigo-200/60 hover:shadow-indigo-300/60 hover:scale-[1.03] shrink-0"
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                          <Bell className="w-3.5 h-3.5 shrink-0" />
+                          <span>تذكير بالموعد</span>
+                        </button>
 
-                      {/* 2. Ask Patient Feedback */}
-                      <button
-                        onClick={async () => {
-                          if (sendingMsg || !activeChatPatient?.patient_user_id || !user?.id) return;
-                          try {
-                            const { error } = await supabase
-                              .from('direct_messages')
-                              .insert({
-                                sender_id: user.id,
-                                recipient_id: activeChatPatient.patient_user_id,
-                                content: '📊 أخذ رأي المراجع: يرجى تقييم زيارتكم للعيادة وتجربتكم معنا.',
-                                type: 'widget',
-                                metadata: { widget_type: 'feedback', role: 'assistant' }
-                              });
-                            if (error) throw error;
-                            toast.success('تم إرسال بطاقة طلب التقييم للمريض بنجاح');
-                            fetchChatMessages(activeChatPatient.patient_user_id);
-                          } catch (err: any) {
-                            console.error(err);
-                            toast.error('فشل إرسال التقييم: ' + err.message);
-                          }
-                        }}
-                        className="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-100/50 hover:border-amber-200 rounded-xl px-3 py-1.5 text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95 shadow-sm shrink-0"
-                      >
-                        <Star className="w-3.5 h-3.5" />
-                        <span>أخذ رأي المراجع</span>
-                      </button>
+                        {/* 2. Ask Patient Feedback */}
+                        <button
+                          onClick={async () => {
+                            if (sendingMsg || !activeChatPatient?.patient_user_id || !user?.id) return;
+                            try {
+                              const { error } = await supabase
+                                .from('direct_messages')
+                                .insert({
+                                  sender_id: user.id,
+                                  recipient_id: activeChatPatient.patient_user_id,
+                                  content: '📊 أخذ رأي المراجع: يرجى تقييم زيارتكم للعيادة وتجربتكم معنا.',
+                                  type: 'widget',
+                                  metadata: { widget_type: 'feedback', role: 'assistant' }
+                                });
+                              if (error) throw error;
+                              toast.success('تم إرسال بطاقة طلب التقييم للمريض بنجاح');
+                              fetchChatMessages(activeChatPatient.patient_user_id);
+                            } catch (err: any) {
+                              console.error(err);
+                              toast.error('فشل إرسال التقييم: ' + err.message);
+                            }
+                          }}
+                          className="group relative overflow-hidden bg-gradient-to-br from-amber-500 to-orange-500 text-white rounded-2xl px-3.5 py-2 text-[11px] font-black transition-all flex items-center gap-1.5 active:scale-95 shadow-md shadow-amber-200/60 hover:shadow-amber-300/60 hover:scale-[1.03] shrink-0"
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                          <Star className="w-3.5 h-3.5 shrink-0" />
+                          <span>أخذ رأي المراجع</span>
+                        </button>
 
-                      {/* 3. Send Treatment Plan */}
-                      <button
-                        onClick={async () => {
-                          if (sendingMsg || !activeChatPatient?.patient_user_id || !user?.id) return;
-                          try {
-                            const { error } = await supabase
-                              .from('direct_messages')
-                              .insert({
-                                sender_id: user.id,
-                                recipient_id: activeChatPatient.patient_user_id,
-                                content: '🦷 بطاقة الخطة العلاجية: استعراض حالة الأسنان وجلسات العلاج المجدولة.',
-                                type: 'widget',
-                                metadata: { widget_type: 'treatments', role: 'assistant' }
-                              });
-                            if (error) throw error;
-                            toast.success('تم إرسال بطاقة الخطة العلاجية للمريض بنجاح');
-                            fetchChatMessages(activeChatPatient.patient_user_id);
-                          } catch (err: any) {
-                            console.error(err);
-                            toast.error('فشل إرسال الخطة العلاجية: ' + err.message);
-                          }
-                        }}
-                        className="bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-100/50 hover:border-teal-200 rounded-xl px-3 py-1.5 text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95 shadow-sm shrink-0"
-                      >
-                        <Activity className="w-3.5 h-3.5" />
-                        <span>إرسال الخطة العلاجية</span>
-                      </button>
+                        {/* 3. Send Treatment Plan */}
+                        <button
+                          onClick={async () => {
+                            if (sendingMsg || !activeChatPatient?.patient_user_id || !user?.id) return;
+                            try {
+                              const { error } = await supabase
+                                .from('direct_messages')
+                                .insert({
+                                  sender_id: user.id,
+                                  recipient_id: activeChatPatient.patient_user_id,
+                                  content: '🦷 بطاقة الخطة العلاجية: استعراض حالة الأسنان وجلسات العلاج المجدولة.',
+                                  type: 'widget',
+                                  metadata: { widget_type: 'treatments', role: 'assistant' }
+                                });
+                              if (error) throw error;
+                              toast.success('تم إرسال بطاقة الخطة العلاجية للمريض بنجاح');
+                              fetchChatMessages(activeChatPatient.patient_user_id);
+                            } catch (err: any) {
+                              console.error(err);
+                              toast.error('فشل إرسال الخطة العلاجية: ' + err.message);
+                            }
+                          }}
+                          className="group relative overflow-hidden bg-gradient-to-br from-teal-500 to-emerald-600 text-white rounded-2xl px-3.5 py-2 text-[11px] font-black transition-all flex items-center gap-1.5 active:scale-95 shadow-md shadow-teal-200/60 hover:shadow-teal-300/60 hover:scale-[1.03] shrink-0"
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                          <Activity className="w-3.5 h-3.5 shrink-0" />
+                          <span>الخطة العلاجية</span>
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <textarea
-                        value={newMessageText}
-                        onChange={(e) => setNewMessageText(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault();
-                            handleSendMessage();
-                          }
-                        }}
-                        placeholder="اكتب رسالتك للمراجع..."
-                        rows={1}
-                        className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none resize-none"
-                      />
-                      <button
-                        onClick={handleSendMessage}
-                        disabled={sendingMsg || !newMessageText.trim()}
-                        className="p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center shrink-0"
-                      >
-                        <Send className="w-5 h-5" />
-                      </button>
+                    {/* Text Input Row */}
+                    <div className="px-3 pb-3 pt-1">
+                      <div className="flex items-end gap-2 bg-gray-50/80 rounded-2xl border border-gray-200/80 focus-within:border-blue-300 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-100/60 transition-all p-1.5">
+                        <textarea
+                          value={newMessageText}
+                          onChange={(e) => setNewMessageText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              handleSendMessage();
+                            }
+                          }}
+                          placeholder="اكتب رسالتك للمراجع..."
+                          rows={1}
+                          className="flex-1 bg-transparent border-none outline-none resize-none text-sm px-2 py-1.5 font-medium placeholder:text-gray-400 max-h-24 leading-relaxed"
+                          dir="rtl"
+                        />
+                        <button
+                          onClick={handleSendMessage}
+                          disabled={sendingMsg || !newMessageText.trim()}
+                          className="p-2.5 bg-gradient-to-br from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white rounded-xl shadow-md shadow-blue-200/50 transition-all active:scale-95 disabled:opacity-40 disabled:shadow-none flex items-center justify-center shrink-0"
+                        >
+                          <Send className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

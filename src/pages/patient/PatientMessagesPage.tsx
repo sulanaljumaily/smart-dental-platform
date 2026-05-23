@@ -164,12 +164,15 @@ export const PatientMessagesPage: React.FC<PatientMessagesPageProps> = ({ hideNa
 
   const saveVoiceMessageToDb = async (clinicUserId: string, content: string, role: 'user' | 'assistant') => {
     try {
+      // AI assistant messages come FROM the clinic, patient messages FROM the user
+      const senderId  = role === 'assistant' ? clinicUserId : user?.id;
+      const recipientId = role === 'assistant' ? user?.id    : clinicUserId;
       await supabase.from('direct_messages').insert({
-        sender_id: user?.id,
-        recipient_id: clinicUserId,
-        content: content,
-        type: 'text',
-        metadata: { is_ai: true, role }
+        sender_id:    senderId,
+        recipient_id: recipientId,
+        content:      content,
+        type:         'text',
+        metadata:     { is_ai: true, role }
       });
     } catch (err) {
       console.error('Failed to save AI conversation piece:', err);
@@ -409,15 +412,15 @@ export const PatientMessagesPage: React.FC<PatientMessagesPageProps> = ({ hideNa
         toast.success('جاري عرض معلومات العيادة...');
       }
 
-      // Save AI's response in direct_messages
+      // Save AI's response in direct_messages — sender is the CLINIC (not the patient)
       if (clinicUserId && user) {
         try {
           await supabase.from('direct_messages').insert({
-            sender_id: user.id,
-            recipient_id: clinicUserId,
-            content: parsedText,
-            type: 'text',
-            metadata: { is_ai: true, role: 'assistant' }
+            sender_id:    clinicUserId,   // AI speaks ON BEHALF of the clinic
+            recipient_id: user.id,
+            content:      parsedText,
+            type:         'text',
+            metadata:     { is_ai: true, role: 'assistant' }
           });
         } catch (dbErr) {
           console.error('Failed to save AI response to DB:', dbErr);
@@ -697,7 +700,8 @@ export const PatientMessagesPage: React.FC<PatientMessagesPageProps> = ({ hideNa
           onClick={async () => {
             setSubmittingFeedback(prev => ({ ...prev, [index]: true }));
             try {
-              const { error } = await supabase
+              // 1. Mark the widget message itself as submitted (so patient sees thank-you state)
+              const { error: updateErr } = await supabase
                 .from('direct_messages')
                 .update({
                   metadata: {
@@ -709,21 +713,41 @@ export const PatientMessagesPage: React.FC<PatientMessagesPageProps> = ({ hideNa
                 })
                 .eq('id', msg.id);
 
-              if (error) throw error;
+              if (updateErr) throw updateErr;
 
-              // Send confirmation message to the doctor in the chat logs
               const clinicUserId = selectedClinicRef.current?.user_id || selectedClinicRef.current?.owner_id;
+              const clinicId = selectedClinicRef.current?.id;
+
+              // 2. Insert into clinic_reviews table for persistent storage
+              if (clinicId && user) {
+                await supabase.from('clinic_reviews').insert({
+                  clinic_id: parseInt(clinicId),
+                  patient_user_id: user.id,
+                  patient_name: user.user_metadata?.full_name || user.email || 'مريض',
+                  rating: rating,
+                  comment: comment || null,
+                  message_id: msg.id
+                });
+              }
+
+              // 3. Send a 'feedback_response' WIDGET message to the clinic (not plain text)
               if (clinicUserId && user) {
                 await supabase.from('direct_messages').insert({
                   sender_id: user.id,
                   recipient_id: clinicUserId,
-                  content: `⭐ لقد قام المراجع بتقييم العيادة بـ ${rating} من 5 نجوم.\nملاحظات المراجع: ${comment || 'لا توجد تعليقات إضافية.'}`,
-                  type: 'text',
-                  metadata: { is_ai: true, role: 'user' }
+                  content: `تقييم المراجع: ${rating} من 5 نجوم`,
+                  type: 'widget',
+                  metadata: {
+                    widget_type: 'feedback_response',
+                    rating: rating,
+                    comment: comment || '',
+                    patient_name: user.user_metadata?.full_name || user.email || 'مريض',
+                    submitted_at: new Date().toISOString()
+                  }
                 });
               }
 
-              // Update local messages state
+              // 4. Update local messages state
               setAiMessages(prev =>
                 prev.map(m =>
                   m.id === msg.id
