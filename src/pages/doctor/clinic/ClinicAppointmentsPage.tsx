@@ -20,7 +20,14 @@ import {
   ChevronDown,
   History, // Added
   Globe,
-  MessageSquare
+  MessageSquare,
+  Bell,
+  Settings,
+  Send,
+  Paperclip,
+  User,
+  Check,
+  ChevronLeft
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../../../components/common/Card';
@@ -35,6 +42,8 @@ import { usePatients } from '../../../hooks/usePatients';
 import { useOnlineRequests, OnlineRequest } from '../../../hooks/useOnlineRequests';
 import { getStaffByClinic } from '../../../data/mock/clinicStaff';
 import { useStaff } from '../../../hooks/useStaff';
+import { useAuth } from '../../../contexts/AuthContext';
+
 
 interface ClinicAppointmentsPageProps {
   clinicId: string;
@@ -95,6 +104,305 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
 
   // New state for pre-filling the Add Modal
   const [initialAppointmentData, setInitialAppointmentData] = useState<Partial<Appointment> | null>(null);
+
+  // ==========================================
+  // PHASE 3 & WhatsApp Integration Additions
+  // ==========================================
+  const { user } = useAuth();
+  const [selectedAptForReminder, setSelectedAptForReminder] = useState<Appointment | null>(null);
+  const [reminderMethod, setReminderMethod] = useState<'platform' | 'whatsapp_web' | 'twilio' | 'ultramsg' | 'greenapi'>('platform');
+  const [reminderMessage, setReminderMessage] = useState('');
+  const [sendingReminder, setSendingReminder] = useState(false);
+
+  // WhatsApp settings
+  const [whatsappSettings, setWhatsappSettings] = useState<any>(null);
+  const [loadingSettings, setLoadingSettings] = useState(false);
+  const [testPhone, setTestPhone] = useState('');
+  const [sendingTest, setSendingTest] = useState(false);
+
+  // Chat/Messages settings
+  const [activeChatPatient, setActiveChatPatient] = useState<any>(null);
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [newMessageText, setNewMessageText] = useState('');
+  const [sendingMsg, setSendingMsg] = useState(false);
+  const [activeSubTab, setActiveSubTab] = useState<'chats' | 'settings'>('chats');
+
+  // Load WhatsApp settings
+  const fetchWhatsappSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('whatsapp_settings')
+        .select('*')
+        .eq('clinic_id', parseInt(clinicId))
+        .maybeSingle();
+
+      if (data) {
+        setWhatsappSettings(data);
+      } else {
+        setWhatsappSettings({
+          clinic_id: parseInt(clinicId),
+          provider: 'whatsapp_web',
+          phone_number: '',
+          api_key: '',
+          api_url: '',
+          is_active: true
+        });
+      }
+    } catch (e) {
+      console.error('Error fetching settings:', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchWhatsappSettings();
+  }, [clinicId]);
+
+  // Set default reminder text when appointment is selected
+  useEffect(() => {
+    if (selectedAptForReminder) {
+      const pName = getPatientName(selectedAptForReminder.patientId, selectedAptForReminder.patientName);
+      const timeStr = selectedAptForReminder.time;
+      const dateStr = selectedAptForReminder.date;
+      const typeStr = getTypeLabel(selectedAptForReminder.type);
+      
+      const isPlatformUser = patients.find(p => p.id === selectedAptForReminder.patientId)?.patient_user_id;
+      setReminderMethod(isPlatformUser ? 'platform' : 'whatsapp_web');
+
+      setReminderMessage(
+        `مرحباً ${pName}، نود تذكيرك بموعدك القادم في عيادتنا:\n` +
+        `🗓️ التاريخ: ${dateStr}\n` +
+        `⏰ الوقت: ${timeStr}\n` +
+        `🦷 نوع الزيارة: ${typeStr}\n\n` +
+        `يسعدنا حضورك في الموعد المحدد. في حال رغبتك بالتأجيل أو الإلغاء يرجى إعلامنا مسبقاً.`
+      );
+    }
+  }, [selectedAptForReminder, patients]);
+
+  // Client-side direct paid gateways senders
+  const sendTwilioMessage = async (to: string, body: string, settings: any) => {
+    const { api_key, api_url, phone_number } = settings;
+    if (!api_url || !api_key || !phone_number) {
+      throw new Error('يرجى التحقق من إعدادات Twilio (Account SID, Auth Token, Sender Phone)');
+    }
+    const isWhatsApp = phone_number.startsWith('whatsapp:');
+    const fromVal = phone_number;
+    const toVal = isWhatsApp ? (to.startsWith('whatsapp:') ? to : `whatsapp:${to}`) : to;
+
+    const url = `https://api.twilio.com/2010-04-01/Accounts/${api_url}/Messages.json`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Basic ' + btoa(`${api_url}:${api_key}`),
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: new URLSearchParams({ To: toVal, From: fromVal, Body: body }).toString()
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.message || 'فشل إرسال رسالة Twilio');
+    }
+    return await response.json();
+  };
+
+  const sendUltramsgMessage = async (to: string, body: string, settings: any) => {
+    const { api_key, api_url } = settings;
+    if (!api_key || !api_url) {
+      throw new Error('يرجى التحقق من إعدادات Ultramsg (Instance ID, Token)');
+    }
+    const cleanTo = to.replace(/\D/g, '');
+    const url = `https://api.ultramsg.com/${api_url}/messages/chat`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ token: api_key, to: cleanTo, body }).toString()
+    });
+    if (!response.ok) throw new Error('فشل إرسال رسالة Ultramsg');
+    return await response.json();
+  };
+
+  const sendGreenApiMessage = async (to: string, body: string, settings: any) => {
+    const { api_key, api_url } = settings;
+    if (!api_key || !api_url) {
+      throw new Error('يرجى التحقق من إعدادات Green API (idInstance, apiTokenInstance)');
+    }
+    const cleanTo = to.replace(/\D/g, '') + '@c.us';
+    const url = `https://api.green-api.com/waInstance${api_url}/sendMessage/${api_key}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chatId: cleanTo, message: body })
+    });
+    if (!response.ok) throw new Error('فشل إرسال رسالة Green API');
+    return await response.json();
+  };
+
+  const handleSendTestMessage = async () => {
+    if (!testPhone.trim() || !whatsappSettings) {
+      toast.error('يرجى كتابة رقم الهاتف للتجربة وتعبئة إعدادات الواتساب أولاً');
+      return;
+    }
+    setSendingTest(true);
+    try {
+      const provider = whatsappSettings.provider;
+      const testMsg = `رسالة تجريبية من منصة سمارت دنتال لتأكيد نجاح ربط الإشعارات والواتساب التلقائي للعيادة! 🦷✨`;
+      
+      if (provider === 'twilio') {
+        await sendTwilioMessage(testPhone, testMsg, whatsappSettings);
+      } else if (provider === 'ultramsg') {
+        await sendUltramsgMessage(testPhone, testMsg, whatsappSettings);
+      } else if (provider === 'greenapi') {
+        await sendGreenApiMessage(testPhone, testMsg, whatsappSettings);
+      } else {
+        // Fallback for whatsapp_web
+        const cleanPhone = testPhone.replace(/\D/g, '');
+        const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(testMsg)}`;
+        window.open(url, '_blank');
+      }
+      toast.success('تم إرسال الرسالة التجريبية بنجاح! يرجى التحقق من هاتف التجربة.');
+    } catch (e: any) {
+      console.error(e);
+      toast.error('فشل إرسال الرسالة التجريبية: ' + e.message);
+    } finally {
+      setSendingTest(false);
+    }
+  };
+
+  const handleSendReminder = async () => {
+    if (!selectedAptForReminder) return;
+    const patientObj = patients.find(p => p.id === selectedAptForReminder.patientId);
+    const phone = selectedAptForReminder.patientPhone || patientObj?.phone;
+    const recipientUserId = patientObj?.patient_user_id || selectedAptForReminder.patientUserId;
+
+    if (!phone && reminderMethod !== 'platform') {
+      toast.error('المريض ليس لديه رقم هاتف مسجل');
+      return;
+    }
+
+    setSendingReminder(true);
+    try {
+      if (reminderMethod === 'platform') {
+        if (!recipientUserId) {
+          toast.error('المريض غير مرتبط بحساب منصة');
+          setSendingReminder(false);
+          return;
+        }
+        const { error } = await supabase
+          .from('direct_messages')
+          .insert({
+            sender_id: user?.id,
+            recipient_id: recipientUserId,
+            content: reminderMessage,
+            type: 'reminder',
+            metadata: {
+              appointment_id: selectedAptForReminder.id,
+              date: selectedAptForReminder.date,
+              time: selectedAptForReminder.time,
+              type: selectedAptForReminder.type
+            }
+          });
+        if (error) throw error;
+        toast.success('تم إرسال التذكير بنجاح إلى صندوق وارد المراجع على المنصة');
+      } else if (reminderMethod === 'whatsapp_web') {
+        const cleanPhone = phone!.replace(/\D/g, '');
+        const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(reminderMessage)}`;
+        window.open(url, '_blank');
+        toast.success('تم فتح نافذة WhatsApp Web للتأكيد والإرسال');
+      } else {
+        if (reminderMethod === 'twilio') {
+          await sendTwilioMessage(phone!, reminderMessage, whatsappSettings);
+        } else if (reminderMethod === 'ultramsg') {
+          await sendUltramsgMessage(phone!, reminderMessage, whatsappSettings);
+        } else if (reminderMethod === 'greenapi') {
+          await sendGreenApiMessage(phone!, reminderMessage, whatsappSettings);
+        }
+        
+        if (recipientUserId) {
+          await supabase.from('direct_messages').insert({
+            sender_id: user?.id,
+            recipient_id: recipientUserId,
+            content: `[تذكير مرسل عبر الواتساب]:\n${reminderMessage}`,
+            type: 'reminder',
+            metadata: { provider: reminderMethod }
+          });
+        }
+        toast.success(`تم إرسال التذكير بنجاح عبر ${reminderMethod}`);
+      }
+      setSelectedAptForReminder(null);
+    } catch (e: any) {
+      console.error(e);
+      toast.error('فشل إرسال التذكير: ' + e.message);
+    } finally {
+      setSendingReminder(false);
+    }
+  };
+
+  // Real-time Chat Loaders
+  const fetchChatMessages = async (patientUserId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('direct_messages')
+        .select('*')
+        .or(`and(sender_id.eq.${user?.id},recipient_id.eq.${patientUserId}),and(sender_id.eq.${patientUserId},recipient_id.eq.${user?.id})`)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      setChatMessages(data || []);
+    } catch (e) {
+      console.error('Error fetching chat messages:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (!activeChatPatient?.patient_user_id || !user?.id) return;
+    
+    fetchChatMessages(activeChatPatient.patient_user_id);
+
+    const subscription = supabase
+      .channel(`chat:${activeChatPatient.patient_user_id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'direct_messages'
+      }, (payload) => {
+        const newMsg = payload.new;
+        if (
+          (newMsg.sender_id === user.id && newMsg.recipient_id === activeChatPatient.patient_user_id) ||
+          (newMsg.sender_id === activeChatPatient.patient_user_id && newMsg.recipient_id === user.id)
+        ) {
+          setChatMessages(prev => [...prev, newMsg]);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  }, [activeChatPatient, user]);
+
+  const handleSendMessage = async () => {
+    if (!newMessageText.trim() || !activeChatPatient?.patient_user_id || !user?.id) return;
+
+    setSendingMsg(true);
+    try {
+      const { error } = await supabase
+        .from('direct_messages')
+        .insert({
+          sender_id: user.id,
+          recipient_id: activeChatPatient.patient_user_id,
+          content: newMessageText.trim(),
+          type: 'text'
+        });
+      if (error) throw error;
+      setNewMessageText('');
+      fetchChatMessages(activeChatPatient.patient_user_id);
+    } catch (e: any) {
+      console.error(e);
+      toast.error('فشل إرسال الرسالة: ' + e.message);
+    } finally {
+      setSendingMsg(false);
+    }
+  };
 
   const handleConfirmRequest = async (request: OnlineRequest) => {
     // Direct confirm as requested (reverting modal logic)
@@ -473,11 +781,29 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
 
                     {/* Quick Actions */}
                     <div className="flex flex-col md:flex-row items-center gap-1">
+                      <button
+                        className="p-2 text-blue-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                        title="إرسال تذكير بالموعد"
+                        onClick={() => setSelectedAptForReminder(apt)}
+                      >
+                        <Bell className="w-5 h-5" />
+                      </button>
+
                       {apt.patientUserId && (
                         <button
                           className="p-2 text-amber-500 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all"
                           title="مراسلة المريض"
-                          onClick={() => setSectionTab('messages')}
+                          onClick={() => {
+                            const patient = patients.find(p => p.id === apt.patientId);
+                            setActiveChatPatient({
+                              id: apt.patientId,
+                              patient_user_id: apt.patientUserId,
+                              name: patient ? patient.name : getPatientName(apt.patientId, apt.patientName),
+                              phone: patient ? patient.phone : (apt.patientPhone || '')
+                            });
+                            setSectionTab('messages');
+                            setActiveSubTab('chats');
+                          }}
                         >
                           <MessageSquare className="w-5 h-5" />
                         </button>
@@ -558,11 +884,29 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                       {getStatusLabel(apt.status)}
                     </span>
                     <div className="flex items-center gap-1">
+                      <button
+                        className="p-1.5 text-blue-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                        title="إرسال تذكير بالموعد"
+                        onClick={() => setSelectedAptForReminder(apt)}
+                      >
+                        <Bell className="w-4 h-4" />
+                      </button>
+
                       {apt.patientUserId && (
                         <button
                           className="p-1.5 text-amber-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg"
                           title="مراسلة المريض"
-                          onClick={() => setSectionTab('messages')}
+                          onClick={() => {
+                            const patient = patients.find(p => p.id === apt.patientId);
+                            setActiveChatPatient({
+                              id: apt.patientId,
+                              patient_user_id: apt.patientUserId,
+                              name: patient ? patient.name : getPatientName(apt.patientId, apt.patientName),
+                              phone: patient ? patient.phone : (apt.patientPhone || '')
+                            });
+                            setSectionTab('messages');
+                            setActiveSubTab('chats');
+                          }}
                         >
                           <MessageSquare className="w-4 h-4" />
                         </button>
@@ -600,15 +944,427 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
 
       {/* Messages Tab View */}
       {sectionTab === 'messages' && (
-        <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
-          <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-bold text-gray-900 mb-2">رسائل المراجعين</h3>
-          <p className="text-gray-500 max-w-sm mx-auto">
-            من هنا يمكنك التواصل مباشرة مع مراجعيك الذين يمتلكون حسابات نشطة على منصة سمارت دنتال.
-          </p>
-          <div className="mt-6 inline-flex items-center gap-2 text-amber-600 bg-amber-50 px-4 py-2 rounded-xl text-sm font-medium">
-            <AlertCircle className="w-4 h-4" /> سيتم تفعيل المراسلة الفورية قريباً
+        <div className="space-y-6 animate-in fade-in duration-500">
+          {/* Sub Navigation Tabs */}
+          <div className="flex bg-gray-100/80 backdrop-blur p-1 rounded-xl border border-gray-200/50 max-w-md">
+            <button
+              onClick={() => setActiveSubTab('chats')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${
+                activeSubTab === 'chats'
+                  ? 'bg-white text-blue-600 shadow-sm border border-gray-150'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <MessageSquare className="w-4 h-4" /> المحادثات والرسائل
+            </button>
+            <button
+              onClick={() => setActiveSubTab('settings')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all ${
+                activeSubTab === 'settings'
+                  ? 'bg-white text-blue-600 shadow-sm border border-gray-150'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <Settings className="w-4 h-4" /> إعدادات الواتساب (مجاني / مدفوع)
+            </button>
           </div>
+
+          {activeSubTab === 'chats' ? (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
+              {/* Patient Chat Sidebar */}
+              <div className="lg:col-span-1 bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex flex-col h-full overflow-hidden">
+                <h3 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                  <Users className="w-5 h-5 text-gray-400" /> مراجعي العيادة
+                </h3>
+                {/* Search in Sidebar */}
+                <div className="relative mb-4">
+                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="ابحث بالاسم أو الهاتف..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pr-9 pl-4 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                  />
+                </div>
+
+                {/* Patient List */}
+                <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                  {patients
+                    .filter(p => searchTerm === '' || p.name.includes(searchTerm) || p.phone.includes(searchTerm))
+                    .map(p => {
+                      const isPortalActive = !!p.patient_user_id;
+                      const isSelected = activeChatPatient?.id === p.id;
+
+                      return (
+                        <div
+                          key={p.id}
+                          onClick={() => {
+                            if (isPortalActive) {
+                              setActiveChatPatient({
+                                id: p.id,
+                                patient_user_id: p.patient_user_id,
+                                name: p.name,
+                                phone: p.phone
+                              });
+                            }
+                          }}
+                          className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 ${
+                            isPortalActive ? 'cursor-pointer' : 'opacity-70 cursor-default'
+                          } ${
+                            isSelected
+                              ? 'bg-blue-50/70 border-blue-200 shadow-sm'
+                              : 'bg-white hover:bg-gray-50 border-gray-150'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl text-white flex items-center justify-center font-bold text-sm shadow-sm flex-shrink-0">
+                              {p.name.charAt(0)}
+                            </div>
+                            <div className="min-w-0">
+                              <h4 className="font-bold text-gray-900 text-sm truncate flex items-center gap-1.5">
+                                {p.name}
+                                {isPortalActive && (
+                                  <Globe className="w-3.5 h-3.5 text-green-500" title="البوابة نشطة" />
+                                )}
+                              </h4>
+                              <p className="text-xs text-gray-500 truncate" dir="ltr">{p.phone}</p>
+                            </div>
+                          </div>
+
+                          {!isPortalActive && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm(`هل تريد تنشيط حساب بوابة المراجع لـ "${p.name}"؟ سيتم إرسال بيانات الدخول عبر Twilio.`)) {
+                                  // Call Activation Handler
+                                  (async () => {
+                                    try {
+                                      toast.loading('جاري تنشيط حساب المريض...');
+                                      const { data: edgeData, error: edgeError } = await supabase.functions.invoke('send-patient-credentials', {
+                                        body: {
+                                          phone: p.phone,
+                                          name: p.name,
+                                          clinicName: 'عيادتنا للأسنان'
+                                        }
+                                      });
+                                      toast.dismiss();
+
+                                      if (edgeError) throw edgeError;
+                                      if (edgeData?.error === 'patient_exists') {
+                                        toast.warning('هذا المراجع لديه حساب بالفعل');
+                                      } else if (edgeData?.userId) {
+                                        const { error: updateError } = await supabase
+                                          .from('patients')
+                                          .update({ patient_user_id: edgeData.userId })
+                                          .eq('id', p.id);
+                                        
+                                        if (updateError) throw updateError;
+                                        toast.success('تم تنشيط الحساب وإرسال credentials بنجاح!');
+                                        // Update state locally
+                                        p.patient_user_id = edgeData.userId;
+                                        setActiveChatPatient({
+                                          id: p.id,
+                                          patient_user_id: edgeData.userId,
+                                          name: p.name,
+                                          phone: p.phone
+                                        });
+                                      }
+                                    } catch (err: any) {
+                                      toast.dismiss();
+                                      console.error(err);
+                                      toast.error('فشل تنشيط الحساب: ' + err.message);
+                                    }
+                                  })();
+                                }
+                              }}
+                              className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-xs font-bold transition-all border border-amber-100 flex-shrink-0"
+                            >
+                              تنشيط البوابة
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+
+              {/* Chat Viewport */}
+              <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col h-full overflow-hidden relative">
+                {activeChatPatient ? (
+                  <>
+                    {/* Chat Header */}
+                    <div className="p-4 border-b bg-gray-50/50 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center text-white font-bold">
+                          {activeChatPatient.name.charAt(0)}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-gray-900 text-sm flex items-center gap-2">
+                            {activeChatPatient.name}
+                            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                          </h4>
+                          <p className="text-xs text-gray-500" dir="ltr">{activeChatPatient.phone}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => navigate(`/doctor/clinic/${clinicId}/patient/${activeChatPatient.id}`)}
+                        className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-100 rounded-lg text-xs font-bold transition-all"
+                      >
+                        عرض ملف المريض
+                      </button>
+                    </div>
+
+                    {/* Messages Body */}
+                    <div className="flex-1 p-4 overflow-y-auto bg-gray-50/30 space-y-4">
+                      {chatMessages.length === 0 ? (
+                        <div className="text-center py-20 text-gray-400 text-sm">
+                          لا توجد رسائل سابقة. ابدأ بمراسلة المراجع الآن.
+                        </div>
+                      ) : (
+                        chatMessages.map((msg) => {
+                          const isMe = msg.sender_id === user?.id;
+                          const isReminder = msg.type === 'reminder';
+
+                          if (isReminder) {
+                            return (
+                              <div
+                                key={msg.id}
+                                className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
+                              >
+                                <div className="max-w-[85%] bg-gradient-to-br from-blue-50/80 to-indigo-50/80 backdrop-blur-sm border border-blue-100 rounded-2xl p-4 shadow-sm text-right">
+                                  <div className="flex items-center gap-2 text-blue-700 font-bold mb-2 text-xs">
+                                    <Bell className="w-4 h-4 animate-bounce" />
+                                    <span>تذكير بموعد حجز إلكتروني مرسل</span>
+                                  </div>
+                                  <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed mb-3">
+                                    {msg.content}
+                                  </p>
+                                  {msg.metadata && (
+                                    <div className="bg-white/80 rounded-xl p-2.5 border border-blue-50/50 text-xs grid grid-cols-2 gap-2 text-gray-600">
+                                      <div>🗓️ التاريخ: {msg.metadata.date}</div>
+                                      <div>⏰ الوقت: {msg.metadata.time}</div>
+                                      <div className="col-span-2">🦷 الإجراء: {getTypeLabel(msg.metadata.type)}</div>
+                                    </div>
+                                  )}
+                                  <div className="text-[10px] text-gray-400 mt-2 text-left">
+                                    {new Date(msg.created_at).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' })}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div
+                              key={msg.id}
+                              className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
+                            >
+                              <div
+                                className={`max-w-[70%] px-4 py-3 rounded-2xl text-sm shadow-sm relative ${
+                                  isMe
+                                    ? 'bg-blue-600 text-white rounded-br-none'
+                                    : 'bg-white text-gray-800 border border-gray-150 rounded-bl-none'
+                                }`}
+                              >
+                                <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                                <div
+                                  className={`text-[9px] mt-1 text-left ${
+                                    isMe ? 'text-blue-100' : 'text-gray-400'
+                                  }`}
+                                >
+                                  {new Date(msg.created_at).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' })}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    {/* Chat Input */}
+                    <div className="p-3 border-t bg-white flex items-center gap-2">
+                      <textarea
+                        value={newMessageText}
+                        onChange={(e) => setNewMessageText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSendMessage();
+                          }
+                        }}
+                        placeholder="اكتب رسالتك للمراجع..."
+                        rows={1}
+                        className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none resize-none"
+                      />
+                      <button
+                        onClick={handleSendMessage}
+                        disabled={sendingMsg || !newMessageText.trim()}
+                        className="p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-50"
+                      >
+                        <Send className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-gray-50/20">
+                    <div className="w-20 h-20 bg-blue-50/80 rounded-3xl flex items-center justify-center border border-blue-100 mb-4 animate-pulse">
+                      <MessageSquare className="w-10 h-10 text-blue-500" />
+                    </div>
+                    <h4 className="font-bold text-gray-800 text-lg mb-2">تواصل مباشر وفوري مع مراجعيك</h4>
+                    <p className="text-gray-500 text-sm max-w-sm leading-relaxed">
+                      اختر مراجعاً مفعل الحساب من القائمة الجانبية لبدء المحادثة، أو قم بتنشيط البوابة للمراجع لإرسال تفاصيل حسابه تلقائياً.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            /* WhatsApp Credentials Setup Dashboard */
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 max-w-3xl space-y-6">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
+                  <Settings className="w-5 h-5 text-blue-500" /> إعدادات بوابات الرسائل والواتساب
+                </h3>
+                <p className="text-gray-500 text-sm">
+                  اختر البوابة المفضلة لإرسال رسائل التذكير. يمكنك الاعتماد على خيار الواتساب المجاني بالكامل أو ربط الحسابات المدفوعة.
+                </p>
+              </div>
+
+              <div className="bg-blue-50 p-4 rounded-xl border border-blue-100/60 text-sm text-blue-800 leading-relaxed">
+                <p className="font-bold mb-1.5">⚙️ التنبيهات المزدوجة:</p>
+                <ul className="list-disc pr-4 space-y-1">
+                  <li><strong>الخيار المجاني (WhatsApp Web)</strong>: يعتمد على توجيه المتصفح المباشر لإرسال الرسالة من حساب الواتساب الخاص بك مجاناً تماماً ويظهر رقم العيادة الخاص بك.</li>
+                  <li><strong>الخيارات المدفوعة (Twilio, Ultramsg, Green API)</strong>: تقوم بإرسال الرسائل تلقائياً في الخلفية باستخدام رقمك المسجل في البوابة دون أي تدخل بشري.</li>
+                </ul>
+              </div>
+
+              {whatsappSettings && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">مزود الخدمة</label>
+                    <select
+                      value={whatsappSettings.provider}
+                      onChange={(e) => setWhatsappSettings({ ...whatsappSettings, provider: e.target.value })}
+                      className="w-full border rounded-lg p-2.5 bg-gray-50 focus:bg-white"
+                    >
+                      <option value="whatsapp_web">الواتساب المجاني (توجيه WhatsApp Web)</option>
+                      <option value="twilio">Twilio SMS & WhatsApp Business API</option>
+                      <option value="ultramsg">Ultramsg API Gateway</option>
+                      <option value="greenapi">Green API Gateway</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">رقم هاتف العيادة / المرسل</label>
+                    <input
+                      type="text"
+                      value={whatsappSettings.phone_number || ''}
+                      onChange={(e) => setWhatsappSettings({ ...whatsappSettings, phone_number: e.target.value })}
+                      className="w-full border rounded-lg p-2.5"
+                      placeholder="مثال: whatsapp:+14155238886 أو +9647700000000"
+                    />
+                  </div>
+
+                  {whatsappSettings.provider !== 'whatsapp_web' && (
+                    <>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-bold text-gray-700 mb-1">
+                          {whatsappSettings.provider === 'twilio' ? 'Account SID' : 'رابط الـ API / Instance URL'}
+                        </label>
+                        <input
+                          type="text"
+                          value={whatsappSettings.api_url || ''}
+                          onChange={(e) => setWhatsappSettings({ ...whatsappSettings, api_url: e.target.value })}
+                          className="w-full border rounded-lg p-2.5 font-mono text-sm"
+                          placeholder={whatsappSettings.provider === 'twilio' ? 'ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' : 'https://api.ultramsg.com/instance12345'}
+                        />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-bold text-gray-700 mb-1">
+                          {whatsappSettings.provider === 'twilio' ? 'Auth Token' : 'مفتاح الـ API / API Token'}
+                        </label>
+                        <input
+                          type="password"
+                          value={whatsappSettings.api_key || ''}
+                          onChange={(e) => setWhatsappSettings({ ...whatsappSettings, api_key: e.target.value })}
+                          className="w-full border rounded-lg p-2.5 font-mono text-sm"
+                          placeholder="••••••••••••••••••••••••••••••••"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {/* Test Box Section */}
+                  <div className="md:col-span-2 pt-4 border-t mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-end bg-gray-50/50 p-4 rounded-xl border border-gray-150">
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-bold text-gray-700 mb-1">رقم الهاتف لتجربة الربط</label>
+                      <input
+                        type="text"
+                        value={testPhone}
+                        onChange={(e) => setTestPhone(e.target.value)}
+                        className="w-full border rounded-lg p-2.5"
+                        placeholder="رقمك لتجربة الإرسال (+964...)"
+                      />
+                    </div>
+                    <button
+                      onClick={handleSendTestMessage}
+                      disabled={sendingTest || !testPhone}
+                      className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-bold transition-all"
+                    >
+                      إرسال رسالة تجريبية
+                    </button>
+                  </div>
+
+                  <div className="md:col-span-2 pt-4 border-t flex justify-end gap-3">
+                    <button
+                      onClick={async () => {
+                        try {
+                          setLoadingSettings(true);
+                          const payload = {
+                            clinic_id: parseInt(clinicId),
+                            provider: whatsappSettings.provider,
+                            phone_number: whatsappSettings.phone_number,
+                            api_key: whatsappSettings.api_key,
+                            api_url: whatsappSettings.api_url,
+                            is_active: whatsappSettings.is_active,
+                            updated_at: new Date().toISOString()
+                          };
+
+                          let query;
+                          if (whatsappSettings.id) {
+                            query = supabase
+                              .from('whatsapp_settings')
+                              .update(payload)
+                              .eq('id', whatsappSettings.id);
+                          } else {
+                            query = supabase
+                              .from('whatsapp_settings')
+                              .insert([payload]);
+                          }
+
+                          const { error } = await query;
+                          if (error) throw error;
+                          toast.success('تم حفظ إعدادات الواتساب بنجاح');
+                          fetchWhatsappSettings();
+                        } catch (e: any) {
+                          console.error(e);
+                          toast.error('حدث خطأ أثناء حفظ الإعدادات: ' + e.message);
+                        } finally {
+                          setLoadingSettings(false);
+                        }
+                      }}
+                      disabled={loadingSettings}
+                      className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-all flex items-center gap-2"
+                    >
+                      {loadingSettings ? 'جاري الحفظ...' : 'حفظ الإعدادات'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -885,6 +1641,207 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
           </div>
         )
       }
+
+      {/* Appointment Reminder Slide-over Drawer */}
+      {selectedAptForReminder && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+          {/* Backdrop Click */}
+          <div className="absolute inset-0" onClick={() => setSelectedAptForReminder(null)} />
+          
+          {/* Drawer Body */}
+          <div className="relative w-full max-w-lg bg-white/95 backdrop-blur-md h-full shadow-2xl flex flex-col z-10 animate-in slide-in-from-left lg:slide-in-from-right duration-300 border-r border-gray-200">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-150 flex items-center justify-between bg-blue-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-md">
+                  <Bell className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg text-gray-900">إرسال تذكير بالموعد</h3>
+                  <p className="text-xs text-gray-500">
+                    للمريض: {getPatientName(selectedAptForReminder.patientId, selectedAptForReminder.patientName)}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedAptForReminder(null)}
+                className="p-1.5 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-lg transition-colors"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Patient Verification Status */}
+              {(() => {
+                const patientObj = patients.find(p => p.id === selectedAptForReminder.patientId);
+                const isPlatformUser = !!(patientObj?.patient_user_id || selectedAptForReminder.patientUserId);
+                return (
+                  <div className={`p-4 rounded-xl border flex items-start gap-3 ${
+                    isPlatformUser 
+                      ? 'bg-emerald-50/70 border-emerald-100 text-emerald-800' 
+                      : 'bg-amber-50/70 border-amber-100 text-amber-800'
+                  }`}>
+                    <Globe className={`w-5 h-5 mt-0.5 ${isPlatformUser ? 'text-emerald-600' : 'text-amber-600'}`} />
+                    <div>
+                      <h4 className="font-bold text-sm">
+                        {isPlatformUser ? 'المراجع مسجل بالمنصة ونشط' : 'حساب المنصة غير نشط لهذا المراجع'}
+                      </h4>
+                      <p className="text-xs mt-1 leading-relaxed opacity-90">
+                        {isPlatformUser 
+                          ? 'يمكنك إرسال التذكير مباشرة إلى صندوق الوارد الخاص به في تطبيق المريض كبطاقة تفاعلية.' 
+                          : 'يمكنك تنشيط البوابة له من قسم المحادثات، أو إرسال التذكير عبر قنوات الواتساب/SMS.'}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Reminder Channel Selector */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-3">اختر قناة الإرسال</label>
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Platform Inbox (if registered) */}
+                  {(() => {
+                    const patientObj = patients.find(p => p.id === selectedAptForReminder.patientId);
+                    const isPlatformUser = !!(patientObj?.patient_user_id || selectedAptForReminder.patientUserId);
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => isPlatformUser && setReminderMethod('platform')}
+                        className={`p-3.5 rounded-xl border-2 text-right transition-all flex flex-col justify-between h-24 ${
+                          !isPlatformUser ? 'opacity-40 cursor-not-allowed border-gray-105 bg-gray-50' :
+                          reminderMethod === 'platform' 
+                            ? 'border-blue-600 bg-blue-50/40 text-blue-900 shadow-sm' 
+                            : 'border-gray-200 hover:border-gray-300 text-gray-700 bg-white'
+                        }`}
+                      >
+                        <Globe className={`w-5 h-5 ${reminderMethod === 'platform' ? 'text-blue-600' : 'text-gray-400'}`} />
+                        <div>
+                          <span className="block font-bold text-xs">صندوق وارد المنصة</span>
+                          <span className="text-[10px] opacity-75">إرسال كبطاقة تفاعلية</span>
+                        </div>
+                      </button>
+                    );
+                  })()}
+
+                  {/* Free WhatsApp Web */}
+                  <button
+                    type="button"
+                    onClick={() => setReminderMethod('whatsapp_web')}
+                    className={`p-3.5 rounded-xl border-2 text-right transition-all flex flex-col justify-between h-24 ${
+                      reminderMethod === 'whatsapp_web' 
+                        ? 'border-green-600 bg-green-50/40 text-green-900 shadow-sm' 
+                        : 'border-gray-200 hover:border-gray-300 text-gray-700 bg-white'
+                    }`}
+                  >
+                    <MessageSquare className={`w-5 h-5 ${reminderMethod === 'whatsapp_web' ? 'text-green-600' : 'text-gray-400'}`} />
+                    <div>
+                      <span className="block font-bold text-xs">واتساب مجاني (رقم العيادة)</span>
+                      <span className="text-[10px] opacity-75">فتح نافذة WhatsApp Web</span>
+                    </div>
+                  </button>
+
+                  {/* Twilio */}
+                  <button
+                    type="button"
+                    onClick={() => setReminderMethod('twilio')}
+                    className={`p-3.5 rounded-xl border-2 text-right transition-all flex flex-col justify-between h-24 ${
+                      reminderMethod === 'twilio' 
+                        ? 'border-indigo-600 bg-indigo-50/40 text-indigo-900 shadow-sm' 
+                        : 'border-gray-200 hover:border-gray-300 text-gray-700 bg-white'
+                    }`}
+                  >
+                    <Settings className={`w-5 h-5 ${reminderMethod === 'twilio' ? 'text-indigo-600' : 'text-gray-400'}`} />
+                    <div>
+                      <span className="block font-bold text-xs">Twilio SMS / WhatsApp</span>
+                      <span className="text-[10px] opacity-75">إرسال تلقائي مدفوع</span>
+                    </div>
+                  </button>
+
+                  {/* Ultramsg */}
+                  <button
+                    type="button"
+                    onClick={() => setReminderMethod('ultramsg')}
+                    className={`p-3.5 rounded-xl border-2 text-right transition-all flex flex-col justify-between h-24 ${
+                      reminderMethod === 'ultramsg' 
+                        ? 'border-purple-600 bg-purple-50/40 text-purple-900 shadow-sm' 
+                        : 'border-gray-200 hover:border-gray-300 text-gray-700 bg-white'
+                    }`}
+                  >
+                    <Settings className={`w-5 h-5 ${reminderMethod === 'ultramsg' ? 'text-purple-600' : 'text-gray-400'}`} />
+                    <div>
+                      <span className="block font-bold text-xs">بوابة Ultramsg</span>
+                      <span className="text-[10px] opacity-75">إرسال بالخلفية عبر API</span>
+                    </div>
+                  </button>
+
+                  {/* Green API */}
+                  <button
+                    type="button"
+                    onClick={() => setReminderMethod('greenapi')}
+                    className={`p-3.5 rounded-xl border-2 text-right transition-all flex flex-col justify-between h-24 col-span-2 ${
+                      reminderMethod === 'greenapi' 
+                        ? 'border-emerald-600 bg-emerald-50/40 text-emerald-900 shadow-sm' 
+                        : 'border-gray-200 hover:border-gray-300 text-gray-700 bg-white'
+                    }`}
+                  >
+                    <Settings className={`w-5 h-5 ${reminderMethod === 'greenapi' ? 'text-emerald-600' : 'text-gray-400'}`} />
+                    <div>
+                      <span className="block font-bold text-xs">بوابة Green API</span>
+                      <span className="text-[10px] opacity-75">إرسال بالخلفية عبر API</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Message Template / Textarea */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">نص رسالة التذكير</label>
+                <textarea
+                  value={reminderMessage}
+                  onChange={(e) => setReminderMessage(e.target.value)}
+                  rows={6}
+                  className="w-full border border-gray-200 rounded-xl p-3.5 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none resize-none leading-relaxed"
+                  placeholder="نص التذكير..."
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-gray-150 bg-gray-50/50 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setSelectedAptForReminder(null)}
+                className="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-xl font-medium text-sm transition-colors"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                onClick={handleSendReminder}
+                disabled={sendingReminder || !reminderMessage.trim()}
+                className={`px-6 py-2.5 text-white rounded-xl font-bold text-sm shadow-md flex items-center gap-2 transition-all ${
+                  sendingReminder ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 active:scale-98'
+                }`}
+              >
+                {sendingReminder ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    جاري الإرسال...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    إرسال التذكير الآن
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Legacy Edit Modal Removed - Replaced by Unified AppointmentModal */}
 

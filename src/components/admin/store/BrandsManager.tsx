@@ -387,6 +387,7 @@ export const BrandsManager: React.FC = () => {
                         fetchBrands(); // Refresh to reflect any changes made inside modal (e.g. verify)
                     }}
                     brandId={selectedBrandId}
+                    onVerifyChange={fetchBrands}
                 />
             )}
         </div>

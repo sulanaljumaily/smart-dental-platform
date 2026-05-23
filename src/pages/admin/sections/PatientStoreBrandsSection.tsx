@@ -388,6 +388,7 @@ export const PatientStoreBrandsSection: React.FC = () => {
                         fetchBrands();
                     }}
                     brandId={selectedBrandId}
+                    onVerifyChange={fetchBrands}
                 />
             )}
         </div>

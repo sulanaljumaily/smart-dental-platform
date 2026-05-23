@@ -9,12 +9,14 @@ interface BrandDetailsModalProps {
     isOpen: boolean;
     onClose: () => void;
     brandId: string;
+    onVerifyChange?: () => void;
 }
 
 export const BrandDetailsModal: React.FC<BrandDetailsModalProps> = ({
     isOpen,
     onClose,
-    brandId
+    brandId,
+    onVerifyChange
 }) => {
     const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'suppliers'>('overview');
     const [brand, setBrand] = useState<any>(null);
@@ -105,6 +107,7 @@ export const BrandDetailsModal: React.FC<BrandDetailsModalProps> = ({
 
             setBrand({ ...brand, is_verified: status });
             toast.success(status ? 'تم توثيق العلامة بنجاح' : 'تم إلغاء التوثيق');
+            onVerifyChange?.();
         } catch (error) {
             toast.error('حدث خطأ أثناء التحديث');
         }

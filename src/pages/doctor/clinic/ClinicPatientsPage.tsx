@@ -76,10 +76,10 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
           alert('هذا المراجع لديه حساب بوابة بالفعل، يرجى ربط الملف لاحقاً.');
         } else if (edgeData?.userId) {
           patientUserId = edgeData.userId;
-          if (edgeData.smsStatus === 'sent') {
-            alert('تم إنشاء حساب البوابة وإرسال كلمة المرور عبر SMS بنجاح!');
+          if (edgeData.smsStatus === 'sent' || edgeData.whatsappStatus === 'sent') {
+            alert('تم إنشاء حساب البوابة وإرسال بيانات الدخول عبر SMS و WhatsApp بنجاح!');
           } else {
-            alert('تم إنشاء حساب البوابة، لكن إرسال SMS يحتاج إلى إعداد Twilio.');
+            alert('تم إنشاء حساب البوابة، لكن إرسال الرسائل (SMS / WhatsApp) يتطلب تهيئة متغيرات بيئة Twilio.');
           }
         }
       }
@@ -586,10 +586,10 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
                   </div>
                   <div>
                     <p className="text-sm font-bold text-gray-900 group-hover:text-blue-700 transition-colors">
-                      إنشاء حساب بوابة المراجع وإرسال رسالة SMS
+                      إنشاء حساب بوابة المراجع وإرسال بيانات الدخول تلقائياً (SMS و WhatsApp)
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
-                      سيتم إنشاء حساب للمراجع على المنصة وإرسال رسالة نصية تحتوي على كلمة المرور ليتمكن من متابعة مواعيده.
+                      سيتم إنشاء حساب للمراجع على منصة سمارت دنتال وإرسال رسالة نصية وواتساب تحتوي على كلمة المرور عبر Twilio.
                     </p>
                   </div>
                 </label>

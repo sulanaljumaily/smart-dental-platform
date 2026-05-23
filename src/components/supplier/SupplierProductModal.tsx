@@ -415,15 +415,30 @@ export const SupplierProductModal: React.FC<SupplierProductModalProps> = ({
                                     <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
 
                                     {/* Selected Brand Badge */}
-                                    {formData.brandId && (
-                                        <div className="absolute top-2 right-2 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg text-xs font-bold flex items-center gap-1">
-                                            {brands.find(b => b.id === formData.brandId)?.name}
-                                            <button onClick={() => {
-                                                setFormData({ ...formData, brandId: '' });
-                                                setBrandSearch('');
-                                            }} className="hover:text-red-500"><X className="w-3 h-3" /></button>
-                                        </div>
-                                    )}
+                                    {formData.brandId && (() => {
+                                        const selectedBrand = brands.find(b => b.id === formData.brandId);
+                                        return (
+                                            <div className={`absolute top-2 right-2 px-2 py-0.5 rounded-lg text-xs font-bold flex items-center gap-1.5 ${
+                                                selectedBrand?.verified 
+                                                    ? 'bg-blue-50 text-blue-700 border border-blue-100' 
+                                                    : 'bg-amber-50 text-amber-700 border border-amber-200/60'
+                                            }`}>
+                                                <span>{selectedBrand?.name}</span>
+                                                {!selectedBrand?.verified && (
+                                                    <span className="text-[10px] text-amber-600 bg-amber-100/50 px-1 rounded font-medium">معلقة</span>
+                                                )}
+                                                <button 
+                                                    onClick={() => {
+                                                        setFormData({ ...formData, brandId: '' });
+                                                        setBrandSearch('');
+                                                    }} 
+                                                    className="hover:text-red-500"
+                                                >
+                                                    <X className="w-3 h-3" />
+                                                </button>
+                                            </div>
+                                        );
+                                    })()}
 
                                     {/* Dropdown */}
                                     {isBrandListOpen && (
@@ -438,7 +453,15 @@ export const SupplierProductModal: React.FC<SupplierProductModalProps> = ({
                                                     }}
                                                     className="p-3 hover:bg-gray-50 cursor-pointer flex items-center justify-between"
                                                 >
-                                                    <span className="font-medium text-gray-800">{brand.name}</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-medium text-gray-800">{brand.name}</span>
+                                                        {!brand.verified && (
+                                                            <span className="flex items-center gap-1 text-[10px] text-amber-600 bg-amber-50 border border-amber-200/60 px-1.5 py-0.5 rounded-full font-medium transition-all duration-200">
+                                                                <span className="w-1 h-1 rounded-full bg-amber-500 animate-pulse" />
+                                                                بانتظار الموافقة
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     {brand.verified && <span className="text-blue-500"><Check className="w-3 h-3" /></span>}
                                                 </div>
                                             ))}

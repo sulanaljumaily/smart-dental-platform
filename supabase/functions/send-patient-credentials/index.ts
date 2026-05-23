@@ -81,10 +81,11 @@ serve(async (req: Request) => {
 
     userId = userData.user.id;
 
-    // 3. Send SMS using Twilio (if configured, otherwise skip or return mock success for dev)
+    // 3. Send SMS and WhatsApp using Twilio (if configured, otherwise skip or return mock success for dev)
     let smsStatus = 'skipped';
+    let whatsappStatus = 'skipped';
     
-    if (accountSid && authToken && messageServiceSid) {
+    if (accountSid && authToken) {
       const message = 
         `مرحباً ${name}، تم فتح ملف لك في عيادة ${clinicName || 'الأسنان'}.\n` +
         `يمكنك متابعة مواعيدك عبر منصة سمارت دنتال 🦷\n\n` +
@@ -92,34 +93,70 @@ serve(async (req: Request) => {
         `كلمة المرور: ${password}\n\n` +
         `رابط المنصة: https://smart-dental.com/patient-login`;
 
-      const twilioResponse = await fetch(
-        `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Basic ${btoa(`${accountSid}:${authToken}`)}`,
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: new URLSearchParams({
-            To:   phone,
-            MessagingServiceSid: messageServiceSid,
-            Body: message,
-          }).toString(),
+      // A. Send SMS
+      if (messageServiceSid) {
+        try {
+          const smsResponse = await fetch(
+            `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Basic ${btoa(`${accountSid}:${authToken}`)}`,
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              body: new URLSearchParams({
+                To: phone,
+                MessagingServiceSid: messageServiceSid,
+                Body: message,
+              }).toString(),
+            }
+          );
+          if (smsResponse.ok) {
+            smsStatus = 'sent';
+          } else {
+            const errorData = await smsResponse.json();
+            console.error('Twilio SMS error:', errorData);
+            smsStatus = 'failed';
+          }
+        } catch (smsErr) {
+          console.error('Twilio SMS exception:', smsErr);
+          smsStatus = 'failed';
         }
-      );
+      }
 
-      if (!twilioResponse.ok) {
-        const errorData = await twilioResponse.json();
-        console.error('Twilio error:', errorData);
-        // We still return success since the user was created, but with a warning
-        smsStatus = 'failed';
-      } else {
-        smsStatus = 'sent';
+      // B. Send WhatsApp
+      const twilioWhatsappFrom = Deno.env.get('TWILIO_WHATSAPP_FROM') || 'whatsapp:+14155238886'; // Sandbox fallback if not specified
+      try {
+        const waResponse = await fetch(
+          `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Basic ${btoa(`${accountSid}:${authToken}`)}`,
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+              To: `whatsapp:${phone}`,
+              From: twilioWhatsappFrom,
+              Body: message,
+            }).toString(),
+          }
+        );
+        if (waResponse.ok) {
+          whatsappStatus = 'sent';
+        } else {
+          const errorData = await waResponse.json();
+          console.error('Twilio WhatsApp error:', errorData);
+          whatsappStatus = 'failed';
+        }
+      } catch (waErr) {
+        console.error('Twilio WhatsApp exception:', waErr);
+        whatsappStatus = 'failed';
       }
     }
 
     return new Response(
-      JSON.stringify({ success: true, userId, password, smsStatus }),
+      JSON.stringify({ success: true, userId, password, smsStatus, whatsappStatus }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err) {
