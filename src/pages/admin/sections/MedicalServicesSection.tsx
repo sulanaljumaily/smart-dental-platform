@@ -30,9 +30,10 @@ import { useAdminData } from '../../../hooks/useAdminData';
 import { supabase } from '../../../lib/supabase';
 import { aiService } from '../../../services/ai/AIService';
 import { AIAgentConfig } from '../../../types/ai';
+import { MessagingSettingsManager } from './MessagingSettingsManager';
 
 export const MedicalServicesSection: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<'featured-clinics' | 'articles' | 'nearby' | 'ai' | 'emergency'>('featured-clinics');
+    const [activeTab, setActiveTab] = useState<'featured-clinics' | 'articles' | 'nearby' | 'ai' | 'emergency' | 'messaging'>('featured-clinics');
 
     return (
         <div className="space-y-6">
@@ -43,10 +44,11 @@ export const MedicalServicesSection: React.FC = () => {
                 <div className="flex p-1 bg-gray-100 rounded-xl overflow-x-auto max-w-full">
                     {[
                         { id: 'featured-clinics', label: 'العيادات المميزة', icon: Star },
-                        { id: 'emergency', label: 'مراكز الطوارئ', icon: Phone }, // Added Emergency tab
+                        { id: 'emergency', label: 'مراكز الطوارئ', icon: Phone },
                         { id: 'articles', label: 'المقالات الطبية', icon: FileText },
                         { id: 'nearby', label: 'إعدادات الخرائط', icon: MapPin },
                         { id: 'ai', label: 'الذكاء الاصطناعي (AI)', icon: Brain },
+                        { id: 'messaging', label: 'إعدادات الرسائل', icon: MessageSquare },
                     ].map((tab) => (
                         <button
                             key={tab.id}
@@ -70,6 +72,7 @@ export const MedicalServicesSection: React.FC = () => {
                 {activeTab === 'articles' && <ArticlesManager />}
                 {activeTab === 'nearby' && <NearbySettings />}
                 {activeTab === 'ai' && <AIConfigManager />}
+                {activeTab === 'messaging' && <MessagingSettingsManager />}
             </div>
         </div>
     );

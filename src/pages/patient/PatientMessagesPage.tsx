@@ -107,7 +107,7 @@ export const PatientMessagesPage: React.FC<PatientMessagesPageProps> = ({ hideNa
   const audioCtxRef = useRef<AudioContext | null>(null);
   const inputAudioCtxRef = useRef<AudioContext | null>(null);
   const micStreamRef = useRef<MediaStream | null>(null);
-  const mediaSourceRef = useRef<MediaAudioSourceNode | null>(null);
+  const mediaSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
   const audioQueueRef = useRef<ArrayBuffer[]>([]);
   const isPlayingRef = useRef(false);
@@ -723,7 +723,7 @@ export const PatientMessagesPage: React.FC<PatientMessagesPageProps> = ({ hideNa
                 await supabase.from('clinic_reviews').insert({
                   clinic_id: parseInt(clinicId),
                   patient_user_id: user.id,
-                  patient_name: user.user_metadata?.full_name || user.email || 'مريض',
+                  patient_name: (user as any).user_metadata?.full_name || user.email || 'مريض',
                   rating: rating,
                   comment: comment || null,
                   message_id: msg.id
@@ -741,7 +741,7 @@ export const PatientMessagesPage: React.FC<PatientMessagesPageProps> = ({ hideNa
                     widget_type: 'feedback_response',
                     rating: rating,
                     comment: comment || '',
-                    patient_name: user.user_metadata?.full_name || user.email || 'مريض',
+                    patient_name: (user as any).user_metadata?.full_name || user.email || 'مريض',
                     submitted_at: new Date().toISOString()
                   }
                 });

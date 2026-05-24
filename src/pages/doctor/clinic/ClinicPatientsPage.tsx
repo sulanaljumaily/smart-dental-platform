@@ -111,6 +111,7 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
   const [reminderMessage, setReminderMessage] = useState('');
   const [sendingReminder, setSendingReminder] = useState(false);
   const [whatsappSettings, setWhatsappSettings] = useState<any>(null);
+  const [platformMsgConfig, setPlatformMsgConfig] = useState<any>(null);
   const [patientAppointments, setPatientAppointments] = useState<any[]>([]);
   const [loadingAppointments, setLoadingAppointments] = useState(false);
 
@@ -140,8 +141,40 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
     }
   };
 
+  const formatToInternationalPhone = (phone: string, includePlus: boolean = true): string => {
+    let cleaned = phone.replace(/\D/g, ''); // Keep only digits
+    const countryCode = platformMsgConfig?.default_country_code || '964';
+
+    // If it already starts with the country code, do nothing but keep it
+    if (cleaned.startsWith(countryCode)) {
+      return includePlus ? `+${cleaned}` : cleaned;
+    }
+
+    // Strip leading trunk prefix '0' if present
+    if (cleaned.startsWith('0')) {
+      cleaned = cleaned.substring(1);
+    }
+
+    // Prepend country code
+    cleaned = countryCode + cleaned;
+    
+    return includePlus ? `+${cleaned}` : cleaned;
+  };
+
   useEffect(() => {
     fetchWhatsappSettings();
+    const fetchPlatformMessagingConfig = async () => {
+      try {
+        const { data } = await supabase
+          .from('platform_settings')
+          .select('value')
+          .eq('key', 'messaging')
+          .maybeSingle();
+        if (data?.value) setPlatformMsgConfig(data.value);
+        else setPlatformMsgConfig({ default_country_code: '964' });
+      } catch (e) { console.error('Error loading platform messaging config:', e); }
+    };
+    fetchPlatformMessagingConfig();
   }, [clinicId]);
 
   // Effect to verify phone registration inside patient settings modal
@@ -307,7 +340,7 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
         if (error) throw error;
         toast.success('تم إرسال التذكير بنجاح لصندوق وارد المريض!');
       } else if (reminderMethod === 'whatsapp_web') {
-        const cleanPhone = phone.replace(/\D/g, '');
+        const cleanPhone = formatToInternationalPhone(phone, false);
         const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(reminderMessage)}`;
         window.open(url, '_blank');
         toast.success('تم فتح نافذة WhatsApp Web لإرسال الرسالة');
@@ -340,7 +373,16 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
       setSelectedAptForReminder(null);
     } catch (err: any) {
       console.error(err);
-      toast.error('تعذر إرسال التذكير: ' + err.message);
+      const isTwilio = reminderMethod === 'twilio';
+      if (isTwilio && (err.message?.includes('Failed to fetch') || err.name === 'TypeError' || String(err).includes('TypeError'))) {
+        toast.warning(
+          '🔒 تم حظر الإرسال المباشر من المتصفح (CORS Policy) لحماية بياناتك:\n' +
+          'تمنع Twilio طلبات الـ API المباشرة من متصفحات الويب لمنع سرقة مفاتيح الـ Auth Token الخاصة بالعيادة.\n' +
+          'سيقوم خادم المنصة/الدوال البرمجية (Edge Functions) بالإرسال التلقائي الفعلي بأمان وسرية تامة في الخلفية.'
+        );
+      } else {
+        toast.error('تعذر إرسال التذكير: ' + err.message);
+      }
     } finally {
       setSendingReminder(false);
     }
