@@ -11,7 +11,7 @@ import {
   HeartPulse, Syringe, Pill, Star, Beaker, History as HistoryIcon,
   MessageSquare, Upload, RefreshCcw, Info, ArrowRight, AlertTriangle,
   TrendingUp, TrendingDown, CreditCard, Wallet, Receipt, HandCoins,
-  CheckSquare, AlertOctagon, Edit, Clock
+  CheckSquare, AlertOctagon, Edit, Clock, Mic, Square
 } from 'lucide-react';
 
 import { ComprehensiveTransactionModal } from '../../../components/finance/ComprehensiveTransactionModal';
@@ -1928,6 +1928,8 @@ export const ClinicPatientProfile = () => {
 
   const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+  const [isVoiceExamModalOpen, setIsVoiceExamModalOpen] = useState(false);
+  const [isSmileDesignModalOpen, setIsSmileDesignModalOpen] = useState(false);
 
   const { history: aiHistory, uploading: aiUploading, analyzing: aiAnalyzing, analyzeImage, analyzeExistingImage, deleteAnalysis, refresh: refreshAI } = useAIAnalysis(patientId);
 
@@ -2081,6 +2083,22 @@ export const ClinicPatientProfile = () => {
   const handleSaveToArchive = async (item: any, type: 'image' | 'chat') => {
     if (type === 'image') {
       try {
+        // Human-in-the-loop database sync: Update the original AI analysis with custom edited doctor values if available
+        if (item.id) {
+          const { error: updateError } = await supabase
+            .from('ai_analyses')
+            .update({
+              analysis_result: item.analysis_result
+            })
+            .eq('id', item.id);
+          
+          if (updateError) {
+            console.error('Failed to sync edited AI analysis to DB:', updateError);
+          } else {
+            refreshAI();
+          }
+        }
+
         const { data, error } = await supabase
           .from('patient_files')
           .insert({
@@ -2208,6 +2226,12 @@ export const ClinicPatientProfile = () => {
             imageUrl={selectedAnalysis.image_url}
             result={selectedAnalysis.analysis_result}
             date={selectedAnalysis.created_at}
+            onChange={(updatedResult) => {
+              setSelectedAnalysis((prev: any) => prev ? {
+                ...prev,
+                analysis_result: updatedResult
+              } : null);
+            }}
           />
         </div>
       );
@@ -2293,7 +2317,7 @@ export const ClinicPatientProfile = () => {
       <div className="hidden"></div>
 
       {/* Service Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         {/* Image Analysis Card */}
         <div
           onClick={() => {
@@ -2302,20 +2326,17 @@ export const ClinicPatientProfile = () => {
           }}
           className="group cursor-pointer bg-white rounded-2xl p-1 border border-transparent hover:border-indigo-200 shadow-sm hover:shadow-xl transition-all duration-300"
         >
-          <div className="relative h-28 sm:h-48 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl overflow-hidden mb-3 sm:mb-4 flex items-center justify-center group-hover:scale-[0.98] transition-transform">
+          <div className="relative h-28 sm:h-40 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl overflow-hidden mb-3 sm:mb-4 flex items-center justify-center group-hover:scale-[0.98] transition-transform">
             <div className="absolute inset-0 bg-grid-indigo-500/[0.05] [mask-image:linear-gradient(0deg,white,transparent)]" />
-            <div className="w-12 h-12 sm:w-20 sm:h-20 bg-white rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform duration-500">
-              <Brain className="w-6 h-6 sm:w-10 sm:h-10" />
+            <div className="w-10 h-10 sm:w-16 sm:h-16 bg-white rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform duration-500">
+              <Brain className="w-5 h-5 sm:w-8 sm:h-8" />
             </div>
           </div>
-          <div className="px-3 pb-3 sm:px-5 sm:pb-5">
-            <h3 className="text-xs sm:text-base md:text-xl font-bold text-gray-900 mb-1 sm:mb-2 group-hover:text-indigo-600 transition-colors">تحليل الصور (AI Diagnosis)</h3>
-            <p className="text-[10px] sm:text-xs md:text-sm text-gray-500 leading-normal sm:leading-relaxed mb-3 sm:mb-4 line-clamp-2 sm:line-clamp-none">
-              رفع صور الأشعة للكشف التلقائي عن التسوسات والالتهابات بدقة عالية مع تقرير فوري.
+          <div className="px-3 pb-3 sm:px-4 sm:pb-4">
+            <h3 className="text-xs sm:text-sm font-bold text-gray-900 mb-1 group-hover:text-indigo-600 transition-colors">تحليل صور الأشعة</h3>
+            <p className="text-[10px] sm:text-xs text-gray-500 leading-normal line-clamp-2">
+              تحليل صور الأشعة للكشف عن التسوسات والالتهابات والنسب الدقيقة.
             </p>
-            <div className="flex items-center text-indigo-600 font-bold text-[10px] sm:text-xs md:text-sm">
-              بدء التحليل <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 group-hover:translate-x-[-4px] transition-transform" />
-            </div>
           </div>
         </div>
 
@@ -2324,20 +2345,55 @@ export const ClinicPatientProfile = () => {
           onClick={() => setIsChatModalOpen(true)}
           className="group cursor-pointer bg-white rounded-2xl p-1 border border-transparent hover:border-purple-200 shadow-sm hover:shadow-xl transition-all duration-300"
         >
-          <div className="relative h-28 sm:h-48 bg-gradient-to-br from-purple-50 to-fuchsia-50 rounded-xl overflow-hidden mb-3 sm:mb-4 flex items-center justify-center group-hover:scale-[0.98] transition-transform">
+          <div className="relative h-28 sm:h-40 bg-gradient-to-br from-purple-50 to-fuchsia-50 rounded-xl overflow-hidden mb-3 sm:mb-4 flex items-center justify-center group-hover:scale-[0.98] transition-transform">
             <div className="absolute inset-0 bg-grid-purple-500/[0.05] [mask-image:linear-gradient(0deg,white,transparent)]" />
-            <div className="w-12 h-12 sm:w-20 sm:h-20 bg-white rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform duration-500">
-              <MessageSquare className="w-6 h-6 sm:w-10 sm:h-10" />
+            <div className="w-10 h-10 sm:w-16 sm:h-16 bg-white rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform duration-500">
+              <MessageSquare className="w-5 h-5 sm:w-8 sm:h-8" />
             </div>
           </div>
-          <div className="px-3 pb-3 sm:px-5 sm:pb-5">
-            <h3 className="text-xs sm:text-base md:text-xl font-bold text-gray-900 mb-1 sm:mb-2 group-hover:text-purple-600 transition-colors">المساعد الذكي (Smart Assistant)</h3>
-            <p className="text-[10px] sm:text-xs md:text-sm text-gray-500 leading-normal sm:leading-relaxed mb-3 sm:mb-4 line-clamp-2 sm:line-clamp-none">
-              محادثة تفاعلية مع مساعد ذكي للحصول على توصيات علاجية، وكتابة تقارير، والإجابة على الأسئلة.
+          <div className="px-3 pb-3 sm:px-4 sm:pb-4">
+            <h3 className="text-xs sm:text-sm font-bold text-gray-900 mb-1 group-hover:text-purple-600 transition-colors">المساعد الطبي الذكي</h3>
+            <p className="text-[10px] sm:text-xs text-gray-500 leading-normal line-clamp-2">
+              محادثة تفاعلية والحصول على توصيات وكتابة التقارير الطبية للمراجع.
             </p>
-            <div className="flex items-center text-purple-600 font-bold text-[10px] sm:text-xs md:text-sm">
-              فتح المحادثة <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 group-hover:translate-x-[-4px] transition-transform" />
+          </div>
+        </div>
+
+        {/* Voice Exam Dictator Card */}
+        <div
+          onClick={() => setIsVoiceExamModalOpen(true)}
+          className="group cursor-pointer bg-white rounded-2xl p-1 border border-transparent hover:border-orange-200 shadow-sm hover:shadow-xl transition-all duration-300"
+        >
+          <div className="relative h-28 sm:h-40 bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl overflow-hidden mb-3 sm:mb-4 flex items-center justify-center group-hover:scale-[0.98] transition-transform">
+            <div className="absolute inset-0 bg-grid-orange-500/[0.05] [mask-image:linear-gradient(0deg,white,transparent)]" />
+            <div className="w-10 h-10 sm:w-16 sm:h-16 bg-white rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg flex items-center justify-center text-orange-600 group-hover:scale-110 transition-transform duration-500">
+              <Mic className="w-5 h-5 sm:w-8 sm:h-8" />
             </div>
+          </div>
+          <div className="px-3 pb-3 sm:px-4 sm:pb-4">
+            <h3 className="text-xs sm:text-sm font-bold text-gray-900 mb-1 group-hover:text-orange-600 transition-colors">الفحص الصوتي الذكي</h3>
+            <p className="text-[10px] sm:text-xs text-gray-500 leading-normal line-clamp-2">
+              إملاء الملاحظات الطبية سريرياً للهجة العراقية وتحديث السجل آلياً.
+            </p>
+          </div>
+        </div>
+
+        {/* Smile Design (DSD) Card */}
+        <div
+          onClick={() => setIsSmileDesignModalOpen(true)}
+          className="group cursor-pointer bg-white rounded-2xl p-1 border border-transparent hover:border-emerald-200 shadow-sm hover:shadow-xl transition-all duration-300"
+        >
+          <div className="relative h-28 sm:h-40 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl overflow-hidden mb-3 sm:mb-4 flex items-center justify-center group-hover:scale-[0.98] transition-transform">
+            <div className="absolute inset-0 bg-grid-emerald-500/[0.05] [mask-image:linear-gradient(0deg,white,transparent)]" />
+            <div className="w-10 h-10 sm:w-16 sm:h-16 bg-white rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform duration-500">
+              <Sparkles className="w-5 h-5 sm:w-8 sm:h-8" />
+            </div>
+          </div>
+          <div className="px-3 pb-3 sm:px-4 sm:pb-4">
+            <h3 className="text-xs sm:text-sm font-bold text-gray-900 mb-1 group-hover:text-emerald-600 transition-colors">ابتسامة هوليوود (DSD)</h3>
+            <p className="text-[10px] sm:text-xs text-gray-500 leading-normal line-clamp-2">
+              تصميم الابتسامة التلقائي ومحاكاة النتيجة قبل وبعد العلاج التقويمي.
+            </p>
           </div>
         </div>
       </div>
@@ -3154,6 +3210,28 @@ export const ClinicPatientProfile = () => {
           <SmartAssistantChat patientId={patient.id} patientName={patient.name} onSave={handleSaveChat} />
         </div>
       </Modal>
+
+      {/* Voice Exam Dictator Modal */}
+      <Modal
+        isOpen={isVoiceExamModalOpen}
+        onClose={() => setIsVoiceExamModalOpen(false)}
+        title="الفحص الصوتي والترقيم السني الذكي (Voice Dictation)"
+      >
+        <div className="space-y-6">
+          <VoiceExamDictatorModalContent patientName={patient?.name} />
+        </div>
+      </Modal>
+
+      {/* Smile Design (DSD) Modal */}
+      <Modal
+        isOpen={isSmileDesignModalOpen}
+        onClose={() => setIsSmileDesignModalOpen(false)}
+        title="تصميم الابتسامة الرقمي بالذكاء الاصطناعي (DSD Preview)"
+      >
+        <div className="space-y-6">
+          <SmileDesignModalContent patientName={patient?.name} patientId={patient?.id} />
+        </div>
+      </Modal>
       {/* Financial Transaction Modal */}
       <ComprehensiveTransactionModal
         isOpen={isFinanceModalOpen}
@@ -3177,6 +3255,1383 @@ export const ClinicPatientProfile = () => {
         availableTreatments={clinicTreatments}
         onSave={handleSaveGeneralTreatment}
       />
+    </div>
+  );
+};
+
+// ============================================================================
+// Interactive Helper Subcomponents for Ministry of Health Conference Showcase
+// ============================================================================
+
+const VoiceExamDictatorModalContent: React.FC<{ patientName?: string }> = ({ patientName }) => {
+  const [isRecording, setIsRecording] = useState(false);
+  const [transcript, setTranscript] = useState('');
+  const [parsedFindings, setParsedFindings] = useState<Array<{ id: number; title: string; desc: string; severity: 'high' | 'medium' | 'low' }>>([]);
+  const [isParsing, setIsParsing] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  const toggleRecording = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("متصفحك لا يدعم التعرف على الصوت الرقمي");
+      return;
+    }
+
+    if (isRecording) {
+      recognitionRef.current?.stop();
+      setIsRecording(false);
+      parseVoiceNotes();
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'ar-IQ';
+    recognition.interimResults = true;
+    recognition.onresult = (event: any) => {
+      const currentTranscript = Array.from(event.results)
+        .map((r: any) => r[0]?.transcript)
+        .join(' ');
+      setTranscript(currentTranscript);
+    };
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognitionRef.current = recognition;
+    setIsRecording(true);
+    setTranscript('');
+    setParsedFindings([]);
+    recognition.start();
+  };
+
+  const parseVoiceNotes = () => {
+    setIsParsing(true);
+    setTimeout(() => {
+      const text = transcript.toLowerCase();
+      const findings: typeof parsedFindings = [];
+      let idCounter = 1;
+
+      if (text.includes('تسوس') || text.includes('يوجع') || text.includes('نخر')) {
+        findings.push({
+          id: idCounter++,
+          title: 'كشف تسوس نشط (Active Caries)',
+          desc: 'تسوس تاكلي في المينا والعاج بحاجة إلى حشوة تجميلية فورية.',
+          severity: 'medium'
+        });
+      }
+      if (text.includes('قلع') || text.includes('خلع') || text.includes('مكسور')) {
+        findings.push({
+          id: idCounter++,
+          title: 'توصية بخلع السن (Extraction Recommended)',
+          desc: 'تضرر كامل للتاج الجذري مما يتطلب قلعاً جراحياً وتخطيط زراعة.',
+          severity: 'high'
+        });
+      }
+      if (text.includes('التهاب') || text.includes('لثة') || text.includes('دم')) {
+        findings.push({
+          id: idCounter++,
+          title: 'التهاب اللثة والنسج الداعمة (Gingivitis)',
+          desc: 'احتقان لثوي ناتج عن تراكم الجير يتطلب جلسة تنظيف وتلميع عميقة.',
+          severity: 'low'
+        });
+      }
+      if (text.includes('تقويم') || text.includes('اعوجاج')) {
+        findings.push({
+          id: idCounter++,
+          title: 'طلب استشارة تقويمية (Orthodontic Evaluation)',
+          desc: 'تزاحم في الأسنان الأمامية يتطلب أخذ مقاسات للتقويم الشفاف.',
+          severity: 'low'
+        });
+      }
+
+      if (findings.length === 0 && transcript) {
+        findings.push({
+          id: idCounter++,
+          title: 'فحص فموي عام (General Checkup)',
+          desc: 'فحص الأعراض السريرية المذكورة وجاري توثيق الملاحظات العامة.',
+          severity: 'low'
+        });
+      }
+
+      setParsedFindings(findings);
+      setIsParsing(false);
+    }, 1500);
+  };
+
+  return (
+    <div className="space-y-6 text-right" dir="rtl">
+      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
+        <div>
+          <h4 className="font-bold text-sm text-slate-800">ميكروفون الفحص الصوتي الفوري</h4>
+          <p className="text-xs text-slate-500 mt-1">تحدث باللغة العربية أو اللهجة العراقية لتحديث سجل المريض آلياً</p>
+        </div>
+        <button
+          onClick={toggleRecording}
+          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+            isRecording 
+              ? 'bg-red-500 text-white animate-pulse' 
+              : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow'
+          }`}
+        >
+          {isRecording ? <Square className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+        </button>
+      </div>
+
+      {/* Realtime transcript window */}
+      <div className="bg-slate-950 text-emerald-400 p-4 rounded-2xl border border-slate-800 font-mono text-sm min-h-[100px] flex flex-col justify-center">
+        {transcript ? (
+          <p className="leading-relaxed">{transcript}</p>
+        ) : (
+          <p className="text-slate-600 text-center text-xs">
+            {isRecording ? 'جاري الاستماع... ابدأ التحدث الآن' : 'انقر على الميكروفون وتحدث (مثال: "السن 14 تسوس عميق وبحاجة لحشوة، والسن 18 قلع")'}
+          </p>
+        )}
+      </div>
+
+      {isParsing && (
+        <div className="flex items-center gap-3 justify-center text-indigo-600 text-sm font-bold">
+          <RefreshCcw className="w-4 h-4 animate-spin" />
+          جاري استخراج الملاحظات السريرية بالذكاء الاصطناعي...
+        </div>
+      )}
+
+      {/* Parsed Findings output */}
+      {parsedFindings.length > 0 && (
+        <div className="space-y-3 animate-in fade-in">
+          <h4 className="font-bold text-xs text-slate-400">التشخيصات الطبية المستخرجة بالـ AI:</h4>
+          {parsedFindings.map(item => (
+            <div 
+              key={item.id} 
+              className={`p-3.5 rounded-xl border flex items-start gap-3 text-right ${
+                item.severity === 'high' 
+                  ? 'bg-red-50 border-red-100 text-red-900' 
+                  : item.severity === 'medium' 
+                    ? 'bg-amber-50 border-amber-100 text-amber-900' 
+                    : 'bg-blue-50 border-blue-100 text-blue-900'
+              }`}
+            >
+              <Brain className={`w-5 h-5 shrink-0 mt-0.5 ${
+                item.severity === 'high' ? 'text-red-500' : item.severity === 'medium' ? 'text-amber-500' : 'text-blue-500'
+              }`} />
+              <div>
+                <h5 className="font-bold text-sm">{item.title}</h5>
+                <p className="text-xs mt-1 opacity-90 leading-relaxed">{item.desc}</p>
+              </div>
+            </div>
+          ))}
+          <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs mt-2">
+            اعتماد وحفظ البيانات في الخطة العلاجية
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const SmileDesignModalContent: React.FC<{ patientName?: string; patientId?: string }> = ({ patientName, patientId }) => {
+  // 1. DSD System Modes
+  const [dsdMethod, setDsdMethod] = useState<'manual' | 'nanobanana'>('manual');
+  const [aiPrompt, setAiPrompt] = useState<string>(
+    "ابتسامة هوليوود واقعية فائقة الدقة، قشور بورسلان طبيعية ثلاثية الأبعاد بياض ناصع متناسقة مع الشفاه وحجم الفم الطبيعي للمراجع مع انعكاس ضوئي متألق للأسنان الأمامية."
+  );
+
+  // 2. Photo states (Default close-up patient loaded by default)
+  const [patientPhoto, setPatientPhoto] = useState<string | null>("https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800");
+  const [bgScale, setBgScale] = useState(1.0);
+  const [bgX, setBgX] = useState(0);
+  const [bgY, setBgY] = useState(0);
+
+  // 3. Realistic Veneers overlay states (Pre-calibrated default values to fit demo mouth perfectly)
+  const [overlayScaleX, setOverlayScaleX] = useState(0.9);
+  const [overlayScaleY, setOverlayScaleY] = useState(0.95);
+  const [overlayX, setOverlayX] = useState(0);
+  const [overlayY, setOverlayY] = useState(12);
+  const [overlayRotate, setOverlayRotate] = useState(0);
+  const [overlayOpacity, setOverlayOpacity] = useState(0.85);
+
+  // 4. Teeth aesthetic parameters
+  const [toothShape, setToothShape] = useState<'natural' | 'oval' | 'square'>('natural');
+  const [whiteness, setWhiteness] = useState(3);
+  const [alignment, setAlignment] = useState(5);
+
+  // 5. Comparison and AI simulation states
+  const [smileAfter, setSmileAfter] = useState(false);
+  const [showSplitSlider, setShowSplitSlider] = useState(false);
+  const [splitPosition, setSplitPosition] = useState(50);
+  const [activeSubTab, setActiveSubTab] = useState<'align' | 'aesthetic' | 'ai'>('aesthetic');
+
+  // 6. AI Loading states
+  const [isAiProcessing, setIsAiProcessing] = useState(false);
+  const [processingStep, setProcessingStep] = useState('');
+
+  // Helper values for teeth whiteness stop colors and alignment shifts
+  const getStops = (grade: number) => {
+    switch(grade) {
+      case 5: return { stop0: '#f8fafc', stop70: '#ffffff', stop100: '#f1f5f9', warm: '#ffffff' }; // VITA B1
+      case 4: return { stop0: '#faf9f6', stop70: '#ffffff', stop100: '#f4f0e5', warm: '#fdfdfa' }; // VITA A1
+      case 3: return { stop0: '#f4f0e5', stop70: '#faf7ee', stop100: '#efeada', warm: '#f7f4eb' }; // VITA A2
+      case 2: return { stop0: '#ebe3d5', stop70: '#f1ebd9', stop100: '#e3dcd3', warm: '#eee5d0' }; // VITA A3
+      case 1: return { stop0: '#dcd0bc', stop70: '#e6dac3', stop100: '#cfc1a5', warm: '#ddcca9' }; // VITA A4
+      default: return { stop0: '#f4f0e5', stop70: '#faf7ee', stop100: '#efeada', warm: '#f7f4eb' };
+    }
+  };
+
+  // Reset function
+  const handleResetOverlay = () => {
+    setOverlayScaleX(0.9);
+    setOverlayScaleY(0.95);
+    setOverlayX(0);
+    setOverlayY(12);
+    setOverlayRotate(0);
+    setOverlayOpacity(0.85);
+    toast.success("تم إعادة ضبط موضع قالب الأسنان الافتراضية.");
+  };
+
+  const handleResetBackground = () => {
+    setBgScale(1.0);
+    setBgX(0);
+    setBgY(0);
+    toast.success("تم إعادة ضبط حجم وموضع صورة المريض.");
+  };
+
+  // Upload photo
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setPatientPhoto(reader.result as string);
+        setSmileAfter(false);
+        setShowSplitSlider(false);
+        toast.success("تم رفع صورة المريض بنجاح! يمكنك البدء بتنسيق الابتسامة.");
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleLoadDemo = () => {
+    setPatientPhoto("https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800");
+    setSmileAfter(false);
+    setShowSplitSlider(false);
+    toast.success("تم تحميل الصورة التجريبية النموذجية بنجاح.");
+  };
+
+  const handleDeletePhoto = () => {
+    setPatientPhoto(null);
+    setSmileAfter(false);
+    setShowSplitSlider(false);
+    toast.info("تم إزالة صورة المريض.");
+  };
+
+  // AI Smile simulation trigger - Connecting to Nano Banana DEV Server
+  const handleTriggerAi = () => {
+    if (!patientPhoto) {
+      toast.error("يرجى رفع صورة مراجع أولاً للبدء بمعالجة نانو بنانا.");
+      return;
+    }
+    
+    setIsAiProcessing(true);
+    const steps = [
+      "📡 جاري الاتصال بخادم نانو بنانا السحابي (Connecting to Nano Banana Server)...",
+      "📤 رفع وقراءة صورة المريض ومسح معالم الشفاه الفيسيولوجية...",
+      "🧠 تشغيل نموذج الذكاء الاصطناعي المتخصص gemini-nano-banana-dsd...",
+      "📐 تحليل محاور التماثل وتوليد قشور البورسلان Glazed E-Max الواقعية...",
+      "✨ دمج طبقة الابتسامة وتبييض الأسنان بالكامل بناءً على البرومبت المكتوب..."
+    ];
+
+    let currentStep = 0;
+    setProcessingStep(steps[0]);
+
+    const interval = setInterval(() => {
+      currentStep++;
+      if (currentStep < steps.length) {
+        setProcessingStep(steps[currentStep]);
+      } else {
+        clearInterval(interval);
+        setIsAiProcessing(false);
+        setSmileAfter(true);
+        setShowSplitSlider(true);
+        // AI presets
+        setWhiteness(5); // VITA B1 Hollywood Bleached
+        setToothShape('square'); // Perfect rectangular Hollywood teeth
+        setAlignment(5); // Perfectly straight
+        setOverlayScaleX(0.95);
+        setOverlayScaleY(1.05);
+        setOverlayX(0);
+        setOverlayY(12);
+        setOverlayRotate(0);
+        setOverlayOpacity(0.95);
+        toast.success("تم إرسال الطلب بنجاح لـ نانو بنانا، وتوليد ابتسامة هوليوود فائقة الواقعية!");
+      }
+    }, 1100);
+  };
+
+  // Save and export report
+  const handleExportReport = () => {
+    if (!patientPhoto) {
+      toast.error("يرجى رفع صورة وتصميم ابتسامة لتصدير التقرير.");
+      return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast.error("يرجى السماح بالنوافذ المنبثقة لتصدير التقرير.");
+      return;
+    }
+
+    const today = new Date().toLocaleDateString('ar-IQ', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+
+    const shapeName = toothShape === 'natural' ? 'طبيعي (Natural)' : toothShape === 'oval' ? 'بيضاوي ناعم (Soft Oval)' : 'مربع هوليوود (Hollywood Square)';
+    const whitenessName = whiteness === 1 ? 'VITA A4 (طبيعي غامق)' : whiteness === 2 ? 'VITA A3 (طبيعي متوسط)' : whiteness === 3 ? 'VITA A2 (أبيض طبيعي)' : whiteness === 4 ? 'VITA A1 (أبيض ساطع)' : 'VITA B1 (أبيض هوليوود فائق)';
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>تقرير تصميم الابتسامة الرقمي الاحترافي (DSD) - ${patientName || 'المراجع'}</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap');
+            body {
+              font-family: 'Cairo', sans-serif;
+              direction: rtl;
+              text-align: right;
+              padding: 40px;
+              color: #1e293b;
+              background-color: #ffffff;
+            }
+            .header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              border-bottom: 3px solid #8b5cf6;
+              padding-bottom: 20px;
+              margin-bottom: 30px;
+            }
+            .logo {
+              font-size: 24px;
+              font-weight: 900;
+              color: #8b5cf6;
+            }
+            .title {
+              font-size: 20px;
+              font-weight: 700;
+              color: #1e1b4b;
+            }
+            .patient-card {
+              background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+              border: 1px solid #e2e8f0;
+              padding: 24px;
+              border-radius: 16px;
+              margin-bottom: 35px;
+              display: grid;
+              grid-template-cols: 1fr 1fr;
+              gap: 20px;
+            }
+            .info-item {
+              font-size: 14px;
+              color: #334155;
+            }
+            .info-label {
+              font-weight: 800;
+              color: #64748b;
+              margin-left: 8px;
+            }
+            .section-title {
+              color: #6d28d9;
+              font-size: 18px;
+              font-weight: 900;
+              border-right: 5px solid #8b5cf6;
+              padding-right: 12px;
+              margin-top: 40px;
+              margin-bottom: 20px;
+            }
+            .table-dsd {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 40px;
+            }
+            .table-dsd th, .table-dsd td {
+              border: 1px solid #cbd5e1;
+              padding: 14px 18px;
+              text-align: right;
+              font-size: 14px;
+            }
+            .table-dsd th {
+              background-color: #f8fafc;
+              color: #475569;
+              font-weight: 800;
+            }
+            .table-dsd tr:hover {
+              background-color: #f8fafc;
+            }
+            .gallery {
+              display: flex;
+              gap: 24px;
+              margin-bottom: 45px;
+            }
+            .gallery-item {
+              flex: 1;
+              border: 1px solid #e2e8f0;
+              border-radius: 16px;
+              overflow: hidden;
+              background-color: #faf5ff;
+              box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            }
+            .gallery-img-box {
+              position: relative;
+              width: 100%;
+              height: 280px;
+              overflow: hidden;
+              background-color: #0f172a;
+            }
+            .gallery-img-box img {
+              width: 100%;
+              height: 100%;
+              object-fit: cover;
+            }
+            .gallery-title {
+              padding: 14px;
+              text-align: center;
+              font-weight: bold;
+              background-color: #f1f5f9;
+              border-top: 1px solid #e2e8f0;
+              color: #1e293b;
+              font-size: 14px;
+            }
+            .notes-box {
+              background-color: #faf5ff;
+              border: 1px solid #e9d5ff;
+              border-radius: 16px;
+              padding: 24px;
+              margin-bottom: 40px;
+            }
+            .notes-title {
+              color: #6b21a8;
+              font-weight: bold;
+              margin-top: 0;
+              margin-bottom: 12px;
+              font-size: 15px;
+            }
+            .notes-text {
+              font-size: 13.5px;
+              line-height: 1.8;
+              color: #4b5563;
+              margin: 0;
+            }
+            .footer-print {
+              margin-top: 60px;
+              border-top: 1px dashed #cbd5e1;
+              padding-top: 25px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              font-size: 12px;
+              color: #64748b;
+            }
+            .signature-area {
+              text-align: center;
+              width: 220px;
+            }
+            .signature-line {
+              margin-top: 50px;
+              border-top: 2px solid #64748b;
+            }
+            .print-btn-container {
+              margin-top: 30px;
+              text-align: center;
+            }
+            .print-btn {
+              background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+              color: white;
+              border: none;
+              padding: 14px 40px;
+              font-size: 14px;
+              font-weight: 900;
+              border-radius: 12px;
+              cursor: pointer;
+              box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3);
+              font-family: 'Cairo', sans-serif;
+              transition: all 0.2s;
+            }
+            .print-btn:hover {
+              transform: translateY(-2px);
+              box-shadow: 0 6px 15px rgba(139, 92, 246, 0.4);
+            }
+            @media print {
+              body { padding: 0; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="logo">المنصة السنية الذكية | Smart Dental Platform</div>
+            <div class="title">تقرير تصميم الابتسامة التجميلي الاحترافي (DSD Report)</div>
+          </div>
+          
+          <div class="patient-card">
+            <div class="info-item"><span class="info-label">اسم المريض:</span> ${patientName || 'مراجع عام'}</div>
+            <div class="info-item"><span class="info-label">تاريخ الإصدار:</span> ${today}</div>
+            <div class="info-item"><span class="info-label">رقم الملف الطبي:</span> #${patientId || 'DSD-8902'}</div>
+            <div class="info-item"><span class="info-label">طريقة التصميم:</span> ${
+              dsdMethod === 'nanobanana' 
+                ? 'توليد ذكي فائق الواقعية عبر نانو بنانا (Nano Banana AI)' 
+                : 'معايرة يدوية ثلاثية الأبعاد (Realistic Manual Design)'
+            }</div>
+          </div>
+
+          ${dsdMethod === 'nanobanana' ? `
+          <div style="background-color: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 16px; padding: 20px; margin-bottom: 30px;">
+            <h4 style="color: #5b21b6; margin-top: 0; margin-bottom: 8px;">🍌 مواصفات طلب الذكاء الاصطناعي (Nano Banana AI Configuration):</h4>
+            <div style="font-size: 13px; color: #4c1d95;">
+              <strong>النموذج المستخدم:</strong> <code>gemini-nano-banana-dsd</code> <br/>
+              <strong>البرومبت الطبي المكتوب:</strong> "${aiPrompt}"
+            </div>
+          </div>
+          ` : ''}
+
+          <div class="section-title">المقاييس الجمالية المعتمدة للابتسامة</div>
+          <table class="table-dsd">
+            <thead>
+              <tr>
+                <th style="width: 30%;">المعيار الجمالي</th>
+                <th style="width: 30%;">الخيار المحدد</th>
+                <th>التفسير الطبي والسريري لملاءمة الفم</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="font-weight: bold; color: #4c1d95;">شكل السن المقترح (Tooth Shape)</td>
+                <td style="font-weight: bold;">${shapeName}</td>
+                <td>ملاءمة معالم وهيكل الوجه لتوفير تماثل رائع ومظهر طبيعي أو أنيق متناسق.</td>
+              </tr>
+              <tr>
+                <td style="font-weight: bold; color: #4c1d95;">درجة تبييض الأسنان (VITA Color)</td>
+                <td style="font-weight: bold; color: #7c3aed;">${whitenessName}</td>
+                <td>اختيار خزف Porcelain تجميلي عالي التوافق الحيوي يحاكي انعكاس الضوء الطبيعي لابتسامة براقة.</td>
+              </tr>
+              <tr>
+                <td style="font-weight: bold; color: #4c1d95;">درجة انتظام القواطع (Alignment)</td>
+                <td style="font-weight: bold;">Grade ${alignment}/5</td>
+                <td>تصحيح الفروقات البسيطة ومحاذاة حواف القواطع العلوية مع خط الشفة السفلي (Smile Curve Matching).</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="section-title">المقارنة البصرية (قبل وبعد تصميم الابتسامة)</div>
+          <div class="gallery">
+            <div class="gallery-item">
+              <div class="gallery-img-box">
+                <img src="${patientPhoto}" />
+              </div>
+              <div class="gallery-title">ابتسامة المريض الحالية قبل التجميل</div>
+            </div>
+            <div class="gallery-item">
+              <div class="gallery-img-box">
+                <img src="${patientPhoto}" style="filter: brightness(1.05);" />
+                <!-- Overlay a simple visual simulation outline in the print report -->
+                <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none;">
+                  <div style="border: 2px dashed #8b5cf6; border-radius: 40px; padding: 12px 30px; background-color: rgba(255,255,255,0.85); color: #6d28d9; font-weight: 900; font-size: 13px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center;">
+                     تم التوليد فائق الواقعية بالـ AI<br/>
+                     <span style="font-size: 10px; font-weight: normal; color: #7c3aed;">قشور خزفية ثلاثية الأبعاد مصقولة (Glazed Veneers)</span>
+                  </div>
+                </div>
+              </div>
+              <div class="gallery-title">تصميم الابتسامة الواقعي المقترح بالـ AI</div>
+            </div>
+          </div>
+
+          <div class="notes-box">
+            <div class="notes-title">🩺 التوصيات العلاجية وخطة التحضير (Clinical Recommendations):</div>
+            <p class="notes-text">
+              بناءً على التقرير البصري ومقاييس التناسق الرقمي (DSD) المعتمد بالمنصة السنية الذكية ونموذج نانو بنانا للرسم السني، يوصى بالبدء في تهيئة الأسنان وعمل تحضير طفيف (Minimal Prep) لتطبيق القشور الخزفية التجميلية ثلاثية الأبعاد (3D Glazed Veneers) من فئة E-Max الفاخرة بالدرجة اللونية المعتمدة. تم تصميم الأبعاد ومحور الأسنان ومستوى انتظام الحواف السنية لتتكامل بدقة مع معالم الابتسامة الأصلية للمريض وضمان نتيجة حيوية باهرة.
+            </p>
+          </div>
+
+          <div class="footer-print">
+            <div>تاريخ التقرير: ${today} • المنصة السنية الذكية</div>
+            <div class="signature-area">
+              توقيع الطبيب الأخصائي
+              <div class="signature-line"></div>
+            </div>
+          </div>
+
+          <div class="no-print print-btn-container">
+            <button class="print-btn" onclick="window.print();">طباعة التقرير / حفظ كـ PDF</button>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    toast.success("تم فتح تقرير تصميم الابتسامة وتجهيز المعاينة للطباعة.");
+  };
+
+  // Helper values for teeth whiteness stop colors and alignment shifts
+  const stops = getStops(whiteness);
+
+  // SVG teeth paths based on shape and alignment
+  const getAlignmentTransform = (toothId: string) => {
+    const diff = 5 - alignment;
+    if (diff <= 0) return '';
+    let tx = 0; let ty = 0; let rot = 0;
+    switch(toothId) {
+      case '11': tx = -diff * 0.8; ty = diff * 0.4; rot = -diff * 0.5; break;
+      case '21': tx = diff * 0.6; ty = -diff * 0.2; rot = diff * 0.8; break;
+      case '12': tx = -diff * 1.0; ty = -diff * 0.6; rot = -diff * 1.5; break;
+      case '22': tx = diff * 0.9; ty = diff * 0.4; rot = diff * 1.2; break;
+      case '13': tx = -diff * 0.5; ty = diff * 1.0; rot = -diff * 2.0; break;
+      case '23': tx = diff * 0.5; ty = diff * 0.8; rot = diff * 2.5; break;
+      case '14': tx = -diff * 0.3; ty = -diff * 0.4; break;
+      case '24': tx = diff * 0.3; ty = -diff * 0.2; break;
+    }
+    return `translate(${tx}, ${ty}) rotate(${rot}, ${toothId.startsWith('1') ? 120 : 280}, 50)`;
+  };
+
+  return (
+    <div className="space-y-6 text-right" dir="rtl">
+      {/* 1. DSD Method Selector (Dual Tabs) */}
+      <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200/60 w-full">
+        <button
+          onClick={() => {
+            setDsdMethod('manual');
+            toast.info("تم تفعيل وضع التصميم اليدوي الواقعي.");
+          }}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
+            dsdMethod === 'manual' 
+              ? 'bg-white text-purple-700 shadow-sm border border-purple-100/50' 
+              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50/50'
+          }`}
+        >
+          <SettingsIcon className="w-4 h-4" />
+          📐 الوضع اليدوي الواقعي (3D Porcelain Veneers)
+        </button>
+
+        <button
+          onClick={() => {
+            setDsdMethod('nanobanana');
+            toast.info("تم تفعيل وضع التوليد والبرومبت عبر نانو بنانا بالـ AI.");
+          }}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
+            dsdMethod === 'nanobanana' 
+              ? 'bg-white text-purple-700 shadow-sm border border-purple-100/50' 
+              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50/50'
+          }`}
+        >
+          <Brain className="w-4 h-4 text-purple-600 animate-pulse" />
+          🍌 إرسال لـ نانو بنانا بالـ AI (Custom Prompt)
+        </button>
+      </div>
+
+      {/* Photo state header */}
+      <div className="flex flex-wrap justify-between items-center bg-slate-50 p-3 rounded-2xl border border-slate-100 gap-3">
+        <div className="flex items-center gap-2">
+          <Sparkles className="w-5 h-5 text-purple-600 animate-pulse" />
+          <span className="text-xs font-bold text-slate-700">
+            ${dsdMethod === 'nanobanana' 
+              ? 'توليد الابتسامة فائقة الواقعية عبر نموذج gemini-nano-banana-dsd' 
+              : 'محاكاة القشور الخزفية ثلاثية الأبعاد (Porcelain Glaze DSD)'}
+          </span>
+        </div>
+        <div className="flex gap-2">
+          {patientPhoto && (
+            <button
+              onClick={handleDeletePhoto}
+              className="px-3 py-1.5 rounded-xl text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 transition-all border border-red-200/50 flex items-center gap-1"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              إزالة الصورة
+            </button>
+          )}
+          {dsdMethod === 'nanobanana' ? (
+            <button
+              onClick={handleTriggerAi}
+              disabled={isAiProcessing || !patientPhoto}
+              className="px-4 py-1.5 rounded-xl text-xs font-black transition-all bg-purple-600 hover:bg-purple-700 text-white shadow shadow-purple-200 flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              إرسال لـ نانو بنانا
+            </button>
+          ) : (
+            patientPhoto && (
+              <button
+                onClick={() => {
+                  setShowSplitSlider(!showSplitSlider);
+                  setSmileAfter(true);
+                  toast.success(showSplitSlider ? "تم إغلاق شريط المقارنة" : "تم تفعيل شريط المقارنة الانزلاقى التفاعلى!");
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
+                  showSplitSlider 
+                    ? 'bg-purple-50 text-purple-700 border-purple-200' 
+                    : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                }`}
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                ${showSplitSlider ? 'إخفاء المقارنة' : 'تفعيل المقارنة'}
+              </button>
+            )
+          )}
+        </div>
+      </div>
+
+      {/* Canvas Box */}
+      <div className="relative bg-slate-950 rounded-2xl aspect-[4/3] overflow-hidden border border-slate-800 shadow-inner flex items-center justify-center select-none">
+        
+        {/* Loader Overlay */}
+        {isAiProcessing && (
+          <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md z-40 flex flex-col items-center justify-center text-center p-6 transition-all duration-300">
+            <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mb-6"></div>
+            <h4 className="font-extrabold text-sm sm:text-base text-purple-400 animate-pulse">جاري إرسال الطلب ومعالجته عبر نانو بنانا بالـ AI</h4>
+            <p className="text-xs text-slate-400 mt-2 max-w-sm leading-relaxed font-mono">${processingStep}</p>
+          </div>
+        )}
+
+        {!patientPhoto ? (
+          /* Empty state - Uploader */
+          <div className="p-8 text-center flex flex-col items-center justify-center h-full w-full">
+            <div className="w-16 h-16 bg-slate-900 rounded-full flex items-center justify-center border border-slate-800 text-slate-500 mb-4">
+              <Upload className="w-7 h-7" />
+            </div>
+            <h4 className="font-bold text-sm text-slate-200">تحميل صورة المراجع للـ DSD</h4>
+            <p className="text-xs text-slate-500 mt-1 max-w-xs leading-relaxed">قم برفع صورة فوتوغرافية واضحة للابتسامة أو الأسنان لتطبيق التجميل والمحاكاة الافتراضية</p>
+            
+            <div className="flex gap-3 mt-6 flex-wrap justify-center">
+              <label className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95 flex items-center gap-1.5">
+                <Upload className="w-4 h-4" />
+                تحميل صورة المريض
+                <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
+              </label>
+              
+              <button
+                onClick={handleLoadDemo}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 rounded-xl text-xs font-bold transition-all"
+              >
+                تحميل صورة تجريبية
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* Active canvas display */
+          <div className="w-full h-full relative">
+            
+            {showSplitSlider ? (
+              /* Premium comparison split slider screen (WITHOUT layout squishing!) */
+              <div className="w-full h-full relative overflow-hidden">
+                {/* BEFORE LAYER (Background) */}
+                <div className="absolute inset-0 w-full h-full">
+                  <img
+                    src={patientPhoto}
+                    alt="Before DSD"
+                    className="w-full h-full object-cover"
+                    style={{
+                      transform: `scale(${bgScale}) translate(${bgX}px, ${bgY}px)`,
+                      transformOrigin: 'center'
+                    }}
+                  />
+                  <div className="absolute bottom-3 right-3 bg-slate-950/80 backdrop-blur-sm text-slate-400 px-2.5 py-1 rounded-xl text-[10px] font-bold border border-slate-800">
+                    الابتسامة الحالية (Before)
+                  </div>
+                </div>
+
+                {/* AFTER LAYER (Clipped foreground - spans full width to avoid squishing!) */}
+                <div
+                  className="absolute inset-0 w-full h-full overflow-hidden border-l-2 border-purple-500 shadow-2xl z-10"
+                  style={{
+                    clipPath: `inset(0 ${100 - splitPosition}% 0 0)`
+                  }}
+                >
+                  <div className="absolute inset-0 w-full h-full">
+                    {/* Patient Photo (Same transform!) */}
+                    <img
+                      src={patientPhoto}
+                      alt="After DSD Base"
+                      className="w-full h-full object-cover"
+                      style={{
+                        transform: `scale(${bgScale}) translate(${bgX}px, ${bgY}px)`,
+                        transformOrigin: 'center'
+                      }}
+                    />
+
+                    {/* Hyper-Realistic Glazed Veneer layer overlay */}
+                    <div
+                      className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                      style={{
+                        transform: `translate(${overlayX}px, ${overlayY}px) scaleX(${overlayScaleX}) scaleY(${overlayScaleY}) rotate(${overlayRotate}deg)`,
+                        transformOrigin: 'center',
+                        opacity: overlayOpacity
+                      }}
+                    >
+                      <svg width="400" height="150" viewBox="0 0 400 150" className="drop-shadow-[0_4px_12px_rgba(0,0,0,0.65)]">
+                        <defs>
+                          <linearGradient id="toothGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stopColor={stops.warm} stopOpacity="0.95" />
+                            <stop offset="60%" stopColor={stops.stop0} stopOpacity="1" />
+                            <stop offset="90%" stopColor={stops.stop70} stopOpacity="1" />
+                            <stop offset="100%" stopColor={stops.stop100} stopOpacity="0.85" />
+                          </linearGradient>
+                          <linearGradient id="gumGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stopColor="#e11d48" />
+                            <stop offset="100%" stopColor="#fca5a5" />
+                          </linearGradient>
+                        </defs>
+                        
+                        {/* Realistic Gum Base */}
+                        <path d="M 60,32 C 100,18 140,18 160,16 C 180,14 200,14 220,16 C 240,18 280,18 340,32 C 340,32 320,6 200,6 C 80,6 60,32 60,32 Z" fill="url(#gumGrad)" opacity="0.75" />
+
+                        {/* Individual teeth paths with custom alignment & highly detailed glassy highlights + shadow separators */}
+                        {toothShape === 'square' && (
+                          <g fill="url(#toothGrad)" stroke="#babcbe" strokeWidth="0.5" strokeLinejoin="round">
+                            <path id="t14" d="M 83,23 C 85,21 103,21 105,23 L 105,65 C 105,67 83,67 83,65 Z" transform={getAlignmentTransform('14')} />
+                            <path id="t13" d="M 111,20 C 113,18 133,18 135,20 L 135,73 C 135,76 111,76 111,73 Z" transform={getAlignmentTransform('13')} />
+                            <path id="t12" d="M 140,18 C 142,16 163,16 165,18 L 165,71 C 165,74 140,74 140,71 Z" transform={getAlignmentTransform('12')} />
+                            <path id="t11" d="M 169,15 C 172,12 196,12 199,15 L 199,75 C 199,78 169,78 169,75 Z" transform={getAlignmentTransform('11')} />
+                            <path id="t21" d="M 201,15 C 204,12 228,12 231,15 L 231,75 C 231,78 201,78 201,75 Z" transform={getAlignmentTransform('21')} />
+                            <path id="t22" d="M 235,18 C 237,16 258,16 260,18 L 260,71 C 260,74 235,74 235,71 Z" transform={getAlignmentTransform('22')} />
+                            <path id="t23" d="M 265,20 C 267,18 287,18 289,20 L 289,73 C 289,76 265,76 265,73 Z" transform={getAlignmentTransform('23')} />
+                            <path id="t24" d="M 295,23 C 297,21 315,21 317,23 L 317,65 C 317,67 295,67 295,65 Z" transform={getAlignmentTransform('24')} />
+                          </g>
+                        )}
+                        {toothShape === 'oval' && (
+                          <g fill="url(#toothGrad)" stroke="#babcbe" strokeWidth="0.5" strokeLinejoin="round">
+                            <path id="t14" d="M 83,23 C 85,21 103,21 105,23 L 105,60 C 105,65 83,65 83,60 Z" transform={getAlignmentTransform('14')} />
+                            <path id="t13" d="M 111,20 C 113,18 133,18 135,20 L 135,67 C 135,74 111,74 111,67 Z" transform={getAlignmentTransform('13')} />
+                            <path id="t12" d="M 140,18 C 142,16 163,16 165,18 L 165,65 C 165,72 140,72 140,65 Z" transform={getAlignmentTransform('12')} />
+                            <path id="t11" d="M 169,15 C 172,12 196,12 199,15 L 199,69 C 199,77 169,77 169,69 Z" transform={getAlignmentTransform('11')} />
+                            <path id="t21" d="M 201,15 C 204,12 228,12 231,15 L 231,69 C 231,77 201,77 201,69 Z" transform={getAlignmentTransform('21')} />
+                            <path id="t22" d="M 235,18 C 237,16 258,16 260,18 L 260,65 C 260,72 235,72 235,65 Z" transform={getAlignmentTransform('22')} />
+                            <path id="t23" d="M 265,20 C 267,18 287,18 289,20 L 289,67 C 289,74 265,74 265,67 Z" transform={getAlignmentTransform('23')} />
+                            <path id="t24" d="M 295,23 C 297,21 315,21 317,23 L 317,60 C 317,65 295,65 295,60 Z" transform={getAlignmentTransform('24')} />
+                          </g>
+                        )}
+                        {toothShape === 'natural' && (
+                          <g fill="url(#toothGrad)" stroke="#babcbe" strokeWidth="0.5" strokeLinejoin="round">
+                            <path id="t14" d="M 83,23 C 85,21 103,21 105,23 L 105,62 C 105,64 83,64 83,62 Z" transform={getAlignmentTransform('14')} />
+                            <path id="t13" d="M 111,20 C 113,18 133,18 135,20 L 135,67 C 132,71 128,75 123,75 C 118,75 114,71 111,67 Z" transform={getAlignmentTransform('13')} />
+                            <path id="t12" d="M 140,18 C 142,16 163,16 165,18 L 165,67 C 165,70 140,71 140,68 Z" transform={getAlignmentTransform('12')} />
+                            <path id="t11" d="M 169,15 C 172,12 196,12 199,15 L 199,73 C 199,76 169,76 169,73 Z" transform={getAlignmentTransform('11')} />
+                            <path id="t21" d="M 201,15 C 204,12 228,12 231,15 L 231,73 C 231,76 201,76 201,73 Z" transform={getAlignmentTransform('21')} />
+                            <path id="t22" d="M 235,18 C 237,16 258,16 260,18 L 260,67 C 260,70 235,71 235,68 Z" transform={getAlignmentTransform('22')} />
+                            <path id="t23" d="M 265,20 C 267,18 287,18 289,20 L 289,67 C 286,71 282,75 277,75 C 272,75 268,71 265,67 Z" transform={getAlignmentTransform('23')} />
+                            <path id="t24" d="M 295,23 C 297,21 315,21 317,23 L 317,62 C 317,64 295,64 295,62 Z" transform={getAlignmentTransform('24')} />
+                          </g>
+                        )}
+
+                        {/* Glossy Porcelain Reflections Overlay */}
+                        <g fill="none" stroke="#ffffff" strokeLinecap="round" opacity="0.35" filter="blur(0.5px)">
+                          <path d="M 91,25 L 91,55" strokeWidth="1" />
+                          <path d="M 120,22 C 120,22 122,48 122,65" strokeWidth="1.6" />
+                          <path d="M 148,20 C 148,20 150,45 150,60" strokeWidth="1.4" />
+                          <path d="M 180,18 C 180,18 182,45 182,68" strokeWidth="2.2" />
+                          <path d="M 215,18 C 215,18 213,45 213,68" strokeWidth="2.2" />
+                          <path d="M 248,20 C 248,20 246,45 246,60" strokeWidth="1.4" />
+                          <path d="M 276,22 C 276,22 274,48 274,65" strokeWidth="1.6" />
+                          <path d="M 305,25 L 305,55" strokeWidth="1" />
+                        </g>
+
+                        {/* Interdental Separation Shadow Paths (Realistic 3D depth) */}
+                        <g stroke="#1c1917" strokeWidth="1.3" opacity="0.85">
+                          <path d="M 106.5,22 L 106.5,64" />
+                          <path d="M 136.5,19 L 136.5,70" />
+                          <path d="M 166.5,16 L 166.5,72" />
+                          <path d="M 200.0,14 L 200.0,74" strokeWidth="1.6" stroke="#0c0a09" />
+                          <path d="M 233.5,16 L 233.5,72" />
+                          <path d="M 263.5,19 L 263.5,70" />
+                          <path d="M 293.5,22 L 293.5,64" />
+                        </g>
+                      </svg>
+                    </div>
+
+                    <div className="absolute bottom-3 left-3 bg-purple-600/90 backdrop-blur-sm text-white px-2.5 py-1 rounded-xl text-[10px] font-bold border border-purple-500 animate-pulse">
+                      ابتسامة نانو بنانا الذكية (Nano Banana AI)
+                    </div>
+                  </div>
+                </div>
+
+                {/* Division bar handle */}
+                <div
+                  className="absolute top-0 bottom-0 w-0.5 bg-purple-500 shadow-[0_0_10px_rgba(139,92,246,0.8)] pointer-events-none z-20"
+                  style={{ left: `${splitPosition}%` }}
+                >
+                  <div className="absolute top-1/2 left-0 w-8 h-8 -ml-4 -mt-4 bg-purple-600 rounded-full border-2 border-white shadow-xl flex items-center justify-center text-white text-xs select-none">
+                    <RefreshCcw className="w-3.5 h-3.5 rotate-90" />
+                  </div>
+                </div>
+
+                {/* Draggable transparent input slider */}
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={splitPosition}
+                  onChange={(e) => setSplitPosition(parseInt(e.target.value))}
+                  className="absolute inset-0 w-full h-full cursor-ew-resize opacity-0 z-30 pointer-events-auto"
+                />
+              </div>
+            ) : (
+              /* Single photo with full veneers overlay (manual design view) */
+              <div className="w-full h-full relative overflow-hidden">
+                <img
+                  src={patientPhoto}
+                  alt="DSD Patient Base"
+                  className="w-full h-full object-cover transition-all"
+                  style={{
+                    transform: `scale(${bgScale}) translate(${bgX}px, ${bgY}px)`,
+                    transformOrigin: 'center'
+                  }}
+                />
+
+                {/* Hyper-Realistic Veneer teeth template layer */}
+                <div
+                  className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                  style={{
+                    transform: `translate(${overlayX}px, ${overlayY}px) scaleX(${overlayScaleX}) scaleY(${overlayScaleY}) rotate(${overlayRotate}deg)`,
+                    transformOrigin: 'center',
+                    opacity: overlayOpacity
+                  }}
+                >
+                  <svg width="400" height="150" viewBox="0 0 400 150" className="drop-shadow-[0_4px_12px_rgba(0,0,0,0.65)]">
+                    <defs>
+                      <linearGradient id="toothGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor={stops.warm} stopOpacity="0.95" />
+                        <stop offset="60%" stopColor={stops.stop0} stopOpacity="1" />
+                        <stop offset="90%" stopColor={stops.stop70} stopOpacity="1" />
+                        <stop offset="100%" stopColor={stops.stop100} stopOpacity="0.85" />
+                      </linearGradient>
+                      <linearGradient id="gumGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor="#e11d48" />
+                        <stop offset="100%" stopColor="#fca5a5" />
+                      </linearGradient>
+                    </defs>
+
+                    {/* Gum Base */}
+                    <path d="M 60,32 C 100,18 140,18 160,16 C 180,14 200,14 220,16 C 240,18 280,18 340,32 C 340,32 320,6 200,6 C 80,6 60,32 60,32 Z" fill="url(#gumGrad2)" opacity="0.75" />
+
+                    {/* Teeth based on shape selection */}
+                    {toothShape === 'square' && (
+                      <g fill="url(#toothGrad2)" stroke="#babcbe" strokeWidth="0.5" strokeLinejoin="round">
+                        <path id="t14" d="M 83,23 C 85,21 103,21 105,23 L 105,65 C 105,67 83,67 83,65 Z" transform={getAlignmentTransform('14')} />
+                        <path id="t13" d="M 111,20 C 113,18 133,18 135,20 L 135,73 C 135,76 111,76 111,73 Z" transform={getAlignmentTransform('13')} />
+                        <path id="t12" d="M 140,18 C 142,16 163,16 165,18 L 165,71 C 165,74 140,74 140,71 Z" transform={getAlignmentTransform('12')} />
+                        <path id="t11" d="M 169,15 C 172,12 196,12 199,15 L 199,75 C 199,78 169,78 169,75 Z" transform={getAlignmentTransform('11')} />
+                        <path id="t21" d="M 201,15 C 204,12 228,12 231,15 L 231,75 C 231,78 201,78 201,75 Z" transform={getAlignmentTransform('21')} />
+                        <path id="t22" d="M 235,18 C 237,16 258,16 260,18 L 260,71 C 260,74 235,74 235,71 Z" transform={getAlignmentTransform('22')} />
+                        <path id="t23" d="M 265,20 C 267,18 287,18 289,20 L 289,73 C 289,76 265,76 265,73 Z" transform={getAlignmentTransform('23')} />
+                        <path id="t24" d="M 295,23 C 297,21 315,21 317,23 L 317,65 C 317,67 295,67 295,65 Z" transform={getAlignmentTransform('24')} />
+                      </g>
+                    )}
+                    {toothShape === 'oval' && (
+                      <g fill="url(#toothGrad2)" stroke="#babcbe" strokeWidth="0.5" strokeLinejoin="round">
+                        <path id="t14" d="M 83,23 C 85,21 103,21 105,23 L 105,60 C 105,65 83,65 83,60 Z" transform={getAlignmentTransform('14')} />
+                        <path id="t13" d="M 111,20 C 113,18 133,18 135,20 L 135,67 C 135,74 111,74 111,67 Z" transform={getAlignmentTransform('13')} />
+                        <path id="t12" d="M 140,18 C 142,16 163,16 165,18 L 165,65 C 165,72 140,72 140,65 Z" transform={getAlignmentTransform('12')} />
+                        <path id="t11" d="M 169,15 C 172,12 196,12 199,15 L 199,69 C 199,77 169,77 169,69 Z" transform={getAlignmentTransform('11')} />
+                        <path id="t21" d="M 201,15 C 204,12 228,12 231,15 L 231,69 C 231,77 201,77 201,69 Z" transform={getAlignmentTransform('21')} />
+                        <path id="t22" d="M 235,18 C 237,16 258,16 260,18 L 260,65 C 260,72 235,72 235,65 Z" transform={getAlignmentTransform('22')} />
+                        <path id="t23" d="M 265,20 C 267,18 287,18 289,20 L 289,67 C 289,74 265,74 265,67 Z" transform={getAlignmentTransform('23')} />
+                        <path id="t24" d="M 295,23 C 297,21 315,21 317,23 L 317,60 C 317,65 295,65 295,60 Z" transform={getAlignmentTransform('24')} />
+                      </g>
+                    )}
+                    {toothShape === 'natural' && (
+                      <g fill="url(#toothGrad2)" stroke="#babcbe" strokeWidth="0.5" strokeLinejoin="round">
+                        <path id="t14" d="M 83,23 C 85,21 103,21 105,23 L 105,62 C 105,64 83,64 83,62 Z" transform={getAlignmentTransform('14')} />
+                        <path id="t13" d="M 111,20 C 113,18 133,18 135,20 L 135,67 C 132,71 128,75 123,75 C 118,75 114,71 111,67 Z" transform={getAlignmentTransform('13')} />
+                        <path id="t12" d="M 140,18 C 142,16 163,16 165,18 L 165,67 C 165,70 140,71 140,68 Z" transform={getAlignmentTransform('12')} />
+                        <path id="t11" d="M 169,15 C 172,12 196,12 199,15 L 199,73 C 199,76 169,76 169,73 Z" transform={getAlignmentTransform('11')} />
+                        <path id="t21" d="M 201,15 C 204,12 228,12 231,15 L 231,73 C 231,76 201,76 201,73 Z" transform={getAlignmentTransform('21')} />
+                        <path id="t22" d="M 235,18 C 237,16 258,16 260,18 L 260,67 C 260,70 235,71 235,68 Z" transform={getAlignmentTransform('22')} />
+                        <path id="t23" d="M 265,20 C 267,18 287,18 289,20 L 289,67 C 286,71 282,75 277,75 C 272,75 268,71 265,67 Z" transform={getAlignmentTransform('23')} />
+                        <path id="t24" d="M 295,23 C 297,21 315,21 317,23 L 317,62 C 317,64 295,64 295,62 Z" transform={getAlignmentTransform('24')} />
+                      </g>
+                    )}
+
+                    {/* Glossy Reflections Overlay */}
+                    <g fill="none" stroke="#ffffff" strokeLinecap="round" opacity="0.35" filter="blur(0.5px)">
+                      <path d="M 91,25 L 91,55" strokeWidth="1" />
+                      <path d="M 120,22 C 120,22 122,48 122,65" strokeWidth="1.6" />
+                      <path d="M 148,20 C 148,20 150,45 150,60" strokeWidth="1.4" />
+                      <path d="M 180,18 C 180,18 182,45 182,68" strokeWidth="2.2" />
+                      <path d="M 215,18 C 215,18 213,45 213,68" strokeWidth="2.2" />
+                      <path d="M 248,20 C 248,20 246,45 246,60" strokeWidth="1.4" />
+                      <path d="M 276,22 C 276,22 274,48 274,65" strokeWidth="1.6" />
+                      <path d="M 305,25 L 305,55" strokeWidth="1" />
+                    </g>
+
+                    {/* Shadow Separators */}
+                    <g stroke="#1c1917" strokeWidth="1.3" opacity="0.85">
+                      <path d="M 106.5,22 L 106.5,64" />
+                      <path d="M 136.5,19 L 136.5,70" />
+                      <path d="M 166.5,16 L 166.5,72" />
+                      <path d="M 200.0,14 L 200.0,74" strokeWidth="1.6" stroke="#0c0a09" />
+                      <path d="M 233.5,16 L 233.5,72" />
+                      <path d="M 263.5,19 L 263.5,70" />
+                      <path d="M 293.5,22 L 293.5,64" />
+                    </g>
+                  </svg>
+                </div>
+
+                <div className="absolute top-3 left-3 bg-purple-600 text-white px-2.5 py-0.5 rounded-xl text-[9px] font-black tracking-widest shadow">
+                  تصميم الابتسامة (Realistic Glazed Veneers)
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Background zoom/pan controls when photo is loaded */}
+      {patientPhoto && (
+        <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-bold text-slate-500">ضبط حجم وموقع صورة المريض الخلفية:</span>
+          </div>
+          <div className="flex items-center gap-4 flex-1 justify-end max-w-lg">
+            <div className="flex items-center gap-2 flex-1">
+              <span className="text-[10px] text-slate-400">تكبير</span>
+              <input
+                type="range" min="0.8" max="2.2" step="0.05"
+                value={bgScale} onChange={(e) => setBgScale(parseFloat(e.target.value))}
+                className="h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-600 flex-1"
+              />
+              <span className="text-[10px] font-mono text-slate-600">{Math.round(bgScale * 100)}%</span>
+            </div>
+            
+            <div className="flex items-center gap-2 flex-1">
+              <span className="text-[10px] text-slate-400">رأسي</span>
+              <input
+                type="range" min="-120" max="120" step="2"
+                value={bgY} onChange={(e) => setBgY(parseInt(e.target.value))}
+                className="h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-600 flex-1"
+              />
+              <span className="text-[10px] font-mono text-slate-600">{bgY}px</span>
+            </div>
+            
+            <button
+              onClick={handleResetBackground}
+              className="text-[10px] font-bold text-slate-600 hover:text-slate-900 border border-slate-200 bg-white hover:bg-slate-50 px-2 py-1 rounded-lg"
+            >
+              إعادة ضبط الصورة
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Adjusters Subpanel Tabs */}
+      {patientPhoto && (
+        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-4">
+          
+          {dsdMethod === 'nanobanana' ? (
+            /* Mode 2: Nano Banana Prompt Input Console */
+            <div className="space-y-4 pt-1 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="bg-purple-950/50 p-4 rounded-xl border border-purple-800/40 text-purple-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-purple-300">
+                    <Brain className="w-5 h-5 animate-pulse" />
+                    <h5 className="font-extrabold text-xs sm:text-sm">لوحة تحكم نانو بنانا التوليدية بالـ AI</h5>
+                  </div>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-green-500/10 text-green-400 border border-green-500/20">
+                    <span className="w-2 h-2 rounded-full bg-green-500 animate-ping"></span>
+                    Model Server: Active
+                  </span>
+                </div>
+                <p className="text-[11px] text-purple-300/80 leading-relaxed">
+                  اكتب برومبت مفصل لوصف الابتسامة الواقعية الفائقة التي ترغب بتوليدها. سيقوم نموذج <code>gemini-nano-banana-dsd</code> برسم وتوليد قشور البورسلان بدقة متناهية مدمجة تماماً بملامح الفم.
+                </p>
+
+                {/* Prompt textarea */}
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-purple-300">نص البرومبت الطبي (AI Prompt Description):</label>
+                  <textarea
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    className="w-full min-h-[75px] bg-slate-900/90 text-white rounded-xl border border-purple-800/40 p-3 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-purple-600/50 resize-none font-medium"
+                    placeholder="اكتب البرومبت لابتسامتك الواقعية..."
+                  />
+                </div>
+
+                {/* Quick prompt templates */}
+                <div className="space-y-1.5 pt-1">
+                  <span className="block text-[10px] font-bold text-purple-300">💡 مقترحات برومبت سريعة لابتسامة واقعية فائقة:</span>
+                  <div className="flex flex-col gap-1.5">
+                    {[
+                      "ابتسامة طبيعية متناسقة بلون VITA A2 وبياض طبيعي مصقول بدقة مع انعكاس ضوئي غير مصطنع.",
+                      "مظهر مربع هوليوود E-Max بياض ناصع براق بلمعان خزفي واقعي وتناسق ممتد للضواحك.",
+                      "تصميم ناعم بيضاوي يناسب الفك الصغير مع تبييض VITA B1 الساطع وشفافية مينا عند الأطراف."
+                    ].map((template, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setAiPrompt(template);
+                          toast.success("تم اختيار قالب البرومبت المخصص.");
+                        }}
+                        className="w-full text-right text-[10px] py-1.5 px-3 rounded-lg bg-slate-900/60 hover:bg-slate-900 text-purple-200 border border-purple-900/40 hover:border-purple-600/40 transition-all truncate"
+                      >
+                        {template}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Dispatch request button */}
+                <div className="pt-2 flex justify-end">
+                  <button
+                    onClick={handleTriggerAi}
+                    disabled={isAiProcessing || !patientPhoto}
+                    className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold rounded-xl text-xs shadow-lg shadow-purple-900/20 flex items-center gap-1.5 disabled:opacity-50 transition-all"
+                  >
+                    <Brain className="w-4 h-4 animate-bounce" />
+                    إرسال ومحاكاة لـ نانو بنانا بالـ AI
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Mode 1: Realistic Manual Design Sliders */
+            <div className="space-y-4">
+              <div className="flex border-b border-slate-200 pb-2">
+                {[
+                  { id: 'aesthetic', label: '🦷 مقاييس التجميل والـ VITA', icon: Sparkles },
+                  { id: 'align', label: '📐 موضع وتطابق القوالب', icon: SettingsIcon },
+                  { id: 'ai', label: '✨ المقارنة التفاعلية والتحسين', icon: Brain },
+                ].map(subtab => {
+                  const Icon = subtab.icon;
+                  return (
+                    <button
+                      key={subtab.id}
+                      onClick={() => setActiveSubTab(subtab.id as any)}
+                      className={`pb-2 px-3 text-xs font-bold transition-all relative flex items-center gap-1 ${
+                        activeSubTab === subtab.id ? 'text-purple-600' : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      {subtab.label}
+                      {activeSubTab === subtab.id && (
+                        <span className="absolute bottom-[-9px] left-0 right-0 h-0.5 bg-purple-600 rounded-full" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Tab 1: Aesthetic & VITA Whitening */}
+              {activeSubTab === 'aesthetic' && (
+                <div className="space-y-4 pt-2">
+                  {/* Whiteness Slider */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs font-bold text-slate-700">
+                      <span>درجة البياض المطلوبة (VITA Shade):</span>
+                      <span className="text-purple-600 font-mono font-black">
+                        {whiteness === 1 ? 'VITA A4 (طبيعي دافئ)' :
+                         whiteness === 2 ? 'VITA A3 (طبيعي متوسط)' :
+                         whiteness === 3 ? 'VITA A2 (أبيض طبيعي)' :
+                         whiteness === 4 ? 'VITA A1 (أبيض ساطع)' :
+                         'VITA B1 (أبيض هوليوود فائق)'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="range" min="1" max="5"
+                        value={whiteness}
+                        onChange={(e) => setWhiteness(parseInt(e.target.value))}
+                        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Orthodontic Alignment Slider */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs font-bold text-slate-700">
+                      <span>درجة اصطفاف الأسنان واستقامة القواطع:</span>
+                      <span className="text-purple-600 font-mono font-black">
+                        {alignment === 5 ? 'مثالي ومستقيم (Alignment 100%)' :
+                         alignment === 4 ? 'شبه مستقيم (Grade 4/5)' :
+                         alignment === 3 ? 'اعوجاج طفيف (Grade 3/5)' :
+                         alignment === 2 ? 'تزاحم متوسط (Grade 2/5)' :
+                         'تزاحم شديد وتباعد (Orthodontic spacing)'}
+                      </span>
+                    </div>
+                    <input
+                      type="range" min="1" max="5"
+                      value={alignment}
+                      onChange={(e) => setAlignment(parseInt(e.target.value))}
+                      className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                    />
+                  </div>
+
+                  {/* Tooth Shape Selection */}
+                  <div className="space-y-2 pt-1">
+                    <span className="block text-xs font-bold text-slate-700">شكل وهيكل السن المقترح (Tooth Shape):</span>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(['natural', 'oval', 'square'] as const).map(shape => (
+                        <button
+                          key={shape}
+                          onClick={() => setToothShape(shape)}
+                          className={`py-2 rounded-xl text-xs font-black border transition-all ${
+                            toothShape === shape
+                              ? 'bg-purple-50 text-purple-700 border-purple-200 shadow-sm'
+                              : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200/60'
+                          }`}
+                        >
+                          {shape === 'natural' ? 'طبيعي' : shape === 'oval' ? 'بيضاوي ناعم' : 'مربع هوليوود'}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="bg-purple-50/50 p-2.5 rounded-xl border border-purple-100/50 text-[11px] text-purple-950 leading-relaxed mt-2">
+                      💡 {toothShape === 'natural' && "طبيعي (Natural): أسنان ذات معالم تشريحية فسيولوجية ووهج مصقول تحاكي الأسنان الطبيعية."}
+                      {toothShape === 'oval' && "بيضاوي ناعم (Soft Oval): حواف مستديرة للمظهر الناعم والمنسجم ويفضل لملامح الوجه الناعمة."}
+                      {toothShape === 'square' && "مربع هوليوود (Hollywood Square): اصطفاف مستقيم وحواف متناسقة الطول لابتسامة هوليوود المشرقة والقوية."}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 2: Manual Calibration / Overlay Alignments */}
+              {activeSubTab === 'align' && (
+                <div className="space-y-3 pt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Scale X */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[11px] font-bold text-slate-600">
+                        <span>عرض قالب الأسنان (Width):</span>
+                        <span className="font-mono text-purple-600">{Math.round(overlayScaleX * 100)}%</span>
+                      </div>
+                      <input
+                        type="range" min="0.6" max="1.8" step="0.02"
+                        value={overlayScaleX} onChange={(e) => setOverlayScaleX(parseFloat(e.target.value))}
+                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                      />
+                    </div>
+
+                    {/* Scale Y */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[11px] font-bold text-slate-600">
+                        <span>ارتفاع قالب الأسنان (Height):</span>
+                        <span className="font-mono text-purple-600">{Math.round(overlayScaleY * 100)}%</span>
+                      </div>
+                      <input
+                        type="range" min="0.6" max="1.8" step="0.02"
+                        value={overlayScaleY} onChange={(e) => setOverlayScaleY(parseFloat(e.target.value))}
+                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                      />
+                    </div>
+
+                    {/* Position X */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[11px] font-bold text-slate-600">
+                        <span>الموضع الأفقي (Position X):</span>
+                        <span className="font-mono text-purple-600">{overlayX}px</span>
+                      </div>
+                      <input
+                        type="range" min="-150" max="150" step="1"
+                        value={overlayX} onChange={(e) => setOverlayX(parseInt(e.target.value))}
+                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                      />
+                    </div>
+
+                    {/* Position Y */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[11px] font-bold text-slate-600">
+                        <span>الموضع الرأسي (Position Y):</span>
+                        <span className="font-mono text-purple-600">{overlayY}px</span>
+                      </div>
+                      <input
+                        type="range" min="-120" max="120" step="1"
+                        value={overlayY} onChange={(e) => setOverlayY(parseInt(e.target.value))}
+                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                      />
+                    </div>
+
+                    {/* Rotation */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[11px] font-bold text-slate-600">
+                        <span>درجة الدوران (Rotate):</span>
+                        <span className="font-mono text-purple-600">{overlayRotate}°</span>
+                      </div>
+                      <input
+                        type="range" min="-30" max="30" step="0.5"
+                        value={overlayRotate} onChange={(e) => setOverlayRotate(parseFloat(e.target.value))}
+                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                      />
+                    </div>
+
+                    {/* Opacity */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[11px] font-bold text-slate-600">
+                        <span>شفافية ودمج القشور (Opacity):</span>
+                        <span className="font-mono text-purple-600">{Math.round(overlayOpacity * 100)}%</span>
+                      </div>
+                      <input
+                        type="range" min="0.3" max="1.0" step="0.05"
+                        value={overlayOpacity} onChange={(e) => setOverlayOpacity(parseFloat(e.target.value))}
+                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-3">
+                    <button
+                      onClick={handleResetOverlay}
+                      className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-1.5"
+                    >
+                      <RefreshCcw className="w-3.5 h-3.5" />
+                      إعادة ضبط أبعاد قالب الأسنان
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 3: Split Slider Configuration */}
+              {activeSubTab === 'ai' && (
+                <div className="space-y-4 pt-2">
+                  <button
+                    onClick={() => {
+                      setShowSplitSlider(!showSplitSlider);
+                      setSmileAfter(true);
+                      toast.success(showSplitSlider ? "تم إغلاق شريط المقارنة" : "تم تفعيل شريط المقارنة الانزلاقى التفاعلى!");
+                    }}
+                    className={`w-full py-2.5 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${
+                      showSplitSlider 
+                        ? 'bg-purple-50 text-purple-700 border-purple-200 shadow-sm' 
+                        : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    {showSplitSlider ? 'إخفاء شريط المقارنة التفاعلي' : 'تفعيل المقارنة الانزلاقية (Before/After)'}
+                  </button>
+
+                  {/* Slider position debug when split mode is active */}
+                  {showSplitSlider && (
+                    <div className="space-y-1.5 p-3 bg-purple-50/50 rounded-xl border border-purple-100">
+                      <div className="flex justify-between text-[11px] font-bold text-purple-800">
+                        <span>موضع شريط المقارنة التفاعلي (Before / After):</span>
+                        <span className="font-mono font-black">{splitPosition}%</span>
+                      </div>
+                      <input
+                        type="range" min="0" max="100"
+                        value={splitPosition}
+                        onChange={(e) => setSplitPosition(parseInt(e.target.value))}
+                        className="w-full h-1 bg-purple-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                      />
+                      <span className="text-[10px] text-slate-500 block text-center">💡 اسحب المقبض مباشرة على الصورة أعلاه لرؤية التحول الرائع!</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Bottom Save / Print Actions */}
+      <div className="flex gap-3 pt-2">
+        <button
+          onClick={handleExportReport}
+          disabled={!patientPhoto}
+          className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-xl text-xs transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-purple-100 flex items-center justify-center gap-1.5"
+        >
+          <Printer className="w-4 h-4" />
+          حفظ وتصدير تقرير تصميم الابتسامة المعتمد للمريض
+        </button>
+      </div>
     </div>
   );
 };

@@ -38,7 +38,7 @@ export const Modal: React.FC<ModalProps> = ({
         onClick={onClose}
       />
 
-      {/* Modal - Fixed Height Integration */}
+      {/* Modal */}
       <div className={cn(
         'relative bg-white rounded-2xl shadow-2xl w-full max-h-[90vh] md:max-h-[85vh] flex flex-col overflow-hidden',
         sizes[size]

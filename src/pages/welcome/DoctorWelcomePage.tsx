@@ -19,7 +19,8 @@ import {
   Map,
   Link as LinkIcon,
   Briefcase,
-  ShoppingBag
+  ShoppingBag,
+  Award
 } from 'lucide-react';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
@@ -265,6 +266,20 @@ export const DoctorWelcomePage: React.FC = () => {
             <h3 className="font-bold text-lg mb-1">المتجر الطبي</h3>
             <p className="text-white/80 text-sm leading-relaxed">تسوق من أرقى الموردين الموثوقين بخصومات حصرية، مع نظام تنبيهات ذكي لنقص المخزون وسهولة تامة في طلب المستلزمات الطبية.</p>
           </div>
+
+          {/* Feature 13: MOH AI Presentation Showcase */}
+          <Link 
+            to="/moha-showcase" 
+            className="col-span-1 bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-600 rounded-3xl p-6 text-white text-center flex flex-col items-center justify-center shadow-lg hover:shadow-indigo-400/50 hover:scale-[1.02] transition-all cursor-pointer border border-white/10 relative overflow-hidden group"
+          >
+            <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute top-2 right-2 bg-yellow-500 text-slate-950 px-2 py-0.5 rounded-full text-[9px] font-black tracking-wider animate-bounce">
+              وزارة الصحة 2026
+            </div>
+            <Award className="w-10 h-10 mb-3 text-yellow-300 group-hover:scale-110 transition-transform" />
+            <h3 className="font-bold text-lg mb-1">عرض الذكاء الاصطناعي</h3>
+            <p className="text-white/80 text-xs leading-relaxed">العرض التفاعلي السحابي الموجه لمؤتمر وزارة الصحة العراقية لتشخيص وعلاج الأسنان بالذكاء الاصطناعي.</p>
+          </Link>
 
           {/* CTA Banner (Full Width) */}
           <div className="col-span-1 md:col-span-4 mt-8">

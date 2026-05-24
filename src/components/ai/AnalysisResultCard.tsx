@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AIAnalysisResult } from '../../types/ai';
 import {
     CheckCircle, AlertTriangle, Info, ZoomIn, X, Server, Activity,
-    ShieldCheck, CloudOff, FileText, Sparkles, Target, Crosshair
+    ShieldCheck, CloudOff, FileText, Sparkles, Target, Crosshair,
+    Sliders, Edit2, Save, Plus, Trash2, Eye, EyeOff, RotateCcw
 } from 'lucide-react';
 import { Button } from '../common/Button';
 
@@ -10,6 +11,7 @@ interface AnalysisResultCardProps {
     imageUrl: string;
     result: AIAnalysisResult;
     date: string;
+    onChange?: (updatedResult: AIAnalysisResult) => void;
 }
 
 const SEVERITY_CONFIG = {
@@ -26,6 +28,7 @@ const CATEGORY_LABELS: Record<string, string> = {
     impaction: 'انحشار',
     calculus: 'تكلسات',
     resorption: 'ارتشاف',
+    filling: 'حشوة سليمة',
     other: 'أخرى',
 };
 
@@ -61,7 +64,8 @@ const AccurateImageOverlay: React.FC<{
     className?: string;
     onClick?: () => void;
     children: React.ReactNode;
-}> = ({ imageUrl, alt, className = 'w-full h-full object-contain', onClick, children }) => {
+    filterStyle?: React.CSSProperties;
+}> = ({ imageUrl, alt, className = 'w-full h-full object-contain', onClick, children, filterStyle }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
     const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
@@ -93,6 +97,7 @@ const AccurateImageOverlay: React.FC<{
                 src={imageUrl}
                 alt={alt}
                 className={className}
+                style={filterStyle}
                 onLoad={(event) => {
                     const img = event.currentTarget;
                     setNaturalSize({ width: img.naturalWidth, height: img.naturalHeight });
@@ -107,10 +112,28 @@ const AccurateImageOverlay: React.FC<{
     );
 };
 
-export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl, result, date }) => {
+export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl, result, date, onChange }) => {
     const [isZoomOpen, setIsZoomOpen] = useState(false);
     const [showBoxes, setShowBoxes] = useState(true);
     const [hoveredIssue, setHoveredIssue] = useState<number | null>(null);
+
+    // CSS X-ray Filters State
+    const [brightness, setBrightness] = useState(100);
+    const [contrast, setContrast] = useState(100);
+    const [isInverted, setIsInverted] = useState(false);
+    const [showFilters, setShowFilters] = useState(false);
+
+    // Human-in-the-Loop Edit State
+    const [isEditing, setIsEditing] = useState(false);
+    const [editedDiagnosis, setEditedDiagnosis] = useState(result.diagnosis || '');
+    const [editedSummary, setEditedSummary] = useState(result.summary || '');
+    const [editedIssues, setEditedIssues] = useState<any[]>(result.issues || []);
+
+    useEffect(() => {
+        setEditedDiagnosis(result.diagnosis || '');
+        setEditedSummary(result.summary || '');
+        setEditedIssues(result.issues || []);
+    }, [result]);
 
     const isMock = result.metadata?.isMock ?? true;
     const provider = result.metadata?.provider || 'Unknown';
@@ -121,7 +144,28 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl
         ? { rating: result.image_quality, problems: [], retake_recommended: false }
         : result.image_quality;
 
-    const getBoxColor = (idx: number) => BOX_COLORS[idx % BOX_COLORS.length];
+    const getBoxColor = (issue: any) => {
+        const label = issue.label?.toLowerCase() || '';
+        const cat = issue.category?.toLowerCase() || '';
+        if (cat === 'filling' || label.includes('حشوة') || label.includes('filling') || label.includes('سليمة')) {
+            return {
+                border: 'border-green-500',
+                bg: 'bg-green-500/10',
+                hover: 'hover:bg-green-500/20',
+                text: 'text-green-500',
+                shadow: 'shadow-green-500/30',
+                badgeBg: 'bg-green-500'
+            };
+        }
+        return {
+            border: 'border-red-500',
+            bg: 'bg-red-500/10',
+            hover: 'hover:bg-red-500/20',
+            text: 'text-red-500',
+            shadow: 'shadow-red-500/30',
+            badgeBg: 'bg-red-500'
+        };
+    };
     const isReliableBox = (issue: AIAnalysisResult['issues'][number]) => {
         if (!issue.box || issue.box.length !== 4) return false;
         const [x, y, width, height] = issue.box;
@@ -131,49 +175,95 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl
             && issue.confidence >= 0.7;
     };
 
-    const renderBoundingBoxes = (isZoom = false) => (
-        showBoxes && result.issues.map((issue, idx) => {
-            if (!isReliableBox(issue)) return null;
-            const color = getBoxColor(idx);
-            const isHovered = hoveredIssue === idx;
-            const baseOpacity = isHovered ? 'opacity-100' : 'opacity-70';
+    const handleSaveChanges = () => {
+        const updatedResult = {
+            ...result,
+            diagnosis: editedDiagnosis,
+            summary: editedSummary,
+            issues: editedIssues,
+        };
+        setIsEditing(false);
+        onChange?.(updatedResult);
+    };
 
-            return (
-                <div
-                    key={idx}
-                    className={`absolute border-2 ${color.border} ${color.bg} ${color.hover} transition-all duration-200 cursor-pointer group ${baseOpacity} ${isHovered ? 'z-20 scale-105' : 'z-10'}`}
-                    style={{
-                        left: `${issue.box[0] * 100}%`,
-                        top: `${issue.box[1] * 100}%`,
-                        width: `${issue.box[2] * 100}%`,
-                        height: `${issue.box[3] * 100}%`,
-                        boxShadow: isHovered ? `0 0 20px rgba(0,0,0,0.3)` : 'none',
-                    }}
-                    onMouseEnter={() => setHoveredIssue(idx)}
-                    onMouseLeave={() => setHoveredIssue(null)}
-                >
-                    {/* Issue number badge */}
-                    <div className={`absolute -top-5 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${color.border.replace('border', 'bg')} shadow-md`}>
-                        {idx + 1}
-                    </div>
+    const handleCancelChanges = () => {
+        setEditedDiagnosis(result.diagnosis || '');
+        setEditedSummary(result.summary || '');
+        setEditedIssues(result.issues || []);
+        setIsEditing(false);
+    };
 
-                    {/* Tooltip */}
-                    <div className={`absolute ${isZoom ? '-top-16' : '-top-12'} right-0 ${isHovered ? 'block' : 'hidden'} bg-gray-900/95 text-white text-xs px-3 py-2 rounded-lg shadow-xl whitespace-nowrap z-50 backdrop-blur-sm`}>
-                        <div className="font-bold text-sm">{issue.label}</div>
-                        {issue.description && <div className="text-gray-300 mt-0.5 text-[10px] max-w-[200px] whitespace-normal">{issue.description}</div>}
-                        <div className="flex items-center gap-2 mt-1 text-[10px]">
-                            <span className={`${SEVERITY_CONFIG[issue.severity || 'low']?.textClass || 'text-gray-400'}`}>
-                                {SEVERITY_CONFIG[issue.severity || 'low']?.icon} {SEVERITY_CONFIG[issue.severity || 'low']?.label}
-                            </span>
-                            <span className="text-gray-400">•</span>
-                            <span className="text-blue-300">{(issue.confidence * 100).toFixed(0)}%</span>
+    const handleAddIssue = () => {
+        setEditedIssues(prev => [
+            ...prev,
+            {
+                label: 'تسوس جديد',
+                tooth_number: '',
+                category: 'caries',
+                severity: 'low',
+                confidence: 0.95,
+                description: 'تمت إضافته يدوياً بواسطة الطبيب',
+                box: [0.3, 0.3, 0.15, 0.15]
+            }
+        ]);
+    };
+
+    const handleDeleteIssue = (idx: number) => {
+        setEditedIssues(prev => prev.filter((_, i) => i !== idx));
+    };
+
+    const filterStyle: React.CSSProperties = {
+        filter: `brightness(${brightness}%) contrast(${contrast}%) ${isInverted ? 'invert(100%) grayscale(100%)' : ''}`
+    };
+
+    const renderBoundingBoxes = (isZoom = false) => {
+        const issuesToRender = isEditing ? editedIssues : result.issues;
+        return (
+            showBoxes && issuesToRender.map((issue, idx) => {
+                if (!isReliableBox(issue)) return null;
+                const color = getBoxColor(issue);
+                const isHovered = hoveredIssue === idx;
+                const baseOpacity = isHovered ? 'opacity-100' : 'opacity-70';
+
+                return (
+                    <div
+                        key={idx}
+                        className={`absolute border-2 ${color.border} ${color.bg} ${color.hover} transition-all duration-200 cursor-pointer group ${baseOpacity} ${isHovered ? 'z-20 scale-105' : 'z-10'}`}
+                        style={{
+                            left: `${issue.box[0] * 100}%`,
+                            top: `${issue.box[1] * 100}%`,
+                            width: `${issue.box[2] * 100}%`,
+                            height: `${issue.box[3] * 100}%`,
+                            boxShadow: isHovered ? `0 0 20px rgba(0,0,0,0.3)` : 'none',
+                        }}
+                        onMouseEnter={() => setHoveredIssue(idx)}
+                        onMouseLeave={() => setHoveredIssue(null)}
+                    >
+                        {/* Issue number badge */}
+                        <div className={`absolute -top-5 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${color.badgeBg || 'bg-red-500'} shadow-md`}>
+                            {idx + 1}
                         </div>
-                        <div className="absolute bottom-0 right-3 translate-y-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900/95" />
+
+                        {/* Tooltip */}
+                        <div className={`absolute ${isZoom ? '-top-16' : '-top-12'} right-0 ${isHovered ? 'block' : 'hidden'} bg-gray-900/95 text-white text-xs px-3 py-2 rounded-lg shadow-xl whitespace-nowrap z-50 backdrop-blur-sm`}>
+                            <div className="font-bold text-sm">{issue.label}</div>
+                            {issue.description && <div className="text-gray-300 mt-0.5 text-[10px] max-w-[200px] whitespace-normal">{issue.description}</div>}
+                            <div className="flex items-center gap-2 mt-1 text-[10px]">
+                                <span className={`${SEVERITY_CONFIG[issue.severity || 'low']?.textClass || 'text-gray-400'}`}>
+                                    {SEVERITY_CONFIG[issue.severity || 'low']?.icon} {SEVERITY_CONFIG[issue.severity || 'low']?.label}
+                                </span>
+                                <span className="text-gray-400">•</span>
+                                <span className="text-blue-300">{(issue.confidence * 100).toFixed(0)}%</span>
+                            </div>
+                            <div className="absolute bottom-0 right-3 translate-y-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900/95" />
+                        </div>
                     </div>
-                </div>
-            );
-        })
-    );
+                );
+            })
+        );
+    };
+
+    const activeIssues = isEditing ? editedIssues : result.issues;
 
     return (
         <>
@@ -195,16 +285,43 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl
                     </div>
 
                     <div className="flex items-center gap-2">
+                        {/* Edit Mode Buttons */}
+                        {isEditing ? (
+                            <div className="flex gap-1">
+                                <Button
+                                    size="sm"
+                                    onClick={handleSaveChanges}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white border-0 text-xs px-2.5 py-1.5 flex items-center gap-1 rounded-lg"
+                                >
+                                    <Save className="w-3.5 h-3.5" />
+                                    <span>حفظ التعديلات</span>
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={handleCancelChanges}
+                                    className="text-gray-500 hover:bg-gray-100 text-xs px-2.5 py-1.5 flex items-center gap-1 rounded-lg"
+                                >
+                                    <X className="w-3.5 h-3.5" />
+                                    <span>إلغاء</span>
+                                </Button>
+                            </div>
+                        ) : (
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setIsEditing(true)}
+                                className="text-indigo-600 border-indigo-150 hover:bg-indigo-50 text-xs px-2.5 py-1.5 flex items-center gap-1 rounded-lg"
+                            >
+                                <Edit2 className="w-3.5 h-3.5" />
+                                <span>تعديل التقرير</span>
+                            </Button>
+                        )}
+
                         {/* Overall severity badge */}
                         <div className={`flex items-center gap-1.5 px-2.5 py-1 ${severityConfig.bgClass} ${severityConfig.textClass} rounded-full text-xs font-bold ${severityConfig.borderClass} border`}>
                             {severityConfig.icon} {severityConfig.label}
                         </div>
-                        {!isMock && (
-                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-green-50 text-green-700 rounded-full text-xs font-bold border border-green-100">
-                                <Server className="w-3.5 h-3.5" />
-                                <span>AI</span>
-                            </div>
-                        )}
                     </div>
                 </div>
 
@@ -216,8 +333,13 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl
                             onClick={() => setIsZoomOpen(true)}
                         >
                             <div className="aspect-[4/3] relative">
-                                <AccurateImageOverlay imageUrl={imageUrl} alt="صورة الأشعة" onClick={() => setIsZoomOpen(true)}>
-                                {renderBoundingBoxes(false)}
+                                <AccurateImageOverlay
+                                    imageUrl={imageUrl}
+                                    alt="صورة الأشعة"
+                                    filterStyle={filterStyle}
+                                    onClick={() => setIsZoomOpen(true)}
+                                >
+                                    {renderBoundingBoxes(false)}
                                 </AccurateImageOverlay>
                                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
                                     <span className="bg-white/90 text-gray-800 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-2 backdrop-blur-sm">
@@ -226,6 +348,69 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl
                                     </span>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* CSS X-ray Filters Control Bar (Phase 2a) */}
+                        <div className="mt-3 bg-white p-3 rounded-xl border border-gray-100 space-y-2.5 shadow-sm">
+                            <div className="flex justify-between items-center">
+                                <button
+                                    onClick={() => setShowFilters(!showFilters)}
+                                    className="flex items-center gap-1.5 text-[11px] font-bold text-gray-700 hover:text-indigo-600 transition-colors focus:outline-none"
+                                >
+                                    <Sliders className="w-3.5 h-3.5 text-indigo-500" />
+                                    مرشحات الأشعة الرقمية
+                                </button>
+                                {(brightness !== 100 || contrast !== 100 || isInverted) && (
+                                    <button
+                                        onClick={() => { setBrightness(100); setContrast(100); setIsInverted(false); }}
+                                        className="text-[9px] text-red-500 hover:underline flex items-center gap-0.5 focus:outline-none"
+                                    >
+                                        <RotateCcw className="w-2.5 h-2.5" /> إعادة تعيين
+                                    </button>
+                                )}
+                            </div>
+
+                            {showFilters && (
+                                <div className="space-y-2.5 pt-2 border-t border-gray-50 text-[10px] text-gray-500 animate-in slide-in-from-top-1">
+                                    <div className="space-y-1">
+                                        <div className="flex justify-between">
+                                            <span>السطوع (Brightness)</span>
+                                            <span className="font-bold text-gray-700">{brightness}%</span>
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min="50"
+                                            max="200"
+                                            value={brightness}
+                                            onChange={(e) => setBrightness(Number(e.target.value))}
+                                            className="w-full h-1 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <div className="flex justify-between">
+                                            <span>التباين (Contrast)</span>
+                                            <span className="font-bold text-gray-700">{contrast}%</span>
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min="50"
+                                            max="200"
+                                            value={contrast}
+                                            onChange={(e) => setContrast(Number(e.target.value))}
+                                            className="w-full h-1 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                                        />
+                                    </div>
+                                    <div className="flex justify-between items-center pt-1">
+                                        <span>عكس الألوان (Negative Grayscale)</span>
+                                        <button
+                                            onClick={() => setIsInverted(!isInverted)}
+                                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${isInverted ? 'bg-indigo-600' : 'bg-gray-200'}`}
+                                        >
+                                            <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isInverted ? 'translate-x-4' : 'translate-x-0'}`} />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="mt-3 grid grid-cols-2 gap-2">
@@ -250,24 +435,24 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl
                             </div>
                             <div className="bg-white p-2 rounded-lg border border-gray-100 text-center">
                                 <span className="block text-[10px] text-gray-400">المشاكل</span>
-                                <span className="block font-bold text-red-500 text-sm">{result.issues.length}</span>
+                                <span className="block font-bold text-red-500 text-sm">{activeIssues.length}</span>
                             </div>
                             <div className="bg-white p-2 rounded-lg border border-gray-100 text-center">
                                 <span className="block text-[10px] text-gray-400">الأسنان</span>
                                 <span className="block font-bold text-blue-600 text-sm">
-                                    {(result as any).affected_teeth?.length || result.issues.filter(i => (i as any).tooth_number).length || '-'}
+                                    {activeIssues.filter(i => i.tooth_number).length || '-'}
                                 </span>
                             </div>
                         </div>
 
                         {/* Legend: Issue colors */}
-                        {result.issues.length > 0 && (
+                        {activeIssues.length > 0 && (
                             <div className="mt-3 bg-white rounded-lg border border-gray-100 p-2 space-y-1">
                                 <div className="text-[10px] font-bold text-gray-500 mb-1 flex items-center gap-1">
                                     <Target className="w-3 h-3" /> دليل الألوان
                                 </div>
-                                {result.issues.filter(isReliableBox).map((issue, idx) => {
-                                    const color = getBoxColor(idx);
+                                {activeIssues.filter(isReliableBox).map((issue, idx) => {
+                                    const color = getBoxColor(issue);
                                     return (
                                         <div
                                             key={idx}
@@ -294,134 +479,218 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl
                                 <Activity className="w-4 h-4 text-blue-600" />
                                 التشخيص
                             </h4>
-                            {result.diagnosis && (
-                                <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 text-blue-900 text-sm font-semibold">
-                                    {result.diagnosis}
+                            {isEditing ? (
+                                <div className="space-y-3">
+                                    <input
+                                        type="text"
+                                        value={editedDiagnosis}
+                                        onChange={(e) => setEditedDiagnosis(e.target.value)}
+                                        className="w-full p-2.5 border border-indigo-150 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm font-semibold text-indigo-900 bg-indigo-50/30"
+                                        placeholder="عنوان التشخيص العام..."
+                                    />
+                                    <textarea
+                                        value={editedSummary}
+                                        onChange={(e) => setEditedSummary(e.target.value)}
+                                        className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none leading-relaxed text-xs text-gray-700"
+                                        rows={4}
+                                        placeholder="اكتب التقرير والملخص السريري هنا بالتفصيل..."
+                                    />
                                 </div>
+                            ) : (
+                                <>
+                                    {result.diagnosis && (
+                                        <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 text-blue-900 text-sm font-semibold">
+                                            {result.diagnosis}
+                                        </div>
+                                    )}
+                                    <p className="text-gray-600 text-xs leading-6 bg-gray-50 p-3 rounded-xl border border-gray-100 whitespace-pre-line">
+                                        {result.summary}
+                                    </p>
+                                </>
                             )}
-                            <p className="text-gray-600 text-xs leading-6 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                                {result.summary}
-                            </p>
                         </div>
 
                         {/* Issues List with interactive highlighting */}
-                        {result.issues.length > 0 ? (
-                            <div className="space-y-2">
-                                <h4 className="flex items-center gap-2 font-bold text-gray-900 text-sm border-b pb-2">
+                        <div className="space-y-2">
+                            <div className="flex justify-between items-center border-b pb-2">
+                                <h4 className="flex items-center gap-2 font-bold text-gray-900 text-sm">
                                     <AlertTriangle className="w-4 h-4 text-red-500" />
-                                    المشاكل المكتشفة ({result.issues.length})
+                                    المشاكل المكتشفة ({activeIssues.length})
                                 </h4>
-                                <ul className="space-y-2">
-                                    {result.issues.map((issue, idx) => {
-                                        const color = getBoxColor(idx);
+                                {isEditing && (
+                                    <Button
+                                        size="sm"
+                                        onClick={handleAddIssue}
+                                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-0 rounded-lg text-xs flex items-center gap-1 py-1"
+                                    >
+                                        <Plus className="w-3.5 h-3.5" />
+                                        <span>إضافة مشكلة</span>
+                                    </Button>
+                                )}
+                            </div>
+
+                            {activeIssues.length > 0 ? (
+                                <ul className="space-y-2.5">
+                                    {activeIssues.map((issue, idx) => {
+                                        const color = getBoxColor(issue);
                                         const issueSeverity = SEVERITY_CONFIG[issue.severity || 'low'];
+
                                         return (
                                             <li
                                                 key={idx}
-                                                className={`bg-white p-3 rounded-lg border transition-all cursor-pointer ${hoveredIssue === idx ? `${color.border} shadow-md` : 'border-gray-100 hover:border-gray-200'}`}
+                                                className={`bg-white p-3 rounded-xl border transition-all ${hoveredIssue === idx ? `${color.border} shadow-md` : 'border-gray-100 hover:border-gray-200'}`}
                                                 onMouseEnter={() => setHoveredIssue(idx)}
                                                 onMouseLeave={() => setHoveredIssue(null)}
                                             >
-                                                <div className="flex justify-between items-start">
-                                                    <div className="flex items-start gap-2">
-                                                        <div className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${color.border.replace('border', 'bg')}`}>
-                                                            {idx + 1}
+                                                {isEditing ? (
+                                                    <div className="space-y-2.5">
+                                                        <div className="flex justify-between items-center border-b border-gray-50 pb-1.5">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${color.badgeBg || 'bg-red-500'}`}>
+                                                                    {idx + 1}
+                                                                </span>
+                                                                <span className="font-bold text-xs text-gray-500">تعديل تفاصيل المشكلة</span>
+                                                            </div>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                onClick={() => handleDeleteIssue(idx)}
+                                                                className="text-red-500 hover:bg-red-50 h-7 w-7 p-0 rounded-full"
+                                                            >
+                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                            </Button>
                                                         </div>
-                                                        <div>
-                                                            <span className="font-bold text-gray-800 text-sm block">{issue.label}</span>
-                                                            {(issue as any).tooth_number && (
-                                                                <span className="text-[10px] text-gray-400 font-mono">سن #{(issue as any).tooth_number}</span>
-                                                            )}
+
+                                                        <div className="grid grid-cols-2 gap-2 text-xs">
+                                                            <div className="space-y-0.5">
+                                                                <label className="text-[10px] text-gray-400">اسم العَرَض</label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={issue.label}
+                                                                    onChange={(e) => {
+                                                                        const val = e.target.value;
+                                                                        setEditedIssues(prev => prev.map((item, i) => i === idx ? { ...item, label: val } : item));
+                                                                    }}
+                                                                    className="w-full px-2.5 py-1.5 border rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-0.5">
+                                                                <label className="text-[10px] text-gray-400">رقم السن (FDI)</label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={issue.tooth_number || ''}
+                                                                    onChange={(e) => {
+                                                                        const val = e.target.value;
+                                                                        setEditedIssues(prev => prev.map((item, i) => i === idx ? { ...item, tooth_number: val } : item));
+                                                                    }}
+                                                                    className="w-full px-2.5 py-1.5 border rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none font-mono text-center"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-0.5">
+                                                                <label className="text-[10px] text-gray-400">التصنيف</label>
+                                                                <select
+                                                                    value={issue.category || 'other'}
+                                                                    onChange={(e) => {
+                                                                        const val = e.target.value;
+                                                                        setEditedIssues(prev => prev.map((item, i) => i === idx ? { ...item, category: val } : item));
+                                                                    }}
+                                                                    className="w-full px-2.5 py-1.5 border rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none bg-white"
+                                                                >
+                                                                    {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
+                                                                        <option key={k} value={k}>{v}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+                                                            <div className="space-y-0.5">
+                                                                <label className="text-[10px] text-gray-400">الخطورة</label>
+                                                                <select
+                                                                    value={issue.severity || 'low'}
+                                                                    onChange={(e) => {
+                                                                        const val = e.target.value;
+                                                                        setEditedIssues(prev => prev.map((item, i) => i === idx ? { ...item, severity: val } : item));
+                                                                    }}
+                                                                    className="w-full px-2.5 py-1.5 border rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none bg-white"
+                                                                >
+                                                                    <option value="low">منخفضة 🟢</option>
+                                                                    <option value="medium">متوسطة 🟡</option>
+                                                                    <option value="high">عالية 🔴</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="space-y-0.5">
+                                                            <label className="text-[10px] text-gray-400 font-bold block">الوصف</label>
+                                                            <input
+                                                                type="text"
+                                                                value={issue.description || ''}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value;
+                                                                    setEditedIssues(prev => prev.map((item, i) => i === idx ? { ...item, description: val } : item));
+                                                                }}
+                                                                className="w-full px-2.5 py-1.5 border rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none text-xs"
+                                                            />
                                                         </div>
                                                     </div>
-                                                    <div className="flex items-center gap-1.5">
-                                                        {(issue as any).category && (
-                                                            <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
-                                                                {CATEGORY_LABELS[(issue as any).category] || (issue as any).category}
-                                                            </span>
+                                                ) : (
+                                                    <>
+                                                        <div className="flex justify-between items-start">
+                                                            <div className="flex items-start gap-2">
+                                                                <div className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${color.badgeBg || 'bg-red-500'}`}>
+                                                                    {idx + 1}
+                                                                </div>
+                                                                <div>
+                                                                    <span className="font-bold text-gray-800 text-sm block">{issue.label}</span>
+                                                                    {issue.tooth_number && (
+                                                                        <span className="text-[10px] text-gray-400 font-mono">سن #{issue.tooth_number}</span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-1.5">
+                                                                {issue.category && (
+                                                                    <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
+                                                                        {CATEGORY_LABELS[issue.category] || issue.category}
+                                                                    </span>
+                                                                )}
+                                                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${issueSeverity.bgClass} ${issueSeverity.textClass}`}>
+                                                                    {issueSeverity.icon} {issueSeverity.label}
+                                                                </span>
+                                                                <span className="text-[10px] font-mono bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">
+                                                                    {((issue.confidence || 0.9) * 100).toFixed(0)}%
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        {issue.description && (
+                                                            <p className="text-xs text-gray-500 mt-1.5 pr-7 leading-5">{issue.description}</p>
                                                         )}
-                                                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${issueSeverity.bgClass} ${issueSeverity.textClass}`}>
-                                                            {issueSeverity.icon} {issueSeverity.label}
-                                                        </span>
-                                                        <span className="text-[10px] font-mono bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">
-                                                            {(issue.confidence * 100).toFixed(0)}%
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                {issue.description && (
-                                                    <p className="text-xs text-gray-500 mt-1.5 pr-7 leading-5">{issue.description}</p>
+                                                        {((issue as any).clinical_description || (issue as any).evidence_visible || (issue as any).risk_if_untreated) && (
+                                                            <div className="mt-2 pr-7 grid gap-1.5 text-[11px] leading-5">
+                                                                {(issue as any).clinical_description && <p className="bg-gray-50 rounded-md px-2 py-1 text-gray-700"><b>الوصف السريري:</b> {(issue as any).clinical_description}</p>}
+                                                                {(issue as any).evidence_visible && <p className="bg-blue-50 rounded-md px-2 py-1 text-blue-800"><b>الدليل المرئي:</b> {(issue as any).evidence_visible}</p>}
+                                                                {(issue as any).risk_if_untreated && <p className="bg-red-50 rounded-md px-2 py-1 text-red-800"><b>الخطر عند الإهمال:</b> {(issue as any).risk_if_untreated}</p>}
+                                                            </div>
+                                                        )}
+                                                        {issue.treatment_suggestion && (
+                                                            <p className="text-xs text-purple-600 mt-1 pr-7 leading-5 flex items-start gap-1">
+                                                                <Sparkles className="w-3 h-3 mt-0.5 shrink-0" />
+                                                                {issue.treatment_suggestion}
+                                                            </p>
+                                                        )}
+                                                    </>
                                                 )}
-                                                {((issue as any).clinical_description || (issue as any).evidence_visible || (issue as any).risk_if_untreated) && (
-                                                    <div className="mt-2 pr-7 grid gap-1.5 text-[11px] leading-5">
-                                                        {(issue as any).clinical_description && <p className="bg-gray-50 rounded-md px-2 py-1 text-gray-700"><b>الوصف السريري:</b> {(issue as any).clinical_description}</p>}
-                                                        {(issue as any).evidence_visible && <p className="bg-blue-50 rounded-md px-2 py-1 text-blue-800"><b>الدليل المرئي:</b> {(issue as any).evidence_visible}</p>}
-                                                        {(issue as any).risk_if_untreated && <p className="bg-red-50 rounded-md px-2 py-1 text-red-800"><b>الخطر عند الإهمال:</b> {(issue as any).risk_if_untreated}</p>}
-                                                    </div>
-                                                )}
-                                                {(issue as any).treatment_suggestion && (
-                                                    <p className="text-xs text-purple-600 mt-1 pr-7 leading-5 flex items-start gap-1">
-                                                        <Sparkles className="w-3 h-3 mt-0.5 shrink-0" />
-                                                        {(issue as any).treatment_suggestion}
-                                                    </p>
-                                                )}
-                                                {Array.isArray((issue as any).treatment_steps) && (issue as any).treatment_steps.length > 0 && (
-                                                    <ol className="mt-1 pr-10 text-[11px] text-gray-600 leading-5 list-decimal">
-                                                        {(issue as any).treatment_steps.map((step: string, stepIdx: number) => <li key={stepIdx}>{step}</li>)}
-                                                    </ol>
-                                                )}
-                                                {/* Matched treatment from clinic catalog */}
-                                                {(issue as any).matched_treatment_name && (issue as any).treatment_match_status === 'matched' ? (
-                                                    <div className="mt-2 pr-7 flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1.5">
-                                                        <div className="flex items-center gap-1.5 text-[11px] text-emerald-800">
-                                                            <CheckCircle className="w-3.5 h-3.5" />
-                                                            <span className="font-bold">{(issue as any).matched_treatment_name}</span>
-                                                            <span className="text-[9px] bg-emerald-600 text-white px-1.5 py-0.5 rounded">سعر معتمد</span>
-                                                        </div>
-                                                        <span className="text-xs font-bold text-emerald-700 font-mono">
-                                                            {Number((issue as any).matched_treatment_price || 0).toLocaleString('en-US')} د.ع
-                                                        </span>
-                                                    </div>
-                                                ) : ((issue as any).treatment_match_status === 'manual_pricing_needed' && result.has_clinic_catalog) ? (
-                                                    <div className="mt-2 pr-7 flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 text-[11px] text-amber-800">
-                                                        <AlertTriangle className="w-3.5 h-3.5" />
-                                                        <span>يحتاج تسعير يدوي — لا يوجد علاج مطابق في قائمة العيادة</span>
-                                                    </div>
-                                                ) : null}
                                             </li>
                                         );
                                     })}
                                 </ul>
-                                {/* Total cost summary */}
-                                {result.has_clinic_catalog && typeof result.total_estimated_cost === 'number' && result.total_estimated_cost > 0 && (
-                                    <div className="mt-2 flex items-center justify-between bg-gradient-to-l from-emerald-50 to-emerald-100/40 border border-emerald-200 rounded-xl p-3">
-                                        <span className="text-sm font-bold text-emerald-900 flex items-center gap-2">
-                                            <CheckCircle className="w-4 h-4" />
-                                            إجمالي التكلفة التقديرية (من قائمة علاجات العيادة)
-                                        </span>
-                                        <span className="text-base font-extrabold text-emerald-700 font-mono">
-                                            {result.total_estimated_cost.toLocaleString('en-US')} د.ع
-                                        </span>
+                            ) : (
+                                <div className="bg-green-50 p-4 rounded-xl border border-green-100 flex items-center gap-3 text-green-700">
+                                    <ShieldCheck className="w-6 h-6" />
+                                    <div>
+                                        <p className="font-bold">تحليل سليم</p>
+                                        <p className="text-xs opacity-80">لم يتم تحديد مشاكل في هذا التقرير حالياً</p>
                                     </div>
-                                )}
-                                {result.has_clinic_catalog === false && (
-                                    <div className="mt-2 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
-                                        <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-                                        <div>
-                                            <p className="font-bold">لم تُعرَّف قائمة علاجات لهذه العيادة.</p>
-                                            <p className="opacity-80">التكاليف غير متاحة. يُرجى إضافة العلاجات من قسم "إدارة العلاجات" لعرض الأسعار تلقائياً.</p>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        ) : (
-                            <div className="bg-green-50 p-4 rounded-xl border border-green-100 flex items-center gap-3 text-green-700">
-                                <ShieldCheck className="w-6 h-6" />
-                                <div>
-                                    <p className="font-bold">تحليل سليم</p>
-                                    <p className="text-xs opacity-80">لم يتم اكتشاف مشاكل واضحة في الصورة</p>
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
 
                         {/* Treatment Plan */}
                         {result.treatment_plan?.phases && result.treatment_plan.phases.length > 0 && (
@@ -532,18 +801,19 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl
                                 <AccurateImageOverlay
                                     imageUrl={imageUrl}
                                     alt="تحليل الصورة الكامل"
+                                    filterStyle={filterStyle} // Pass filter here too!
                                     className="w-full h-full object-contain rounded-md shadow-2xl"
                                 >
-                                {renderBoundingBoxes(true)}
+                                    {renderBoundingBoxes(true)}
                                 </AccurateImageOverlay>
                             </div>
                         </div>
 
                         {/* Bottom issue bar */}
-                        {result.issues.length > 0 && (
+                        {activeIssues.length > 0 && (
                             <div className="mt-3 flex flex-wrap gap-2 justify-center">
-                                {result.issues.map((issue, idx) => {
-                                    const color = getBoxColor(idx);
+                                {activeIssues.map((issue, idx) => {
+                                    const color = getBoxColor(issue);
                                     const issueSeverity = SEVERITY_CONFIG[issue.severity || 'low'];
                                     return (
                                         <div
@@ -552,7 +822,7 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl
                                             onMouseEnter={() => setHoveredIssue(idx)}
                                             onMouseLeave={() => setHoveredIssue(null)}
                                         >
-                                            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold ${color.border.replace('border', 'bg')}`}>
+                                            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold ${color.badgeBg || 'bg-red-500'}`}>
                                                 {idx + 1}
                                             </span>
                                             <span>{issue.label}</span>

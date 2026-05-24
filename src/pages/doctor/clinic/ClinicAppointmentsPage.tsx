@@ -242,25 +242,45 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
       const isPlatformUser = patients.find(p => p.id === selectedAptForReminder.patientId)?.patient_user_id;
       const canUsePlatform = isPlatformUser && platformMsgConfig?.allow_platform_messages !== false;
       
+      let initialMethod: 'platform' | 'whatsapp_web' | 'twilio_sms' | 'whatsapp_api' = 'platform';
       if (canUsePlatform) {
-        setReminderMethod('platform');
+        initialMethod = 'platform';
       } else if (platformMsgConfig?.allow_whatsapp_web !== false) {
-        setReminderMethod('whatsapp_web');
+        initialMethod = 'whatsapp_web';
       } else if (platformMsgConfig?.twilio_sms_enabled) {
-        setReminderMethod('twilio_sms');
+        initialMethod = 'twilio_sms';
       } else if (platformMsgConfig?.whatsapp_api_enabled) {
-        setReminderMethod('whatsapp_api');
+        initialMethod = 'whatsapp_api';
       } else {
-        setReminderMethod('whatsapp_web');
+        initialMethod = 'whatsapp_web';
       }
 
-      setReminderMessage(
-        `مرحباً ${pName}، نود تذكيرك بموعدك القادم في عيادتنا:\n` +
-        `🗓️ التاريخ: ${dateStr}\n` +
-        `⏰ الوقت: ${timeStr}\n` +
-        `🦷 نوع الزيارة: ${typeStr}\n\n` +
-        `يسعدنا حضورك في الموعد المحدد. في حال رغبتك بالتأجيل أو الإلغاء يرجى إعلامنا مسبقاً.`
-      );
+      setReminderMethod(initialMethod);
+
+      if (initialMethod === 'twilio_sms') {
+        const shortTimeStr = (() => {
+          const [h, m] = selectedAptForReminder.time.split(':');
+          let hours = parseInt(h, 10);
+          const ampm = hours >= 12 ? 'م' : 'ص';
+          hours = hours % 12;
+          hours = hours ? hours : 12;
+          return `${hours}:${m} ${ampm}`;
+        })();
+        const dayStr = (() => {
+          if (!selectedAptForReminder?.date) return '';
+          const parts = selectedAptForReminder.date.split('-');
+          return parts.length === 3 ? parseInt(parts[2], 10).toString() : '';
+        })();
+        setReminderMessage(`تذكير: موعدك يوم ${dayStr} الساعة ${shortTimeStr}`);
+      } else {
+        setReminderMessage(
+          `مرحباً ${pName}، نود تذكيرك بموعدك القادم في عيادتنا:\n` +
+          `🗓️ التاريخ: ${dateStr}\n` +
+          `⏰ الوقت: ${timeStr}\n` +
+          `🦷 نوع الزيارة: ${typeStr}\n\n` +
+          `يسعدنا حضورك في الموعد المحدد. في حال رغبتك بالتأجيل أو الإلغاء يرجى إعلامنا مسبقاً.`
+        );
+      }
     }
   }, [selectedAptForReminder, patients]);
 
@@ -1996,7 +2016,29 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                     return (
                       <button
                         type="button"
-                        onClick={() => isPlatformUser && setReminderMethod('platform')}
+                        onClick={() => {
+                          if (isPlatformUser) {
+                            setReminderMethod('platform');
+                            const pName = patientObj?.name || 'مراجع';
+                            const dateStr = selectedAptForReminder.date;
+                            const timeStr = (() => {
+                              const [h, m] = selectedAptForReminder.time.split(':');
+                              let hours = parseInt(h, 10);
+                              const ampm = hours >= 12 ? 'مساءً' : 'صباحاً';
+                              hours = hours % 12;
+                              hours = hours ? hours : 12;
+                              return `${hours.toString().padStart(2, '0')}:${m} ${ampm}`;
+                            })();
+                            const typeStr = getTypeLabel(selectedAptForReminder.type);
+                            setReminderMessage(
+                              `مرحباً ${pName}، نود تذكيرك بموعدك القادم في عيادتنا:\n` +
+                              `🗓️ التاريخ: ${dateStr}\n` +
+                              `⏰ الوقت: ${timeStr}\n` +
+                              `🦷 نوع الزيارة: ${typeStr}\n\n` +
+                              `يسعدنا حضورك في الموعد المحدد. في حال رغبتك بالتأجيل أو الإلغاء يرجى إعلامنا مسبقاً.`
+                            );
+                          }
+                        }}
                         className={`p-3.5 rounded-xl border-2 text-right transition-all flex flex-col justify-between h-24 ${
                           !isPlatformUser ? 'opacity-40 cursor-not-allowed border-gray-105 bg-gray-50' :
                           reminderMethod === 'platform' 
@@ -2017,7 +2059,27 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                   {platformMsgConfig?.allow_whatsapp_web !== false && (
                     <button
                       type="button"
-                      onClick={() => setReminderMethod('whatsapp_web')}
+                      onClick={() => {
+                        setReminderMethod('whatsapp_web');
+                        const pName = patients.find(p => p.id === selectedAptForReminder.patientId)?.name || 'مراجع';
+                        const dateStr = selectedAptForReminder.date;
+                        const timeStr = (() => {
+                          const [h, m] = selectedAptForReminder.time.split(':');
+                          let hours = parseInt(h, 10);
+                          const ampm = hours >= 12 ? 'مساءً' : 'صباحاً';
+                          hours = hours % 12;
+                          hours = hours ? hours : 12;
+                          return `${hours.toString().padStart(2, '0')}:${m} ${ampm}`;
+                        })();
+                        const typeStr = getTypeLabel(selectedAptForReminder.type);
+                        setReminderMessage(
+                          `مرحباً ${pName}، نود تذكيرك بموعدك القادم في عيادتنا:\n` +
+                          `🗓️ التاريخ: ${dateStr}\n` +
+                          `⏰ الوقت: ${timeStr}\n` +
+                          `🦷 نوع الزيارة: ${typeStr}\n\n` +
+                          `يسعدنا حضورك في الموعد المحدد. في حال رغبتك بالتأجيل أو الإلغاء يرجى إعلامنا مسبقاً.`
+                        );
+                      }}
                       className={`p-3.5 rounded-xl border-2 text-right transition-all flex flex-col justify-between h-24 ${
                         reminderMethod === 'whatsapp_web' 
                           ? 'border-green-600 bg-green-50/40 text-green-900 shadow-sm' 
@@ -2036,7 +2098,23 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                   {platformMsgConfig?.twilio_sms_enabled && (
                     <button
                       type="button"
-                      onClick={() => setReminderMethod('twilio_sms')}
+                      onClick={() => {
+                        setReminderMethod('twilio_sms');
+                        const timeStr = (() => {
+                          const [h, m] = selectedAptForReminder.time.split(':');
+                          let hours = parseInt(h, 10);
+                          const ampm = hours >= 12 ? 'م' : 'ص';
+                          hours = hours % 12;
+                          hours = hours ? hours : 12;
+                          return `${hours}:${m} ${ampm}`;
+                        })();
+                        const dayStr = (() => {
+                          if (!selectedAptForReminder?.date) return '';
+                          const parts = selectedAptForReminder.date.split('-');
+                          return parts.length === 3 ? parseInt(parts[2], 10).toString() : '';
+                        })();
+                        setReminderMessage(`تذكير: موعدك يوم ${dayStr} الساعة ${timeStr}`);
+                      }}
                       className={`p-3.5 rounded-xl border-2 text-right transition-all flex flex-col justify-between h-24 ${
                         reminderMethod === 'twilio_sms' 
                           ? 'border-red-600 bg-red-50/40 text-red-900 shadow-sm' 
@@ -2055,7 +2133,27 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                   {platformMsgConfig?.whatsapp_api_enabled && (
                     <button
                       type="button"
-                      onClick={() => setReminderMethod('whatsapp_api')}
+                      onClick={() => {
+                        setReminderMethod('whatsapp_api');
+                        const pName = patients.find(p => p.id === selectedAptForReminder.patientId)?.name || 'مراجع';
+                        const dateStr = selectedAptForReminder.date;
+                        const timeStr = (() => {
+                          const [h, m] = selectedAptForReminder.time.split(':');
+                          let hours = parseInt(h, 10);
+                          const ampm = hours >= 12 ? 'مساءً' : 'صباحاً';
+                          hours = hours % 12;
+                          hours = hours ? hours : 12;
+                          return `${hours.toString().padStart(2, '0')}:${m} ${ampm}`;
+                        })();
+                        const typeStr = getTypeLabel(selectedAptForReminder.type);
+                        setReminderMessage(
+                          `مرحباً ${pName}، نود تذكيرك بموعدك القادم في عيادتنا:\n` +
+                          `🗓️ التاريخ: ${dateStr}\n` +
+                          `⏰ الوقت: ${timeStr}\n` +
+                          `🦷 نوع الزيارة: ${typeStr}\n\n` +
+                          `يسعدنا حضورك في الموعد المحدد. في حال رغبتك بالتأجيل أو الإلغاء يرجى إعلامنا مسبقاً.`
+                        );
+                      }}
                       className={`p-3.5 rounded-xl border-2 text-right transition-all flex flex-col justify-between h-24 ${
                         reminderMethod === 'whatsapp_api' 
                           ? 'border-teal-600 bg-teal-50/40 text-teal-900 shadow-sm' 
@@ -2073,15 +2171,95 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
               </div>
 
               {/* Message Template / Textarea */}
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">نص رسالة التذكير</label>
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                  <label className="block text-sm font-bold text-gray-700">نص رسالة التذكير</label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const pName = patients.find(p => p.id === selectedAptForReminder.patientId)?.name || 'test';
+                        const dateStr = selectedAptForReminder.date;
+                        const timeStr = (() => {
+                          const [h, m] = selectedAptForReminder.time.split(':');
+                          let hours = parseInt(h, 10);
+                          const ampm = hours >= 12 ? 'مساءً' : 'صباحاً';
+                          hours = hours % 12;
+                          hours = hours ? hours : 12;
+                          return `${hours.toString().padStart(2, '0')}:${m} ${ampm}`;
+                        })();
+                        const typeStr = getTypeLabel(selectedAptForReminder.type);
+                        setReminderMessage(
+                          `مرحباً ${pName}، نود تذكيرك بموعدك القادم في عيادتنا:\n` +
+                          `🗓️ التاريخ: ${dateStr}\n` +
+                          `⏰ الوقت: ${timeStr}\n` +
+                          `🦷 نوع الزيارة: ${typeStr}\n\n` +
+                          `يسعدنا حضورك في الموعد المحدد. في حال رغبتك بالتأجيل أو الإلغاء يرجى إعلامنا مسبقاً.`
+                        );
+                      }}
+                      className="px-2.5 py-1 text-[11px] font-black border border-gray-200 rounded-lg bg-white hover:bg-gray-50 text-gray-600 transition-all cursor-pointer"
+                    >
+                      📄 قالب تفصيلي طويل
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const timeStr = (() => {
+                          const [h, m] = selectedAptForReminder.time.split(':');
+                          let hours = parseInt(h, 10);
+                          const ampm = hours >= 12 ? 'م' : 'ص';
+                          hours = hours % 12;
+                          hours = hours ? hours : 12;
+                          return `${hours}:${m} ${ampm}`;
+                        })();
+                        const dayStr = (() => {
+                          if (!selectedAptForReminder?.date) return '';
+                          const parts = selectedAptForReminder.date.split('-');
+                          return parts.length === 3 ? parseInt(parts[2], 10).toString() : '';
+                        })();
+                        setReminderMessage(`تذكير: موعدك يوم ${dayStr} الساعة ${timeStr}`);
+                      }}
+                      className="px-2.5 py-1 text-[11px] font-black border border-emerald-200 rounded-lg bg-emerald-50 hover:bg-emerald-100/80 text-emerald-700 transition-all cursor-pointer"
+                    >
+                      ⚡ قالب قصير (شريحة واحدة)
+                    </button>
+                  </div>
+                </div>
                 <textarea
                   value={reminderMessage}
                   onChange={(e) => setReminderMessage(e.target.value)}
-                  rows={6}
-                  className="w-full border border-gray-200 rounded-xl p-3.5 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none resize-none leading-relaxed"
+                  rows={5}
+                  className="w-full border border-gray-200 rounded-xl p-3.5 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none resize-none leading-relaxed font-bold text-gray-700"
                   placeholder="نص التذكير..."
                 />
+                
+                {/* Dynamic character counter & segment limits */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 mt-1 text-[11px] font-bold">
+                  <div className="flex items-center gap-1.5 text-gray-500">
+                    <span>عدد الأحرف:</span>
+                    <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-800">{reminderMessage.length}</span>
+                  </div>
+                  {(() => {
+                    const isArabic = /[\u0600-\u06FF]/.test(reminderMessage);
+                    const limit = isArabic ? 70 : 160;
+                    const segments = Math.ceil(reminderMessage.length / limit) || 1;
+                    const isSingleSegment = segments === 1;
+
+                    if (isSingleSegment) {
+                      return (
+                        <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 flex items-center gap-1 shrink-0 self-start sm:self-auto">
+                          <span>شريحة واحدة (الحد الأقصى {limit} حرف للغة العربية) - مضمونة الوصول ✅</span>
+                        </span>
+                      );
+                    } else {
+                      return (
+                        <span className="text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-100 flex items-center gap-1 shrink-0 self-start sm:self-auto animate-pulse">
+                          <span>متعدد الشرائح ({segments} شرائح) - قد تفشل في حساب Twilio التجريبي المجاني ⚠️</span>
+                        </span>
+                      );
+                    }
+                  })()}
+                </div>
               </div>
             </div>
 
