@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useCurrentClinic } from '../../../hooks/useCurrentClinic';
 import { supabase } from '../../../lib/supabase';
@@ -3429,1209 +3429,664 @@ const VoiceExamDictatorModalContent: React.FC<{ patientName?: string }> = ({ pat
 };
 
 const SmileDesignModalContent: React.FC<{ patientName?: string; patientId?: string }> = ({ patientName, patientId }) => {
-  // 1. DSD System Modes
-  const [dsdMethod, setDsdMethod] = useState<'manual' | 'nanobanana'>('manual');
-  const [aiPrompt, setAiPrompt] = useState<string>(
-    "ابتسامة هوليوود واقعية فائقة الدقة، قشور بورسلان طبيعية ثلاثية الأبعاد بياض ناصع متناسقة مع الشفاه وحجم الفم الطبيعي للمراجع مع انعكاس ضوئي متألق للأسنان الأمامية."
-  );
+  // ===== STEP FLOW =====
+  // step 0: upload photo
+  // step 1: choose method (manual | nanobanana)
+  // step 2: manual design workspace
+  // step 3: nanobanana AI workspace
+  const [step, setStep] = useState<0 | 1 | 2 | 3>(0);
+  const [patientPhoto, setPatientPhoto] = useState<string | null>(null);
 
-  // 2. Photo states (Default close-up patient loaded by default)
-  const [patientPhoto, setPatientPhoto] = useState<string | null>("https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800");
+  // ===== SHARED SETTINGS =====
+  const [whiteness, setWhiteness] = useState(3);
+  const [toothShape, setToothShape] = useState<'natural' | 'oval' | 'square'>('natural');
+  const [alignment, setAlignment] = useState(5);
   const [bgScale, setBgScale] = useState(1.0);
   const [bgX, setBgX] = useState(0);
   const [bgY, setBgY] = useState(0);
 
-  // 3. Realistic Veneers overlay states (Pre-calibrated default values to fit demo mouth perfectly)
-  const [overlayScaleX, setOverlayScaleX] = useState(0.9);
-  const [overlayScaleY, setOverlayScaleY] = useState(0.95);
-  const [overlayX, setOverlayX] = useState(0);
-  const [overlayY, setOverlayY] = useState(12);
-  const [overlayRotate, setOverlayRotate] = useState(0);
-  const [overlayOpacity, setOverlayOpacity] = useState(0.85);
+  // ===== MANUAL MODE STATE =====
+  const [annotationMode, setAnnotationMode] = useState<'none' | 'measure' | 'draw' | 'note'>('none');
+  const [annotations, setAnnotations] = useState<Array<{
+    id: number; type: 'measure' | 'draw' | 'note';
+    x: number; y: number; x2?: number; y2?: number; text?: string; color: string;
+  }>>([]);
+  const [drawingStart, setDrawingStart] = useState<{ x: number; y: number } | null>(null);
+  const [drawingCurrent, setDrawingCurrent] = useState<{ x: number; y: number } | null>(null);
+  const [noteInput, setNoteInput] = useState('');
+  const [showNoteInput, setShowNoteInput] = useState(false);
+  const [pendingNotePos, setPendingNotePos] = useState<{ x: number; y: number } | null>(null);
+  const [activeColor, setActiveColor] = useState('#ef4444');
+  const [showSplitManual, setShowSplitManual] = useState(false);
+  const [splitPosManual, setSplitPosManual] = useState(50);
+  const canvasRef = useRef<HTMLDivElement>(null);
 
-  // 4. Teeth aesthetic parameters
-  const [toothShape, setToothShape] = useState<'natural' | 'oval' | 'square'>('natural');
-  const [whiteness, setWhiteness] = useState(3);
-  const [alignment, setAlignment] = useState(5);
-
-  // 5. Comparison and AI simulation states
-  const [smileAfter, setSmileAfter] = useState(false);
-  const [showSplitSlider, setShowSplitSlider] = useState(false);
-  const [splitPosition, setSplitPosition] = useState(50);
-  const [activeSubTab, setActiveSubTab] = useState<'align' | 'aesthetic' | 'ai'>('aesthetic');
-
-  // 6. AI Loading states
+  // ===== AI MODE STATE =====
+  const [aiPrompt, setAiPrompt] = useState(
+    'ابتسامة هوليوود واقعية، قشور E-Max براقة VITA B1 ناصعة البياض، انعكاس ضوئي طبيعي، متناسقة مع ملامح الفم.'
+  );
   const [isAiProcessing, setIsAiProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState('');
+  const [aiSimulated, setAiSimulated] = useState(false);
+  const [splitPosAi, setSplitPosAi] = useState(50);
 
-  // Helper values for teeth whiteness stop colors and alignment shifts
-  const getStops = (grade: number) => {
-    switch(grade) {
-      case 5: return { stop0: '#f8fafc', stop70: '#ffffff', stop100: '#f1f5f9', warm: '#ffffff' }; // VITA B1
-      case 4: return { stop0: '#faf9f6', stop70: '#ffffff', stop100: '#f4f0e5', warm: '#fdfdfa' }; // VITA A1
-      case 3: return { stop0: '#f4f0e5', stop70: '#faf7ee', stop100: '#efeada', warm: '#f7f4eb' }; // VITA A2
-      case 2: return { stop0: '#ebe3d5', stop70: '#f1ebd9', stop100: '#e3dcd3', warm: '#eee5d0' }; // VITA A3
-      case 1: return { stop0: '#dcd0bc', stop70: '#e6dac3', stop100: '#cfc1a5', warm: '#ddcca9' }; // VITA A4
-      default: return { stop0: '#f4f0e5', stop70: '#faf7ee', stop100: '#efeada', warm: '#f7f4eb' };
-    }
+  // ===== WHITENESS FILTER =====
+  const getWhitenessFilter = (grade: number) => {
+    if (grade === 5) return 'brightness(1.2) contrast(0.9) saturate(0.65)';
+    if (grade === 4) return 'brightness(1.12) contrast(0.94) saturate(0.75)';
+    if (grade === 3) return 'brightness(1.05) contrast(0.97) saturate(0.88)';
+    if (grade === 2) return 'brightness(0.97) contrast(1.0) saturate(0.98)';
+    return 'brightness(0.91) contrast(1.03) saturate(1.05)';
   };
 
-  // Reset function
-  const handleResetOverlay = () => {
-    setOverlayScaleX(0.9);
-    setOverlayScaleY(0.95);
-    setOverlayX(0);
-    setOverlayY(12);
-    setOverlayRotate(0);
-    setOverlayOpacity(0.85);
-    toast.success("تم إعادة ضبط موضع قالب الأسنان الافتراضية.");
+  const getAiFilter = () => {
+    const w = whiteness >= 5 ? 'brightness(1.25) contrast(0.87) saturate(0.6)' :
+              whiteness === 4 ? 'brightness(1.16) contrast(0.91) saturate(0.7)' :
+              'brightness(1.1) contrast(0.94) saturate(0.78)';
+    return w;
   };
 
-  const handleResetBackground = () => {
-    setBgScale(1.0);
-    setBgX(0);
-    setBgY(0);
-    toast.success("تم إعادة ضبط حجم وموضع صورة المريض.");
-  };
+  const vitaLabel = whiteness === 5 ? 'B1 ⭐ هوليوود' : whiteness === 4 ? 'A1 ساطع' : whiteness === 3 ? 'A2 طبيعي' : whiteness === 2 ? 'A3' : 'A4';
 
-  // Upload photo
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ===== UPLOAD =====
+  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setPatientPhoto(reader.result as string);
-        setSmileAfter(false);
-        setShowSplitSlider(false);
-        toast.success("تم رفع صورة المريض بنجاح! يمكنك البدء بتنسيق الابتسامة.");
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setPatientPhoto(reader.result as string);
+      setAnnotations([]);
+      setAiSimulated(false);
+      setStep(1);
+      toast.success('تم رفع الصورة! اختر طريقة التصميم.');
+    };
+    reader.readAsDataURL(file);
   };
 
-  const handleLoadDemo = () => {
-    setPatientPhoto("https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800");
-    setSmileAfter(false);
-    setShowSplitSlider(false);
-    toast.success("تم تحميل الصورة التجريبية النموذجية بنجاح.");
+  const handleDemo = () => {
+    setPatientPhoto('https://images.unsplash.com/photo-1606811841689-23dfddce3e24?w=800&auto=format&fit=crop');
+    setAnnotations([]);
+    setAiSimulated(false);
+    setStep(1);
+    toast.success('تم تحميل الصورة التجريبية.');
   };
 
-  const handleDeletePhoto = () => {
+  const handleChangePhoto = () => {
     setPatientPhoto(null);
-    setSmileAfter(false);
-    setShowSplitSlider(false);
-    toast.info("تم إزالة صورة المريض.");
+    setStep(0);
+    setAnnotations([]);
+    setAiSimulated(false);
+    setShowSplitManual(false);
+    setDrawingStart(null);
   };
 
-  // AI Smile simulation trigger - Connecting to Nano Banana DEV Server
+  // ===== ANNOTATIONS (manual) =====
+  const handleCanvasClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (annotationMode === 'none' || !canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+    if (annotationMode === 'note') {
+      setPendingNotePos({ x, y });
+      setShowNoteInput(true);
+      return;
+    }
+    if (!drawingStart) {
+      setDrawingStart({ x, y });
+      setDrawingCurrent({ x, y });
+    } else {
+      setAnnotations(prev => [...prev, { id: Date.now(), type: annotationMode, x: drawingStart.x, y: drawingStart.y, x2: x, y2: y, color: activeColor }]);
+      setDrawingStart(null);
+      setDrawingCurrent(null);
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!drawingStart || !canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    setDrawingCurrent({ x: ((e.clientX - rect.left) / rect.width) * 100, y: ((e.clientY - rect.top) / rect.height) * 100 });
+  };
+
+  const saveNote = () => {
+    if (!pendingNotePos || !noteInput.trim()) { setShowNoteInput(false); return; }
+    setAnnotations(prev => [...prev, { id: Date.now(), type: 'note', x: pendingNotePos.x, y: pendingNotePos.y, text: noteInput.trim(), color: activeColor }]);
+    setNoteInput(''); setShowNoteInput(false); setPendingNotePos(null);
+    toast.success('تمت إضافة الملاحظة.');
+  };
+
+  // ===== AI TRIGGER =====
   const handleTriggerAi = () => {
-    if (!patientPhoto) {
-      toast.error("يرجى رفع صورة مراجع أولاً للبدء بمعالجة نانو بنانا.");
-      return;
-    }
-    
     setIsAiProcessing(true);
+    setAiSimulated(false);
     const steps = [
-      "📡 جاري الاتصال بخادم نانو بنانا السحابي (Connecting to Nano Banana Server)...",
-      "📤 رفع وقراءة صورة المريض ومسح معالم الشفاه الفيسيولوجية...",
-      "🧠 تشغيل نموذج الذكاء الاصطناعي المتخصص gemini-nano-banana-dsd...",
-      "📐 تحليل محاور التماثل وتوليد قشور البورسلان Glazed E-Max الواقعية...",
-      "✨ دمج طبقة الابتسامة وتبييض الأسنان بالكامل بناءً على البرومبت المكتوب..."
+      '📡 الاتصال بـ Nano Banana Server...',
+      '📤 تحليل ملامح الأسنان والشفاه بالـ AI...',
+      '🧠 تشغيل gemini-nano-banana-dsd...',
+      '🎨 تطبيق التبييض والتشكيل الواقعي...',
+      '✨ دمج النتيجة ومعايرة الانعكاس الضوئي...',
     ];
-
-    let currentStep = 0;
+    let i = 0;
     setProcessingStep(steps[0]);
-
-    const interval = setInterval(() => {
-      currentStep++;
-      if (currentStep < steps.length) {
-        setProcessingStep(steps[currentStep]);
-      } else {
-        clearInterval(interval);
+    const iv = setInterval(() => {
+      i++;
+      if (i < steps.length) { setProcessingStep(steps[i]); }
+      else {
+        clearInterval(iv);
         setIsAiProcessing(false);
-        setSmileAfter(true);
-        setShowSplitSlider(true);
-        // AI presets
-        setWhiteness(5); // VITA B1 Hollywood Bleached
-        setToothShape('square'); // Perfect rectangular Hollywood teeth
-        setAlignment(5); // Perfectly straight
-        setOverlayScaleX(0.95);
-        setOverlayScaleY(1.05);
-        setOverlayX(0);
-        setOverlayY(12);
-        setOverlayRotate(0);
-        setOverlayOpacity(0.95);
-        toast.success("تم إرسال الطلب بنجاح لـ نانو بنانا، وتوليد ابتسامة هوليوود فائقة الواقعية!");
+        setAiSimulated(true);
+        if (whiteness < 4) setWhiteness(5);
+        toast.success('✨ اكتملت محاكاة نانو بنانا! اسحب شريط المقارنة.');
       }
-    }, 1100);
+    }, 900);
   };
 
-  // Save and export report
-  const handleExportReport = () => {
-    if (!patientPhoto) {
-      toast.error("يرجى رفع صورة وتصميم ابتسامة لتصدير التقرير.");
-      return;
-    }
-
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      toast.error("يرجى السماح بالنوافذ المنبثقة لتصدير التقرير.");
-      return;
-    }
-
-    const today = new Date().toLocaleDateString('ar-IQ', {
-      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-    });
-
-    const shapeName = toothShape === 'natural' ? 'طبيعي (Natural)' : toothShape === 'oval' ? 'بيضاوي ناعم (Soft Oval)' : 'مربع هوليوود (Hollywood Square)';
-    const whitenessName = whiteness === 1 ? 'VITA A4 (طبيعي غامق)' : whiteness === 2 ? 'VITA A3 (طبيعي متوسط)' : whiteness === 3 ? 'VITA A2 (أبيض طبيعي)' : whiteness === 4 ? 'VITA A1 (أبيض ساطع)' : 'VITA B1 (أبيض هوليوود فائق)';
-
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>تقرير تصميم الابتسامة الرقمي الاحترافي (DSD) - ${patientName || 'المراجع'}</title>
-          <style>
-            @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap');
-            body {
-              font-family: 'Cairo', sans-serif;
-              direction: rtl;
-              text-align: right;
-              padding: 40px;
-              color: #1e293b;
-              background-color: #ffffff;
-            }
-            .header {
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              border-bottom: 3px solid #8b5cf6;
-              padding-bottom: 20px;
-              margin-bottom: 30px;
-            }
-            .logo {
-              font-size: 24px;
-              font-weight: 900;
-              color: #8b5cf6;
-            }
-            .title {
-              font-size: 20px;
-              font-weight: 700;
-              color: #1e1b4b;
-            }
-            .patient-card {
-              background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-              border: 1px solid #e2e8f0;
-              padding: 24px;
-              border-radius: 16px;
-              margin-bottom: 35px;
-              display: grid;
-              grid-template-cols: 1fr 1fr;
-              gap: 20px;
-            }
-            .info-item {
-              font-size: 14px;
-              color: #334155;
-            }
-            .info-label {
-              font-weight: 800;
-              color: #64748b;
-              margin-left: 8px;
-            }
-            .section-title {
-              color: #6d28d9;
-              font-size: 18px;
-              font-weight: 900;
-              border-right: 5px solid #8b5cf6;
-              padding-right: 12px;
-              margin-top: 40px;
-              margin-bottom: 20px;
-            }
-            .table-dsd {
-              width: 100%;
-              border-collapse: collapse;
-              margin-bottom: 40px;
-            }
-            .table-dsd th, .table-dsd td {
-              border: 1px solid #cbd5e1;
-              padding: 14px 18px;
-              text-align: right;
-              font-size: 14px;
-            }
-            .table-dsd th {
-              background-color: #f8fafc;
-              color: #475569;
-              font-weight: 800;
-            }
-            .table-dsd tr:hover {
-              background-color: #f8fafc;
-            }
-            .gallery {
-              display: flex;
-              gap: 24px;
-              margin-bottom: 45px;
-            }
-            .gallery-item {
-              flex: 1;
-              border: 1px solid #e2e8f0;
-              border-radius: 16px;
-              overflow: hidden;
-              background-color: #faf5ff;
-              box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
-            }
-            .gallery-img-box {
-              position: relative;
-              width: 100%;
-              height: 280px;
-              overflow: hidden;
-              background-color: #0f172a;
-            }
-            .gallery-img-box img {
-              width: 100%;
-              height: 100%;
-              object-fit: cover;
-            }
-            .gallery-title {
-              padding: 14px;
-              text-align: center;
-              font-weight: bold;
-              background-color: #f1f5f9;
-              border-top: 1px solid #e2e8f0;
-              color: #1e293b;
-              font-size: 14px;
-            }
-            .notes-box {
-              background-color: #faf5ff;
-              border: 1px solid #e9d5ff;
-              border-radius: 16px;
-              padding: 24px;
-              margin-bottom: 40px;
-            }
-            .notes-title {
-              color: #6b21a8;
-              font-weight: bold;
-              margin-top: 0;
-              margin-bottom: 12px;
-              font-size: 15px;
-            }
-            .notes-text {
-              font-size: 13.5px;
-              line-height: 1.8;
-              color: #4b5563;
-              margin: 0;
-            }
-            .footer-print {
-              margin-top: 60px;
-              border-top: 1px dashed #cbd5e1;
-              padding-top: 25px;
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              font-size: 12px;
-              color: #64748b;
-            }
-            .signature-area {
-              text-align: center;
-              width: 220px;
-            }
-            .signature-line {
-              margin-top: 50px;
-              border-top: 2px solid #64748b;
-            }
-            .print-btn-container {
-              margin-top: 30px;
-              text-align: center;
-            }
-            .print-btn {
-              background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
-              color: white;
-              border: none;
-              padding: 14px 40px;
-              font-size: 14px;
-              font-weight: 900;
-              border-radius: 12px;
-              cursor: pointer;
-              box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3);
-              font-family: 'Cairo', sans-serif;
-              transition: all 0.2s;
-            }
-            .print-btn:hover {
-              transform: translateY(-2px);
-              box-shadow: 0 6px 15px rgba(139, 92, 246, 0.4);
-            }
-            @media print {
-              body { padding: 0; }
-              .no-print { display: none; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div class="logo">المنصة السنية الذكية | Smart Dental Platform</div>
-            <div class="title">تقرير تصميم الابتسامة التجميلي الاحترافي (DSD Report)</div>
-          </div>
-          
-          <div class="patient-card">
-            <div class="info-item"><span class="info-label">اسم المريض:</span> ${patientName || 'مراجع عام'}</div>
-            <div class="info-item"><span class="info-label">تاريخ الإصدار:</span> ${today}</div>
-            <div class="info-item"><span class="info-label">رقم الملف الطبي:</span> #${patientId || 'DSD-8902'}</div>
-            <div class="info-item"><span class="info-label">طريقة التصميم:</span> ${
-              dsdMethod === 'nanobanana' 
-                ? 'توليد ذكي فائق الواقعية عبر نانو بنانا (Nano Banana AI)' 
-                : 'معايرة يدوية ثلاثية الأبعاد (Realistic Manual Design)'
-            }</div>
-          </div>
-
-          ${dsdMethod === 'nanobanana' ? `
-          <div style="background-color: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 16px; padding: 20px; margin-bottom: 30px;">
-            <h4 style="color: #5b21b6; margin-top: 0; margin-bottom: 8px;">🍌 مواصفات طلب الذكاء الاصطناعي (Nano Banana AI Configuration):</h4>
-            <div style="font-size: 13px; color: #4c1d95;">
-              <strong>النموذج المستخدم:</strong> <code>gemini-nano-banana-dsd</code> <br/>
-              <strong>البرومبت الطبي المكتوب:</strong> "${aiPrompt}"
-            </div>
-          </div>
-          ` : ''}
-
-          <div class="section-title">المقاييس الجمالية المعتمدة للابتسامة</div>
-          <table class="table-dsd">
-            <thead>
-              <tr>
-                <th style="width: 30%;">المعيار الجمالي</th>
-                <th style="width: 30%;">الخيار المحدد</th>
-                <th>التفسير الطبي والسريري لملاءمة الفم</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td style="font-weight: bold; color: #4c1d95;">شكل السن المقترح (Tooth Shape)</td>
-                <td style="font-weight: bold;">${shapeName}</td>
-                <td>ملاءمة معالم وهيكل الوجه لتوفير تماثل رائع ومظهر طبيعي أو أنيق متناسق.</td>
-              </tr>
-              <tr>
-                <td style="font-weight: bold; color: #4c1d95;">درجة تبييض الأسنان (VITA Color)</td>
-                <td style="font-weight: bold; color: #7c3aed;">${whitenessName}</td>
-                <td>اختيار خزف Porcelain تجميلي عالي التوافق الحيوي يحاكي انعكاس الضوء الطبيعي لابتسامة براقة.</td>
-              </tr>
-              <tr>
-                <td style="font-weight: bold; color: #4c1d95;">درجة انتظام القواطع (Alignment)</td>
-                <td style="font-weight: bold;">Grade ${alignment}/5</td>
-                <td>تصحيح الفروقات البسيطة ومحاذاة حواف القواطع العلوية مع خط الشفة السفلي (Smile Curve Matching).</td>
-              </tr>
-            </tbody>
-          </table>
-
-          <div class="section-title">المقارنة البصرية (قبل وبعد تصميم الابتسامة)</div>
-          <div class="gallery">
-            <div class="gallery-item">
-              <div class="gallery-img-box">
-                <img src="${patientPhoto}" />
-              </div>
-              <div class="gallery-title">ابتسامة المريض الحالية قبل التجميل</div>
-            </div>
-            <div class="gallery-item">
-              <div class="gallery-img-box">
-                <img src="${patientPhoto}" style="filter: brightness(1.05);" />
-                <!-- Overlay a simple visual simulation outline in the print report -->
-                <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none;">
-                  <div style="border: 2px dashed #8b5cf6; border-radius: 40px; padding: 12px 30px; background-color: rgba(255,255,255,0.85); color: #6d28d9; font-weight: 900; font-size: 13px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center;">
-                     تم التوليد فائق الواقعية بالـ AI<br/>
-                     <span style="font-size: 10px; font-weight: normal; color: #7c3aed;">قشور خزفية ثلاثية الأبعاد مصقولة (Glazed Veneers)</span>
-                  </div>
-                </div>
-              </div>
-              <div class="gallery-title">تصميم الابتسامة الواقعي المقترح بالـ AI</div>
-            </div>
-          </div>
-
-          <div class="notes-box">
-            <div class="notes-title">🩺 التوصيات العلاجية وخطة التحضير (Clinical Recommendations):</div>
-            <p class="notes-text">
-              بناءً على التقرير البصري ومقاييس التناسق الرقمي (DSD) المعتمد بالمنصة السنية الذكية ونموذج نانو بنانا للرسم السني، يوصى بالبدء في تهيئة الأسنان وعمل تحضير طفيف (Minimal Prep) لتطبيق القشور الخزفية التجميلية ثلاثية الأبعاد (3D Glazed Veneers) من فئة E-Max الفاخرة بالدرجة اللونية المعتمدة. تم تصميم الأبعاد ومحور الأسنان ومستوى انتظام الحواف السنية لتتكامل بدقة مع معالم الابتسامة الأصلية للمريض وضمان نتيجة حيوية باهرة.
-            </p>
-          </div>
-
-          <div class="footer-print">
-            <div>تاريخ التقرير: ${today} • المنصة السنية الذكية</div>
-            <div class="signature-area">
-              توقيع الطبيب الأخصائي
-              <div class="signature-line"></div>
-            </div>
-          </div>
-
-          <div class="no-print print-btn-container">
-            <button class="print-btn" onclick="window.print();">طباعة التقرير / حفظ كـ PDF</button>
-          </div>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    toast.success("تم فتح تقرير تصميم الابتسامة وتجهيز المعاينة للطباعة.");
+  // ===== EXPORT =====
+  const handleExport = () => {
+    if (!patientPhoto) return;
+    const today = new Date().toLocaleDateString('ar-IQ', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const method = step === 2 ? 'تصميم يدوي تحليلي' : 'نانو بنانا AI';
+    const win = window.open('', '_blank');
+    if (!win) { toast.error('يرجى السماح بالنوافذ المنبثقة.'); return; }
+    win.document.write(`<html><head><title>تقرير DSD - ${patientName || 'المراجع'}</title>
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap');
+        body{font-family:'Cairo',sans-serif;direction:rtl;text-align:right;padding:40px;color:#1e293b;}
+        h1{color:#6d28d9;font-size:20px;border-bottom:3px solid #8b5cf6;padding-bottom:12px;}
+        table{width:100%;border-collapse:collapse;margin-top:20px;}
+        th,td{border:1px solid #e2e8f0;padding:10px 14px;font-size:13px;}
+        th{background:#f8fafc;font-weight:800;}
+        .btn{background:#8b5cf6;color:#fff;border:none;padding:12px 30px;border-radius:10px;font-size:14px;font-family:'Cairo',sans-serif;cursor:pointer;margin-top:24px;}
+        @media print{.no-print{display:none;}}
+      </style></head><body>
+      <h1>🦷 تقرير تصميم الابتسامة الرقمي (DSD)</h1>
+      <table>
+        <tr><th>المريض</th><td>${patientName || 'مراجع'}</td><th>التاريخ</th><td>${today}</td></tr>
+        <tr><th>طريقة التصميم</th><td>${method}</td><th>رقم الملف</th><td>#${patientId || 'DSD'}</td></tr>
+        <tr><th>شكل السن</th><td>${toothShape === 'natural' ? 'طبيعي' : toothShape === 'oval' ? 'بيضاوي ناعم' : 'مربع هوليوود'}</td><th>درجة اللون</th><td>VITA ${vitaLabel}</td></tr>
+        <tr><th>الاصطفاف</th><td>Grade ${alignment}/5</td><th>التعليقات</th><td>${annotations.length} ملاحظة</td></tr>
+        ${step === 3 ? `<tr><th>البرومبت</th><td colspan="3">${aiPrompt}</td></tr>` : ''}
+      </table>
+      <div class="no-print"><button class="btn" onclick="window.print()">طباعة / حفظ PDF</button></div>
+    </body></html>`);
+    win.document.close();
+    toast.success('تم فتح التقرير للطباعة.');
   };
 
-  // Helper values for teeth whiteness stop colors and alignment shifts
-  const stops = getStops(whiteness);
-
-  // SVG teeth paths based on shape and alignment
-  const getAlignmentTransform = (toothId: string) => {
-    const diff = 5 - alignment;
-    if (diff <= 0) return '';
-    let tx = 0; let ty = 0; let rot = 0;
-    switch(toothId) {
-      case '11': tx = -diff * 0.8; ty = diff * 0.4; rot = -diff * 0.5; break;
-      case '21': tx = diff * 0.6; ty = -diff * 0.2; rot = diff * 0.8; break;
-      case '12': tx = -diff * 1.0; ty = -diff * 0.6; rot = -diff * 1.5; break;
-      case '22': tx = diff * 0.9; ty = diff * 0.4; rot = diff * 1.2; break;
-      case '13': tx = -diff * 0.5; ty = diff * 1.0; rot = -diff * 2.0; break;
-      case '23': tx = diff * 0.5; ty = diff * 0.8; rot = diff * 2.5; break;
-      case '14': tx = -diff * 0.3; ty = -diff * 0.4; break;
-      case '24': tx = diff * 0.3; ty = -diff * 0.2; break;
-    }
-    return `translate(${tx}, ${ty}) rotate(${rot}, ${toothId.startsWith('1') ? 120 : 280}, 50)`;
-  };
-
-  return (
-    <div className="space-y-6 text-right" dir="rtl">
-      {/* 1. DSD Method Selector (Dual Tabs) */}
-      <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200/60 w-full">
-        <button
-          onClick={() => {
-            setDsdMethod('manual');
-            toast.info("تم تفعيل وضع التصميم اليدوي الواقعي.");
-          }}
-          className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
-            dsdMethod === 'manual' 
-              ? 'bg-white text-purple-700 shadow-sm border border-purple-100/50' 
-              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50/50'
-          }`}
+  // ===== SHARED CANVAS PHOTO =====
+  const PhotoCanvas = ({ filter, showSplit, splitPos, onSplitChange, children }: {
+    filter: string; showSplit: boolean; splitPos: number;
+    onSplitChange: (v: number) => void; children?: React.ReactNode;
+  }) => (
+    <div className="relative bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 shadow-inner" style={{ aspectRatio: '4/3' }}>
+      {showSplit ? (
+        <div className="w-full h-full relative overflow-hidden">
+          {/* BEFORE */}
+          <div className="absolute inset-0">
+            <img src={patientPhoto!} alt="Before" className="w-full h-full object-cover"
+              style={{ transform: `scale(${bgScale}) translate(${bgX}px,${bgY}px)`, transformOrigin: 'center' }} />
+            <div className="absolute bottom-3 right-3 bg-black/70 text-slate-300 px-2.5 py-1 rounded-lg text-[10px] font-bold backdrop-blur-sm">قبل</div>
+          </div>
+          {/* AFTER */}
+          <div className="absolute inset-0 overflow-hidden border-l-2 border-violet-400 z-10" style={{ clipPath: `inset(0 ${100 - splitPos}% 0 0)` }}>
+            <img src={patientPhoto!} alt="After" className="w-full h-full object-cover"
+              style={{ transform: `scale(${bgScale}) translate(${bgX}px,${bgY}px)`, transformOrigin: 'center', filter }} />
+            <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 60% 18% at 50% 63%, rgba(255,255,255,0.12) 0%, transparent 70%)' }} />
+            <div className="absolute bottom-3 left-3 bg-violet-600/90 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold backdrop-blur-sm">بعد</div>
+          </div>
+          {/* Handle */}
+          <div className="absolute top-0 bottom-0 w-0.5 bg-violet-400 shadow-[0_0_10px_rgba(167,139,250,0.8)] pointer-events-none z-20" style={{ left: `${splitPos}%` }}>
+            <div className="absolute top-1/2 left-0 w-8 h-8 -ml-4 -mt-4 bg-violet-600 rounded-full border-2 border-white shadow-xl flex items-center justify-center text-white text-xs select-none">⟺</div>
+          </div>
+          <input type="range" min="0" max="100" value={splitPos} onChange={e => onSplitChange(parseInt(e.target.value))}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-30" />
+        </div>
+      ) : (
+        <div ref={canvasRef} className="w-full h-full relative overflow-hidden"
+          onClick={step === 2 ? handleCanvasClick : undefined}
+          onMouseMove={step === 2 ? handleMouseMove : undefined}
+          style={{ cursor: (step === 2 && annotationMode !== 'none') ? 'crosshair' : 'default' }}
         >
-          <SettingsIcon className="w-4 h-4" />
-          📐 الوضع اليدوي الواقعي (3D Porcelain Veneers)
-        </button>
+          <img src={patientPhoto!} alt="DSD" className="w-full h-full object-cover"
+            style={{ transform: `scale(${bgScale}) translate(${bgX}px,${bgY}px)`, transformOrigin: 'center', filter }} />
 
-        <button
-          onClick={() => {
-            setDsdMethod('nanobanana');
-            toast.info("تم تفعيل وضع التوليد والبرومبت عبر نانو بنانا بالـ AI.");
-          }}
-          className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
-            dsdMethod === 'nanobanana' 
-              ? 'bg-white text-purple-700 shadow-sm border border-purple-100/50' 
-              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50/50'
-          }`}
-        >
-          <Brain className="w-4 h-4 text-purple-600 animate-pulse" />
-          🍌 إرسال لـ نانو بنانا بالـ AI (Custom Prompt)
-        </button>
-      </div>
-
-      {/* Photo state header */}
-      <div className="flex flex-wrap justify-between items-center bg-slate-50 p-3 rounded-2xl border border-slate-100 gap-3">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-purple-600 animate-pulse" />
-          <span className="text-xs font-bold text-slate-700">
-            ${dsdMethod === 'nanobanana' 
-              ? 'توليد الابتسامة فائقة الواقعية عبر نموذج gemini-nano-banana-dsd' 
-              : 'محاكاة القشور الخزفية ثلاثية الأبعاد (Porcelain Glaze DSD)'}
-          </span>
-        </div>
-        <div className="flex gap-2">
-          {patientPhoto && (
-            <button
-              onClick={handleDeletePhoto}
-              className="px-3 py-1.5 rounded-xl text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 transition-all border border-red-200/50 flex items-center gap-1"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              إزالة الصورة
-            </button>
+          {/* AI glow overlay */}
+          {step === 3 && aiSimulated && (
+            <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 55% 18% at 50% 63%, rgba(255,255,255,0.14) 0%, transparent 70%)' }} />
           )}
-          {dsdMethod === 'nanobanana' ? (
-            <button
-              onClick={handleTriggerAi}
-              disabled={isAiProcessing || !patientPhoto}
-              className="px-4 py-1.5 rounded-xl text-xs font-black transition-all bg-purple-600 hover:bg-purple-700 text-white shadow shadow-purple-200 flex items-center gap-1.5 disabled:opacity-50"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              إرسال لـ نانو بنانا
-            </button>
-          ) : (
-            patientPhoto && (
-              <button
-                onClick={() => {
-                  setShowSplitSlider(!showSplitSlider);
-                  setSmileAfter(true);
-                  toast.success(showSplitSlider ? "تم إغلاق شريط المقارنة" : "تم تفعيل شريط المقارنة الانزلاقى التفاعلى!");
-                }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
-                  showSplitSlider 
-                    ? 'bg-purple-50 text-purple-700 border-purple-200' 
-                    : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
-                }`}
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                ${showSplitSlider ? 'إخفاء المقارنة' : 'تفعيل المقارنة'}
-              </button>
-            )
-          )}
-        </div>
-      </div>
 
-      {/* Canvas Box */}
-      <div className="relative bg-slate-950 rounded-2xl aspect-[4/3] overflow-hidden border border-slate-800 shadow-inner flex items-center justify-center select-none">
-        
-        {/* Loader Overlay */}
-        {isAiProcessing && (
-          <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md z-40 flex flex-col items-center justify-center text-center p-6 transition-all duration-300">
-            <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mb-6"></div>
-            <h4 className="font-extrabold text-sm sm:text-base text-purple-400 animate-pulse">جاري إرسال الطلب ومعالجته عبر نانو بنانا بالـ AI</h4>
-            <p className="text-xs text-slate-400 mt-2 max-w-sm leading-relaxed font-mono">${processingStep}</p>
-          </div>
-        )}
-
-        {!patientPhoto ? (
-          /* Empty state - Uploader */
-          <div className="p-8 text-center flex flex-col items-center justify-center h-full w-full">
-            <div className="w-16 h-16 bg-slate-900 rounded-full flex items-center justify-center border border-slate-800 text-slate-500 mb-4">
-              <Upload className="w-7 h-7" />
-            </div>
-            <h4 className="font-bold text-sm text-slate-200">تحميل صورة المراجع للـ DSD</h4>
-            <p className="text-xs text-slate-500 mt-1 max-w-xs leading-relaxed">قم برفع صورة فوتوغرافية واضحة للابتسامة أو الأسنان لتطبيق التجميل والمحاكاة الافتراضية</p>
-            
-            <div className="flex gap-3 mt-6 flex-wrap justify-center">
-              <label className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95 flex items-center gap-1.5">
-                <Upload className="w-4 h-4" />
-                تحميل صورة المريض
-                <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
-              </label>
-              
-              <button
-                onClick={handleLoadDemo}
-                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 rounded-xl text-xs font-bold transition-all"
-              >
-                تحميل صورة تجريبية
-              </button>
-            </div>
-          </div>
-        ) : (
-          /* Active canvas display */
-          <div className="w-full h-full relative">
-            
-            {showSplitSlider ? (
-              /* Premium comparison split slider screen (WITHOUT layout squishing!) */
-              <div className="w-full h-full relative overflow-hidden">
-                {/* BEFORE LAYER (Background) */}
-                <div className="absolute inset-0 w-full h-full">
-                  <img
-                    src={patientPhoto}
-                    alt="Before DSD"
-                    className="w-full h-full object-cover"
-                    style={{
-                      transform: `scale(${bgScale}) translate(${bgX}px, ${bgY}px)`,
-                      transformOrigin: 'center'
-                    }}
-                  />
-                  <div className="absolute bottom-3 right-3 bg-slate-950/80 backdrop-blur-sm text-slate-400 px-2.5 py-1 rounded-xl text-[10px] font-bold border border-slate-800">
-                    الابتسامة الحالية (Before)
-                  </div>
-                </div>
-
-                {/* AFTER LAYER (Clipped foreground - spans full width to avoid squishing!) */}
-                <div
-                  className="absolute inset-0 w-full h-full overflow-hidden border-l-2 border-purple-500 shadow-2xl z-10"
-                  style={{
-                    clipPath: `inset(0 ${100 - splitPosition}% 0 0)`
-                  }}
-                >
-                  <div className="absolute inset-0 w-full h-full">
-                    {/* Patient Photo (Same transform!) */}
-                    <img
-                      src={patientPhoto}
-                      alt="After DSD Base"
-                      className="w-full h-full object-cover"
-                      style={{
-                        transform: `scale(${bgScale}) translate(${bgX}px, ${bgY}px)`,
-                        transformOrigin: 'center'
-                      }}
-                    />
-
-                    {/* Hyper-Realistic Glazed Veneer layer overlay */}
-                    <div
-                      className="absolute inset-0 flex items-center justify-center pointer-events-none"
-                      style={{
-                        transform: `translate(${overlayX}px, ${overlayY}px) scaleX(${overlayScaleX}) scaleY(${overlayScaleY}) rotate(${overlayRotate}deg)`,
-                        transformOrigin: 'center',
-                        opacity: overlayOpacity
-                      }}
-                    >
-                      <svg width="400" height="150" viewBox="0 0 400 150" className="drop-shadow-[0_4px_12px_rgba(0,0,0,0.65)]">
-                        <defs>
-                          <linearGradient id="toothGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stopColor={stops.warm} stopOpacity="0.95" />
-                            <stop offset="60%" stopColor={stops.stop0} stopOpacity="1" />
-                            <stop offset="90%" stopColor={stops.stop70} stopOpacity="1" />
-                            <stop offset="100%" stopColor={stops.stop100} stopOpacity="0.85" />
-                          </linearGradient>
-                          <linearGradient id="gumGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stopColor="#e11d48" />
-                            <stop offset="100%" stopColor="#fca5a5" />
-                          </linearGradient>
-                        </defs>
-                        
-                        {/* Realistic Gum Base */}
-                        <path d="M 60,32 C 100,18 140,18 160,16 C 180,14 200,14 220,16 C 240,18 280,18 340,32 C 340,32 320,6 200,6 C 80,6 60,32 60,32 Z" fill="url(#gumGrad)" opacity="0.75" />
-
-                        {/* Individual teeth paths with custom alignment & highly detailed glassy highlights + shadow separators */}
-                        {toothShape === 'square' && (
-                          <g fill="url(#toothGrad)" stroke="#babcbe" strokeWidth="0.5" strokeLinejoin="round">
-                            <path id="t14" d="M 83,23 C 85,21 103,21 105,23 L 105,65 C 105,67 83,67 83,65 Z" transform={getAlignmentTransform('14')} />
-                            <path id="t13" d="M 111,20 C 113,18 133,18 135,20 L 135,73 C 135,76 111,76 111,73 Z" transform={getAlignmentTransform('13')} />
-                            <path id="t12" d="M 140,18 C 142,16 163,16 165,18 L 165,71 C 165,74 140,74 140,71 Z" transform={getAlignmentTransform('12')} />
-                            <path id="t11" d="M 169,15 C 172,12 196,12 199,15 L 199,75 C 199,78 169,78 169,75 Z" transform={getAlignmentTransform('11')} />
-                            <path id="t21" d="M 201,15 C 204,12 228,12 231,15 L 231,75 C 231,78 201,78 201,75 Z" transform={getAlignmentTransform('21')} />
-                            <path id="t22" d="M 235,18 C 237,16 258,16 260,18 L 260,71 C 260,74 235,74 235,71 Z" transform={getAlignmentTransform('22')} />
-                            <path id="t23" d="M 265,20 C 267,18 287,18 289,20 L 289,73 C 289,76 265,76 265,73 Z" transform={getAlignmentTransform('23')} />
-                            <path id="t24" d="M 295,23 C 297,21 315,21 317,23 L 317,65 C 317,67 295,67 295,65 Z" transform={getAlignmentTransform('24')} />
-                          </g>
-                        )}
-                        {toothShape === 'oval' && (
-                          <g fill="url(#toothGrad)" stroke="#babcbe" strokeWidth="0.5" strokeLinejoin="round">
-                            <path id="t14" d="M 83,23 C 85,21 103,21 105,23 L 105,60 C 105,65 83,65 83,60 Z" transform={getAlignmentTransform('14')} />
-                            <path id="t13" d="M 111,20 C 113,18 133,18 135,20 L 135,67 C 135,74 111,74 111,67 Z" transform={getAlignmentTransform('13')} />
-                            <path id="t12" d="M 140,18 C 142,16 163,16 165,18 L 165,65 C 165,72 140,72 140,65 Z" transform={getAlignmentTransform('12')} />
-                            <path id="t11" d="M 169,15 C 172,12 196,12 199,15 L 199,69 C 199,77 169,77 169,69 Z" transform={getAlignmentTransform('11')} />
-                            <path id="t21" d="M 201,15 C 204,12 228,12 231,15 L 231,69 C 231,77 201,77 201,69 Z" transform={getAlignmentTransform('21')} />
-                            <path id="t22" d="M 235,18 C 237,16 258,16 260,18 L 260,65 C 260,72 235,72 235,65 Z" transform={getAlignmentTransform('22')} />
-                            <path id="t23" d="M 265,20 C 267,18 287,18 289,20 L 289,67 C 289,74 265,74 265,67 Z" transform={getAlignmentTransform('23')} />
-                            <path id="t24" d="M 295,23 C 297,21 315,21 317,23 L 317,60 C 317,65 295,65 295,60 Z" transform={getAlignmentTransform('24')} />
-                          </g>
-                        )}
-                        {toothShape === 'natural' && (
-                          <g fill="url(#toothGrad)" stroke="#babcbe" strokeWidth="0.5" strokeLinejoin="round">
-                            <path id="t14" d="M 83,23 C 85,21 103,21 105,23 L 105,62 C 105,64 83,64 83,62 Z" transform={getAlignmentTransform('14')} />
-                            <path id="t13" d="M 111,20 C 113,18 133,18 135,20 L 135,67 C 132,71 128,75 123,75 C 118,75 114,71 111,67 Z" transform={getAlignmentTransform('13')} />
-                            <path id="t12" d="M 140,18 C 142,16 163,16 165,18 L 165,67 C 165,70 140,71 140,68 Z" transform={getAlignmentTransform('12')} />
-                            <path id="t11" d="M 169,15 C 172,12 196,12 199,15 L 199,73 C 199,76 169,76 169,73 Z" transform={getAlignmentTransform('11')} />
-                            <path id="t21" d="M 201,15 C 204,12 228,12 231,15 L 231,73 C 231,76 201,76 201,73 Z" transform={getAlignmentTransform('21')} />
-                            <path id="t22" d="M 235,18 C 237,16 258,16 260,18 L 260,67 C 260,70 235,71 235,68 Z" transform={getAlignmentTransform('22')} />
-                            <path id="t23" d="M 265,20 C 267,18 287,18 289,20 L 289,67 C 286,71 282,75 277,75 C 272,75 268,71 265,67 Z" transform={getAlignmentTransform('23')} />
-                            <path id="t24" d="M 295,23 C 297,21 315,21 317,23 L 317,62 C 317,64 295,64 295,62 Z" transform={getAlignmentTransform('24')} />
-                          </g>
-                        )}
-
-                        {/* Glossy Porcelain Reflections Overlay */}
-                        <g fill="none" stroke="#ffffff" strokeLinecap="round" opacity="0.35" filter="blur(0.5px)">
-                          <path d="M 91,25 L 91,55" strokeWidth="1" />
-                          <path d="M 120,22 C 120,22 122,48 122,65" strokeWidth="1.6" />
-                          <path d="M 148,20 C 148,20 150,45 150,60" strokeWidth="1.4" />
-                          <path d="M 180,18 C 180,18 182,45 182,68" strokeWidth="2.2" />
-                          <path d="M 215,18 C 215,18 213,45 213,68" strokeWidth="2.2" />
-                          <path d="M 248,20 C 248,20 246,45 246,60" strokeWidth="1.4" />
-                          <path d="M 276,22 C 276,22 274,48 274,65" strokeWidth="1.6" />
-                          <path d="M 305,25 L 305,55" strokeWidth="1" />
-                        </g>
-
-                        {/* Interdental Separation Shadow Paths (Realistic 3D depth) */}
-                        <g stroke="#1c1917" strokeWidth="1.3" opacity="0.85">
-                          <path d="M 106.5,22 L 106.5,64" />
-                          <path d="M 136.5,19 L 136.5,70" />
-                          <path d="M 166.5,16 L 166.5,72" />
-                          <path d="M 200.0,14 L 200.0,74" strokeWidth="1.6" stroke="#0c0a09" />
-                          <path d="M 233.5,16 L 233.5,72" />
-                          <path d="M 263.5,19 L 263.5,70" />
-                          <path d="M 293.5,22 L 293.5,64" />
-                        </g>
-                      </svg>
-                    </div>
-
-                    <div className="absolute bottom-3 left-3 bg-purple-600/90 backdrop-blur-sm text-white px-2.5 py-1 rounded-xl text-[10px] font-bold border border-purple-500 animate-pulse">
-                      ابتسامة نانو بنانا الذكية (Nano Banana AI)
-                    </div>
-                  </div>
-                </div>
-
-                {/* Division bar handle */}
-                <div
-                  className="absolute top-0 bottom-0 w-0.5 bg-purple-500 shadow-[0_0_10px_rgba(139,92,246,0.8)] pointer-events-none z-20"
-                  style={{ left: `${splitPosition}%` }}
-                >
-                  <div className="absolute top-1/2 left-0 w-8 h-8 -ml-4 -mt-4 bg-purple-600 rounded-full border-2 border-white shadow-xl flex items-center justify-center text-white text-xs select-none">
-                    <RefreshCcw className="w-3.5 h-3.5 rotate-90" />
-                  </div>
-                </div>
-
-                {/* Draggable transparent input slider */}
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={splitPosition}
-                  onChange={(e) => setSplitPosition(parseInt(e.target.value))}
-                  className="absolute inset-0 w-full h-full cursor-ew-resize opacity-0 z-30 pointer-events-auto"
-                />
-              </div>
-            ) : (
-              /* Single photo with full veneers overlay (manual design view) */
-              <div className="w-full h-full relative overflow-hidden">
-                <img
-                  src={patientPhoto}
-                  alt="DSD Patient Base"
-                  className="w-full h-full object-cover transition-all"
-                  style={{
-                    transform: `scale(${bgScale}) translate(${bgX}px, ${bgY}px)`,
-                    transformOrigin: 'center'
-                  }}
-                />
-
-                {/* Hyper-Realistic Veneer teeth template layer */}
-                <div
-                  className="absolute inset-0 flex items-center justify-center pointer-events-none"
-                  style={{
-                    transform: `translate(${overlayX}px, ${overlayY}px) scaleX(${overlayScaleX}) scaleY(${overlayScaleY}) rotate(${overlayRotate}deg)`,
-                    transformOrigin: 'center',
-                    opacity: overlayOpacity
-                  }}
-                >
-                  <svg width="400" height="150" viewBox="0 0 400 150" className="drop-shadow-[0_4px_12px_rgba(0,0,0,0.65)]">
-                    <defs>
-                      <linearGradient id="toothGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stopColor={stops.warm} stopOpacity="0.95" />
-                        <stop offset="60%" stopColor={stops.stop0} stopOpacity="1" />
-                        <stop offset="90%" stopColor={stops.stop70} stopOpacity="1" />
-                        <stop offset="100%" stopColor={stops.stop100} stopOpacity="0.85" />
-                      </linearGradient>
-                      <linearGradient id="gumGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stopColor="#e11d48" />
-                        <stop offset="100%" stopColor="#fca5a5" />
-                      </linearGradient>
-                    </defs>
-
-                    {/* Gum Base */}
-                    <path d="M 60,32 C 100,18 140,18 160,16 C 180,14 200,14 220,16 C 240,18 280,18 340,32 C 340,32 320,6 200,6 C 80,6 60,32 60,32 Z" fill="url(#gumGrad2)" opacity="0.75" />
-
-                    {/* Teeth based on shape selection */}
-                    {toothShape === 'square' && (
-                      <g fill="url(#toothGrad2)" stroke="#babcbe" strokeWidth="0.5" strokeLinejoin="round">
-                        <path id="t14" d="M 83,23 C 85,21 103,21 105,23 L 105,65 C 105,67 83,67 83,65 Z" transform={getAlignmentTransform('14')} />
-                        <path id="t13" d="M 111,20 C 113,18 133,18 135,20 L 135,73 C 135,76 111,76 111,73 Z" transform={getAlignmentTransform('13')} />
-                        <path id="t12" d="M 140,18 C 142,16 163,16 165,18 L 165,71 C 165,74 140,74 140,71 Z" transform={getAlignmentTransform('12')} />
-                        <path id="t11" d="M 169,15 C 172,12 196,12 199,15 L 199,75 C 199,78 169,78 169,75 Z" transform={getAlignmentTransform('11')} />
-                        <path id="t21" d="M 201,15 C 204,12 228,12 231,15 L 231,75 C 231,78 201,78 201,75 Z" transform={getAlignmentTransform('21')} />
-                        <path id="t22" d="M 235,18 C 237,16 258,16 260,18 L 260,71 C 260,74 235,74 235,71 Z" transform={getAlignmentTransform('22')} />
-                        <path id="t23" d="M 265,20 C 267,18 287,18 289,20 L 289,73 C 289,76 265,76 265,73 Z" transform={getAlignmentTransform('23')} />
-                        <path id="t24" d="M 295,23 C 297,21 315,21 317,23 L 317,65 C 317,67 295,67 295,65 Z" transform={getAlignmentTransform('24')} />
-                      </g>
-                    )}
-                    {toothShape === 'oval' && (
-                      <g fill="url(#toothGrad2)" stroke="#babcbe" strokeWidth="0.5" strokeLinejoin="round">
-                        <path id="t14" d="M 83,23 C 85,21 103,21 105,23 L 105,60 C 105,65 83,65 83,60 Z" transform={getAlignmentTransform('14')} />
-                        <path id="t13" d="M 111,20 C 113,18 133,18 135,20 L 135,67 C 135,74 111,74 111,67 Z" transform={getAlignmentTransform('13')} />
-                        <path id="t12" d="M 140,18 C 142,16 163,16 165,18 L 165,65 C 165,72 140,72 140,65 Z" transform={getAlignmentTransform('12')} />
-                        <path id="t11" d="M 169,15 C 172,12 196,12 199,15 L 199,69 C 199,77 169,77 169,69 Z" transform={getAlignmentTransform('11')} />
-                        <path id="t21" d="M 201,15 C 204,12 228,12 231,15 L 231,69 C 231,77 201,77 201,69 Z" transform={getAlignmentTransform('21')} />
-                        <path id="t22" d="M 235,18 C 237,16 258,16 260,18 L 260,65 C 260,72 235,72 235,65 Z" transform={getAlignmentTransform('22')} />
-                        <path id="t23" d="M 265,20 C 267,18 287,18 289,20 L 289,67 C 289,74 265,74 265,67 Z" transform={getAlignmentTransform('23')} />
-                        <path id="t24" d="M 295,23 C 297,21 315,21 317,23 L 317,60 C 317,65 295,65 295,60 Z" transform={getAlignmentTransform('24')} />
-                      </g>
-                    )}
-                    {toothShape === 'natural' && (
-                      <g fill="url(#toothGrad2)" stroke="#babcbe" strokeWidth="0.5" strokeLinejoin="round">
-                        <path id="t14" d="M 83,23 C 85,21 103,21 105,23 L 105,62 C 105,64 83,64 83,62 Z" transform={getAlignmentTransform('14')} />
-                        <path id="t13" d="M 111,20 C 113,18 133,18 135,20 L 135,67 C 132,71 128,75 123,75 C 118,75 114,71 111,67 Z" transform={getAlignmentTransform('13')} />
-                        <path id="t12" d="M 140,18 C 142,16 163,16 165,18 L 165,67 C 165,70 140,71 140,68 Z" transform={getAlignmentTransform('12')} />
-                        <path id="t11" d="M 169,15 C 172,12 196,12 199,15 L 199,73 C 199,76 169,76 169,73 Z" transform={getAlignmentTransform('11')} />
-                        <path id="t21" d="M 201,15 C 204,12 228,12 231,15 L 231,73 C 231,76 201,76 201,73 Z" transform={getAlignmentTransform('21')} />
-                        <path id="t22" d="M 235,18 C 237,16 258,16 260,18 L 260,67 C 260,70 235,71 235,68 Z" transform={getAlignmentTransform('22')} />
-                        <path id="t23" d="M 265,20 C 267,18 287,18 289,20 L 289,67 C 286,71 282,75 277,75 C 272,75 268,71 265,67 Z" transform={getAlignmentTransform('23')} />
-                        <path id="t24" d="M 295,23 C 297,21 315,21 317,23 L 317,62 C 317,64 295,64 295,62 Z" transform={getAlignmentTransform('24')} />
-                      </g>
-                    )}
-
-                    {/* Glossy Reflections Overlay */}
-                    <g fill="none" stroke="#ffffff" strokeLinecap="round" opacity="0.35" filter="blur(0.5px)">
-                      <path d="M 91,25 L 91,55" strokeWidth="1" />
-                      <path d="M 120,22 C 120,22 122,48 122,65" strokeWidth="1.6" />
-                      <path d="M 148,20 C 148,20 150,45 150,60" strokeWidth="1.4" />
-                      <path d="M 180,18 C 180,18 182,45 182,68" strokeWidth="2.2" />
-                      <path d="M 215,18 C 215,18 213,45 213,68" strokeWidth="2.2" />
-                      <path d="M 248,20 C 248,20 246,45 246,60" strokeWidth="1.4" />
-                      <path d="M 276,22 C 276,22 274,48 274,65" strokeWidth="1.6" />
-                      <path d="M 305,25 L 305,55" strokeWidth="1" />
-                    </g>
-
-                    {/* Shadow Separators */}
-                    <g stroke="#1c1917" strokeWidth="1.3" opacity="0.85">
-                      <path d="M 106.5,22 L 106.5,64" />
-                      <path d="M 136.5,19 L 136.5,70" />
-                      <path d="M 166.5,16 L 166.5,72" />
-                      <path d="M 200.0,14 L 200.0,74" strokeWidth="1.6" stroke="#0c0a09" />
-                      <path d="M 233.5,16 L 233.5,72" />
-                      <path d="M 263.5,19 L 263.5,70" />
-                      <path d="M 293.5,22 L 293.5,64" />
-                    </g>
-                  </svg>
-                </div>
-
-                <div className="absolute top-3 left-3 bg-purple-600 text-white px-2.5 py-0.5 rounded-xl text-[9px] font-black tracking-widest shadow">
-                  تصميم الابتسامة (Realistic Glazed Veneers)
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Background zoom/pan controls when photo is loaded */}
-      {patientPhoto && (
-        <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-bold text-slate-500">ضبط حجم وموقع صورة المريض الخلفية:</span>
-          </div>
-          <div className="flex items-center gap-4 flex-1 justify-end max-w-lg">
-            <div className="flex items-center gap-2 flex-1">
-              <span className="text-[10px] text-slate-400">تكبير</span>
-              <input
-                type="range" min="0.8" max="2.2" step="0.05"
-                value={bgScale} onChange={(e) => setBgScale(parseFloat(e.target.value))}
-                className="h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-600 flex-1"
-              />
-              <span className="text-[10px] font-mono text-slate-600">{Math.round(bgScale * 100)}%</span>
-            </div>
-            
-            <div className="flex items-center gap-2 flex-1">
-              <span className="text-[10px] text-slate-400">رأسي</span>
-              <input
-                type="range" min="-120" max="120" step="2"
-                value={bgY} onChange={(e) => setBgY(parseInt(e.target.value))}
-                className="h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-600 flex-1"
-              />
-              <span className="text-[10px] font-mono text-slate-600">{bgY}px</span>
-            </div>
-            
-            <button
-              onClick={handleResetBackground}
-              className="text-[10px] font-bold text-slate-600 hover:text-slate-900 border border-slate-200 bg-white hover:bg-slate-50 px-2 py-1 rounded-lg"
-            >
-              إعادة ضبط الصورة
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Adjusters Subpanel Tabs */}
-      {patientPhoto && (
-        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-4">
-          
-          {dsdMethod === 'nanobanana' ? (
-            /* Mode 2: Nano Banana Prompt Input Console */
-            <div className="space-y-4 pt-1 animate-in fade-in slide-in-from-top-2 duration-300">
-              <div className="bg-purple-950/50 p-4 rounded-xl border border-purple-800/40 text-purple-200 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-purple-300">
-                    <Brain className="w-5 h-5 animate-pulse" />
-                    <h5 className="font-extrabold text-xs sm:text-sm">لوحة تحكم نانو بنانا التوليدية بالـ AI</h5>
-                  </div>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-green-500/10 text-green-400 border border-green-500/20">
-                    <span className="w-2 h-2 rounded-full bg-green-500 animate-ping"></span>
-                    Model Server: Active
-                  </span>
-                </div>
-                <p className="text-[11px] text-purple-300/80 leading-relaxed">
-                  اكتب برومبت مفصل لوصف الابتسامة الواقعية الفائقة التي ترغب بتوليدها. سيقوم نموذج <code>gemini-nano-banana-dsd</code> برسم وتوليد قشور البورسلان بدقة متناهية مدمجة تماماً بملامح الفم.
-                </p>
-
-                {/* Prompt textarea */}
-                <div className="space-y-1">
-                  <label className="block text-[10px] font-bold text-purple-300">نص البرومبت الطبي (AI Prompt Description):</label>
-                  <textarea
-                    value={aiPrompt}
-                    onChange={(e) => setAiPrompt(e.target.value)}
-                    className="w-full min-h-[75px] bg-slate-900/90 text-white rounded-xl border border-purple-800/40 p-3 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-purple-600/50 resize-none font-medium"
-                    placeholder="اكتب البرومبت لابتسامتك الواقعية..."
-                  />
-                </div>
-
-                {/* Quick prompt templates */}
-                <div className="space-y-1.5 pt-1">
-                  <span className="block text-[10px] font-bold text-purple-300">💡 مقترحات برومبت سريعة لابتسامة واقعية فائقة:</span>
-                  <div className="flex flex-col gap-1.5">
-                    {[
-                      "ابتسامة طبيعية متناسقة بلون VITA A2 وبياض طبيعي مصقول بدقة مع انعكاس ضوئي غير مصطنع.",
-                      "مظهر مربع هوليوود E-Max بياض ناصع براق بلمعان خزفي واقعي وتناسق ممتد للضواحك.",
-                      "تصميم ناعم بيضاوي يناسب الفك الصغير مع تبييض VITA B1 الساطع وشفافية مينا عند الأطراف."
-                    ].map((template, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => {
-                          setAiPrompt(template);
-                          toast.success("تم اختيار قالب البرومبت المخصص.");
-                        }}
-                        className="w-full text-right text-[10px] py-1.5 px-3 rounded-lg bg-slate-900/60 hover:bg-slate-900 text-purple-200 border border-purple-900/40 hover:border-purple-600/40 transition-all truncate"
-                      >
-                        {template}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Dispatch request button */}
-                <div className="pt-2 flex justify-end">
-                  <button
-                    onClick={handleTriggerAi}
-                    disabled={isAiProcessing || !patientPhoto}
-                    className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold rounded-xl text-xs shadow-lg shadow-purple-900/20 flex items-center gap-1.5 disabled:opacity-50 transition-all"
-                  >
-                    <Brain className="w-4 h-4 animate-bounce" />
-                    إرسال ومحاكاة لـ نانو بنانا بالـ AI
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            /* Mode 1: Realistic Manual Design Sliders */
-            <div className="space-y-4">
-              <div className="flex border-b border-slate-200 pb-2">
-                {[
-                  { id: 'aesthetic', label: '🦷 مقاييس التجميل والـ VITA', icon: Sparkles },
-                  { id: 'align', label: '📐 موضع وتطابق القوالب', icon: SettingsIcon },
-                  { id: 'ai', label: '✨ المقارنة التفاعلية والتحسين', icon: Brain },
-                ].map(subtab => {
-                  const Icon = subtab.icon;
+          {/* Annotation SVG layer */}
+          {step === 2 && (
+            <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+              {annotations.map(ann => {
+                if ((ann.type === 'measure' || ann.type === 'draw') && ann.x2 !== undefined && ann.y2 !== undefined) {
+                  const dx = ann.x2 - ann.x, dy = ann.y2 - ann.y;
+                  const dist = Math.sqrt(dx * dx + dy * dy).toFixed(1);
                   return (
-                    <button
-                      key={subtab.id}
-                      onClick={() => setActiveSubTab(subtab.id as any)}
-                      className={`pb-2 px-3 text-xs font-bold transition-all relative flex items-center gap-1 ${
-                        activeSubTab === subtab.id ? 'text-purple-600' : 'text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      <Icon className="w-3.5 h-3.5" />
-                      {subtab.label}
-                      {activeSubTab === subtab.id && (
-                        <span className="absolute bottom-[-9px] left-0 right-0 h-0.5 bg-purple-600 rounded-full" />
+                    <g key={ann.id}>
+                      <line x1={ann.x} y1={ann.y} x2={ann.x2} y2={ann.y2} stroke={ann.color}
+                        strokeWidth={ann.type === 'measure' ? '0.5' : '0.8'}
+                        strokeDasharray={ann.type === 'measure' ? '2,1' : undefined}
+                        strokeLinecap="round" />
+                      {ann.type === 'measure' && (
+                        <text x={(ann.x + ann.x2) / 2} y={(ann.y + ann.y2) / 2 - 1.5}
+                          fontSize="2.5" fill={ann.color} textAnchor="middle" fontWeight="bold">{dist}</text>
                       )}
-                    </button>
+                    </g>
                   );
-                })}
+                }
+                if (ann.type === 'note') {
+                  const w = Math.min((ann.text?.length || 3) * 2.2, 38);
+                  return (
+                    <g key={ann.id}>
+                      <circle cx={ann.x} cy={ann.y} r="2.5" fill={ann.color} />
+                      <rect x={ann.x + 3} y={ann.y - 4} width={w} height="6" fill={ann.color} rx="1.5" />
+                      <text x={ann.x + 4.5} y={ann.y - 0.3} fontSize="2.5" fill="white" fontWeight="bold">{ann.text}</text>
+                    </g>
+                  );
+                }
+                return null;
+              })}
+              {drawingStart && drawingCurrent && (
+                <line x1={drawingStart.x} y1={drawingStart.y} x2={drawingCurrent.x} y2={drawingCurrent.y}
+                  stroke={activeColor} strokeWidth="0.6" strokeDasharray="1.5,1" opacity="0.8" />
+              )}
+            </svg>
+          )}
+
+          {children}
+        </div>
+      )}
+    </div>
+  );
+
+  // ===================================================
+  //  RENDER
+  // ===================================================
+
+  // ── STEP 0: Upload Photo ──
+  if (step === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10 px-6 text-center space-y-6" dir="rtl">
+        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-2xl shadow-indigo-200">
+          <Upload className="w-10 h-10 text-white" />
+        </div>
+        <div>
+          <h3 className="text-base font-extrabold text-slate-800 mb-1">رفع صورة المريض</h3>
+          <p className="text-xs text-slate-500 max-w-xs leading-relaxed">
+            ارفع صورة واضحة للابتسامة أو الأسنان الأمامية لبدء تصميم الابتسامة الرقمي
+          </p>
+        </div>
+        <div className="flex gap-3 flex-wrap justify-center">
+          <label className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-2xl text-sm font-bold shadow-lg shadow-indigo-200 cursor-pointer transition-all active:scale-95 flex items-center gap-2">
+            <Upload className="w-4 h-4" />
+            رفع صورة المريض
+            <input type="file" accept="image/*" onChange={handleUpload} className="hidden" />
+          </label>
+          <button onClick={handleDemo} className="px-6 py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-2xl text-sm font-bold transition-all shadow-sm flex items-center gap-2">
+            📷 صورة تجريبية
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── STEP 1: Choose Method ──
+  if (step === 1) {
+    return (
+      <div className="space-y-6 py-4 px-2" dir="rtl">
+        {/* Photo preview thumbnail */}
+        <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm" style={{ height: 160 }}>
+          <img src={patientPhoto!} alt="preview" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+          <button onClick={handleChangePhoto} className="absolute top-3 left-3 px-3 py-1.5 bg-white/90 backdrop-blur-sm text-red-600 rounded-xl text-xs font-bold flex items-center gap-1 shadow border border-red-100 hover:bg-red-50 transition-all">
+            <Trash2 className="w-3.5 h-3.5" /> تغيير الصورة
+          </button>
+          <div className="absolute bottom-3 right-3 text-white font-bold text-xs">صورة المريض</div>
+        </div>
+
+        <div>
+          <h3 className="text-sm font-extrabold text-slate-800 mb-1 text-right">اختر طريقة التصميم</h3>
+          <p className="text-xs text-slate-500 text-right mb-4">كل طريقة تعمل بشكل مستقل وكامل</p>
+
+          <div className="grid grid-cols-1 gap-4">
+            {/* MANUAL */}
+            <button onClick={() => setStep(2)}
+              className="group relative p-5 rounded-2xl border-2 border-indigo-100 bg-gradient-to-br from-indigo-50 to-violet-50 hover:border-indigo-400 hover:shadow-lg hover:shadow-indigo-100 transition-all text-right flex items-start gap-4 active:scale-[0.98]"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
+                <span className="text-2xl">📐</span>
               </div>
-
-              {/* Tab 1: Aesthetic & VITA Whitening */}
-              {activeSubTab === 'aesthetic' && (
-                <div className="space-y-4 pt-2">
-                  {/* Whiteness Slider */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-xs font-bold text-slate-700">
-                      <span>درجة البياض المطلوبة (VITA Shade):</span>
-                      <span className="text-purple-600 font-mono font-black">
-                        {whiteness === 1 ? 'VITA A4 (طبيعي دافئ)' :
-                         whiteness === 2 ? 'VITA A3 (طبيعي متوسط)' :
-                         whiteness === 3 ? 'VITA A2 (أبيض طبيعي)' :
-                         whiteness === 4 ? 'VITA A1 (أبيض ساطع)' :
-                         'VITA B1 (أبيض هوليوود فائق)'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="range" min="1" max="5"
-                        value={whiteness}
-                        onChange={(e) => setWhiteness(parseInt(e.target.value))}
-                        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Orthodontic Alignment Slider */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-xs font-bold text-slate-700">
-                      <span>درجة اصطفاف الأسنان واستقامة القواطع:</span>
-                      <span className="text-purple-600 font-mono font-black">
-                        {alignment === 5 ? 'مثالي ومستقيم (Alignment 100%)' :
-                         alignment === 4 ? 'شبه مستقيم (Grade 4/5)' :
-                         alignment === 3 ? 'اعوجاج طفيف (Grade 3/5)' :
-                         alignment === 2 ? 'تزاحم متوسط (Grade 2/5)' :
-                         'تزاحم شديد وتباعد (Orthodontic spacing)'}
-                      </span>
-                    </div>
-                    <input
-                      type="range" min="1" max="5"
-                      value={alignment}
-                      onChange={(e) => setAlignment(parseInt(e.target.value))}
-                      className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
-                    />
-                  </div>
-
-                  {/* Tooth Shape Selection */}
-                  <div className="space-y-2 pt-1">
-                    <span className="block text-xs font-bold text-slate-700">شكل وهيكل السن المقترح (Tooth Shape):</span>
-                    <div className="grid grid-cols-3 gap-2">
-                      {(['natural', 'oval', 'square'] as const).map(shape => (
-                        <button
-                          key={shape}
-                          onClick={() => setToothShape(shape)}
-                          className={`py-2 rounded-xl text-xs font-black border transition-all ${
-                            toothShape === shape
-                              ? 'bg-purple-50 text-purple-700 border-purple-200 shadow-sm'
-                              : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200/60'
-                          }`}
-                        >
-                          {shape === 'natural' ? 'طبيعي' : shape === 'oval' ? 'بيضاوي ناعم' : 'مربع هوليوود'}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="bg-purple-50/50 p-2.5 rounded-xl border border-purple-100/50 text-[11px] text-purple-950 leading-relaxed mt-2">
-                      💡 {toothShape === 'natural' && "طبيعي (Natural): أسنان ذات معالم تشريحية فسيولوجية ووهج مصقول تحاكي الأسنان الطبيعية."}
-                      {toothShape === 'oval' && "بيضاوي ناعم (Soft Oval): حواف مستديرة للمظهر الناعم والمنسجم ويفضل لملامح الوجه الناعمة."}
-                      {toothShape === 'square' && "مربع هوليوود (Hollywood Square): اصطفاف مستقيم وحواف متناسقة الطول لابتسامة هوليوود المشرقة والقوية."}
-                    </div>
-                  </div>
+              <div className="flex-1">
+                <h4 className="font-extrabold text-sm text-indigo-900 mb-1">التصميم اليدوي التحليلي</h4>
+                <p className="text-[11px] text-indigo-600/80 leading-relaxed">
+                  أضف قياسات، خطوط تصميم، ملاحظات مباشرة على الصورة، مع محاكاة بياض الأسنان عبر فلاتر الـ CSS المتقدمة
+                </p>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {['📏 قياسات', '✏️ رسم', '📝 ملاحظات', '🔆 محاكاة البياض'].map(tag => (
+                    <span key={tag} className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-[10px] font-bold">{tag}</span>
+                  ))}
                 </div>
-              )}
+              </div>
+              <span className="text-indigo-400 group-hover:text-indigo-600 text-lg">‹</span>
+            </button>
 
-              {/* Tab 2: Manual Calibration / Overlay Alignments */}
-              {activeSubTab === 'align' && (
-                <div className="space-y-3 pt-2">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* Scale X */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-[11px] font-bold text-slate-600">
-                        <span>عرض قالب الأسنان (Width):</span>
-                        <span className="font-mono text-purple-600">{Math.round(overlayScaleX * 100)}%</span>
-                      </div>
-                      <input
-                        type="range" min="0.6" max="1.8" step="0.02"
-                        value={overlayScaleX} onChange={(e) => setOverlayScaleX(parseFloat(e.target.value))}
-                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
-                      />
-                    </div>
-
-                    {/* Scale Y */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-[11px] font-bold text-slate-600">
-                        <span>ارتفاع قالب الأسنان (Height):</span>
-                        <span className="font-mono text-purple-600">{Math.round(overlayScaleY * 100)}%</span>
-                      </div>
-                      <input
-                        type="range" min="0.6" max="1.8" step="0.02"
-                        value={overlayScaleY} onChange={(e) => setOverlayScaleY(parseFloat(e.target.value))}
-                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
-                      />
-                    </div>
-
-                    {/* Position X */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-[11px] font-bold text-slate-600">
-                        <span>الموضع الأفقي (Position X):</span>
-                        <span className="font-mono text-purple-600">{overlayX}px</span>
-                      </div>
-                      <input
-                        type="range" min="-150" max="150" step="1"
-                        value={overlayX} onChange={(e) => setOverlayX(parseInt(e.target.value))}
-                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
-                      />
-                    </div>
-
-                    {/* Position Y */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-[11px] font-bold text-slate-600">
-                        <span>الموضع الرأسي (Position Y):</span>
-                        <span className="font-mono text-purple-600">{overlayY}px</span>
-                      </div>
-                      <input
-                        type="range" min="-120" max="120" step="1"
-                        value={overlayY} onChange={(e) => setOverlayY(parseInt(e.target.value))}
-                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
-                      />
-                    </div>
-
-                    {/* Rotation */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-[11px] font-bold text-slate-600">
-                        <span>درجة الدوران (Rotate):</span>
-                        <span className="font-mono text-purple-600">{overlayRotate}°</span>
-                      </div>
-                      <input
-                        type="range" min="-30" max="30" step="0.5"
-                        value={overlayRotate} onChange={(e) => setOverlayRotate(parseFloat(e.target.value))}
-                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
-                      />
-                    </div>
-
-                    {/* Opacity */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-[11px] font-bold text-slate-600">
-                        <span>شفافية ودمج القشور (Opacity):</span>
-                        <span className="font-mono text-purple-600">{Math.round(overlayOpacity * 100)}%</span>
-                      </div>
-                      <input
-                        type="range" min="0.3" max="1.0" step="0.05"
-                        value={overlayOpacity} onChange={(e) => setOverlayOpacity(parseFloat(e.target.value))}
-                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end pt-3">
-                    <button
-                      onClick={handleResetOverlay}
-                      className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-1.5"
-                    >
-                      <RefreshCcw className="w-3.5 h-3.5" />
-                      إعادة ضبط أبعاد قالب الأسنان
-                    </button>
-                  </div>
+            {/* AI */}
+            <button onClick={() => setStep(3)}
+              className="group relative p-5 rounded-2xl border-2 border-purple-100 bg-gradient-to-br from-purple-50 to-fuchsia-50 hover:border-purple-400 hover:shadow-lg hover:shadow-purple-100 transition-all text-right flex items-start gap-4 active:scale-[0.98]"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
+                <span className="text-2xl">🍌</span>
+              </div>
+              <div className="flex-1">
+                <h4 className="font-extrabold text-sm text-purple-900 mb-1">نانو بنانا للذكاء الاصطناعي</h4>
+                <p className="text-[11px] text-purple-600/80 leading-relaxed">
+                  أرسل برومبت وصفياً دقيقاً وسيقوم نموذج gemini-nano-banana-dsd بمحاكاة الابتسامة الواقعية الكاملة
+                </p>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {['🤖 AI توليدي', '✨ محاكاة واقعية', '🎨 برومبت مخصص', '⟺ مقارنة قبل/بعد'].map(tag => (
+                    <span key={tag} className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-[10px] font-bold">{tag}</span>
+                  ))}
                 </div>
-              )}
+              </div>
+              <span className="text-purple-400 group-hover:text-purple-600 text-lg">‹</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-              {/* Tab 3: Split Slider Configuration */}
-              {activeSubTab === 'ai' && (
-                <div className="space-y-4 pt-2">
-                  <button
-                    onClick={() => {
-                      setShowSplitSlider(!showSplitSlider);
-                      setSmileAfter(true);
-                      toast.success(showSplitSlider ? "تم إغلاق شريط المقارنة" : "تم تفعيل شريط المقارنة الانزلاقى التفاعلى!");
-                    }}
-                    className={`w-full py-2.5 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${
-                      showSplitSlider 
-                        ? 'bg-purple-50 text-purple-700 border-purple-200 shadow-sm' 
-                        : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
-                    }`}
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    {showSplitSlider ? 'إخفاء شريط المقارنة التفاعلي' : 'تفعيل المقارنة الانزلاقية (Before/After)'}
-                  </button>
+  // ── STEP 2: MANUAL DESIGN ──
+  if (step === 2) {
+    return (
+      <div className="space-y-4" dir="rtl">
+        {/* Header */}
+        <div className="flex items-center gap-3">
+          <button onClick={() => setStep(1)} className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-all">
+            <span className="text-sm font-bold">›</span>
+          </button>
+          <div className="flex-1">
+            <h4 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+              <span className="w-2 h-4 rounded-full bg-indigo-500 inline-block"></span>
+              التصميم اليدوي التحليلي
+            </h4>
+            <p className="text-[10px] text-slate-500">قياسات وملاحظات على صورة المريض</p>
+          </div>
+          <button onClick={handleChangePhoto} className="px-3 py-1.5 rounded-xl bg-red-50 text-red-600 text-[11px] font-bold border border-red-100 hover:bg-red-100 transition-all flex items-center gap-1">
+            <Trash2 className="w-3.5 h-3.5" /> تغيير الصورة
+          </button>
+        </div>
 
-                  {/* Slider position debug when split mode is active */}
-                  {showSplitSlider && (
-                    <div className="space-y-1.5 p-3 bg-purple-50/50 rounded-xl border border-purple-100">
-                      <div className="flex justify-between text-[11px] font-bold text-purple-800">
-                        <span>موضع شريط المقارنة التفاعلي (Before / After):</span>
-                        <span className="font-mono font-black">{splitPosition}%</span>
-                      </div>
-                      <input
-                        type="range" min="0" max="100"
-                        value={splitPosition}
-                        onChange={(e) => setSplitPosition(parseInt(e.target.value))}
-                        className="w-full h-1 bg-purple-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
-                      />
-                      <span className="text-[10px] text-slate-500 block text-center">💡 اسحب المقبض مباشرة على الصورة أعلاه لرؤية التحول الرائع!</span>
-                    </div>
-                  )}
-                </div>
+        {/* Canvas */}
+        <PhotoCanvas
+          filter={getWhitenessFilter(whiteness)}
+          showSplit={showSplitManual}
+          splitPos={splitPosManual}
+          onSplitChange={setSplitPosManual}
+        >
+          <div className="absolute top-3 right-3 bg-indigo-600/90 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold backdrop-blur-sm">
+            📐 تصميم يدوي
+          </div>
+        </PhotoCanvas>
+
+        {/* Note input popup */}
+        {showNoteInput && (
+          <div className="bg-indigo-950 border border-indigo-800 rounded-2xl p-4 space-y-3 animate-in fade-in">
+            <p className="text-xs font-bold text-indigo-200">📝 نص الملاحظة:</p>
+            <div className="flex gap-2">
+              <input type="text" value={noteInput} onChange={e => setNoteInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') saveNote(); if (e.key === 'Escape') setShowNoteInput(false); }}
+                placeholder="مثال: تسوس، حشوة مطلوبة..."
+                className="flex-1 bg-slate-900 text-white rounded-xl border border-indigo-800 px-3 py-2 text-xs placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500" autoFocus />
+              <button onClick={saveNote} className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold">حفظ</button>
+              <button onClick={() => setShowNoteInput(false)} className="px-3 py-2 bg-slate-800 text-slate-300 rounded-xl text-xs hover:bg-slate-700">إلغاء</button>
+            </div>
+          </div>
+        )}
+
+        {/* Photo controls */}
+        <div className="bg-slate-50 rounded-2xl border border-slate-100 p-3 space-y-2">
+          <p className="text-[10px] font-bold text-slate-500">📷 ضبط الصورة:</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {[
+              { label: 'تكبير', val: bgScale, min: 0.7, max: 2.5, step: 0.05, set: setBgScale, display: `${Math.round(bgScale * 100)}%` },
+              { label: 'رأسي', val: bgY, min: -150, max: 150, step: 2, set: setBgY, display: `${bgY}px` },
+              { label: 'أفقي', val: bgX, min: -150, max: 150, step: 2, set: setBgX, display: `${bgX}px` },
+            ].map(ctrl => (
+              <div key={ctrl.label} className="flex items-center gap-2">
+                <span className="text-[10px] text-slate-500 w-10 shrink-0">{ctrl.label}</span>
+                <input type="range" min={ctrl.min} max={ctrl.max} step={ctrl.step} value={ctrl.val}
+                  onChange={e => ctrl.set(parseFloat(e.target.value) as any)}
+                  className="flex-1 h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
+                <span className="text-[10px] font-mono text-indigo-600 w-10 text-left shrink-0">{ctrl.display}</span>
+              </div>
+            ))}
+          </div>
+          <button onClick={() => { setBgScale(1); setBgX(0); setBgY(0); }} className="text-[10px] font-bold text-slate-500 hover:text-slate-800 border border-slate-200 bg-white px-2.5 py-1 rounded-lg">إعادة ضبط</button>
+        </div>
+
+        {/* Annotation Tools */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-4">
+          <p className="text-xs font-extrabold text-slate-700 flex items-center gap-2">
+            <span className="w-1.5 h-4 rounded-full bg-indigo-500"></span>
+            أدوات التعليق على الصورة
+          </p>
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              { id: 'none', emoji: '🖱️', label: 'تحريك' },
+              { id: 'measure', emoji: '📏', label: 'قياس' },
+              { id: 'draw', emoji: '✏️', label: 'خط' },
+              { id: 'note', emoji: '📝', label: 'ملاحظة' },
+            ].map(t => (
+              <button key={t.id} onClick={() => setAnnotationMode(t.id as any)}
+                className={`py-2.5 rounded-xl text-[11px] font-bold border flex flex-col items-center gap-0.5 transition-all ${
+                  annotationMode === t.id ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-200 hover:bg-indigo-50'
+                }`}>
+                <span className="text-base">{t.emoji}</span>
+                <span>{t.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {annotationMode !== 'none' && (
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-bold text-slate-500">لون:</span>
+              <div className="flex gap-1.5">
+                {['#ef4444', '#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6'].map(c => (
+                  <button key={c} onClick={() => setActiveColor(c)}
+                    className={`w-6 h-6 rounded-full border-2 transition-all ${activeColor === c ? 'border-slate-900 scale-110' : 'border-transparent'}`}
+                    style={{ backgroundColor: c }} />
+                ))}
+              </div>
+              {annotations.length > 0 && (
+                <button onClick={() => { setAnnotations([]); setDrawingStart(null); }} className="mr-auto text-[10px] font-bold text-red-500 hover:text-red-700 flex items-center gap-1 px-2 py-1 rounded-lg border border-red-200 hover:bg-red-50 transition-all">
+                  <Trash2 className="w-3 h-3" /> مسح ({annotations.length})
+                </button>
               )}
             </div>
           )}
+          {annotationMode !== 'none' && (
+            <p className="text-[10px] text-slate-400 leading-relaxed bg-slate-50 p-2 rounded-xl">
+              {annotationMode === 'measure' && '📏 انقر على نقطتين على الصورة لقياس المسافة بينهما.'}
+              {annotationMode === 'draw' && '✏️ انقر على نقطتين لرسم خط تصميمي.'}
+              {annotationMode === 'note' && '📝 انقر على أي موضع في الصورة لإضافة ملاحظة نصية.'}
+              {drawingStart && ' ← تم تحديد النقطة الأولى، انقر للنقطة الثانية.'}
+            </p>
+          )}
+
+          <div className="border-t border-slate-100 pt-4 space-y-3">
+            {/* Whiteness */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-[11px] font-bold text-slate-700">
+                <span>محاكاة بياض الأسنان (VITA):</span>
+                <span className="text-indigo-600">{vitaLabel}</span>
+              </div>
+              <input type="range" min="1" max="5" value={whiteness} onChange={e => setWhiteness(parseInt(e.target.value))}
+                className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
+              <p className="text-[10px] text-slate-400">يُطبَّق مباشرة على الصورة كمحاكاة بصرية للقشور.</p>
+            </div>
+            {/* Shape */}
+            <div className="space-y-1.5">
+              <span className="block text-[11px] font-bold text-slate-700">شكل السن للتقرير:</span>
+              <div className="grid grid-cols-3 gap-2">
+                {(['natural', 'oval', 'square'] as const).map(s => (
+                  <button key={s} onClick={() => setToothShape(s)}
+                    className={`py-1.5 rounded-xl text-[11px] font-bold border transition-all ${toothShape === s ? 'bg-indigo-50 text-indigo-700 border-indigo-300' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}>
+                    {s === 'natural' ? '🦷 طبيعي' : s === 'oval' ? '⭕ بيضاوي' : '⬛ هوليوود'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* Alignment */}
+            <div className="space-y-1">
+              <div className="flex justify-between text-[11px] font-bold text-slate-700">
+                <span>اصطفاف القواطع:</span>
+                <span className="text-indigo-600">Grade {alignment}/5</span>
+              </div>
+              <input type="range" min="1" max="5" value={alignment} onChange={e => setAlignment(parseInt(e.target.value))}
+                className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
+            </div>
+            {/* Compare toggle */}
+            <button onClick={() => setShowSplitManual(s => !s)}
+              className={`w-full py-2.5 rounded-xl text-xs font-bold border flex items-center justify-center gap-2 transition-all ${showSplitManual ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}>
+              <ExternalLink className="w-4 h-4" />
+              {showSplitManual ? 'إخفاء مقارنة قبل/بعد' : 'تفعيل مقارنة قبل/بعد'}
+            </button>
+          </div>
+        </div>
+
+        {/* Export */}
+        <button onClick={handleExport} className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-bold py-3 rounded-2xl text-xs shadow-md flex items-center justify-center gap-2 transition-all active:scale-95">
+          <Printer className="w-4 h-4" /> تصدير تقرير DSD
+        </button>
+      </div>
+    );
+  }
+
+  // ── STEP 3: NANO BANANA AI ──
+  return (
+    <div className="space-y-4" dir="rtl">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <button onClick={() => { setStep(1); setAiSimulated(false); setIsAiProcessing(false); }} className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-all">
+          <span className="text-sm font-bold">›</span>
+        </button>
+        <div className="flex-1">
+          <h4 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+            <span className="w-2 h-4 rounded-full bg-purple-500 inline-block"></span>
+            نانو بنانا - تصميم بالذكاء الاصطناعي
+          </h4>
+          <p className="text-[10px] text-slate-500">gemini-nano-banana-dsd</p>
+        </div>
+        <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-500/10 border border-green-500/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping inline-block"></span>
+          <span className="text-[10px] font-bold text-green-500">Active</span>
+        </div>
+      </div>
+
+      {/* Canvas - with processing overlay */}
+      <div className="relative">
+        <PhotoCanvas
+          filter={aiSimulated ? getAiFilter() : 'none'}
+          showSplit={aiSimulated}
+          splitPos={splitPosAi}
+          onSplitChange={setSplitPosAi}
+        >
+          <div className={`absolute top-3 right-3 px-2.5 py-1 rounded-lg text-[10px] font-bold backdrop-blur-sm ${aiSimulated ? 'bg-purple-600/90 text-white' : 'bg-slate-800/80 text-slate-300'}`}>
+            {aiSimulated ? '✨ نانو بنانا AI' : '🍌 انتظر المعالجة'}
+          </div>
+        </PhotoCanvas>
+
+        {/* Processing overlay */}
+        {isAiProcessing && (
+          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md rounded-2xl z-50 flex flex-col items-center justify-center text-center p-6">
+            <div className="relative mb-5">
+              <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+              <div className="absolute inset-0 flex items-center justify-center text-2xl">🍌</div>
+            </div>
+            <h4 className="text-sm font-extrabold text-purple-300 animate-pulse mb-2">جاري المعالجة بنانو بنانا</h4>
+            <p className="text-xs text-slate-400 font-mono max-w-[240px] leading-relaxed">{processingStep}</p>
+          </div>
+        )}
+      </div>
+
+      {/* AI Control Panel */}
+      <div className="bg-gradient-to-br from-purple-950/70 to-fuchsia-950/50 rounded-2xl border border-purple-800/40 p-4 space-y-4">
+        <p className="text-[11px] text-purple-300/80 leading-relaxed">
+          اكتب برومبتاً وصفياً للابتسامة المطلوبة وسيقوم النموذج بمحاكاة التبييض والشكل على الصورة الفعلية.
+        </p>
+
+        {/* Prompt */}
+        <div className="space-y-1.5">
+          <label className="block text-[10px] font-bold text-purple-300">نص البرومبت الطبي:</label>
+          <textarea value={aiPrompt} onChange={e => setAiPrompt(e.target.value)} rows={3}
+            className="w-full bg-slate-900 text-white rounded-xl border border-purple-800/40 p-3 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-purple-700 resize-none"
+            placeholder="صف الابتسامة المطلوبة..." />
+        </div>
+
+        {/* Quick templates */}
+        <div className="space-y-1.5">
+          <p className="text-[10px] font-bold text-purple-400">💡 قوالب جاهزة:</p>
+          {[
+            'ابتسامة هوليوود VITA B1 براقة مع قشور E-Max مربعة وانعكاس ضوئي فائق.',
+            'ابتسامة ناعمة بيضاوية VITA A2 طبيعية مناسبة للفك الصغير مع شفافية المينا.',
+            'ابتسامة كلاسيكية منتظمة VITA A1 متناسقة مع الشفاه وخط القواطع.',
+          ].map((t, i) => (
+            <button key={i} onClick={() => { setAiPrompt(t); toast.success('تم اختيار القالب.'); }}
+              className="w-full text-right text-[10px] py-2 px-3 rounded-xl bg-slate-900/60 hover:bg-slate-900 text-purple-200 border border-purple-900/40 hover:border-purple-700 transition-all">
+              {t}
+            </button>
+          ))}
+        </div>
+
+        {/* Whiteness */}
+        <div className="space-y-1.5 pt-1 border-t border-purple-800/30">
+          <div className="flex justify-between text-[11px] font-bold text-purple-200">
+            <span>درجة التبييض المستهدفة:</span>
+            <span className="text-fuchsia-300 font-mono">VITA {vitaLabel}</span>
+          </div>
+          <input type="range" min="1" max="5" value={whiteness} onChange={e => setWhiteness(parseInt(e.target.value))}
+            className="w-full h-1.5 bg-purple-900 rounded-lg appearance-none cursor-pointer accent-fuchsia-500" />
+        </div>
+
+        {/* Trigger button */}
+        <button onClick={handleTriggerAi} disabled={isAiProcessing}
+          className="w-full py-3 bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-700 hover:to-fuchsia-700 text-white font-extrabold rounded-2xl text-xs shadow-lg shadow-purple-900/30 flex items-center justify-center gap-2 disabled:opacity-50 transition-all active:scale-95">
+          <Brain className="w-4 h-4" />
+          {isAiProcessing ? 'جاري المعالجة...' : '🍌 توليد الابتسامة بنانو بنانا'}
+        </button>
+      </div>
+
+      {/* Post-AI Results Panel */}
+      {aiSimulated && !isAiProcessing && (
+        <div className="bg-green-950/40 rounded-2xl border border-green-800/30 p-4 space-y-3 animate-in fade-in slide-in-from-bottom-2">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-green-400 inline-block"></span>
+            <span className="text-xs font-bold text-green-300">✅ اكتملت محاكاة نانو بنانا!</span>
+          </div>
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-[10px] font-bold text-green-300">
+              <span>شريط المقارنة قبل/بعد:</span>
+              <span>{splitPosAi}%</span>
+            </div>
+            <input type="range" min="0" max="100" value={splitPosAi} onChange={e => setSplitPosAi(parseInt(e.target.value))}
+              className="w-full h-1 bg-green-900 rounded-lg appearance-none cursor-pointer accent-green-400" />
+            <p className="text-[10px] text-green-500/70 text-center">اسحب الشريط على الصورة لمقارنة قبل وبعد التصميم</p>
+          </div>
+          <button onClick={() => { setAiSimulated(false); setIsAiProcessing(false); }}
+            className="w-full py-2 text-[11px] font-bold text-purple-300 border border-purple-800/40 rounded-xl hover:bg-purple-900/30 transition-all flex items-center justify-center gap-1">
+            <RefreshCcw className="w-3 h-3" /> إعادة التصميم من البداية
+          </button>
         </div>
       )}
 
-      {/* Bottom Save / Print Actions */}
-      <div className="flex gap-3 pt-2">
-        <button
-          onClick={handleExportReport}
-          disabled={!patientPhoto}
-          className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-xl text-xs transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-purple-100 flex items-center justify-center gap-1.5"
-        >
-          <Printer className="w-4 h-4" />
-          حفظ وتصدير تقرير تصميم الابتسامة المعتمد للمريض
-        </button>
-      </div>
+      {/* Export */}
+      <button onClick={handleExport}
+        className="w-full bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-700 hover:to-fuchsia-700 text-white font-bold py-3 rounded-2xl text-xs shadow-md flex items-center justify-center gap-2 transition-all active:scale-95">
+        <Printer className="w-4 h-4" /> تصدير تقرير DSD
+      </button>
     </div>
   );
 };
+
