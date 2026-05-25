@@ -188,7 +188,7 @@ export const useAIAnalysis = (patientId?: string, clinicId?: number) => {
         });
     };
 
-    const analyzeImage = async (file: File, overridePatientId?: number) => {
+    const analyzeImage = async (file: File, overridePatientId?: number, contextOverride?: string) => {
         if (!user) return;
         setUploading(true);
         try {
@@ -218,7 +218,29 @@ export const useAIAnalysis = (patientId?: string, clinicId?: number) => {
             // 4. Trigger AI Service Analysis with base64
             const resolvedClinicId = await resolveClinicId();
             const clinicTreatments = await fetchClinicTreatments(resolvedClinicId);
-            const result = await aiService.analyzeImage(publicUrl, undefined, undefined, resolvedClinicId, base64Data, mimeType, clinicTreatments);
+            
+            let promptText = 'حلل هذه الصورة السنية بدقة وأعط تقريراً تفصيلياً.';
+            if (contextOverride === 'clinical') {
+                promptText = `أنت طبيب أسنان خبير ومحلل صور سريرية فموية فوتوغرافية.
+حلل هذه الصورة السريرية الملونة للأسنان واللثة بدقة بالغة. ابحث عن:
+1. تسوسات ظاهرية مرئية (Visible Caries).
+2. رواسب جير وتكلسات حول أعناق الأسنان (Calculus & Plaque).
+3. احمرار، تضخم، أو التهاب اللثة (Gingivitis & Gum Inflammation).
+4. تصبغات وتغيرات في لون الأسنان أو تآكل المينا (Staining & Enamel Erosion).
+أعد التقرير واملأ مصفوفة المشاكل (issues) بكل دقة مع تحديد المواقع [x,y,w,h] النسبية.`;
+            } else if (contextOverride === 'xray') {
+                promptText = `أنت طبيب أسنان خبير ومحلل صور أشعة سنية (X-Ray).
+حلل صورة الأشعة المرفقة بدقة بالغة. ابحث عن:
+1. تسوسات عميقة أو تحت الحشوات (Deep / Secondary Caries).
+2. فقدان العظم الداعم للأسنان (Alveolar Bone Loss).
+3. آفات حول ذروية، التهاب عصب أو خراجات (Periapical Lesions / Abscess).
+4. أسنان مطمورة أو منخرة كلياً أو جزئياً (Impaction).
+أعد التقرير واملأ مصفوفة المشاكل (issues) بكل دقة مع تحديد المواقع [x,y,w,h] النسبية.`;
+            } else if (contextOverride) {
+                promptText = contextOverride;
+            }
+
+            const result = await aiService.analyzeImage(publicUrl, promptText, undefined, resolvedClinicId, base64Data, mimeType, clinicTreatments);
 
             // 5. Update DB Entry (Completed)
             if (analysisEntry) {
@@ -270,7 +292,7 @@ export const useAIAnalysis = (patientId?: string, clinicId?: number) => {
         });
     };
 
-    const analyzeExistingImage = async (url: string) => {
+    const analyzeExistingImage = async (url: string, contextOverride?: string) => {
         if (!user) return;
         setAnalyzing(true);
         try {
@@ -294,8 +316,29 @@ export const useAIAnalysis = (patientId?: string, clinicId?: number) => {
                 console.warn('Could not convert image to base64, falling back to URL:', e);
             }
 
+            let promptText = 'حلل هذه الصورة السنية بدقة وأعط تقريراً تفصيلياً.';
+            if (contextOverride === 'clinical') {
+                promptText = `أنت طبيب أسنان خبير ومحلل صور سريرية فموية فوتوغرافية.
+حلل هذه الصورة السريرية الملونة للأسنان واللثة بدقة بالغة. ابحث عن:
+1. تسوسات ظاهرية مرئية (Visible Caries).
+2. رواسب جير وتكلسات حول أعناق الأسنان (Calculus & Plaque).
+3. احمرار، تضخم، أو التهاب اللثة (Gingivitis & Gum Inflammation).
+4. تصبغات وتغيرات في لون الأسنان أو تآكل المينا (Staining & Enamel Erosion).
+أعد التقرير واملأ مصفوفة المشاكل (issues) بكل دقة مع تحديد المواقع [x,y,w,h] النسبية.`;
+            } else if (contextOverride === 'xray') {
+                promptText = `أنت طبيب أسنان خبير ومحلل صور أشعة سنية (X-Ray).
+حلل صورة الأشعة المرفقة بدقة بالغة. ابحث عن:
+1. تسوسات عميقة أو تحت الحشوات (Deep / Secondary Caries).
+2. فقدان العظم الداعم للأسنان (Alveolar Bone Loss).
+3. آفات حول ذروية، التهاب عصب أو خراجات (Periapical Lesions / Abscess).
+4. أسنان مطمورة أو منخرة كلياً أو جزئياً (Impaction).
+أعد التقرير واملأ مصفوفة المشاكل (issues) بكل دقة مع تحديد المواقع [x,y,w,h] النسبية.`;
+            } else if (contextOverride) {
+                promptText = contextOverride;
+            }
+
             const clinicTreatments = await fetchClinicTreatments(resolvedClinicId);
-            const result = await aiService.analyzeImage(url, undefined, undefined, resolvedClinicId, base64Data, mimeType, clinicTreatments);
+            const result = await aiService.analyzeImage(url, promptText, undefined, resolvedClinicId, base64Data, mimeType, clinicTreatments);
 
             // 3. Update DB
             if (analysisEntry) {

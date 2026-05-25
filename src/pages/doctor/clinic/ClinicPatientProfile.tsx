@@ -1,3 +1,4 @@
+// Smart Dental Clinic Patient Profile
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useCurrentClinic } from '../../../hooks/useCurrentClinic';
@@ -552,6 +553,74 @@ export const ClinicPatientProfile = () => {
     setIsGeneralModalOpen(false);
   };
 
+  const handleAdoptSmartPlan = async (aiPlan: any) => {
+    if (!patientId || !user) return;
+
+    try {
+      // 1. Save to smart_assistant_chats
+      const { error: chatError } = await supabase
+        .from('smart_assistant_chats')
+        .insert({
+          patient_id: patientId,
+          doctor_id: user.id,
+          title: 'خطة علاجية ذكية مقترحة بالـ AI',
+          summary: `اعتماد خطة علاجية ذكية - ${aiPlan.summary.substring(0, 45)}...`,
+          messages: [
+            { role: 'system', content: 'خطة علاجية ذكية معتمدة للمريض.' },
+            { role: 'assistant', content: JSON.stringify(aiPlan) }
+          ]
+        });
+
+      if (chatError) throw chatError;
+
+      // 2. Loop through phases and treatments to create real tooth treatment plans!
+      let planCount = 0;
+      for (const phase of aiPlan.phases) {
+        for (const tx of phase.treatments) {
+          // Generate session array
+          const totalSessions = tx.sessions || 1;
+          const sessions = [];
+          for (let i = 1; i <= totalSessions; i++) {
+            sessions.push({
+              id: `sess-${Date.now()}-${i}-${tx.toothNumber}`,
+              number: i,
+              title: `جلسة ${i} - ${tx.notes}`,
+              status: 'pending' as const,
+              duration: 30,
+              schemaId: 'general',
+              data: {}
+            });
+          }
+
+          const newPlan: TreatmentPlan = {
+            id: crypto.randomUUID(),
+            patientId: patientId,
+            toothNumber: tx.toothNumber || 0,
+            type: tx.type || 'general',
+            status: 'planned',
+            totalSessions: totalSessions,
+            completedSessions: 0,
+            progress: 0,
+            sessions: sessions,
+            cost: tx.cost || 0,
+            paid: 0,
+            startDate: new Date().toISOString().split('T')[0],
+            notes: `[الذكاء الاصطناعي] ${tx.notes} (${phase.name})`
+          };
+
+          await addPlan(newPlan);
+          planCount++;
+        }
+      }
+
+      setIsSmartPlanModalOpen(false);
+      toast.success(`تم اعتماد الخطة الذكية بنجاح وتوليد ${planCount} خطة تشغيلية!`);
+    } catch (err) {
+      console.error('Error adopting smart plan:', err);
+      toast.error('فشل اعتماد الخطة العلاجية');
+    }
+  };
+
   const handleModalSave = async (data: any) => {
     if (!patientId) return;
 
@@ -660,8 +729,11 @@ export const ClinicPatientProfile = () => {
     const completedPercentage = activeTreatment ? activeTreatment.progress : 0;
     const treatmentStatus = activeTreatment ? 'قيد المعالجة' : 'لا يوجد علاج نشط';
 
+    const totalPlanCost = treatmentPlans.reduce((sum, p) => p.status !== 'cancelled' ? sum + p.cost : sum, 0);
+    const totalPlanPaid = treatmentPlans.reduce((sum, p) => p.status !== 'cancelled' ? sum + (p.paid || 0) : sum, 0);
+
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 animate-in fade-in">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 lg:gap-6 animate-in fade-in">
         {/* Next Appointment Card - Blue */}
         <div className="relative overflow-hidden rounded-[2rem] p-4 sm:p-5 border transition-all duration-300 group bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-100 hover:shadow-xl hover:-translate-y-0.5 hover:border-transparent animate-in fade-in">
           {/* Decorative Background Icon */}
@@ -779,6 +851,41 @@ export const ClinicPatientProfile = () => {
             </div>
           </div>
         </div>
+
+        {/* Payment Status Card - Emerald */}
+        {treatmentPlans.length > 0 && (
+          <div className="relative overflow-hidden rounded-[2rem] p-4 sm:p-5 border transition-all duration-300 group bg-gradient-to-br from-emerald-50 to-emerald-100/50 border-emerald-100 hover:shadow-xl hover:-translate-y-0.5 hover:border-transparent animate-in fade-in">
+            {/* Decorative Background Icon */}
+            <CreditCard className="absolute -bottom-4 -left-4 w-20 h-20 sm:w-28 sm:h-28 rotate-12 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6 text-emerald-500/10" strokeWidth={1.5} />
+            
+            <div className="relative z-10 flex flex-col h-full justify-between">
+              {/* Header: Icon & Title */}
+              <div className="flex items-center gap-2 sm:gap-2.5 mb-2.5">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shadow-sm bg-emerald-500 text-white group-hover:scale-110 transition-transform duration-300 shrink-0">
+                  <CreditCard className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+                </div>
+                <p className="font-bold text-xs sm:text-sm text-emerald-800/90 leading-none">سداد الخطط</p>
+              </div>
+
+              {/* Content: Value & Details */}
+              <div>
+                <h3 className="text-base sm:text-lg font-bold tracking-tight text-emerald-900 leading-tight">
+                  {totalPlanPaid.toLocaleString()} / {totalPlanCost.toLocaleString()} <span className="text-[10px] font-normal text-emerald-600">د.ع</span>
+                </h3>
+                <div className="mt-1 flex items-center gap-1">
+                  {totalPlanPaid >= totalPlanCost ? (
+                    <span className="px-2 py-0.5 rounded-lg text-[9px] font-bold text-green-600 bg-green-100 border border-green-200">مدفوع</span>
+                  ) : totalPlanPaid > 0 ? (
+                    <span className="px-2 py-0.5 rounded-lg text-[9px] font-bold text-orange-600 bg-orange-100 border border-orange-200">جزئي</span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-lg text-[9px] font-bold text-red-600 bg-red-100 border border-red-200">غير مدفوع</span>
+                  )}
+                  <span className="text-[10px] text-emerald-600 font-medium">النسبة: {totalPlanCost > 0 ? Math.round((totalPlanPaid / totalPlanCost) * 100) : 0}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Dynamic Medical Alerts */}
         {(() => {
@@ -1928,9 +2035,11 @@ export const ClinicPatientProfile = () => {
   // Actually, I can replace the whole renderArchiveTab function start to finish to include the new state.)
 
   const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
+  const [analysisContext, setAnalysisContext] = useState<'xray' | 'clinical'>('xray');
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
   const [isVoiceExamModalOpen, setIsVoiceExamModalOpen] = useState(false);
   const [isSmileDesignModalOpen, setIsSmileDesignModalOpen] = useState(false);
+  const [isSmartPlanModalOpen, setIsSmartPlanModalOpen] = useState(false);
 
   const { history: aiHistory, uploading: aiUploading, analyzing: aiAnalyzing, analyzeImage, analyzeExistingImage, deleteAnalysis, refresh: refreshAI } = useAIAnalysis(patientId);
 
@@ -1973,10 +2082,10 @@ export const ClinicPatientProfile = () => {
     let result;
     if (fileToAnalyze) {
       // Upload and Analyze
-      result = await analyzeImage(fileToAnalyze);
+      result = await analyzeImage(fileToAnalyze, undefined, analysisContext);
     } else {
       // Analyze Existing URL (from Archive)
-      result = await analyzeExistingImage(previewUrl);
+      result = await analyzeExistingImage(previewUrl, analysisContext);
     }
 
     if (result) {
@@ -2300,8 +2409,10 @@ export const ClinicPatientProfile = () => {
     // 3. Upload View
     return (
       <div>
-        <p className="text-gray-600 mb-4">
-          قم برفع صورة الأشعة (X-Ray) وسيقوم النظام بتحليلها فوراً.
+        <p className="text-gray-600 mb-4 text-sm leading-relaxed">
+          {analysisContext === 'clinical'
+            ? 'قم برفع الصورة السريرية للأسنان أو اللثة (صورة فوتوغرافية عادية من الهاتف أو الكاميرا الفموية)، وسيقوم الذكاء الاصطناعي بفحصها بدقة لكشف التسوسات الظاهرية، تراكمات الجير، والتهابات اللثة.'
+            : 'قم برفع صورة الأشعة السنية (X-Ray) وسيقوم المساعد الذكي بتحليلها فوراً للكشف عن الآفات والكسور والتسوسات العميقة.'}
         </p>
         <ImageUploadZone
           onFileSelect={handleAIFileSelect}
@@ -2318,14 +2429,15 @@ export const ClinicPatientProfile = () => {
       <div className="hidden"></div>
 
       {/* Service Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-        {/* Image Analysis Card */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6">
+        {/* Radiography Analysis Card */}
         <div
           onClick={() => {
+            setAnalysisContext('xray');
             setSelectedAnalysis(null); // Reset for new upload
             setIsAnalysisModalOpen(true);
           }}
-          className="group cursor-pointer bg-white rounded-2xl p-1 border border-transparent hover:border-indigo-200 shadow-sm hover:shadow-xl transition-all duration-300"
+          className="group cursor-pointer bg-white rounded-2xl p-1 border border-transparent hover:border-blue-200 shadow-sm hover:shadow-xl transition-all duration-300"
         >
           <div className="relative h-28 sm:h-40 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl overflow-hidden mb-3 sm:mb-4 flex items-center justify-center group-hover:scale-[0.98] transition-transform">
             <div className="absolute inset-0 bg-grid-indigo-500/[0.05] [mask-image:linear-gradient(0deg,white,transparent)]" />
@@ -2336,7 +2448,30 @@ export const ClinicPatientProfile = () => {
           <div className="px-3 pb-3 sm:px-4 sm:pb-4">
             <h3 className="text-xs sm:text-sm font-bold text-gray-900 mb-1 group-hover:text-indigo-600 transition-colors">تحليل صور الأشعة</h3>
             <p className="text-[10px] sm:text-xs text-gray-500 leading-normal line-clamp-2">
-              تحليل صور الأشعة للكشف عن التسوسات والالتهابات والنسب الدقيقة.
+              تحليل صور الأشعة السنية للكشف عن التسوسات والالتهابات والنسب الدقيقة.
+            </p>
+          </div>
+        </div>
+
+        {/* Clinical Image Analysis Card */}
+        <div
+          onClick={() => {
+            setAnalysisContext('clinical');
+            setSelectedAnalysis(null); // Reset for new upload
+            setIsAnalysisModalOpen(true);
+          }}
+          className="group cursor-pointer bg-white rounded-2xl p-1 border border-transparent hover:border-emerald-200 shadow-sm hover:shadow-xl transition-all duration-300"
+        >
+          <div className="relative h-28 sm:h-40 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl overflow-hidden mb-3 sm:mb-4 flex items-center justify-center group-hover:scale-[0.98] transition-transform">
+            <div className="absolute inset-0 bg-grid-emerald-500/[0.05] [mask-image:linear-gradient(0deg,white,transparent)]" />
+            <div className="w-10 h-10 sm:w-16 sm:h-16 bg-white rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform duration-500">
+              <ImageIcon className="w-5 h-5 sm:w-8 sm:h-8" />
+            </div>
+          </div>
+          <div className="px-3 pb-3 sm:px-4 sm:pb-4">
+            <h3 className="text-xs sm:text-sm font-bold text-gray-900 mb-1 group-hover:text-emerald-600 transition-colors">تحليل الصور السريرية</h3>
+            <p className="text-[10px] sm:text-xs text-gray-500 leading-normal line-clamp-2">
+              فحص صور الفم والأسنان السريرية لكشف التهابات اللثة والتسوس الظاهري.
             </p>
           </div>
         </div>
@@ -2394,6 +2529,25 @@ export const ClinicPatientProfile = () => {
             <h3 className="text-xs sm:text-sm font-bold text-gray-900 mb-1 group-hover:text-emerald-600 transition-colors">ابتسامة هوليوود (DSD)</h3>
             <p className="text-[10px] sm:text-xs text-gray-500 leading-normal line-clamp-2">
               تصميم الابتسامة التلقائي ومحاكاة النتيجة قبل وبعد العلاج التقويمي.
+            </p>
+          </div>
+        </div>
+
+        {/* Smart AI Treatment Plan Card */}
+        <div
+          onClick={() => setIsSmartPlanModalOpen(true)}
+          className="group cursor-pointer bg-white rounded-2xl p-1 border border-transparent hover:border-violet-200 shadow-sm hover:shadow-xl transition-all duration-300"
+        >
+          <div className="relative h-28 sm:h-40 bg-gradient-to-br from-violet-50 to-indigo-50 rounded-xl overflow-hidden mb-3 sm:mb-4 flex items-center justify-center group-hover:scale-[0.98] transition-transform">
+            <div className="absolute inset-0 bg-grid-indigo-500/[0.05] [mask-image:linear-gradient(0deg,white,transparent)]" />
+            <div className="w-10 h-10 sm:w-16 sm:h-16 bg-white rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg flex items-center justify-center text-violet-600 group-hover:scale-110 transition-transform duration-500">
+              <Brain className="w-5 h-5 sm:w-8 sm:h-8" />
+            </div>
+          </div>
+          <div className="px-3 pb-3 sm:px-4 sm:pb-4">
+            <h3 className="text-xs sm:text-sm font-bold text-gray-900 mb-1 group-hover:text-violet-600 transition-colors">خطط علاجية بالـ AI</h3>
+            <p className="text-[10px] sm:text-xs text-gray-500 leading-normal line-clamp-2">
+              توليد خطة علاجية متكاملة بالذكاء الاصطناعي بناءً على التاريخ الطبي والحساسيات.
             </p>
           </div>
         </div>
@@ -3192,7 +3346,7 @@ export const ClinicPatientProfile = () => {
       <Modal
         isOpen={isAnalysisModalOpen}
         onClose={() => setIsAnalysisModalOpen(false)}
-        title="تشخيص الصور بالأشعة والذكاء الاصطناعي"
+        title={analysisContext === 'clinical' ? 'تحليل الصور السريرية والفوتوغرافية بالـ AI' : 'تشخيص الصور بالأشعة والذكاء الاصطناعي'}
       >
         <div className="space-y-6">
           {renderAnalysisModalContent()}
@@ -3231,6 +3385,18 @@ export const ClinicPatientProfile = () => {
       >
         <div className="space-y-6">
           <SmileDesignModalContent patientName={patient?.name} patientId={patient?.id} />
+        </div>
+      </Modal>
+
+      {/* Smart AI Treatment Plan Modal */}
+      <Modal
+        isOpen={isSmartPlanModalOpen}
+        onClose={() => setIsSmartPlanModalOpen(false)}
+        title="توليد الخطة العلاجية الذكية بالـ AI"
+        size="lg"
+      >
+        <div className="space-y-6">
+          <SmartPlanModalContent patient={patient} patientTeeth={patientTeeth} treatmentPlans={treatmentPlans} onAdoptPlan={handleAdoptSmartPlan} />
         </div>
       </Modal>
       {/* Financial Transaction Modal */}
@@ -4201,4 +4367,471 @@ const SmileDesignModalContent: React.FC<{ patientName?: string; patientId?: stri
     </div>
   );
 };
+
+// ============================================================================
+// SmartPlanModalContent - AI Extended Treatment Plan Generator
+// ============================================================================
+
+interface SmartPlanModalContentProps {
+  patient: any;
+  patientTeeth: any[];
+  onAdoptPlan: (plan: any) => Promise<void>;
+}
+
+const SmartPlanModalContent: React.FC<SmartPlanModalContentProps> = ({ patient, patientTeeth, onAdoptPlan }) => {
+  const [doctorFocus, setDoctorFocus] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isAdopting, setIsAdopting] = useState(false);
+  const [generatedPlan, setGeneratedPlan] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [generationStep, setGenerationStep] = useState('');
+
+  // Extract patient medical data safely
+  const rawMedicalData = patient?.medicalHistoryData;
+  const medicalData = {
+    vitals: {
+      weight: rawMedicalData?.vitals?.weight ?? '-',
+      height: rawMedicalData?.vitals?.height ?? '-',
+      bp: rawMedicalData?.vitals?.bp ?? '-',
+      sugar: rawMedicalData?.vitals?.sugar ?? '-',
+      pulse: rawMedicalData?.vitals?.pulse ?? '-'
+    },
+    conditions: (rawMedicalData?.conditions as string[]) ?? [],
+    allergies: (rawMedicalData?.allergies as string[]) ?? [],
+    habits: (rawMedicalData?.habits as string[]) ?? [],
+    notes: rawMedicalData?.notes ?? ''
+  };
+
+  // Find non-healthy teeth to present to the user and feed to the AI
+  const nonHealthyTeeth = patientTeeth.filter(t => t.condition && t.condition !== 'healthy');
+  const nonHealthyTeethText = nonHealthyTeeth.length > 0
+    ? nonHealthyTeeth.map(t => `السن #${t.number}: الحالة الحالية هي [${t.condition}] ${t.notes ? `(ملاحظات: ${t.notes})` : ''}`).join('\n')
+    : 'جميع الأسنان تظهر كـ سليمة في المخطط السريري الحالي.';
+
+  const handleGenerate = async () => {
+    setIsGenerating(true);
+    setError(null);
+    setGenerationStep('جاري قراءة التاريخ المرضي وتفاصيل الفحص...');
+
+    try {
+      // Step 2: Formulate prompt
+      setGenerationStep('جاري فحص مخطط الأسنان ومطابقة الحساسيات...');
+      await new Promise(r => setTimeout(r, 600)); // Smooth step animation
+
+      setGenerationStep('جاري بناء الموجه الطبي وإرساله للذكاء الاصطناعي...');
+      const prompt = `أنت طبيب أسنان استشاري خبير. قم بتوليد خطة علاجية مخصصة ومنظمة وموزعة على مراحل زمنية مرتبة بناءً على التفاصيل السريرية المرفقة للمريض.
+  
+معلومات المريض الحالية:
+- الاسم: ${patient?.name || 'غير معروف'}
+- العمر: ${patient?.age || 'غير محدد'}
+- الجنس: ${patient?.gender === 'male' ? 'ذكر' : 'أنثى'}
+
+السجل الطبي والحساسيات:
+- الحساسيات الموثقة: ${medicalData.allergies.join(', ') || 'لا يوجد حساسيات معروفة'}
+- الأمراض المزمنة الحالية: ${medicalData.conditions.join(', ') || 'لا يوجد أمراض مزمنة'}
+- العلامات الحيوية: ضغط الدم: ${medicalData.vitals.bp}، نسبة السكر: ${medicalData.vitals.sugar}
+- عادات صحية وملاحظات أخرى: ${medicalData.habits.join(', ') || 'لا يوجد'} • ${medicalData.notes || 'لا يوجد'}
+
+حالة الأسنان الحالية المكتشفة التي تحتاج إلى علاج (مخطط الأسنان):
+${nonHealthyTeethText}
+
+ملاحظات الطبيب الإضافية الخاصة بالتوليد:
+${doctorFocus || 'لا يوجد ملاحظات إضافية'}
+
+تعليمات بالغة الأهمية:
+1. يجب أن تلتزم التزاماً صارماً بجميع الحساسيات المسجلة والأمراض المزمنة (مثال: إذا كان المريض يعاني من حساسية البنسلين، يمنع وصفه أو استخدامه، إذا كان يعاني من ارتفاع ضغط الدم، يجب اتخاذ محاذير في التخدير الموضعي، إلخ).
+2. صنف الخطة العلاجية المقترحة إلى مراحل منطقية مرتبة (Phases) مثل:
+   - "مرحلة طارئة/علاجية مستعجلة" (للحالات المؤلمة أو الالتهابات النشطة)
+   - "مرحلة وقائية/علاجية اعتيادية" (علاج العصب، حشوات، تنظيف لثة)
+   - "مرحلة تعويضية وتجميلية" (تركيبات، تيجان، زراعة، تبييض)
+3. لكل إجراء علاج مقترح في أي مرحلة، حدد:
+   - toothNumber: رقم السن بنظام FDI المزدوج للأسنان (11-48 أو 51-85). إذا كان الإجراء عاماً لكامل الفم (مثل تنظيف الجير)، ضع الرقم 0.
+   - type: تصنيف الإجراء بدقة بالغة من الأنواع التالية حصراً:
+     * endo (علاج عصب)
+     * implant (زراعة)
+     * prosthetic (تركيبات/تعويضات/تيجان)
+     * ortho (تقويم)
+     * surgery (جراحة/خلع)
+     * perio (علاج اللثة)
+     * general (تنظيف، حشوات، تبييض، إجراءات عامة)
+   - sessions: عدد الجلسات المتوقع (رقم صحيح، 1 على الأقل).
+   - cost: التكلفة التقديرية بالدينار العراقي (رقم صحيح، مثلاً 50000 أو 1000000، اعتمد تقديرات متوسطة واقعية).
+   - notes: وصف تفصيلي مبسط للإجراء العلاجي بالعربية.
+4. استخرج قائمة "المحاذير والتحذيرات الطبية الصارمة" (contraindications) المناسبة لحالة هذا المريض وتاريخه المرضي بدقة.
+
+يجب أن تعيد المخرجات حصراً في قالب JSON صالح بدون أي نصوص تمهيدية أو ختامية، بالصيغة التالية تماماً:
+{
+  "summary": "ملخص عام ومكثف جداً للخطة العلاجية والنتائج المتوقعة بالعربية",
+  "phases": [
+    {
+      "name": "اسم المرحلة بالعربية",
+      "description": "وصف مبسط لهدف هذه المرحلة بالعربية",
+      "treatments": [
+        {
+          "toothNumber": 36,
+          "type": "endo",
+          "sessions": 2,
+          "cost": 150000,
+          "notes": "علاج عصب متكامل للسن 36 لإنهاء الألم النشط"
+        }
+      ]
+    }
+  ],
+  "contraindications": [
+    "التحذير الطبي الأول بالعربية بناءً على أمراض المريض أو حساسيته"
+  ]
+}
+
+تأكد أن النص المرتجع هو JSON صالح 100% لتجنب فشل النظام.`;
+
+      const response = await aiService.chat('doctor_assistant', prompt);
+      
+      setGenerationStep('جاري معالجة وتدقيق مخرجات الخطة العلاجية...');
+      await new Promise(r => setTimeout(r, 500));
+
+      let cleanJson = response.trim();
+      if (cleanJson.includes('```')) {
+        const match = cleanJson.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (match) {
+          cleanJson = match[1].trim();
+        }
+      }
+
+      // Check if it looks like JSON or if it failed to output JSON
+      if (!cleanJson.startsWith('{')) {
+        throw new Error('الاستجابة المستلمة ليست بتنسيق JSON صالح. يرجى المحاولة مرة أخرى.');
+      }
+
+      const parsedPlan = JSON.parse(cleanJson);
+      setGeneratedPlan(parsedPlan);
+    } catch (err: any) {
+      console.error('Failed to generate smart plan:', err);
+      setError(err.message || 'حدث خطأ غير متوقع أثناء توليد الخطة بالذكاء الاصطناعي.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleAdopt = async () => {
+    if (!generatedPlan) return;
+    setIsAdopting(true);
+    try {
+      await onAdoptPlan(generatedPlan);
+    } catch (err) {
+      console.error('Failed to adopt plan:', err);
+    } finally {
+      setIsAdopting(false);
+    }
+  };
+
+  // Calculate stats
+  const totalCost = generatedPlan?.phases.reduce((sum: number, phase: any) => 
+    sum + phase.treatments.reduce((pSum: number, tx: any) => pSum + (tx.cost || 0), 0)
+  , 0) || 0;
+
+  const totalSessions = generatedPlan?.phases.reduce((sum: number, phase: any) => 
+    sum + phase.treatments.reduce((pSum: number, tx: any) => pSum + (tx.sessions || 0), 0)
+  , 0) || 0;
+
+  const totalTreatments = generatedPlan?.phases.reduce((sum: number, phase: any) => 
+    sum + (phase.treatments?.length || 0)
+  , 0) || 0;
+
+  if (isGenerating) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 px-4 space-y-6">
+        <div className="relative w-24 h-24 flex items-center justify-center">
+          {/* Pulsing ring */}
+          <div className="absolute inset-0 border-4 border-purple-500/20 rounded-full animate-ping"></div>
+          {/* Spinning progress */}
+          <div className="absolute inset-0 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+          {/* Center Brain Icon */}
+          <div className="w-16 h-16 bg-gradient-to-tr from-purple-600 to-indigo-600 rounded-full shadow-lg flex items-center justify-center text-white">
+            <Brain className="w-8 h-8 animate-pulse" />
+          </div>
+        </div>
+        <div className="text-center space-y-2 max-w-md text-slate-800">
+          <h3 className="text-base font-extrabold text-gray-900">جاري توليد الخطة السريرية الذكية بالـ AI</h3>
+          <p className="text-xs text-purple-600 font-bold bg-purple-50 px-3 py-1.5 rounded-full inline-block animate-pulse">
+            {generationStep}
+          </p>
+          <p className="text-[11px] text-gray-500 leading-relaxed pt-2">
+            يقوم محرك الذكاء الاصطناعي بمراجعة التاريخ المرضي للمريض {patient?.name}، وحساسية الأدوية، وحالة الأسنان المصابة لبناء مراحل علاجية آمنة ومتكاملة مالياً وزمنياً.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (generatedPlan) {
+    return (
+      <div className="space-y-6 text-right animate-in fade-in slide-in-from-bottom-2">
+        {/* Intro summary banner */}
+        <div className="bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-950 text-white rounded-2xl p-5 border border-purple-800/30 shadow-md space-y-2 relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-24 h-24 bg-purple-500/10 rounded-full blur-xl -translate-x-4 -translate-y-4"></div>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-extrabold text-purple-300 bg-purple-900/60 border border-purple-700/50 px-2.5 py-1 rounded-full uppercase tracking-wider">
+              خطة علاجية ذكية مقترحة بالـ AI
+            </span>
+            <Brain className="w-5 h-5 text-purple-300 animate-pulse" />
+          </div>
+          <h3 className="text-sm font-bold text-slate-100">تحليل الخطة والتوصيات لـ {patient?.name}:</h3>
+          <p className="text-xs text-slate-200/90 leading-relaxed">{generatedPlan.summary}</p>
+        </div>
+
+        {/* Quick Stats Grid */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-purple-50 rounded-xl p-3 border border-purple-100 text-center space-y-0.5">
+            <p className="text-[10px] font-bold text-purple-500">التكلفة التقديرية</p>
+            <p className="text-sm font-black text-purple-700 font-mono">
+              {totalCost.toLocaleString('ar-IQ')} <span className="text-[10px] font-bold">د.ع</span>
+            </p>
+          </div>
+          <div className="bg-indigo-50 rounded-xl p-3 border border-indigo-100 text-center space-y-0.5">
+            <p className="text-[10px] font-bold text-indigo-500">الجلسات المتوقعة</p>
+            <p className="text-sm font-black text-indigo-700 font-mono">
+              {totalSessions} <span className="text-[10px] font-bold">جلسات</span>
+            </p>
+          </div>
+          <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 text-center space-y-0.5">
+            <p className="text-[10px] font-bold text-slate-500">عدد الإجراءات</p>
+            <p className="text-sm font-black text-slate-700 font-mono">
+              {totalTreatments} <span className="text-[10px] font-bold">إجراءات</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Contraindications / Warnings Section */}
+        {generatedPlan.contraindications && generatedPlan.contraindications.length > 0 && (
+          <div className="bg-red-50/70 rounded-2xl border border-red-200 p-4 space-y-2.5 shadow-sm">
+            <div className="flex items-center gap-2 text-red-700">
+              <AlertTriangle className="w-5 h-5 animate-bounce" />
+              <h4 className="font-extrabold text-xs">⚠️ المحاذير والاحتياطات الطبية الهامة:</h4>
+            </div>
+            <ul className="space-y-1.5 pr-2">
+              {generatedPlan.contraindications.map((c: string, idx: number) => (
+                <li key={idx} className="text-xs text-red-800 leading-relaxed flex items-start gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-600 mt-1.5 shrink-0"></span>
+                  <span>{c}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Phases list */}
+        <div className="space-y-4">
+          <h4 className="font-bold text-xs text-slate-800 border-r-2 border-purple-600 pr-2">مراحل الخطة العلاجية المتكاملة:</h4>
+          
+          {generatedPlan.phases.map((phase: any, pIdx: number) => (
+            <div key={pIdx} className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3 hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between border-b border-slate-100 pb-2.5 text-right">
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded">المرحلة {pIdx + 1}</span>
+                  <h5 className="font-extrabold text-xs text-slate-900">{phase.name}</h5>
+                </div>
+                <p className="text-[10px] text-gray-500 max-w-xs text-left leading-relaxed">{phase.description}</p>
+              </div>
+
+              {/* Treatments in this phase */}
+              <div className="space-y-2">
+                {phase.treatments.map((tx: any, tIdx: number) => (
+                  <div key={tIdx} className="bg-slate-50/50 rounded-xl p-3 border border-slate-100 flex items-center justify-between text-xs hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center gap-3">
+                      {/* Tooth icon indicator */}
+                      <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center font-mono font-black text-slate-700">
+                        {tx.toothNumber === 0 ? '🦷' : tx.toothNumber}
+                      </div>
+                      <div className="space-y-0.5 text-right">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900">{tx.notes}</span>
+                          <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full uppercase bg-indigo-50 text-indigo-700 border border-indigo-100">
+                            {tx.type === 'endo' ? 'علاج عصب' :
+                             tx.type === 'implant' ? 'زراعة' :
+                             tx.type === 'prosthetic' ? 'تركيبات' :
+                             tx.type === 'ortho' ? 'تقويم أسنان' :
+                             tx.type === 'surgery' ? 'جراحة/خلع' :
+                             tx.type === 'perio' ? 'علاج لثة' : 'عام'}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-500">
+                          {tx.toothNumber === 0 ? 'إجراء عام لكامل الفم' : `فحص وتأهيل السن رقم ${tx.toothNumber} بنظام FDI`}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="text-left space-y-0.5">
+                      <p className="font-bold text-slate-900 font-mono">
+                        {tx.cost.toLocaleString('ar-IQ')} <span className="text-[9px] font-normal text-slate-500">د.ع</span>
+                      </p>
+                      <p className="text-[9px] text-slate-500">
+                        عدد الجلسات: <span className="font-bold text-indigo-600 font-mono">{tx.sessions}</span>
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Buttons / Actions */}
+        <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
+          <Button
+            onClick={handleAdopt}
+            disabled={isAdopting}
+            className="flex-1 h-11 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold text-xs shadow-lg shadow-purple-500/20 border-0 rounded-xl transition-all active:scale-95"
+          >
+            <span className="flex items-center justify-center gap-2">
+              {isAdopting ? 'جاري اعتماد وإضافة الخطط...' : '✓ اعتماد الخطة وبدء التنفيذ بالعيادة'}
+            </span>
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={() => {
+              setGeneratedPlan(null);
+              setError(null);
+            }}
+            disabled={isAdopting}
+            className="px-4 h-11 border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs rounded-xl transition-all"
+          >
+            <span className="flex items-center gap-1.5">
+              <RefreshCcw className="w-3.5 h-3.5" /> إعادة ضبط
+            </span>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 text-right animate-in fade-in">
+      {/* Intro Warning and Instruction banner */}
+      <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+        <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+        <div className="space-y-1">
+          <h4 className="font-extrabold text-xs text-slate-900">كيف تعمل الخطة العلاجية الذكية؟</h4>
+          <p className="text-[11px] text-slate-700 leading-relaxed">
+            سيقوم المحرك الذكي بقراءة التاريخ الطبي للمريض ({patient?.name})، والأمراض المزمنة المسجلة، والحساسيات، وتفاصيل الأسنان المصابة في السجل. ومن ثم، سيقوم بتصميم خطة علاجية مخصصة وموزعة على مراحل زمنية مرتبة تراعي سلامته وتجنبه أي أدوية أو تخدير يتعارض مع حالته مع تكاليف تقديرية متوسطة للعيادة.
+          </p>
+        </div>
+      </div>
+
+      {/* Patient info checklist */}
+      <div className="bg-slate-50/80 rounded-2xl border border-slate-200 p-4 space-y-4">
+        <h4 className="font-extrabold text-xs text-slate-800">📋 سياق البيانات السريرية الحالية المعتمد للتوليد:</h4>
+        
+        <div className="grid grid-cols-2 gap-4 text-xs leading-relaxed text-right">
+          {/* Medical Alerts (Chronic Conditions) */}
+          <div className="space-y-2">
+            <p className="font-bold text-slate-900 flex items-center gap-1.5 justify-start">
+              <span className="w-2 h-2 rounded-full bg-indigo-500"></span> الأمراض والتحذيرات السريرية:
+            </p>
+            {medicalData.conditions.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {medicalData.conditions.map((c, idx) => (
+                  <span key={idx} className="bg-indigo-50 text-indigo-700 font-bold border border-indigo-100 text-[10px] px-2 py-0.5 rounded-full">
+                    {c === 'hypertension' ? 'ضغط الدم المرتفع' :
+                     c === 'diabetes' ? 'داء السكري' :
+                     c === 'cardiac' ? 'مشاكل في القلب' :
+                     c === 'pregnancy' ? 'حمل' : c}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[10px] text-slate-500">لا يوجد أمراض مزمنة مسجلة</p>
+            )}
+          </div>
+
+          {/* Allergies */}
+          <div className="space-y-2">
+            <p className="font-bold text-slate-900 flex items-center gap-1.5 justify-start">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span> حساسيات المريض:
+            </p>
+            {medicalData.allergies.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {medicalData.allergies.map((a, idx) => (
+                  <span key={idx} className="bg-red-50 text-red-700 font-bold border border-red-100 text-[10px] px-2 py-0.5 rounded-full">
+                    {a === 'penicillin' ? 'حساسية البنسلين 💊' : a}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[10px] text-slate-500">لا يوجد حساسيات دوائية مسجلة</p>
+            )}
+          </div>
+
+          {/* Vitals */}
+          <div className="space-y-2">
+            <p className="font-bold text-slate-900 flex items-center gap-1.5 justify-start">
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span> آخر المؤشرات الحيوية:
+            </p>
+            <div className="flex flex-wrap gap-2 text-[10px]">
+              <span className="bg-white border border-slate-200 px-2 py-0.5 rounded">
+                ضغط الدم: <span className="font-bold text-slate-800">{medicalData.vitals.bp}</span>
+              </span>
+              <span className="bg-white border border-slate-200 px-2 py-0.5 rounded">
+                نسبة السكر: <span className="font-bold text-slate-800">{medicalData.vitals.sugar}</span>
+              </span>
+            </div>
+          </div>
+
+          {/* Teeth to treat */}
+          <div className="space-y-2">
+            <p className="font-bold text-slate-900 flex items-center gap-1.5 justify-start">
+              <span className="w-2 h-2 rounded-full bg-amber-500"></span> الأسنان المتضررة المكتشفة:
+            </p>
+            {nonHealthyTeeth.length > 0 ? (
+              <div className="flex flex-wrap gap-1">
+                {nonHealthyTeeth.map((t, idx) => (
+                  <span key={idx} className="bg-amber-50 text-amber-800 font-bold border border-amber-100 text-[10px] px-1.5 py-0.5 rounded">
+                    السن {t.number} ({t.condition === 'decayed' ? 'تسوس' :
+                                    t.condition === 'missing' ? 'مفقود' :
+                                    t.condition === 'crown' ? 'تاج سني' :
+                                    t.condition === 'endo' ? 'حشو عصب سابق' :
+                                    t.condition === 'implant' ? 'زرعة' : t.condition})
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[10px] text-slate-500">جميع الأسنان سليمة - سيتم اقتراح رعاية عامة ووقائية</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Focus & Special Instructions */}
+      <div className="space-y-1.5">
+        <label className="block text-xs font-bold text-slate-800 flex items-center gap-1">
+          <span>💡</span> تعليمات أو متطلبات إضافية للطبيب (اختياري):
+        </label>
+        <textarea
+          value={doctorFocus}
+          onChange={e => setDoctorFocus(e.target.value)}
+          rows={3}
+          className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 placeholder-slate-400 resize-none transition-all shadow-sm"
+          placeholder="مثال: المريض يرغب ببدء تجميل القواطع الأمامية أولاً، المريض متخوف جداً من خلع ضرس العقل، يريد تقسيط تكاليف العلاج، إلخ..."
+        />
+      </div>
+
+      {/* Error details if any */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-800 font-bold leading-relaxed">
+          ⚠️ فشل التوليد: {error}
+        </div>
+      )}
+
+      {/* Button to generate */}
+      <button
+        onClick={handleGenerate}
+        className="w-full h-12 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold rounded-2xl text-xs shadow-lg shadow-purple-500/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-95"
+      >
+        <Brain className="w-4 h-4 animate-bounce" />
+        توليد الخطة السريرية المتكاملة بالـ AI الآن
+      </button>
+    </div>
+  );
+};
+
 
