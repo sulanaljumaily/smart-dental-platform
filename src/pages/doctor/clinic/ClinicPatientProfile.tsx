@@ -4375,10 +4375,11 @@ const SmileDesignModalContent: React.FC<{ patientName?: string; patientId?: stri
 interface SmartPlanModalContentProps {
   patient: any;
   patientTeeth: any[];
+  treatmentPlans: TreatmentPlan[];
   onAdoptPlan: (plan: any) => Promise<void>;
 }
 
-const SmartPlanModalContent: React.FC<SmartPlanModalContentProps> = ({ patient, patientTeeth, onAdoptPlan }) => {
+const SmartPlanModalContent: React.FC<SmartPlanModalContentProps> = ({ patient, patientTeeth, treatmentPlans, onAdoptPlan }) => {
   const [doctorFocus, setDoctorFocus] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isAdopting, setIsAdopting] = useState(false);
@@ -4408,44 +4409,65 @@ const SmartPlanModalContent: React.FC<SmartPlanModalContentProps> = ({ patient, 
     ? nonHealthyTeeth.map(t => `السن #${t.number}: الحالة الحالية هي [${t.condition}] ${t.notes ? `(ملاحظات: ${t.notes})` : ''}`).join('\n')
     : 'جميع الأسنان تظهر كـ سليمة في المخطط السريري الحالي.';
 
+  // Extract completed and ongoing treatment plans
+  const completedPlans = treatmentPlans.filter(p => p.status === 'completed');
+  const completedPlansText = completedPlans.length > 0
+    ? completedPlans.map(p => `- إجراء مكتمل: سن #${p.toothNumber || 'إجراء عام'} • النوع: ${p.type} • التكلفة: ${p.cost} د.ع • ملاحظات: ${p.notes}`).join('\n')
+    : 'لا يوجد علاجات مكتملة مسجلة مسبقاً.';
+
+  const ongoingPlans = treatmentPlans.filter(p => p.status !== 'completed' && p.status !== 'cancelled');
+  const ongoingPlansText = ongoingPlans.length > 0
+    ? ongoingPlans.map(p => `- إجراء غير مكتمل حالي (جاري العمل عليه): سن #${p.toothNumber || 'إجراء عام'} • النوع: ${p.type} • التكلفة: ${p.cost} د.ع • جلسات: ${p.completedSessions}/${p.totalSessions} • ملاحظات: ${p.notes}`).join('\n')
+    : 'لا يوجد علاجات جارية مسجلة حالياً.';
+
   const handleGenerate = async () => {
     setIsGenerating(true);
     setError(null);
     setGenerationStep('جاري قراءة التاريخ المرضي وتفاصيل الفحص...');
 
     try {
-      // Step 2: Formulate prompt
       setGenerationStep('جاري فحص مخطط الأسنان ومطابقة الحساسيات...');
-      await new Promise(r => setTimeout(r, 600)); // Smooth step animation
+      await new Promise(r => setTimeout(r, 600));
 
-      setGenerationStep('جاري بناء الموجه الطبي وإرساله للذكاء الاصطناعي...');
-      const prompt = `أنت طبيب أسنان استشاري خبير. قم بتوليد خطة علاجية مخصصة ومنظمة وموزعة على مراحل زمنية مرتبة بناءً على التفاصيل السريرية المرفقة للمريض.
+      setGenerationStep('جاري تحليل العلاجات المكتملة والعلاجات الجارية في ملف المريض...');
+      await new Promise(r => setTimeout(r, 600));
+
+      setGenerationStep('جاري بناء الموجه الطبي السريري وإرساله للذكاء الاصطناعي...');
+      
+      const prompt = `أنت طبيب أسنان استشاري خبير ومخطط علاجي محترف. قم بتوليد خطة علاجية مخصصة ومنظمة وموزعة على مراحل زمنية مرتبة ترتيباً دقيقاً يتماشى تماشياً كاملاً مع الخطوات والمراحل العالمية المعتمدة للخطط العلاجية (Globally Recognized Dental Treatment Planning Steps).
   
 معلومات المريض الحالية:
 - الاسم: ${patient?.name || 'غير معروف'}
 - العمر: ${patient?.age || 'غير محدد'}
 - الجنس: ${patient?.gender === 'male' ? 'ذكر' : 'أنثى'}
 
-السجل الطبي والحساسيات:
-- الحساسيات الموثقة: ${medicalData.allergies.join(', ') || 'لا يوجد حساسيات معروفة'}
+العلامات الحيوية والسجل الطبي للمريض:
+- العلامات الحيوية: ضغط الدم: ${medicalData.vitals.bp}، نسبة السكر: ${medicalData.vitals.sugar}، النبض: ${medicalData.vitals.pulse}، الوزن: ${medicalData.vitals.weight}، الطول: ${medicalData.vitals.height}
 - الأمراض المزمنة الحالية: ${medicalData.conditions.join(', ') || 'لا يوجد أمراض مزمنة'}
-- العلامات الحيوية: ضغط الدم: ${medicalData.vitals.bp}، نسبة السكر: ${medicalData.vitals.sugar}
-- عادات صحية وملاحظات أخرى: ${medicalData.habits.join(', ') || 'لا يوجد'} • ${medicalData.notes || 'لا يوجد'}
+- الحساسيات الموثقة: ${medicalData.allergies.join(', ') || 'لا يوجد حساسيات معروفة'}
+- عادات وملاحظات إضافية: ${medicalData.habits.join(', ') || 'لا يوجد'} • ${medicalData.notes || 'لا يوجد'}
 
-حالة الأسنان الحالية المكتشفة التي تحتاج إلى علاج (مخطط الأسنان):
+سجل العلاجات المكتملة مسبقاً (هذه الإجراءات تمت بنجاح واكتملت، افهمها لتجنب اقتراح إعادة علاجها أو البناء عليها):
+${completedPlansText}
+
+سجل العلاجات الجارية حالياً وغير المكتملة (هذه الإجراءات قيد التنفيذ حالياً في العيادة، لا تقترح إجراءات بديلة أو متعارضة معها بل أكمل الخطة بناءً عليها):
+${ongoingPlansText}
+
+حالة الأسنان الحالية المكتشفة التي تحتاج إلى علاج (مخطط الأسنان السريري):
 ${nonHealthyTeethText}
 
-ملاحظات الطبيب الإضافية الخاصة بالتوليد:
+ملاحظات الطبيب وتوجيهاته الخاصة بالتوليد:
 ${doctorFocus || 'لا يوجد ملاحظات إضافية'}
 
-تعليمات بالغة الأهمية:
-1. يجب أن تلتزم التزاماً صارماً بجميع الحساسيات المسجلة والأمراض المزمنة (مثال: إذا كان المريض يعاني من حساسية البنسلين، يمنع وصفه أو استخدامه، إذا كان يعاني من ارتفاع ضغط الدم، يجب اتخاذ محاذير في التخدير الموضعي، إلخ).
-2. صنف الخطة العلاجية المقترحة إلى مراحل منطقية مرتبة (Phases) مثل:
-   - "مرحلة طارئة/علاجية مستعجلة" (للحالات المؤلمة أو الالتهابات النشطة)
-   - "مرحلة وقائية/علاجية اعتيادية" (علاج العصب، حشوات، تنظيف لثة)
-   - "مرحلة تعويضية وتجميلية" (تركيبات، تيجان، زراعة، تبييض)
-3. لكل إجراء علاج مقترح في أي مرحلة، حدد:
-   - toothNumber: رقم السن بنظام FDI المزدوج للأسنان (11-48 أو 51-85). إذا كان الإجراء عاماً لكامل الفم (مثل تنظيف الجير)، ضع الرقم 0.
+التعليمات الطبية العالمية الإلزامية:
+1. يجب تقسيم الخطة العلاجية بدقة بالغة إلى 4 مراحل سريرية عالمية (4 Globally Recognized Phases) حصراً وبالمسميات التالية تماماً:
+   - "المرحلة الأولى: الطارئة والجهازية (Emergency & Systemic Phase)": تركز على معالجة الألم النشط، الخراجات الحادة، خلع الأسنان الملتهبة بشدة، واتخاذ محاذير فورية للأمراض المزمنة (مثل تكييف التخدير الموضعي لمرضى الضغط).
+   - "المرحلة الثانية: الوقائية والتحضيرية (Preventive & Hygienic Phase)": تشمل إزالة الجير وتلميع الأسنان (scaling & polishing)، علاج التهابات اللثة السطحية، حشوات مؤقتة لمنع انتشار التسوس، وتثقيف المريض.
+   - "المرحلة الثالثة: التصحيحية والعلاجية (Corrective & Restorative Phase)": تشمل حشوات دائمة، علاج عصب (endo)، تركيبات سنية (prosthetic) كالأطقم والتيجان والجسور، زراعة الأسنان (implant)، الجراحات المخطط لها، والتقويم (ortho).
+   - "المرحلة الرابعة: الوقائية الدورية (Maintenance & Recall Phase)": للمتابعة الدورية، فحص اللثة، وإجراء صور أشعة دورية للحفاظ على صحة الفم.
+
+2. لكل إجراء علاج مقترح في أي مرحلة، حدد بدقة:
+   - toothNumber: رقم السن بنظام الترقيم الدولي FDI (11-48 أو 51-85). إذا كان الإجراء عاماً لكامل الفم (مثل تنظيف الجير)، ضع الرقم 0.
    - type: تصنيف الإجراء بدقة بالغة من الأنواع التالية حصراً:
      * endo (علاج عصب)
      * implant (زراعة)
@@ -4453,19 +4475,20 @@ ${doctorFocus || 'لا يوجد ملاحظات إضافية'}
      * ortho (تقويم)
      * surgery (جراحة/خلع)
      * perio (علاج اللثة)
-     * general (تنظيف، حشوات، تبييض، إجراءات عامة)
+     * general (عام/تنظيف/حشوات/تبييض)
    - sessions: عدد الجلسات المتوقع (رقم صحيح، 1 على الأقل).
-   - cost: التكلفة التقديرية بالدينار العراقي (رقم صحيح، مثلاً 50000 أو 1000000، اعتمد تقديرات متوسطة واقعية).
+   - cost: التكلفة التقديرية بالدينار العراقي (رقم صحيح، مثلاً 50000 أو 1000000، اعتمد تقديرات واقعية ومناسبة).
    - notes: وصف تفصيلي مبسط للإجراء العلاجي بالعربية.
-4. استخرج قائمة "المحاذير والتحذيرات الطبية الصارمة" (contraindications) المناسبة لحالة هذا المريض وتاريخه المرضي بدقة.
 
-يجب أن تعيد المخرجات حصراً في قالب JSON صالح بدون أي نصوص تمهيدية أو ختامية، بالصيغة التالية تماماً:
+3. يجب مراعاة الحساسيات المسجلة والأمراض المزمنة بكل صرامة (مثال: تجنب البنسلين تماماً في التوصيات الدوائية، الحذر عند استخدام التخدير الذي يحتوي على epinephrine لمرضى الضغط الشديد، إلخ).
+
+4. يجب أن تعيد المخرجات حصراً في قالب JSON صالح بدون أي نصوص تمهيدية أو ختامية، بالصيغة التالية تماماً:
 {
-  "summary": "ملخص عام ومكثف جداً للخطة العلاجية والنتائج المتوقعة بالعربية",
+  "summary": "ملخص عام ومكثف جداً للخطة العلاجية والنتائج المتوقعة بالعربية مع ذكر مبررات التوزيع السريري للمراحل",
   "phases": [
     {
-      "name": "اسم المرحلة بالعربية",
-      "description": "وصف مبسط لهدف هذه المرحلة بالعربية",
+      "name": "اسم المرحلة المذكورة أعلاه حصراً",
+      "description": "وصف مبسط لهدف هذه المرحلة بالعربية بناءً على حالة المريض",
       "treatments": [
         {
           "toothNumber": 36,
@@ -4497,7 +4520,6 @@ ${doctorFocus || 'لا يوجد ملاحظات إضافية'}
         }
       }
 
-      // Check if it looks like JSON or if it failed to output JSON
       if (!cleanJson.startsWith('{')) {
         throw new Error('الاستجابة المستلمة ليست بتنسيق JSON صالح. يرجى المحاولة مرة أخرى.');
       }
@@ -4524,13 +4546,82 @@ ${doctorFocus || 'لا يوجد ملاحظات إضافية'}
     }
   };
 
+  // State handlers for pre-adoption editing and sorting
+  const handleUpdateCost = (phaseIdx: number, txIdx: number, newCost: number) => {
+    setGeneratedPlan((prev: any) => {
+      if (!prev) return prev;
+      const updatedPhases = [...prev.phases];
+      updatedPhases[phaseIdx].treatments = [...updatedPhases[phaseIdx].treatments];
+      updatedPhases[phaseIdx].treatments[txIdx] = {
+        ...updatedPhases[phaseIdx].treatments[txIdx],
+        cost: newCost
+      };
+      return { ...prev, phases: updatedPhases };
+    });
+  };
+
+  const handleUpdateNotes = (phaseIdx: number, txIdx: number, newNotes: string) => {
+    setGeneratedPlan((prev: any) => {
+      if (!prev) return prev;
+      const updatedPhases = [...prev.phases];
+      updatedPhases[phaseIdx].treatments = [...updatedPhases[phaseIdx].treatments];
+      updatedPhases[phaseIdx].treatments[txIdx] = {
+        ...updatedPhases[phaseIdx].treatments[txIdx],
+        notes: newNotes
+      };
+      return { ...prev, phases: updatedPhases };
+    });
+  };
+
+  const handleDeleteTreatment = (phaseIdx: number, txIdx: number) => {
+    setGeneratedPlan((prev: any) => {
+      if (!prev) return prev;
+      const updatedPhases = [...prev.phases];
+      updatedPhases[phaseIdx].treatments = updatedPhases[phaseIdx].treatments.filter((_: any, i: number) => i !== txIdx);
+      return { ...prev, phases: updatedPhases };
+    });
+    toast.success('تم حذف الإجراء من المرحلة المقترحة.');
+  };
+
+  const handleMoveTreatment = (phaseIdx: number, txIdx: number, direction: 'up' | 'down') => {
+    setGeneratedPlan((prev: any) => {
+      if (!prev) return prev;
+      const updatedPhases = [...prev.phases];
+      const treatments = [...updatedPhases[phaseIdx].treatments];
+      const targetIdx = direction === 'up' ? txIdx - 1 : txIdx + 1;
+      
+      if (targetIdx >= 0 && targetIdx < treatments.length) {
+        const temp = treatments[txIdx];
+        treatments[txIdx] = treatments[targetIdx];
+        treatments[targetIdx] = temp;
+        updatedPhases[phaseIdx].treatments = treatments;
+      }
+      return { ...prev, phases: updatedPhases };
+    });
+  };
+
+  const handleMovePhase = (phaseIdx: number, direction: 'up' | 'down') => {
+    setGeneratedPlan((prev: any) => {
+      if (!prev) return prev;
+      const updatedPhases = [...prev.phases];
+      const targetIdx = direction === 'up' ? phaseIdx - 1 : phaseIdx + 1;
+      
+      if (targetIdx >= 0 && targetIdx < updatedPhases.length) {
+        const temp = updatedPhases[phaseIdx];
+        updatedPhases[phaseIdx] = updatedPhases[targetIdx];
+        updatedPhases[targetIdx] = temp;
+      }
+      return { ...prev, phases: updatedPhases };
+    });
+  };
+
   // Calculate stats
   const totalCost = generatedPlan?.phases.reduce((sum: number, phase: any) => 
-    sum + phase.treatments.reduce((pSum: number, tx: any) => pSum + (tx.cost || 0), 0)
+    sum + phase.treatments.reduce((pSum: number, tx: any) => pSum + (Number(tx.cost) || 0), 0)
   , 0) || 0;
 
   const totalSessions = generatedPlan?.phases.reduce((sum: number, phase: any) => 
-    sum + phase.treatments.reduce((pSum: number, tx: any) => pSum + (tx.sessions || 0), 0)
+    sum + phase.treatments.reduce((pSum: number, tx: any) => pSum + (Number(tx.sessions) || 0), 0)
   , 0) || 0;
 
   const totalTreatments = generatedPlan?.phases.reduce((sum: number, phase: any) => 
@@ -4541,22 +4632,19 @@ ${doctorFocus || 'لا يوجد ملاحظات إضافية'}
     return (
       <div className="flex flex-col items-center justify-center py-12 px-4 space-y-6">
         <div className="relative w-24 h-24 flex items-center justify-center">
-          {/* Pulsing ring */}
           <div className="absolute inset-0 border-4 border-purple-500/20 rounded-full animate-ping"></div>
-          {/* Spinning progress */}
           <div className="absolute inset-0 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
-          {/* Center Brain Icon */}
           <div className="w-16 h-16 bg-gradient-to-tr from-purple-600 to-indigo-600 rounded-full shadow-lg flex items-center justify-center text-white">
             <Brain className="w-8 h-8 animate-pulse" />
           </div>
         </div>
         <div className="text-center space-y-2 max-w-md text-slate-800">
           <h3 className="text-base font-extrabold text-gray-900">جاري توليد الخطة السريرية الذكية بالـ AI</h3>
-          <p className="text-xs text-purple-600 font-bold bg-purple-50 px-3 py-1.5 rounded-full inline-block animate-pulse">
+          <p className="text-xs text-purple-600 font-bold bg-purple-50 px-4 py-2 rounded-full inline-block animate-pulse">
             {generationStep}
           </p>
           <p className="text-[11px] text-gray-500 leading-relaxed pt-2">
-            يقوم محرك الذكاء الاصطناعي بمراجعة التاريخ المرضي للمريض {patient?.name}، وحساسية الأدوية، وحالة الأسنان المصابة لبناء مراحل علاجية آمنة ومتكاملة مالياً وزمنياً.
+            يقوم محرك الذكاء الاصطناعي بمراجعة شاملة للتاريخ المرضي للمريض {patient?.name}، وحساسية الأدوية، وحالة الأسنان المصابة، بالإضافة لمطابقة العلاجات المكتملة والجارية لبناء مراحل علاجية آمنة وفقاً للبروتوكولات العالمية.
           </p>
         </div>
       </div>
@@ -4582,7 +4670,7 @@ ${doctorFocus || 'لا يوجد ملاحظات إضافية'}
         {/* Quick Stats Grid */}
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-purple-50 rounded-xl p-3 border border-purple-100 text-center space-y-0.5">
-            <p className="text-[10px] font-bold text-purple-500">التكلفة التقديرية</p>
+            <p className="text-[10px] font-bold text-purple-500">التكلفة الكلية للخطة</p>
             <p className="text-sm font-black text-purple-700 font-mono">
               {totalCost.toLocaleString('ar-IQ')} <span className="text-[10px] font-bold">د.ع</span>
             </p>
@@ -4590,11 +4678,11 @@ ${doctorFocus || 'لا يوجد ملاحظات إضافية'}
           <div className="bg-indigo-50 rounded-xl p-3 border border-indigo-100 text-center space-y-0.5">
             <p className="text-[10px] font-bold text-indigo-500">الجلسات المتوقعة</p>
             <p className="text-sm font-black text-indigo-700 font-mono">
-              {totalSessions} <span className="text-[10px] font-bold">جلسات</span>
+              {totalSessions} <span className="text-[10px] font-bold">جلسة</span>
             </p>
           </div>
           <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 text-center space-y-0.5">
-            <p className="text-[10px] font-bold text-slate-500">عدد الإجراءات</p>
+            <p className="text-[10px] font-bold text-slate-500">إجمالي العلاجات</p>
             <p className="text-sm font-black text-slate-700 font-mono">
               {totalTreatments} <span className="text-[10px] font-bold">إجراءات</span>
             </p>
@@ -4620,56 +4708,130 @@ ${doctorFocus || 'لا يوجد ملاحظات إضافية'}
         )}
 
         {/* Phases list */}
-        <div className="space-y-4">
-          <h4 className="font-bold text-xs text-slate-800 border-r-2 border-purple-600 pr-2">مراحل الخطة العلاجية المتكاملة:</h4>
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h4 className="font-bold text-xs text-slate-800 border-r-2 border-purple-600 pr-2">الخطوات العالمية المعتمدة للخطط العلاجية:</h4>
+            <span className="text-[10px] text-gray-500">💡 يمكنك تعديل الأسعار، الملاحظات، إعادة الترتيب أو الحذف قبل الاعتماد</span>
+          </div>
           
           {generatedPlan.phases.map((phase: any, pIdx: number) => (
-            <div key={pIdx} className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3 hover:shadow-md transition-shadow">
+            <div key={pIdx} className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3 hover:shadow-md transition-shadow relative">
+              
+              {/* Phase header & Reordering */}
               <div className="flex items-start justify-between border-b border-slate-100 pb-2.5 text-right">
                 <div className="space-y-0.5">
-                  <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded">المرحلة {pIdx + 1}</span>
-                  <h5 className="font-extrabold text-xs text-slate-900">{phase.name}</h5>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] font-extrabold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">المرحلة {pIdx + 1}</span>
+                    <h5 className="font-extrabold text-xs text-slate-900">{phase.name}</h5>
+                  </div>
+                  <p className="text-[10px] text-gray-500 leading-relaxed">{phase.description}</p>
                 </div>
-                <p className="text-[10px] text-gray-500 max-w-xs text-left leading-relaxed">{phase.description}</p>
+                
+                {/* Phase sorting buttons */}
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => handleMovePhase(pIdx, 'up')}
+                    disabled={pIdx === 0}
+                    className="p-1 rounded bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-slate-600 transition-colors"
+                    title="تحريك المرحلة للأعلى"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5 rotate-90" />
+                  </button>
+                  <button
+                    onClick={() => handleMovePhase(pIdx, 'down')}
+                    disabled={pIdx === generatedPlan.phases.length - 1}
+                    className="p-1 rounded bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-slate-600 transition-colors"
+                    title="تحريك المرحلة للأسفل"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5 -rotate-90" />
+                  </button>
+                </div>
               </div>
 
               {/* Treatments in this phase */}
               <div className="space-y-2">
-                {phase.treatments.map((tx: any, tIdx: number) => (
-                  <div key={tIdx} className="bg-slate-50/50 rounded-xl p-3 border border-slate-100 flex items-center justify-between text-xs hover:bg-slate-50 transition-colors">
-                    <div className="flex items-center gap-3">
-                      {/* Tooth icon indicator */}
-                      <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center font-mono font-black text-slate-700">
-                        {tx.toothNumber === 0 ? '🦷' : tx.toothNumber}
-                      </div>
-                      <div className="space-y-0.5 text-right">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-900">{tx.notes}</span>
-                          <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full uppercase bg-indigo-50 text-indigo-700 border border-indigo-100">
-                            {tx.type === 'endo' ? 'علاج عصب' :
-                             tx.type === 'implant' ? 'زراعة' :
-                             tx.type === 'prosthetic' ? 'تركيبات' :
-                             tx.type === 'ortho' ? 'تقويم أسنان' :
-                             tx.type === 'surgery' ? 'جراحة/خلع' :
-                             tx.type === 'perio' ? 'علاج لثة' : 'عام'}
-                          </span>
+                {phase.treatments && phase.treatments.length > 0 ? (
+                  phase.treatments.map((tx: any, tIdx: number) => (
+                    <div key={tIdx} className="bg-slate-50/70 rounded-xl p-3 border border-slate-150 flex items-center justify-between text-xs hover:bg-slate-50 transition-all">
+                      <div className="flex items-center gap-3 flex-1">
+                        {/* Tooth number badge */}
+                        <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center font-mono font-black text-slate-700 shrink-0">
+                          {tx.toothNumber === 0 ? '🦷' : tx.toothNumber}
                         </div>
-                        <p className="text-[10px] text-slate-500">
-                          {tx.toothNumber === 0 ? 'إجراء عام لكامل الفم' : `فحص وتأهيل السن رقم ${tx.toothNumber} بنظام FDI`}
-                        </p>
+                        
+                        <div className="space-y-1.5 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap text-right">
+                            {/* Editable Notes / Title */}
+                            <input
+                              type="text"
+                              value={tx.notes}
+                              onChange={(e) => handleUpdateNotes(pIdx, tIdx, e.target.value)}
+                              className="font-bold text-slate-900 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-purple-500 focus:bg-white focus:outline-none px-1 py-0.5 rounded w-72 transition-all"
+                            />
+                            <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full uppercase bg-indigo-50 text-indigo-700 border border-indigo-100">
+                              {tx.type === 'endo' ? 'علاج عصب' :
+                               tx.type === 'implant' ? 'زراعة' :
+                               tx.type === 'prosthetic' ? 'تركيبات' :
+                               tx.type === 'ortho' ? 'تقويم أسنان' :
+                               tx.type === 'surgery' ? 'جراحة/خلع' :
+                               tx.type === 'perio' ? 'علاج لثة' : 'عام'}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-500">
+                            {tx.toothNumber === 0 ? 'إجراء عام لكامل الفم' : `فحص وتأهيل السن رقم ${tx.toothNumber} بنظام FDI`}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Right actions: Cost input, sorting, and delete */}
+                      <div className="flex items-center gap-4 shrink-0">
+                        {/* Cost input */}
+                        <div className="text-left space-y-1">
+                          <label className="block text-[8px] font-extrabold text-slate-400 text-right">التكلفة (د.ع)</label>
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              value={tx.cost}
+                              onChange={(e) => handleUpdateCost(pIdx, tIdx, parseInt(e.target.value) || 0)}
+                              className="w-24 text-left font-black text-slate-800 bg-white border border-slate-200 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-purple-500 font-mono text-[11px]"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Sorting within phase */}
+                        <div className="flex flex-col gap-0.5">
+                          <button
+                            onClick={() => handleMoveTreatment(pIdx, tIdx, 'up')}
+                            disabled={tIdx === 0}
+                            className="p-0.5 rounded hover:bg-slate-200 disabled:opacity-20 text-slate-500 transition-colors"
+                            title="تحريك للأعلى"
+                          >
+                            <ChevronLeft className="w-3.5 h-3.5 rotate-90" />
+                          </button>
+                          <button
+                            onClick={() => handleMoveTreatment(pIdx, tIdx, 'down')}
+                            disabled={tIdx === phase.treatments.length - 1}
+                            className="p-0.5 rounded hover:bg-slate-200 disabled:opacity-20 text-slate-500 transition-colors"
+                            title="تحريك للأسفل"
+                          >
+                            <ChevronLeft className="w-3.5 h-3.5 -rotate-90" />
+                          </button>
+                        </div>
+
+                        {/* Delete treatment */}
+                        <button
+                          onClick={() => handleDeleteTreatment(pIdx, tIdx)}
+                          className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 hover:text-red-700 transition-colors"
+                          title="حذف الإجراء"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
-
-                    <div className="text-left space-y-0.5">
-                      <p className="font-bold text-slate-900 font-mono">
-                        {tx.cost.toLocaleString('ar-IQ')} <span className="text-[9px] font-normal text-slate-500">د.ع</span>
-                      </p>
-                      <p className="text-[9px] text-slate-500">
-                        عدد الجلسات: <span className="font-bold text-indigo-600 font-mono">{tx.sessions}</span>
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <p className="text-[10px] text-gray-400 text-center py-2">لا توجد إجراءات مقترحة لهذه المرحلة.</p>
+                )}
               </div>
             </div>
           ))}
@@ -4707,111 +4869,148 @@ ${doctorFocus || 'لا يوجد ملاحظات إضافية'}
 
   return (
     <div className="space-y-6 text-right animate-in fade-in">
-      {/* Intro Warning and Instruction banner */}
-      <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
-        <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-        <div className="space-y-1">
-          <h4 className="font-extrabold text-xs text-slate-900">كيف تعمل الخطة العلاجية الذكية؟</h4>
+      {/* Intro Instruction banner */}
+      <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 rounded-2xl p-4 flex items-start gap-3 shadow-sm">
+        <Sparkles className="w-5 h-5 text-purple-600 shrink-0 mt-0.5 animate-pulse" />
+        <div className="space-y-1 text-right">
+          <h4 className="font-extrabold text-xs text-slate-900">مرحباً بك في مخطّط العلاج الذكي بالـ AI!</h4>
           <p className="text-[11px] text-slate-700 leading-relaxed">
-            سيقوم المحرك الذكي بقراءة التاريخ الطبي للمريض ({patient?.name})، والأمراض المزمنة المسجلة، والحساسيات، وتفاصيل الأسنان المصابة في السجل. ومن ثم، سيقوم بتصميم خطة علاجية مخصصة وموزعة على مراحل زمنية مرتبة تراعي سلامته وتجنبه أي أدوية أو تخدير يتعارض مع حالته مع تكاليف تقديرية متوسطة للعيادة.
+            يقوم النظام بتحليل كامل ملف المريض سريرياً وعلاجياً. سيتم قراءة الحساسيات، العلامات الحيوية، والأمراض، بالإضافة إلى **الخطط العلاجية المكتملة مسبقاً** و**الخطط الجارية**، لكي يولد الذكاء الاصطناعي خطة مكملة ومبنية بناءً علمياً يتماشى مع المراحل الأربعة العالمية للتخطيط العلاجي السني.
           </p>
         </div>
       </div>
 
-      {/* Patient info checklist */}
+      {/* Checklist Grid */}
       <div className="bg-slate-50/80 rounded-2xl border border-slate-200 p-4 space-y-4">
-        <h4 className="font-extrabold text-xs text-slate-800">📋 سياق البيانات السريرية الحالية المعتمد للتوليد:</h4>
+        <h4 className="font-extrabold text-xs text-slate-800">📋 تفاصيل سياق المريض التي سيحصل عليها وكيل الـ AI بالكامل:</h4>
         
         <div className="grid grid-cols-2 gap-4 text-xs leading-relaxed text-right">
-          {/* Medical Alerts (Chronic Conditions) */}
-          <div className="space-y-2">
-            <p className="font-bold text-slate-900 flex items-center gap-1.5 justify-start">
-              <span className="w-2 h-2 rounded-full bg-indigo-500"></span> الأمراض والتحذيرات السريرية:
-            </p>
-            {medicalData.conditions.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {medicalData.conditions.map((c, idx) => (
-                  <span key={idx} className="bg-indigo-50 text-indigo-700 font-bold border border-indigo-100 text-[10px] px-2 py-0.5 rounded-full">
-                    {c === 'hypertension' ? 'ضغط الدم المرتفع' :
-                     c === 'diabetes' ? 'داء السكري' :
-                     c === 'cardiac' ? 'مشاكل في القلب' :
-                     c === 'pregnancy' ? 'حمل' : c}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="text-[10px] text-slate-500">لا يوجد أمراض مزمنة مسجلة</p>
-            )}
-          </div>
-
-          {/* Allergies */}
-          <div className="space-y-2">
-            <p className="font-bold text-slate-900 flex items-center gap-1.5 justify-start">
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span> حساسيات المريض:
-            </p>
-            {medicalData.allergies.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {medicalData.allergies.map((a, idx) => (
-                  <span key={idx} className="bg-red-50 text-red-700 font-bold border border-red-100 text-[10px] px-2 py-0.5 rounded-full">
-                    {a === 'penicillin' ? 'حساسية البنسلين 💊' : a}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="text-[10px] text-slate-500">لا يوجد حساسيات دوائية مسجلة</p>
-            )}
-          </div>
-
           {/* Vitals */}
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <p className="font-bold text-slate-900 flex items-center gap-1.5 justify-start">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span> آخر المؤشرات الحيوية:
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span> العلامات الحيوية المكتملة:
             </p>
-            <div className="flex flex-wrap gap-2 text-[10px]">
-              <span className="bg-white border border-slate-200 px-2 py-0.5 rounded">
-                ضغط الدم: <span className="font-bold text-slate-800">{medicalData.vitals.bp}</span>
+            <div className="flex flex-wrap gap-2 text-[10px] pr-2">
+              <span className="bg-white border border-slate-200 px-2 py-0.5 rounded font-mono">
+                الضغط: {medicalData.vitals.bp}
               </span>
-              <span className="bg-white border border-slate-200 px-2 py-0.5 rounded">
-                نسبة السكر: <span className="font-bold text-slate-800">{medicalData.vitals.sugar}</span>
+              <span className="bg-white border border-slate-200 px-2 py-0.5 rounded font-mono">
+                السكر: {medicalData.vitals.sugar}
+              </span>
+              <span className="bg-white border border-slate-200 px-2 py-0.5 rounded font-mono">
+                النبض: {medicalData.vitals.pulse}
               </span>
             </div>
           </div>
 
-          {/* Teeth to treat */}
-          <div className="space-y-2">
+          {/* Chronic Conditions */}
+          <div className="space-y-1.5">
+            <p className="font-bold text-slate-900 flex items-center gap-1.5 justify-start">
+              <span className="w-2 h-2 rounded-full bg-indigo-500"></span> الأمراض والمخاطر المزمنة:
+            </p>
+            {medicalData.conditions.length > 0 ? (
+              <div className="flex flex-wrap gap-1 pr-2">
+                {medicalData.conditions.map((c, idx) => (
+                  <span key={idx} className="bg-indigo-50 text-indigo-700 font-bold border border-indigo-100 text-[9px] px-2 py-0.5 rounded-full">
+                    {c === 'hypertension' ? 'ضغط دم مرتفع' :
+                     c === 'diabetes' ? 'سكري' : c}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[10px] text-slate-500 pr-2">لا يوجد أمراض مزمنة مسجلة.</p>
+            )}
+          </div>
+
+          {/* Allergies */}
+          <div className="space-y-1.5">
+            <p className="font-bold text-slate-900 flex items-center gap-1.5 justify-start">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span> حساسيات المريض الدوائية:
+            </p>
+            {medicalData.allergies.length > 0 ? (
+              <div className="flex flex-wrap gap-1 pr-2">
+                {medicalData.allergies.map((a, idx) => (
+                  <span key={idx} className="bg-red-50 text-red-700 font-bold border border-red-100 text-[9px] px-2 py-0.5 rounded-full">
+                    {a === 'penicillin' ? 'بنسلين 💊' : a}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[10px] text-slate-500 pr-2">لا يوجد حساسيات معروفة.</p>
+            )}
+          </div>
+
+          {/* Non-healthy Teeth */}
+          <div className="space-y-1.5">
             <p className="font-bold text-slate-900 flex items-center gap-1.5 justify-start">
               <span className="w-2 h-2 rounded-full bg-amber-500"></span> الأسنان المتضررة المكتشفة:
             </p>
             {nonHealthyTeeth.length > 0 ? (
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-1 pr-2">
                 {nonHealthyTeeth.map((t, idx) => (
-                  <span key={idx} className="bg-amber-50 text-amber-800 font-bold border border-amber-100 text-[10px] px-1.5 py-0.5 rounded">
+                  <span key={idx} className="bg-amber-50 text-amber-800 font-bold border border-amber-150 text-[9px] px-1.5 py-0.5 rounded">
                     السن {t.number} ({t.condition === 'decayed' ? 'تسوس' :
                                     t.condition === 'missing' ? 'مفقود' :
-                                    t.condition === 'crown' ? 'تاج سني' :
-                                    t.condition === 'endo' ? 'حشو عصب سابق' :
+                                    t.condition === 'crown' ? 'تاج' :
+                                    t.condition === 'endo' ? 'عصب' :
                                     t.condition === 'implant' ? 'زرعة' : t.condition})
                   </span>
                 ))}
               </div>
             ) : (
-              <p className="text-[10px] text-slate-500">جميع الأسنان سليمة - سيتم اقتراح رعاية عامة ووقائية</p>
+              <p className="text-[10px] text-slate-500 pr-2">جميع الأسنان سليمة - سيتم اقتراح رعاية وقائية عامة.</p>
+            )}
+          </div>
+
+          {/* Completed Treatment History */}
+          <div className="space-y-1.5 col-span-2 border-t border-slate-200/50 pt-2.5 text-right">
+            <p className="font-bold text-slate-900 flex items-center gap-1.5 justify-start">
+              <span className="w-2 h-2 rounded-full bg-green-500"></span> سجل العلاجات المكتملة مسبقاً (سيبني عليها الـ AI):
+            </p>
+            {completedPlans.length > 0 ? (
+              <div className="space-y-1 pr-2">
+                {completedPlans.map((p, idx) => (
+                  <p key={idx} className="text-[10px] text-slate-600">
+                    ✓ سن #{p.toothNumber || 'إجراء عام'} • {p.notes || p.type} <span className="text-[8px] bg-green-50 text-green-700 px-1 py-0.2 rounded border border-green-100 font-bold">مكتمل</span>
+                  </p>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[10px] text-slate-400 pr-2 leading-normal">لا توجد خطط علاجية مكتملة مسجلة.</p>
+            )}
+          </div>
+
+          {/* Ongoing Treatment History */}
+          <div className="space-y-1.5 col-span-2 border-t border-slate-200/50 pt-2.5 text-right">
+            <p className="font-bold text-slate-900 flex items-center gap-1.5 justify-start">
+              <span className="w-2 h-2 rounded-full bg-blue-500"></span> سجل العلاجات الجارية حالياً (سيتجنب الـ AI تكرارها):
+            </p>
+            {ongoingPlans.length > 0 ? (
+              <div className="space-y-1 pr-2">
+                {ongoingPlans.map((p, idx) => (
+                  <p key={idx} className="text-[10px] text-slate-600">
+                    ⌛ سن #{p.toothNumber || 'إجراء عام'} • {p.notes || p.type} <span className="text-[8px] bg-blue-50 text-blue-700 px-1 py-0.2 rounded border border-blue-100 font-bold">جاري العمل</span>
+                  </p>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[10px] text-slate-400 pr-2 leading-normal">لا توجد خطط علاجية جارية مسجلة حالياً.</p>
             )}
           </div>
         </div>
       </div>
 
-      {/* Focus & Special Instructions */}
+      {/* Focus & Custom instructions */}
       <div className="space-y-1.5">
         <label className="block text-xs font-bold text-slate-800 flex items-center gap-1">
-          <span>💡</span> تعليمات أو متطلبات إضافية للطبيب (اختياري):
+          <span>💡</span> تعليمات أو متطلبات إضافية للطبيب (مثال: المريض يطلب تقسيط العلاج، أو تبييض الأسنان):
         </label>
         <textarea
           value={doctorFocus}
           onChange={e => setDoctorFocus(e.target.value)}
           rows={3}
-          className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 placeholder-slate-400 resize-none transition-all shadow-sm"
-          placeholder="مثال: المريض يرغب ببدء تجميل القواطع الأمامية أولاً، المريض متخوف جداً من خلع ضرس العقل، يريد تقسيط تكاليف العلاج، إلخ..."
+          className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 placeholder-slate-450 resize-none transition-all shadow-sm"
+          placeholder="مثال: المريض يرغب ببدء تجميل القواطع الأمامية أولاً، المريض لديه فوبيا من الخلع، أو المريض يريد التركيز على تبييض القشور..."
         />
       </div>
 
