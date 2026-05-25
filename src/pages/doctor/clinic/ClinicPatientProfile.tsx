@@ -35,6 +35,7 @@ import { useLabs } from '../../../hooks/useLabs';
 import { useLabOrders } from '../../../hooks/useLabOrders';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useAIAnalysis } from '../../../hooks/useAIAnalysis';
+import { aiService } from '../../../services/ai/AIService';
 import { ImageUploadZone } from '../../../components/ai/ImageUploadZone';
 import { AnalysisResultCard } from '../../../components/ai/AnalysisResultCard';
 import { PatientImageGallery } from '../../../components/patient/PatientImageGallery';
