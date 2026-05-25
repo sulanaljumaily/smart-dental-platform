@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useCurrentClinic } from '../../../hooks/useCurrentClinic';
 import { supabase } from '../../../lib/supabase';
@@ -3469,6 +3469,10 @@ const SmileDesignModalContent: React.FC<{ patientName?: string; patientId?: stri
   const [processingStep, setProcessingStep] = useState('');
   const [aiSimulated, setAiSimulated] = useState(false);
   const [splitPosAi, setSplitPosAi] = useState(50);
+  const [generatedSmileImage, setGeneratedSmileImage] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [userApiKey, setUserApiKey] = useState('');
+  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
 
   // ===== WHITENESS FILTER =====
   const getWhitenessFilter = (grade: number) => {
@@ -3555,37 +3559,80 @@ const SmileDesignModalContent: React.FC<{ patientName?: string; patientId?: stri
     toast.success('تمت إضافة الملاحظة.');
   };
 
-  // ===== AI TRIGGER =====
-  const handleTriggerAi = () => {
+  // ===== AI TRIGGER — Real DALL-E 3 Image Generation =====
+  const handleTriggerAi = async () => {
+    setAiError(null);
+    setGeneratedSmileImage(null);
+
+    // Get API key: try aiService config first, then user-entered key
+    const config = aiService.getConfig('image_analysis');
+    const apiKey = userApiKey.trim() || config?.apiKey?.trim() || '';
+
+    if (!apiKey) {
+      setShowApiKeyInput(true);
+      toast.error('يرجى إدخال مفتاح OpenAI API لتوليد الصورة بالـ AI.');
+      return;
+    }
+
     setIsAiProcessing(true);
     setAiSimulated(false);
-    const steps = [
-      '📡 الاتصال بـ Nano Banana Server...',
-      '📤 تحليل ملامح الأسنان والشفاه بالـ AI...',
-      '🧠 تشغيل gemini-nano-banana-dsd...',
-      '🎨 تطبيق التبييض والتشكيل الواقعي...',
-      '✨ دمج النتيجة ومعايرة الانعكاس الضوئي...',
-    ];
-    let i = 0;
-    setProcessingStep(steps[0]);
-    const iv = setInterval(() => {
-      i++;
-      if (i < steps.length) { setProcessingStep(steps[i]); }
-      else {
-        clearInterval(iv);
-        setIsAiProcessing(false);
-        setAiSimulated(true);
-        if (whiteness < 4) setWhiteness(5);
-        toast.success('✨ اكتملت محاكاة نانو بنانا! اسحب شريط المقارنة.');
+    setShowApiKeyInput(false);
+
+    // Build a dental-specific DALL-E prompt from user input
+    const vitaColor = whiteness === 5 ? 'VITA B1 ultra-white Hollywood' :
+                      whiteness === 4 ? 'VITA A1 bright white' :
+                      whiteness === 3 ? 'VITA A2 natural white' : 'VITA A3 natural';
+    const shapeDesc = toothShape === 'square' ? 'rectangular Hollywood square veneers' :
+                      toothShape === 'oval' ? 'soft oval rounded veneers' : 'natural anatomical tooth shape';
+    const dallePrompt = `Professional dental photography of a beautiful realistic smile after cosmetic dental treatment. ${shapeDesc}, ${vitaColor} porcelain veneers with natural light reflection and translucency. Perfect symmetrical smile, ultra-realistic dental photography, studio lighting, close-up smile photo, no background. Clinical dental photography style. ${aiPrompt}`;
+
+    setProcessingStep('📡 الاتصال بـ OpenAI DALL-E 3...');
+
+    try {
+      setProcessingStep('🎨 جاري توليد صورة الابتسامة بالذكاء الاصطناعي...');
+      const response = await fetch('https://api.openai.com/v1/images/generations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'dall-e-3',
+          prompt: dallePrompt,
+          n: 1,
+          size: '1024x1024',
+          quality: 'hd',
+          style: 'natural'
+        })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error?.message || `خطأ ${response.status}: فشل الاتصال بـ OpenAI`);
       }
-    }, 900);
+
+      const data = await response.json();
+      const imageUrl = data.data?.[0]?.url;
+
+      if (!imageUrl) throw new Error('لم يتم استقبال صورة من الـ API.');
+
+      setGeneratedSmileImage(imageUrl);
+      setAiSimulated(true);
+      setIsAiProcessing(false);
+      toast.success('✨ تم توليد صورة الابتسامة بنجاح! اسحب شريط المقارنة لرؤية النتيجة.');
+    } catch (err: any) {
+      setIsAiProcessing(false);
+      const msg = err.message || 'فشل توليد الصورة';
+      setAiError(msg);
+      toast.error(`فشل توليد الصورة: ${msg}`);
+    }
   };
 
   // ===== EXPORT =====
   const handleExport = () => {
     if (!patientPhoto) return;
     const today = new Date().toLocaleDateString('ar-IQ', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    const method = step === 2 ? 'تصميم يدوي تحليلي' : 'نانو بنانا AI';
+    const method = step === 2 ? 'تصميم يدوي تحليلي' : 'تصميم الابتسامة بواسطة الـ AI';
     const win = window.open('', '_blank');
     if (!win) { toast.error('يرجى السماح بالنوافذ المنبثقة.'); return; }
     win.document.write(`<html><head><title>تقرير DSD - ${patientName || 'المراجع'}</title>
@@ -3625,14 +3672,19 @@ const SmileDesignModalContent: React.FC<{ patientName?: string; patientId?: stri
           <div className="absolute inset-0">
             <img src={patientPhoto!} alt="Before" className="w-full h-full object-cover"
               style={{ transform: `scale(${bgScale}) translate(${bgX}px,${bgY}px)`, transformOrigin: 'center' }} />
-            <div className="absolute bottom-3 right-3 bg-black/70 text-slate-300 px-2.5 py-1 rounded-lg text-[10px] font-bold backdrop-blur-sm">قبل</div>
+            <div className="absolute bottom-3 right-3 bg-black/70 text-slate-300 px-2.5 py-1 rounded-lg text-[10px] font-bold backdrop-blur-sm">قبل التصميم</div>
           </div>
           {/* AFTER */}
           <div className="absolute inset-0 overflow-hidden border-l-2 border-violet-400 z-10" style={{ clipPath: `inset(0 ${100 - splitPos}% 0 0)` }}>
-            <img src={patientPhoto!} alt="After" className="w-full h-full object-cover"
-              style={{ transform: `scale(${bgScale}) translate(${bgX}px,${bgY}px)`, transformOrigin: 'center', filter }} />
-            <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 60% 18% at 50% 63%, rgba(255,255,255,0.12) 0%, transparent 70%)' }} />
-            <div className="absolute bottom-3 left-3 bg-violet-600/90 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold backdrop-blur-sm">بعد</div>
+            {generatedSmileImage ? (
+              <img src={generatedSmileImage} alt="AI Generated Smile" className="w-full h-full object-cover" />
+            ) : (
+              <img src={patientPhoto!} alt="After" className="w-full h-full object-cover"
+                style={{ transform: `scale(${bgScale}) translate(${bgX}px,${bgY}px)`, transformOrigin: 'center', filter }} />
+            )}
+            <div className="absolute bottom-3 left-3 bg-violet-600/90 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold backdrop-blur-sm flex items-center gap-1">
+              {generatedSmileImage ? <><span>✨</span> صورة AI حقيقية</> : 'بعد التصميم'}
+            </div>
           </div>
           {/* Handle */}
           <div className="absolute top-0 bottom-0 w-0.5 bg-violet-400 shadow-[0_0_10px_rgba(167,139,250,0.8)] pointer-events-none z-20" style={{ left: `${splitPos}%` }}>
@@ -3776,12 +3828,12 @@ const SmileDesignModalContent: React.FC<{ patientName?: string; patientId?: stri
               className="group relative p-5 rounded-2xl border-2 border-purple-100 bg-gradient-to-br from-purple-50 to-fuchsia-50 hover:border-purple-400 hover:shadow-lg hover:shadow-purple-100 transition-all text-right flex items-start gap-4 active:scale-[0.98]"
             >
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform">
-                <span className="text-2xl">🍌</span>
+                <span className="text-2xl">✨</span>
               </div>
               <div className="flex-1">
-                <h4 className="font-extrabold text-sm text-purple-900 mb-1">نانو بنانا للذكاء الاصطناعي</h4>
+                <h4 className="font-extrabold text-sm text-purple-900 mb-1">تصميم الابتسامة بواسطة الـ AI</h4>
                 <p className="text-[11px] text-purple-600/80 leading-relaxed">
-                  أرسل برومبت وصفياً دقيقاً وسيقوم نموذج gemini-nano-banana-dsd بمحاكاة الابتسامة الواقعية الكاملة
+                  فحص وتحسين الابتسامة بواسطة الذكاء الاصطناعي التوليدي ومحاكاة النتيجة النهائية بدقة فائقة
                 </p>
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   {['🤖 AI توليدي', '✨ محاكاة واقعية', '🎨 برومبت مخصص', '⟺ مقارنة قبل/بعد'].map(tag => (
@@ -3975,9 +4027,9 @@ const SmileDesignModalContent: React.FC<{ patientName?: string; patientId?: stri
         <div className="flex-1">
           <h4 className="text-sm font-extrabold text-slate-800 flex items-center gap-2">
             <span className="w-2 h-4 rounded-full bg-purple-500 inline-block"></span>
-            نانو بنانا - تصميم بالذكاء الاصطناعي
+            تصميم الابتسامة بواسطة الـ AI
           </h4>
-          <p className="text-[10px] text-slate-500">gemini-nano-banana-dsd</p>
+          <p className="text-[10px] text-slate-500">فحص وتحسين الابتسامة بواسطة الذكاء الاصطناعي التوليدي</p>
         </div>
         <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-500/10 border border-green-500/20">
           <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping inline-block"></span>
@@ -3994,7 +4046,7 @@ const SmileDesignModalContent: React.FC<{ patientName?: string; patientId?: stri
           onSplitChange={setSplitPosAi}
         >
           <div className={`absolute top-3 right-3 px-2.5 py-1 rounded-lg text-[10px] font-bold backdrop-blur-sm ${aiSimulated ? 'bg-purple-600/90 text-white' : 'bg-slate-800/80 text-slate-300'}`}>
-            {aiSimulated ? '✨ نانو بنانا AI' : '🍌 انتظر المعالجة'}
+            {aiSimulated ? '✨ تصميم الابتسامة بالـ AI' : '✨ انتظر المعالجة'}
           </div>
         </PhotoCanvas>
 
@@ -4003,9 +4055,9 @@ const SmileDesignModalContent: React.FC<{ patientName?: string; patientId?: stri
           <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md rounded-2xl z-50 flex flex-col items-center justify-center text-center p-6">
             <div className="relative mb-5">
               <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-              <div className="absolute inset-0 flex items-center justify-center text-2xl">🍌</div>
+              <div className="absolute inset-0 flex items-center justify-center text-2xl">✨</div>
             </div>
-            <h4 className="text-sm font-extrabold text-purple-300 animate-pulse mb-2">جاري المعالجة بنانو بنانا</h4>
+            <h4 className="text-sm font-extrabold text-purple-300 animate-pulse mb-2">جاري فحص وتحسين الابتسامة</h4>
             <p className="text-xs text-slate-400 font-mono max-w-[240px] leading-relaxed">{processingStep}</p>
           </div>
         )}
@@ -4013,13 +4065,32 @@ const SmileDesignModalContent: React.FC<{ patientName?: string; patientId?: stri
 
       {/* AI Control Panel */}
       <div className="bg-gradient-to-br from-purple-950/70 to-fuchsia-950/50 rounded-2xl border border-purple-800/40 p-4 space-y-4">
-        <p className="text-[11px] text-purple-300/80 leading-relaxed">
-          اكتب برومبتاً وصفياً للابتسامة المطلوبة وسيقوم النموذج بمحاكاة التبييض والشكل على الصورة الفعلية.
-        </p>
+
+        {/* OpenAI API Key input */}
+        <div className="bg-amber-950/40 border border-amber-700/40 rounded-xl p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-amber-400 text-sm">🔑</span>
+            <p className="text-[11px] font-bold text-amber-300">مفتاح OpenAI API لتوليد الصورة</p>
+          </div>
+          <p className="text-[10px] text-amber-200/70 leading-relaxed">
+            يتطلب توليد صورة حقيقية بالـ AI مفتاح OpenAI API (DALL-E 3).
+            احصل عليه من <span className="text-amber-300 font-mono">platform.openai.com</span>
+          </p>
+          <input
+            type="password"
+            value={userApiKey}
+            onChange={e => setUserApiKey(e.target.value)}
+            placeholder="sk-proj-..."
+            className="w-full bg-slate-900 text-white rounded-lg border border-amber-800/40 px-3 py-2 text-xs font-mono placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-amber-500"
+          />
+          {userApiKey && (
+            <p className="text-[10px] text-green-400">✓ تم إدخال المفتاح — جاهز للتوليد</p>
+          )}
+        </div>
 
         {/* Prompt */}
         <div className="space-y-1.5">
-          <label className="block text-[10px] font-bold text-purple-300">نص البرومبت الطبي:</label>
+          <label className="block text-[10px] font-bold text-purple-300">وصف الابتسامة المطلوبة (البرومبت):</label>
           <textarea value={aiPrompt} onChange={e => setAiPrompt(e.target.value)} rows={3}
             className="w-full bg-slate-900 text-white rounded-xl border border-purple-800/40 p-3 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-purple-700 resize-none"
             placeholder="صف الابتسامة المطلوبة..." />
@@ -4040,44 +4111,84 @@ const SmileDesignModalContent: React.FC<{ patientName?: string; patientId?: stri
           ))}
         </div>
 
-        {/* Whiteness */}
+        {/* Tooth Shape */}
         <div className="space-y-1.5 pt-1 border-t border-purple-800/30">
+          <p className="text-[10px] font-bold text-purple-300">شكل الأسنان للتوليد:</p>
+          <div className="grid grid-cols-3 gap-2">
+            {(['natural', 'oval', 'square'] as const).map(s => (
+              <button key={s} onClick={() => setToothShape(s)}
+                className={`py-1.5 rounded-xl text-[11px] font-bold border transition-all ${toothShape === s ? 'bg-purple-600 text-white border-purple-700' : 'bg-slate-900/50 text-purple-300 border-purple-900/40 hover:border-purple-600'}`}>
+                {s === 'natural' ? '🦷 طبيعي' : s === 'oval' ? '⭕ بيضاوي' : '⬛ هوليوود'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Whiteness */}
+        <div className="space-y-1.5">
           <div className="flex justify-between text-[11px] font-bold text-purple-200">
-            <span>درجة التبييض المستهدفة:</span>
+            <span>درجة التبييض:</span>
             <span className="text-fuchsia-300 font-mono">VITA {vitaLabel}</span>
           </div>
           <input type="range" min="1" max="5" value={whiteness} onChange={e => setWhiteness(parseInt(e.target.value))}
             className="w-full h-1.5 bg-purple-900 rounded-lg appearance-none cursor-pointer accent-fuchsia-500" />
         </div>
 
+        {/* Error display */}
+        {aiError && (
+          <div className="bg-red-950/60 border border-red-700/40 rounded-xl p-3 space-y-1">
+            <p className="text-[11px] font-bold text-red-300 flex items-center gap-2">
+              <span>⚠️</span> فشل التوليد
+            </p>
+            <p className="text-[10px] text-red-200/80 leading-relaxed font-mono">{aiError}</p>
+            <p className="text-[10px] text-red-300/60">
+              تأكد من صحة مفتاح API وأن اشتراكك يدعم نموذج dall-e-3
+            </p>
+          </div>
+        )}
+
         {/* Trigger button */}
         <button onClick={handleTriggerAi} disabled={isAiProcessing}
           className="w-full py-3 bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-700 hover:to-fuchsia-700 text-white font-extrabold rounded-2xl text-xs shadow-lg shadow-purple-900/30 flex items-center justify-center gap-2 disabled:opacity-50 transition-all active:scale-95">
           <Brain className="w-4 h-4" />
-          {isAiProcessing ? 'جاري المعالجة...' : '🍌 توليد الابتسامة بنانو بنانا'}
+          {isAiProcessing ? processingStep || 'جاري توليد الصورة...' : '🍌 توليد صورة الابتسامة بـ DALL-E 3'}
         </button>
+
+        <p className="text-[9px] text-purple-500 text-center leading-relaxed">
+          يستخدم OpenAI DALL-E 3 لتوليد صورة ابتسامة احترافية واقعية • ~$0.08 لكل صورة HD
+        </p>
       </div>
 
       {/* Post-AI Results Panel */}
-      {aiSimulated && !isAiProcessing && (
+      {aiSimulated && !isAiProcessing && generatedSmileImage && (
         <div className="bg-green-950/40 rounded-2xl border border-green-800/30 p-4 space-y-3 animate-in fade-in slide-in-from-bottom-2">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-green-400 inline-block"></span>
-            <span className="text-xs font-bold text-green-300">✅ اكتملت محاكاة نانو بنانا!</span>
+            <span className="w-2 h-2 rounded-full bg-green-400 animate-ping inline-block"></span>
+            <span className="text-xs font-bold text-green-300">✅ تم توليد صورة الابتسامة بالـ AI بنجاح!</span>
+          </div>
+          {/* Thumbnail of generated image */}
+          <div className="rounded-xl overflow-hidden border border-green-700/30" style={{ height: 120 }}>
+            <img src={generatedSmileImage} alt="Generated smile" className="w-full h-full object-cover" />
           </div>
           <div className="space-y-1.5">
             <div className="flex justify-between text-[10px] font-bold text-green-300">
-              <span>شريط المقارنة قبل/بعد:</span>
+              <span>⟺ شريط مقارنة قبل/بعد:</span>
               <span>{splitPosAi}%</span>
             </div>
             <input type="range" min="0" max="100" value={splitPosAi} onChange={e => setSplitPosAi(parseInt(e.target.value))}
-              className="w-full h-1 bg-green-900 rounded-lg appearance-none cursor-pointer accent-green-400" />
-            <p className="text-[10px] text-green-500/70 text-center">اسحب الشريط على الصورة لمقارنة قبل وبعد التصميم</p>
+              className="w-full h-1.5 bg-green-900 rounded-lg appearance-none cursor-pointer accent-green-400" />
+            <p className="text-[10px] text-green-500/70 text-center">اسحب الشريط على الصورة أعلاه لمشاهدة الفرق</p>
           </div>
-          <button onClick={() => { setAiSimulated(false); setIsAiProcessing(false); }}
-            className="w-full py-2 text-[11px] font-bold text-purple-300 border border-purple-800/40 rounded-xl hover:bg-purple-900/30 transition-all flex items-center justify-center gap-1">
-            <RefreshCcw className="w-3 h-3" /> إعادة التصميم من البداية
-          </button>
+          <div className="flex gap-2">
+            <a href={generatedSmileImage} target="_blank" rel="noopener noreferrer"
+              className="flex-1 py-2 text-[11px] font-bold text-green-300 border border-green-700/40 rounded-xl hover:bg-green-900/30 transition-all flex items-center justify-center gap-1">
+              <ExternalLink className="w-3 h-3" /> فتح الصورة كاملة
+            </a>
+            <button onClick={() => { setAiSimulated(false); setGeneratedSmileImage(null); setAiError(null); }}
+              className="flex-1 py-2 text-[11px] font-bold text-purple-300 border border-purple-800/40 rounded-xl hover:bg-purple-900/30 transition-all flex items-center justify-center gap-1">
+              <RefreshCcw className="w-3 h-3" /> إعادة التوليد
+            </button>
+          </div>
         </div>
       )}
 
