@@ -9,9 +9,12 @@ import { Button } from '../common/Button';
 
 interface AnalysisResultCardProps {
     imageUrl: string;
-    result: AIAnalysisResult;
+    result: AIAnalysisResult | null;
     date: string;
+    status?: 'processing' | 'completed' | 'failed';
     onChange?: (updatedResult: AIAnalysisResult) => void;
+    onRetry?: (serviceType?: 'xray' | 'clinical') => void;
+    isRetrying?: boolean;
 }
 
 const SEVERITY_CONFIG = {
@@ -112,7 +115,141 @@ const AccurateImageOverlay: React.FC<{
     );
 };
 
-export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl, result, date, onChange }) => {
+export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ 
+    imageUrl, 
+    result, 
+    date, 
+    status, 
+    onChange, 
+    onRetry, 
+    isRetrying 
+}) => {
+    // Read the saved service_type placeholder if present inside the failed result JSON
+    const savedServiceType = result ? (result as any).service_type : null;
+
+    // Detect if we can guess the service type from completed fields or image_type
+    const guessedServiceType = result?.image_type && 
+        !result.image_type.includes('xray') && 
+        !result.image_type.includes('cbct') && 
+        !result.image_type.includes('bitewing')
+            ? 'clinical'
+            : 'xray';
+
+    const [selectedService, setSelectedService] = useState<'clinical' | 'xray'>(
+        savedServiceType || guessedServiceType || 'xray'
+    );
+
+    // Check if image processing is stuck or failed
+    // It's stuck if it is in 'processing' status and more than 15 seconds have passed
+    const isStuck = status === 'processing' && date && (new Date().getTime() - new Date(date).getTime() > 15000);
+    const hasFailed = status === 'failed' || isStuck || (!result && status !== 'processing');
+
+    if (hasFailed) {
+        return (
+            <div className="bg-white rounded-2xl border border-red-100 shadow-sm overflow-hidden animate-in fade-in duration-300">
+                {/* Red warning header */}
+                <div className="bg-red-50/70 border-b border-red-100 p-4 flex items-center gap-3 text-red-800">
+                    <AlertTriangle className="w-5 h-5 text-red-500 animate-bounce" />
+                    <div>
+                        <h4 className="font-bold text-sm">خطأ في معالجة أو تحليل الصورة</h4>
+                        <p className="text-[11px] text-red-600">انتهت مهلة معالجة الطلب السابق أو فشل الاتصال بخادم التشخيص.</p>
+                    </div>
+                </div>
+
+                <div className="grid md:grid-cols-12 gap-0 divide-x divide-x-reverse divide-gray-100">
+                    {/* Left Column: Image Preview */}
+                    <div className="md:col-span-5 bg-gray-50 p-4 flex flex-col justify-center items-center border-l border-gray-100">
+                        <div className="relative rounded-xl overflow-hidden border border-gray-200 shadow-sm bg-black aspect-[4/3] w-full max-w-[280px]">
+                            <img src={imageUrl} alt="Stuck image" className="w-full h-full object-contain opacity-75" />
+                            <div className="absolute inset-0 bg-red-950/20 flex items-center justify-center">
+                                <span className="bg-red-600/90 text-white px-2.5 py-1 rounded-full text-[10px] font-bold shadow-md">خطأ في التشخيص</span>
+                            </div>
+                        </div>
+                        <span className="block text-[10px] text-gray-400 mt-2">تاريخ الرفع: {new Date(date).toLocaleString('ar-EG')}</span>
+                    </div>
+
+                    {/* Right Column: Smart Service Panel Simulator & Action */}
+                    <div className="md:col-span-7 p-6 flex flex-col justify-between space-y-4">
+                        <div className="space-y-3.5">
+                            {/* Service Type Segment Control */}
+                            <div className="space-y-2 bg-gray-50/80 p-3 rounded-xl border border-gray-100 shadow-inner">
+                                <label className="block text-[10px] font-bold text-gray-500">نوع التشخيص المطلوب التوليد به:</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedService('clinical')}
+                                        className={`flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold rounded-lg border transition-all ${
+                                            selectedService === 'clinical'
+                                                ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-400 text-emerald-800 shadow-sm'
+                                                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <span>📸 صورة سريرية</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedService('xray')}
+                                        className={`flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold rounded-lg border transition-all ${
+                                            selectedService === 'xray'
+                                                ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-400 text-indigo-800 shadow-sm'
+                                                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <span>🩻 صورة أشعة</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2 text-indigo-900 bg-indigo-50/50 p-2.5 rounded-xl border border-indigo-100/50">
+                                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                                    <span className="text-[11px] font-bold">
+                                        {selectedService === 'clinical' ? 'خدمة التشخيص السريري بالفم بالـ AI' : 'خدمة تشخيص الأشعة السنية بالـ AI'}
+                                    </span>
+                                </div>
+                                <p className="text-xs text-gray-500 leading-relaxed">
+                                    {selectedService === 'clinical'
+                                        ? 'سيقوم محرك التشخيص السريري المطور (OpenAI GPT-4o) بفحص الأنسجة اللثوية وتراكمات الجير وتصبغات الأسنان، مع التفرقة الدقيقة لآفة كانديدا الفم/سقف الحلق والليوكوبلاكيا بدقة تشريحية كاملة.'
+                                        : 'سيقوم محرك تشخيص الأشعة المطور (OpenAI GPT-4o) بفحص صورة الأشعة السينية بدقة بالغة للكشف عن التسوسات العميقة، وفقدان العظم الداعم، والآفات حول الذروية بأسعار علاجات عيادتك الحالية.'}
+                                </p>
+                            </div>
+                        </div>
+
+                        <Button
+                            onClick={() => onRetry?.(selectedService)}
+                            disabled={isRetrying}
+                            className="w-full h-11 text-sm font-bold bg-gradient-to-r from-red-500 to-indigo-600 hover:from-red-600 hover:to-indigo-700 text-white shadow-lg shadow-indigo-500/20 border-0 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+                        >
+                            {isRetrying ? (
+                                <>
+                                    <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin"></div>
+                                    <span>جاري إعادة المعالجة بالخدمة المختارة...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <RotateCcw className="w-4 h-4" />
+                                    <span>إعادة معالجة الصورة وتشخيصها بالـ AI</span>
+                                </>
+                            )}
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (!result) {
+        return (
+            <div className="flex flex-col items-center justify-center p-8 bg-white rounded-2xl border border-gray-100 shadow-sm min-h-[300px] text-center space-y-4">
+                <div className="w-12 h-12 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin"></div>
+                <div className="space-y-1">
+                    <h4 className="font-bold text-gray-900 text-sm">جاري تحليل ومعالجة الصورة...</h4>
+                    <p className="text-xs text-gray-500 max-w-xs leading-normal">يرجى الانتظار بضع ثوانٍ بينما يكمل الذكاء الاصطناعي فحص الصورة واستخراج التقرير السريري.</p>
+                </div>
+            </div>
+        );
+    }
+
     const [isZoomOpen, setIsZoomOpen] = useState(false);
     const [showBoxes, setShowBoxes] = useState(true);
     const [hoveredIssue, setHoveredIssue] = useState<number | null>(null);
@@ -130,9 +267,11 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl
     const [editedIssues, setEditedIssues] = useState<any[]>(result.issues || []);
 
     useEffect(() => {
-        setEditedDiagnosis(result.diagnosis || '');
-        setEditedSummary(result.summary || '');
-        setEditedIssues(result.issues || []);
+        if (result) {
+            setEditedDiagnosis(result.diagnosis || '');
+            setEditedSummary(result.summary || '');
+            setEditedIssues(result.issues || []);
+        }
     }, [result]);
 
     const isMock = result.metadata?.isMock ?? true;
@@ -143,6 +282,11 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl
     const imageQuality = typeof result.image_quality === 'string'
         ? { rating: result.image_quality, problems: [], retake_recommended: false }
         : result.image_quality;
+
+    const isClinical = result.image_type === 'intraoral_phone_photo' 
+        || result.image_type === 'extraoral_face_photo' 
+        || result.image_type?.includes('clinical')
+        || (result.image_type && !result.image_type.includes('xray') && !result.image_type.includes('cbct') && !result.image_type.includes('bitewing'));
 
     const getBoxColor = (issue: any) => {
         const label = issue.label?.toLowerCase() || '';
@@ -217,6 +361,7 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl
     };
 
     const renderBoundingBoxes = (isZoom = false) => {
+        if (isClinical) return null;
         const issuesToRender = isEditing ? editedIssues : result.issues;
         return (
             showBoxes && issuesToRender.map((issue, idx) => {
@@ -351,67 +496,69 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl
                         </div>
 
                         {/* CSS X-ray Filters Control Bar (Phase 2a) */}
-                        <div className="mt-3 bg-white p-3 rounded-xl border border-gray-100 space-y-2.5 shadow-sm">
-                            <div className="flex justify-between items-center">
-                                <button
-                                    onClick={() => setShowFilters(!showFilters)}
-                                    className="flex items-center gap-1.5 text-[11px] font-bold text-gray-700 hover:text-indigo-600 transition-colors focus:outline-none"
-                                >
-                                    <Sliders className="w-3.5 h-3.5 text-indigo-500" />
-                                    مرشحات الأشعة الرقمية
-                                </button>
-                                {(brightness !== 100 || contrast !== 100 || isInverted) && (
+                        {!isClinical && (
+                            <div className="mt-3 bg-white p-3 rounded-xl border border-gray-100 space-y-2.5 shadow-sm">
+                                <div className="flex justify-between items-center">
                                     <button
-                                        onClick={() => { setBrightness(100); setContrast(100); setIsInverted(false); }}
-                                        className="text-[9px] text-red-500 hover:underline flex items-center gap-0.5 focus:outline-none"
+                                        onClick={() => setShowFilters(!showFilters)}
+                                        className="flex items-center gap-1.5 text-[11px] font-bold text-gray-700 hover:text-indigo-600 transition-colors focus:outline-none"
                                     >
-                                        <RotateCcw className="w-2.5 h-2.5" /> إعادة تعيين
+                                        <Sliders className="w-3.5 h-3.5 text-indigo-500" />
+                                        مرشحات الأشعة الرقمية
                                     </button>
+                                    {(brightness !== 100 || contrast !== 100 || isInverted) && (
+                                        <button
+                                            onClick={() => { setBrightness(100); setContrast(100); setIsInverted(false); }}
+                                            className="text-[9px] text-red-500 hover:underline flex items-center gap-0.5 focus:outline-none"
+                                        >
+                                            <RotateCcw className="w-2.5 h-2.5" /> إعادة تعيين
+                                        </button>
+                                    )}
+                                </div>
+
+                                {showFilters && (
+                                    <div className="space-y-2.5 pt-2 border-t border-gray-50 text-[10px] text-gray-500 animate-in slide-in-from-top-1">
+                                        <div className="space-y-1">
+                                            <div className="flex justify-between">
+                                                <span>السطوع (Brightness)</span>
+                                                <span className="font-bold text-gray-700">{brightness}%</span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min="50"
+                                                max="200"
+                                                value={brightness}
+                                                onChange={(e) => setBrightness(Number(e.target.value))}
+                                                className="w-full h-1 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <div className="flex justify-between">
+                                                <span>التباين (Contrast)</span>
+                                                <span className="font-bold text-gray-700">{contrast}%</span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min="50"
+                                                max="200"
+                                                value={contrast}
+                                                onChange={(e) => setContrast(Number(e.target.value))}
+                                                className="w-full h-1 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                                            />
+                                        </div>
+                                        <div className="flex justify-between items-center pt-1">
+                                            <span>عكس الألوان (Negative Grayscale)</span>
+                                            <button
+                                                onClick={() => setIsInverted(!isInverted)}
+                                                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${isInverted ? 'bg-indigo-600' : 'bg-gray-200'}`}
+                                            >
+                                                <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isInverted ? 'translate-x-4' : 'translate-x-0'}`} />
+                                            </button>
+                                        </div>
+                                    </div>
                                 )}
                             </div>
-
-                            {showFilters && (
-                                <div className="space-y-2.5 pt-2 border-t border-gray-50 text-[10px] text-gray-500 animate-in slide-in-from-top-1">
-                                    <div className="space-y-1">
-                                        <div className="flex justify-between">
-                                            <span>السطوع (Brightness)</span>
-                                            <span className="font-bold text-gray-700">{brightness}%</span>
-                                        </div>
-                                        <input
-                                            type="range"
-                                            min="50"
-                                            max="200"
-                                            value={brightness}
-                                            onChange={(e) => setBrightness(Number(e.target.value))}
-                                            className="w-full h-1 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <div className="flex justify-between">
-                                            <span>التباين (Contrast)</span>
-                                            <span className="font-bold text-gray-700">{contrast}%</span>
-                                        </div>
-                                        <input
-                                            type="range"
-                                            min="50"
-                                            max="200"
-                                            value={contrast}
-                                            onChange={(e) => setContrast(Number(e.target.value))}
-                                            className="w-full h-1 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                                        />
-                                    </div>
-                                    <div className="flex justify-between items-center pt-1">
-                                        <span>عكس الألوان (Negative Grayscale)</span>
-                                        <button
-                                            onClick={() => setIsInverted(!isInverted)}
-                                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${isInverted ? 'bg-indigo-600' : 'bg-gray-200'}`}
-                                        >
-                                            <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isInverted ? 'translate-x-4' : 'translate-x-0'}`} />
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                        )}
 
                         <div className="mt-3 grid grid-cols-2 gap-2">
                             <div className="bg-white p-2 rounded-lg border border-gray-100 text-center">
@@ -438,7 +585,7 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl
                                 <span className="block font-bold text-red-500 text-sm">{activeIssues.length}</span>
                             </div>
                             <div className="bg-white p-2 rounded-lg border border-gray-100 text-center">
-                                <span className="block text-[10px] text-gray-400">الأسنان</span>
+                                <span className="block text-[10px] text-gray-400">{isClinical ? "المواقع" : "الأسنان"}</span>
                                 <span className="block font-bold text-blue-600 text-sm">
                                     {activeIssues.filter(i => i.tooth_number).length || '-'}
                                 </span>
@@ -446,7 +593,7 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl
                         </div>
 
                         {/* Legend: Issue colors */}
-                        {activeIssues.length > 0 && (
+                        {!isClinical && activeIssues.length > 0 && (
                             <div className="mt-3 bg-white rounded-lg border border-gray-100 p-2 space-y-1">
                                 <div className="text-[10px] font-bold text-gray-500 mb-1 flex items-center gap-1">
                                     <Target className="w-3 h-3" /> دليل الألوان
@@ -506,6 +653,46 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl
                                     <p className="text-gray-600 text-xs leading-6 bg-gray-50 p-3 rounded-xl border border-gray-100 whitespace-pre-line">
                                         {result.summary}
                                     </p>
+
+                                    {/* Differential Diagnoses & Confirmation Methods */}
+                                    {((result.differential_diagnoses && result.differential_diagnoses.length > 0) || 
+                                      (result.confirmation_methods && result.confirmation_methods.length > 0)) && (
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 animate-in fade-in duration-300">
+                                            {result.differential_diagnoses && result.differential_diagnoses.length > 0 && (
+                                                <div className="bg-purple-50/50 border border-purple-100 rounded-xl p-3.5 space-y-2">
+                                                    <h5 className="font-bold text-xs text-purple-900 flex items-center gap-1.5">
+                                                        <Sparkles className="w-3.5 h-3.5 text-purple-600 animate-pulse" />
+                                                        الاحتمالات البديلة (التشخيص التفريقي)
+                                                    </h5>
+                                                    <ul className="space-y-1.5 text-[11px] text-purple-800">
+                                                        {result.differential_diagnoses.map((diag, i) => (
+                                                            <li key={i} className="flex items-start gap-1.5 leading-relaxed">
+                                                                <span className="text-purple-400 mt-0.5">•</span>
+                                                                <span>{diag}</span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )}
+
+                                            {result.confirmation_methods && result.confirmation_methods.length > 0 && (
+                                                <div className="bg-teal-50/50 border border-teal-100 rounded-xl p-3.5 space-y-2">
+                                                    <h5 className="font-bold text-xs text-teal-900 flex items-center gap-1.5">
+                                                        <ShieldCheck className="w-3.5 h-3.5 text-teal-600" />
+                                                        التحقق السريري (لتأكيد التشخيص)
+                                                    </h5>
+                                                    <ul className="space-y-1.5 text-[11px] text-teal-800">
+                                                        {result.confirmation_methods.map((method, i) => (
+                                                            <li key={i} className="flex items-start gap-1.5 leading-relaxed">
+                                                                <span className="text-teal-500 mt-0.5">✓</span>
+                                                                <span>{method}</span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </>
                             )}
                         </div>
@@ -641,7 +828,9 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl
                                                                 <div>
                                                                     <span className="font-bold text-gray-800 text-sm block">{issue.label}</span>
                                                                     {issue.tooth_number && (
-                                                                        <span className="text-[10px] text-gray-400 font-mono">سن #{issue.tooth_number}</span>
+                                                                        <span className="text-[10px] text-gray-400 font-medium">
+                                                                            {isNaN(Number(issue.tooth_number)) ? `الموقع: ${issue.tooth_number}` : `سن #${issue.tooth_number}`}
+                                                                        </span>
                                                                     )}
                                                                 </div>
                                                             </div>
@@ -667,6 +856,36 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl
                                                                 {(issue as any).clinical_description && <p className="bg-gray-50 rounded-md px-2 py-1 text-gray-700"><b>الوصف السريري:</b> {(issue as any).clinical_description}</p>}
                                                                 {(issue as any).evidence_visible && <p className="bg-blue-50 rounded-md px-2 py-1 text-blue-800"><b>الدليل المرئي:</b> {(issue as any).evidence_visible}</p>}
                                                                 {(issue as any).risk_if_untreated && <p className="bg-red-50 rounded-md px-2 py-1 text-red-800"><b>الخطر عند الإهمال:</b> {(issue as any).risk_if_untreated}</p>}
+                                                            </div>
+                                                        )}
+                                                        {((issue as any).differential_diagnoses?.length > 0 || (issue as any).confirmation_methods?.length > 0) && (
+                                                            <div className="mt-2 pr-7 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px] leading-5 animate-in fade-in duration-200">
+                                                                {(issue as any).differential_diagnoses?.length > 0 && (
+                                                                    <div className="bg-purple-50/30 rounded-lg p-2.5 border border-purple-100/50">
+                                                                        <span className="font-bold text-purple-900 block mb-1 flex items-center gap-1">
+                                                                            <Sparkles className="w-3 h-3 text-purple-600" />
+                                                                            الاحتمالات البديلة:
+                                                                        </span>
+                                                                        <ul className="list-disc list-inside space-y-0.5 text-purple-800">
+                                                                            {(issue as any).differential_diagnoses.map((d: string, i: number) => (
+                                                                                <li key={i}>{d}</li>
+                                                                            ))}
+                                                                        </ul>
+                                                                    </div>
+                                                                )}
+                                                                {(issue as any).confirmation_methods?.length > 0 && (
+                                                                    <div className="bg-teal-50/30 rounded-lg p-2.5 border border-teal-100/50">
+                                                                        <span className="font-bold text-teal-900 block mb-1 flex items-center gap-1">
+                                                                            <ShieldCheck className="w-3 h-3 text-teal-600" />
+                                                                            طريقة التأكيد السريري:
+                                                                        </span>
+                                                                        <ul className="list-disc list-inside space-y-0.5 text-teal-800">
+                                                                            {(issue as any).confirmation_methods.map((m: string, i: number) => (
+                                                                                <li key={i}>{m}</li>
+                                                                            ))}
+                                                                        </ul>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         )}
                                                         {issue.treatment_suggestion && (
@@ -780,14 +999,16 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl
                     >
                         {/* Toolbar */}
                         <div className="absolute top-4 right-4 z-50 flex gap-2">
-                            <Button
-                                onClick={() => setShowBoxes(!showBoxes)}
-                                className={`${showBoxes ? 'bg-green-600/80 hover:bg-green-600' : 'bg-black/50 hover:bg-black/70'} text-white border-white/20 backdrop-blur-md`}
-                                size="sm"
-                            >
-                                <Crosshair className="w-4 h-4 ml-1" />
-                                {showBoxes ? 'إخفاء العلامات' : 'عرض العلامات'}
-                            </Button>
+                            {!isClinical && (
+                                <Button
+                                    onClick={() => setShowBoxes(!showBoxes)}
+                                    className={`${showBoxes ? 'bg-green-600/80 hover:bg-green-600' : 'bg-black/50 hover:bg-black/70'} text-white border-white/20 backdrop-blur-md`}
+                                    size="sm"
+                                >
+                                    <Crosshair className="w-4 h-4 ml-1" />
+                                    {showBoxes ? 'إخفاء العلامات' : 'عرض العلامات'}
+                                </Button>
+                            )}
                             <button
                                 onClick={() => setIsZoomOpen(false)}
                                 className="bg-white/10 hover:bg-white/20 text-white p-2 rounded-full backdrop-blur-md transition-colors"
@@ -810,7 +1031,7 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl
                         </div>
 
                         {/* Bottom issue bar */}
-                        {activeIssues.length > 0 && (
+                        {!isClinical && activeIssues.length > 0 && (
                             <div className="mt-3 flex flex-wrap gap-2 justify-center">
                                 {activeIssues.map((issue, idx) => {
                                     const color = getBoxColor(issue);
@@ -834,7 +1055,9 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({ imageUrl
                         )}
 
                         <div className="text-center mt-3 text-white/40 text-xs">
-                            مرر الماوس فوق العلامات لعرض التفاصيل • اضغط خارج الصورة للإغلاق
+                            {isClinical 
+                                ? 'اضغط خارج الصورة للإغلاق' 
+                                : 'مرر الماوس فوق العلامات لعرض التفاصيل • اضغط خارج الصورة للإغلاق'}
                         </div>
                     </div>
                 </div>

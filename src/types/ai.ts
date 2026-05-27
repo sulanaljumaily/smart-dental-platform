@@ -75,6 +75,8 @@ export interface AIAnalysisResult {
     summary: string;
     recommendation: string;
     affected_teeth?: string[];
+    differential_diagnoses?: string[];
+    confirmation_methods?: string[];
     metadata?: AIAnalysisMetadata;
     // Optional compatibility fields if needed elsewhere
     diagnosis?: string;

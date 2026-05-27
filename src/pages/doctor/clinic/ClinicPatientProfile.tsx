@@ -2041,7 +2041,17 @@ export const ClinicPatientProfile = () => {
   const [isSmileDesignModalOpen, setIsSmileDesignModalOpen] = useState(false);
   const [isSmartPlanModalOpen, setIsSmartPlanModalOpen] = useState(false);
 
-  const { history: aiHistory, uploading: aiUploading, analyzing: aiAnalyzing, analyzeImage, analyzeExistingImage, deleteAnalysis, refresh: refreshAI } = useAIAnalysis(patientId);
+  const { 
+    history: aiHistory, 
+    uploading: aiUploading, 
+    analyzing: aiAnalyzing, 
+    analyzeImage, 
+    analyzeExistingImage, 
+    deleteAnalysis, 
+    refresh: refreshAI,
+    resolveClinicId,
+    fetchClinicTreatments
+  } = useAIAnalysis(patientId);
 
   // Chat History State - DB Backed
   const [chatHistory, setChatHistory] = useState<any[]>([]);
@@ -2099,6 +2109,132 @@ export const ClinicPatientProfile = () => {
       // Clear preview state to show result
       setPreviewUrl(null);
       setFileToAnalyze(null);
+    }
+  };
+
+  const handleRetryAnalysis = async (analysisItem: any, chosenContext?: 'clinical' | 'xray') => {
+    if (!analysisItem?.id) return;
+    setIsAnalyzing(true);
+    try {
+      const actualContext = chosenContext || analysisContext || 'xray';
+
+      // 1. Update status locally to show spinner
+      setSelectedAnalysis({
+        ...analysisItem,
+        status: 'processing',
+        analysis_result: { service_type: actualContext } as any
+      });
+
+      // 2. Update DB status to processing and save service_type placeholder
+      await supabase
+        .from('ai_analyses')
+        .update({ 
+          status: 'processing', 
+          analysis_result: { service_type: actualContext } 
+        })
+        .eq('id', analysisItem.id);
+
+      // 3. Resolve clinic and treatments catalog
+      const resolvedClinicId = await resolveClinicId();
+      const clinicTreatments = await fetchClinicTreatments(resolvedClinicId);
+
+      // 4. Build prompt based on context
+      let promptText = 'حلل هذه الصورة السنية بدقة وأعط تقريراً تفصيلياً.';
+      if (actualContext === 'clinical') {
+        promptText = `أنت طبيب أسنان استشاري خبير وأخصائي أمراض طب الفم واللثة ومحلل صور سريرية فوتوغرافية فموية.
+حلل هذه الصورة السريرية الملونة للأنسجة الفموية الناعمة والأسنان واللثة بدقة بالغة.
+عند ملاحظة أو الاشتباه بوجود أي آفة بيضاء (White Lesion) أو بقع بيضاء، يجب عليك عدم الاستعجال بتشخيصها كـ "ليوكوبلاكيا" تلقائياً، بل قم بإجراء تفكير سريري تفريقي دقيق للغاية بناءً على القواعد التالية:
+
+1. كانديدا البيكانز / كانديدا الفم (Oral Candidiasis / Candida albicans):
+   - المواقع الأكثر شيوعاً: سقف الحلق (الصلب أو الرخو - Hard or Soft Palate)، واللسان (السطح الظهري)، وباطن الخد.
+   - المظهر السريري: بقع أو لويحات بيضاء أو حليبية كريمية (Creamy white patches/plaques) تبدو سريرياً قابلة للكشط أو المسح (Wipable) بقطعة شاش طبي، تاركةً خلفها قاعدة حمراء ملتهبة (Erythematous base) أو نزفاً بسيطاً جداً.
+   - الخطورة السريرية: منخفضة إلى متوسطة (Low to Medium).
+
+2. ليوكوبلاكيا الفم (Oral Leukoplakia):
+   - المواقع الأكثر شيوعاً: الحواف الجانبية للسان (Lateral borders of the tongue)، وقاع الفم (Floor of the mouth)، وباطن الخد (Buccal mucosa). وتكون نادرة جداً في سقف الحلق الصلب إلا في حالات تدخين التبغ المعكوس أو التهاب الحنك النيكوتيني.
+   - المظهر السريري: بقعة بيضاء مسطحة، أو لويحة متقرنة سميكة أو خشنة (Flat, thick, or rough keratotic white patch) ثنائية أو أحادية الجانب، وتتميز بأنها غير قابلة للكشط أو المسح نهائياً (Non-wipable) باستخدام الشاش الطبي.
+   - الخطورة السريرية: متوسطة إلى عالية (Medium to High) نظراً لإمكانية التحول الخبيث كآفة ما قبل سرطانية (Potentially malignant).
+
+3. الحزاز المسطح الفمي (Oral Lichen Planus):
+   - المواقع الأكثر شيوعاً: باطن الخد (غالباً ثنائي الجانب بشكل متناظر Bilateral Buccal Mucosa)، أو جوانب اللسان.
+   - المظهر السريري: شبكة من الخطوط البيضاء المتشابكة (Wickham's Striae) أو بقع متقرنة قد تصاحبها تقرحات أو احمرار.
+
+المتطلبات التشخيصية الفنية:
+- تنبيه هام ومشدد جداً: عند ذكر اسم أي مرض أو آفة أو تشخيص في أي مكان في الاستجابة (بما في ذلك التقرير العام، الملخص summary، حقول التشخيص التفريقي differential_diagnoses، أسماء المشاكل المكتشفة labels في حقل issues، والعناوين والوصف)، يجب عليك كتابة اسم المرض أو الآفة باللغتين العربية والإنجليزية معاً دائماً بشكل احترافي وجذاب (مثال: "كانديدا الفم (Oral Candidiasis)" أو "ليوكوبلاكيا الفم (Oral Leukoplakia)" أو "الحزاز المسطح الفمي (Oral Lichen Planus)" أو "تسوس عميق (Deep Caries)" أو "فقدان العظم الداعم (Alveolar Bone Loss)" أو "آفة حول ذروية (Periapical Lesion)").
+- قم بتحديد الموقع التشريحي الدقيق للآفة باللغة العربية (مثل: "سقف الحلق الصلب"، "الحافة الجانبية اليمنى للسان"، "باطن الخد الأيسر") في حقل tooth_number (لأنها آفة غشاء مخاطي ناعم وليست سنية، فقم بوضع اسم الموقع بدلاً من رقم السن)، ووضحه كذلك في الوصف.
+- يجب أن تتضمن مصفوفة المشاكل (issues) حقلي differential_diagnoses و confirmation_methods ممتلئين بدقة واحترافية باللغة العربية لكل آفة.
+- في حقل "differential_diagnoses" (الاحتمالات البديلة) بشكل عام لكل آفة: إذا كان التشخيص الأرجح هو كانديدا الفم، اذكر ليوكوبلاكيا والحزاز المسطح كاحتمالات بديلة، والعكس صحيح.
+- في حقل "confirmation_methods" (طرق التحقق السريري) بشكل عام لكل آفة:
+  - للـ كانديدا: اذكر (فحص الكشط بقطعة شاش معقمة، الفحص المجهري المباشر KOH prep، زراعة مسحة فطرية).
+  - للـ ليوكوبلاكيا: اذكر (إجراء خزعة نسيجية استئصالية أو استكشافية وفحص باثولوجي Biopsy & Histopathology لتأكيد التشخيص واستبعاد التغيرات السرطانية، فحص الكشط بقطعة شاش معقمة للتحقق من عدم قابليتها للزوال).
+
+أعد التقرير واملأ مصفوفة المشاكل (issues) بكل دقة مع التشخيص السريري الدقيق بالنص والخطورة المناسبة وتضمين differential_diagnoses و confirmation_methods لكل مشكلة وبشكل عام في التقرير. لا تقم بتحديد مواقع الصناديق [x,y,w,h] أو تحديد الإحداثيات على الصورة، فقط اترك حقل box كـ null أو فارغ.`;
+      } else {
+        promptText = `أنت طبيب أسنان خبير ومحلل صور أشعة سنية (X-Ray).
+حلل صورة الأشعة المرفقة بدقة بالغة. ابحث عن:
+1. تسوسات عميقة أو تحت الحشوات (Deep / Secondary Caries).
+2. فقدان العظم الداعم للأسنان (Alveolar Bone Loss).
+3. آفات حول ذروية، التهاب عصب أو خراجات (Periapical Lesions / Abscess).
+4. أسنان مطمورة أو منخرة كلياً أو جزئياً (Impaction).
+
+تنبيه هام ومشدد جداً: عند ذكر اسم أي مرض أو آفة أو تشخيص في أي مكان في الاستجابة (بما في ذلك التقرير العام، الملخص summary، حقول التشخيص التفريقي differential_diagnoses، أسماء المشاكل المكتشفة labels في حقل issues، والعناوين والوصف)، يجب عليك كتابة اسم المرض أو الآفة باللغتين العربية والإنجليزية معاً دائماً بشكل احترافي وجذاب (مثال: "تسوس عميق (Deep Caries)" أو "فقدان العظم الداعم (Alveolar Bone Loss)" أو "آفة حول ذروية (Periapical Lesion)" أو "التهاب عصب سن (Pulpitis)").
+
+أعد التقرير واملأ مصفوفة المشاكل (issues) بكل دقة مع تحديد المواقع [x,y,w,h] النسبية.`;
+      }
+
+      // 5. Run analysis with direct image URL
+      const result = await aiService.analyzeImage(
+        analysisItem.image_url,
+        promptText,
+        undefined,
+        resolvedClinicId,
+        undefined,
+        undefined,
+        clinicTreatments
+      );
+
+      // 6. Update database row with completed result
+      const completedResultData = {
+        ...result,
+        service_type: actualContext
+      };
+
+      const { error: updateError } = await supabase
+        .from('ai_analyses')
+        .update({
+          status: 'completed',
+          analysis_result: completedResultData
+        })
+        .eq('id', analysisItem.id);
+
+      if (updateError) throw updateError;
+
+      // 7. Update local states
+      const completedResult = {
+        ...analysisItem,
+        status: 'completed',
+        analysis_result: completedResultData
+      };
+      setSelectedAnalysis(completedResult);
+
+      // Refresh list
+      refreshAI();
+      toast.success('تمت إعادة تحليل وتشخيص الصورة بنجاح!');
+
+    } catch (err: any) {
+      console.error('Retry analysis failed:', err);
+      toast.error(err.message || 'فشل في إعادة معالجة الصورة');
+
+      // Set DB to failed
+      await supabase
+        .from('ai_analyses')
+        .update({ status: 'failed' })
+        .eq('id', analysisItem.id);
+
+      setSelectedAnalysis((prev: any) => prev ? { ...prev, status: 'failed' } : null);
+      refreshAI();
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -2209,12 +2345,18 @@ export const ClinicPatientProfile = () => {
           }
         }
 
+        const isClinical = item.analysis_result?.service_type === 'clinical' || 
+          (item.analysis_result?.image_type && 
+           !item.analysis_result.image_type.includes('xray') && 
+           !item.analysis_result.image_type.includes('cbct') && 
+           !item.analysis_result.image_type.includes('bitewing'));
+
         const { data, error } = await supabase
           .from('patient_files')
           .insert({
             patient_id: patientId,
-            name: `تشخيص AI - ${new Date().toLocaleDateString('ar-IQ')}`,
-            type: 'xray',
+            name: `${isClinical ? 'تحليل صورة سريرية' : 'تشخيص AI'} - ${new Date().toLocaleDateString('ar-IQ')}`,
+            type: isClinical ? 'other' : 'xray',
             url: item.image_url || item.imageUrl,
             size: 'AI Processed',
             date: new Date().toISOString()
@@ -2336,6 +2478,9 @@ export const ClinicPatientProfile = () => {
             imageUrl={selectedAnalysis.image_url}
             result={selectedAnalysis.analysis_result}
             date={selectedAnalysis.created_at}
+            status={selectedAnalysis.status}
+            isRetrying={aiAnalyzing || isAnalyzing}
+            onRetry={(serviceType) => handleRetryAnalysis(selectedAnalysis, serviceType)}
             onChange={(updatedResult) => {
               setSelectedAnalysis((prev: any) => prev ? {
                 ...prev,
@@ -2601,11 +2746,30 @@ export const ClinicPatientProfile = () => {
                       <span className="block text-xs text-gray-400">{new Date(item.created_at).toLocaleTimeString('ar-IQ')}</span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                             ${item.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}
-                           `}>
-                        {item.status === 'completed' ? 'مكتمل' : 'جاري المعالجة'}
-                      </span>
+                      {(() => {
+                        const isStuck = item.status === 'processing' && item.created_at && (new Date().getTime() - new Date(item.created_at).getTime() > 15000);
+                        const hasFailed = item.status === 'failed' || isStuck;
+
+                        if (item.status === 'completed') {
+                          return (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              مكتمل
+                            </span>
+                          );
+                        } else if (hasFailed) {
+                          return (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 animate-pulse">
+                              خطأ في المعالجة
+                            </span>
+                          );
+                        } else {
+                          return (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 animate-pulse">
+                              جاري المعالجة
+                            </span>
+                          );
+                        }
+                      })()}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -3346,7 +3510,18 @@ export const ClinicPatientProfile = () => {
       <Modal
         isOpen={isAnalysisModalOpen}
         onClose={() => setIsAnalysisModalOpen(false)}
-        title={analysisContext === 'clinical' ? 'تحليل الصور السريرية والفوتوغرافية بالـ AI' : 'تشخيص الصور بالأشعة والذكاء الاصطناعي'}
+        title={
+          (selectedAnalysis 
+            ? (selectedAnalysis.analysis_result?.service_type === 'clinical' || 
+               (selectedAnalysis.analysis_result?.image_type && 
+                !selectedAnalysis.analysis_result.image_type.includes('xray') && 
+                !selectedAnalysis.analysis_result.image_type.includes('cbct') && 
+                !selectedAnalysis.analysis_result.image_type.includes('bitewing')))
+            : analysisContext === 'clinical'
+          )
+            ? 'تحليل الصور السريرية والفوتوغرافية بالـ AI'
+            : 'تشخيص الصور بالأشعة والذكاء الاصطناعي'
+        }
       >
         <div className="space-y-6">
           {renderAnalysisModalContent()}
@@ -3733,7 +3908,8 @@ const SmileDesignModalContent: React.FC<{ patientName?: string; patientId?: stri
 
     // Get API key: try aiService config first, then user-entered key
     const config = aiService.getConfig('image_analysis');
-    const apiKey = userApiKey.trim() || config?.apiKey?.trim() || '';
+    const rawApiKey = userApiKey.trim() || config?.apiKey?.trim() || '';
+    const apiKey = rawApiKey.replace(/[^\x20-\x7E]/g, '');
 
     if (!apiKey) {
       setShowApiKeyInput(true);
@@ -3768,8 +3944,7 @@ const SmileDesignModalContent: React.FC<{ patientName?: string; patientId?: stri
           prompt: dallePrompt,
           n: 1,
           size: '1024x1024',
-          quality: 'hd',
-          style: 'natural'
+          quality: 'hd'
         })
       });
 

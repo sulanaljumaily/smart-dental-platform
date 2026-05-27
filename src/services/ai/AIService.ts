@@ -388,8 +388,20 @@ class AIService {
   "image_type": "panoramic_xray etc",
   "image_quality": { "rating": "good", "problems": [], "retake_recommended": false },
   "summary": "Detailed clinical summary in Arabic",
+  "differential_diagnoses": ["Alternative diagnosis 1 in Arabic (e.g. ليوكوبلاكيا - Leukoplakia)", "Alternative diagnosis 2"],
+  "confirmation_methods": ["Practical clinical confirmation method 1 in Arabic (e.g. خزعة نسيجية - Biopsy)", "Clinical method 2"],
   "issues": [
-    { "label": "issue label", "tooth_number": "FDI", "category": "caries", "confidence": 0.8, "severity": "high", "description": "desc", "box": [x, y, w, h] }
+    { 
+      "label": "issue label", 
+      "tooth_number": "FDI", 
+      "category": "caries", 
+      "confidence": 0.8, 
+      "severity": "high", 
+      "description": "desc", 
+      "box": [x, y, w, h],
+      "differential_diagnoses": ["alternative diagnosis 1 in Arabic", "alternative 2"],
+      "confirmation_methods": ["practical test 1 in Arabic", "test 2"]
+    }
   ],
   "findings": ["finding 1"],
   "recommendation": "Recommendations"
@@ -429,6 +441,8 @@ class AIService {
                     findings: parsedResult.findings || [],
                     total_estimated_cost: parsedResult.total_estimated_cost,
                     has_clinic_catalog: !!(clinicTreatments && clinicTreatments.length > 0),
+                    differential_diagnoses: parsedResult.differential_diagnoses || [],
+                    confirmation_methods: parsedResult.confirmation_methods || [],
                     metadata: { isMock: false, provider: config.provider, model: config.model }
                 } as AIAnalysisResult;
             }
