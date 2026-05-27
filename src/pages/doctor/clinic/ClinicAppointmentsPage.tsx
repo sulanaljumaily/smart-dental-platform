@@ -31,7 +31,8 @@ import {
   ChevronRight,
   Star,
   Activity,
-  Zap
+  Zap,
+  Eye
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../../../components/common/Card';
@@ -114,6 +115,7 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
   // ==========================================
   const { user } = useAuth();
   const [selectedAptForReminder, setSelectedAptForReminder] = useState<Appointment | null>(null);
+  const [selectedAptForDetails, setSelectedAptForDetails] = useState<Appointment | null>(null);
   const [reminderMethod, setReminderMethod] = useState<'platform' | 'whatsapp_web' | 'twilio_sms' | 'whatsapp_api'>('platform');
   const [reminderMessage, setReminderMessage] = useState('');
   const [sendingReminder, setSendingReminder] = useState(false);
@@ -454,6 +456,25 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
         }
         toast.success(`تم إرسال التذكير بنجاح عبر واتساب (${prov})`);
       }
+
+      // Save reminder log to metadata
+      const currentReminders = selectedAptForReminder.metadata?.reminders || [];
+      const updatedReminders = [
+        ...currentReminders,
+        {
+          sentAt: new Date().toISOString(),
+          method: reminderMethod,
+          message: reminderMessage.substring(0, 100) + (reminderMessage.length > 100 ? '...' : '')
+        }
+      ];
+      await updateAppointment({
+        ...selectedAptForReminder,
+        metadata: {
+          ...selectedAptForReminder.metadata,
+          reminders: updatedReminders
+        }
+      });
+
       setSelectedAptForReminder(null);
     } catch (e: any) {
       console.error(e);
@@ -564,6 +585,54 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
   const handleDeleteAppointment = (aptId: string) => {
     if (confirm('هل أنت متأكد من حذف هذا الموعد؟')) {
       deleteAppointment(aptId);
+    }
+  };
+
+  const handleLogPhoneCall = async (apt: Appointment) => {
+    try {
+      const currentCalls = apt.metadata?.calls || [];
+      const updatedCalls = [
+        ...currentCalls,
+        { calledAt: new Date().toISOString(), callerId: user?.id, result: 'connected' }
+      ];
+      
+      const updatedApt = {
+        ...apt,
+        metadata: {
+          ...apt.metadata,
+          calls: updatedCalls
+        }
+      };
+
+      await updateAppointment(updatedApt);
+      setSelectedAptForDetails(updatedApt);
+      toast.success('تم تسجيل مكالمة الاتصال بالمراجع وتوثيقها بنجاح');
+    } catch (e: any) {
+      console.error(e);
+      toast.error('حدث خطأ أثناء تسجيل المكالمة');
+    }
+  };
+
+  const handleUpdateAptStatusQuick = async (apt: Appointment, newStatus: any) => {
+    try {
+      const updatedApt = {
+        ...apt,
+        status: newStatus
+      };
+      await updateAppointment(updatedApt);
+      setSelectedAptForDetails(updatedApt);
+      toast.success(`تم تغيير حالة الموعد إلى: ${getStatusLabel(newStatus)}`);
+    } catch (e: any) {
+      console.error(e);
+      toast.error('فشل تغيير حالة الموعد');
+    }
+  };
+
+  const handleDeleteAppointmentFromModal = async (aptId: string) => {
+    if (confirm('هل أنت متأكد من حذف هذا الموعد نهائياً من قاعدة البيانات؟')) {
+      await deleteAppointment(aptId);
+      setSelectedAptForDetails(null);
+      toast.success('تم حذف الموعد نهائياً من قاعدة البيانات');
     }
   };
 
@@ -956,6 +1025,14 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                       )}
 
                       <button
+                        className="p-2 text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                        title="تفاصيل الحجز والمتابعة"
+                        onClick={() => setSelectedAptForDetails(apt)}
+                      >
+                        <Eye className="w-5 h-5" />
+                      </button>
+
+                      <button
                         className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-xl transition-all"
                         title="تعديل الموعد"
                         onClick={() => handleEditClick(apt)}
@@ -1048,6 +1125,14 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                           <MessageSquare className="w-4 h-4" />
                         </button>
                       )}
+                      <button
+                        className="p-1.5 text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                        title="تفاصيل الحجز والمتابعة"
+                        onClick={() => setSelectedAptForDetails(apt)}
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+
                       {patients.some(p => p.id === apt.patientId) && (
                           <button
                             className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
@@ -2451,6 +2536,236 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                   'تنشيط الحساب وإرسال البيانات'
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Appointment Follow-up & Diagnostics Modal */}
+      {selectedAptForDetails && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-300 border border-gray-100 flex flex-col max-h-[90vh]">
+            
+            {/* Modal Header */}
+            <div className="px-6 py-5 border-b border-gray-150 flex justify-between items-center bg-gradient-to-r from-indigo-50/70 to-blue-50/50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
+                  <Activity className="w-5 h-5 animate-pulse" />
+                </div>
+                <div className="text-right">
+                  <h3 className="font-bold text-base text-gray-900">تشخيص ومتابعة الحجز</h3>
+                  <p className="text-xs text-gray-500 font-semibold mt-0.5">
+                    للمريض: {getPatientName(selectedAptForDetails.patientId, selectedAptForDetails.patientName)}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedAptForDetails(null)}
+                className="text-gray-400 hover:text-gray-600 transition-colors text-2xl font-bold bg-gray-100 hover:bg-gray-200 rounded-full w-8 h-8 flex items-center justify-center"
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-6 overflow-y-auto flex-1 text-right" dir="rtl">
+              
+              {/* Diagnostics Box */}
+              <div className="bg-gray-50 p-5 rounded-2xl border border-gray-200/60 space-y-3">
+                <h4 className="font-bold text-xs text-gray-500 uppercase tracking-wider">تشخيص سبب عدم اكتمال الحجز</h4>
+                
+                {(() => {
+                  const callCount = selectedAptForDetails.metadata?.calls?.length || 0;
+                  const reminderCount = selectedAptForDetails.metadata?.reminders?.length || 0;
+                  const status = selectedAptForDetails.status;
+                  
+                  let diagnosticTitle = "الحجز قيد المتابعة";
+                  let diagnosticDesc = "الموعد مجدول بشكل طبيعي وهو قيد المتابعة الدورية.";
+                  let alertClass = "bg-blue-50 border-blue-100 text-blue-800";
+                  
+                  if (status === 'noshow') {
+                    diagnosticTitle = "⚠️ المراجع لم يحضر العيادة (No-Show)";
+                    if (reminderCount === 0 && callCount === 0) {
+                      diagnosticDesc = "لم يحضر المريض الموعد، ويظهر التشخيص أنه لم يتم إرسال أي تذكير له مسبقاً، كما لم يجرِ موظفو العيادة أي اتصال هاتفي لتأكيد الحجز. ننصح بتفعيل التذكيرات.";
+                      alertClass = "bg-red-50 border-red-100 text-red-900";
+                    } else if (reminderCount > 0 && callCount === 0) {
+                      diagnosticDesc = "تم إرسال تذكير للمراجع عبر المنصة/الواتساب، لكنه لم يحضر ولم يتم الاتصال به هاتفياً لتأكيد الحضور النهائي.";
+                      alertClass = "bg-orange-50 border-orange-100 text-orange-900";
+                    } else if (reminderCount === 0 && callCount > 0) {
+                      diagnosticDesc = "تم إجراء اتصال هاتفي مع المراجع ولكن لم يتم إرسال تذكير نصي أو بطاقة تفاعلية على حسابه بالمنصة مسبقاً.";
+                      alertClass = "bg-amber-50 border-amber-100 text-amber-900";
+                    } else {
+                      diagnosticDesc = "على الرغم من إرسال التذكيرات وإجراء الاتصال الهاتفي معه لتأكيد الحجز، إلا أن المراجع لم يحضر في الوقت المحدد.";
+                      alertClass = "bg-red-50 border-red-100 text-red-900";
+                    }
+                  } else if (status === 'cancelled') {
+                    diagnosticTitle = "❌ تم إلغاء الموعد مسبقاً";
+                    diagnosticDesc = "تم إلغاء هذا الموعد. يمكنك إعادة تفعيله وتغيير حالته إلى مجدول إذا رغب المريض في الحضور.";
+                    alertClass = "bg-gray-50 border-gray-200 text-gray-800";
+                  } else if (status === 'completed') {
+                    diagnosticTitle = "✅ موعد مكتمل بنجاح";
+                    diagnosticDesc = "تم إكمال هذا الموعد بنجاح وتقديم الخدمة الطبية للمراجع.";
+                    alertClass = "bg-green-50 border-green-100 text-green-900";
+                  }
+
+                  return (
+                    <div className={`p-4 rounded-xl border ${alertClass} space-y-1.5`}>
+                      <h5 className="font-bold text-sm">{diagnosticTitle}</h5>
+                      <p className="text-xs leading-relaxed opacity-90">{diagnosticDesc}</p>
+                    </div>
+                  );
+                })()}
+
+                {/* Audit Checklist */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                  <div className="bg-white p-3 rounded-xl border border-gray-150 flex items-center justify-between">
+                    <span className="text-xs font-bold text-gray-500">حالة التذكير المسبق:</span>
+                    {selectedAptForDetails.metadata?.reminders && selectedAptForDetails.metadata.reminders.length > 0 ? (
+                      <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">
+                        مرسل ({selectedAptForDetails.metadata.reminders.length})
+                      </span>
+                    ) : (
+                      <span className="text-xs font-black text-red-500 bg-red-50 px-2 py-0.5 rounded-lg border border-red-100">
+                        لم يرسل تذكير 🔔
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="bg-white p-3 rounded-xl border border-gray-150 flex items-center justify-between">
+                    <span className="text-xs font-bold text-gray-500">الاتصالات الهاتفية:</span>
+                    {selectedAptForDetails.metadata?.calls && selectedAptForDetails.metadata.calls.length > 0 ? (
+                      <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">
+                        تم الاتصال ({selectedAptForDetails.metadata.calls.length} مرات)
+                      </span>
+                    ) : (
+                      <span className="text-xs font-black text-red-500 bg-red-50 px-2 py-0.5 rounded-lg border border-red-100">
+                        لم يتم الاتصال 📞
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Status quick switcher */}
+              <div className="space-y-3">
+                <label className="block text-sm font-bold text-gray-700">تحديث حالة الموعد الفورية</label>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  {[
+                    { status: 'scheduled', label: 'مجدول', color: 'bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200' },
+                    { status: 'confirmed', label: 'مؤكد', color: 'bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200' },
+                    { status: 'noshow', label: 'لم يحضر', color: 'bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200' },
+                    { status: 'cancelled', label: 'ملغي', color: 'bg-red-50 hover:bg-red-100 text-red-700 border-red-200' },
+                    { status: 'completed', label: 'مكتمل', color: 'bg-green-50 hover:bg-green-100 text-green-700 border-green-200' },
+                  ].map((btn) => (
+                    <button
+                      key={btn.status}
+                      type="button"
+                      onClick={() => handleUpdateAptStatusQuick(selectedAptForDetails, btn.status as any)}
+                      className={`py-2 px-1 text-center rounded-xl border text-xs font-bold transition-all active:scale-95 flex items-center justify-center ${
+                        selectedAptForDetails.status === btn.status
+                          ? btn.color.replace('bg-', 'bg-opacity-100 bg-').split(' ')[0] + ' border-current ring-2 ring-offset-1'
+                          : 'bg-white hover:bg-gray-50 text-gray-600 border-gray-200'
+                      }`}
+                    >
+                      {btn.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Patient and contact information */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-150 space-y-1">
+                  <span className="text-[10px] text-gray-400 font-bold block">رقم الهاتف المسجل:</span>
+                  <span className="font-mono text-sm font-bold text-gray-800" dir="ltr">
+                    {selectedAptForDetails.patientPhone || patients.find(p => p.id === selectedAptForDetails.patientId)?.phone || 'غير مسجل'}
+                  </span>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-150 space-y-1">
+                  <span className="text-[10px] text-gray-400 font-bold block">تاريخ ووقت الموعد:</span>
+                  <span className="text-sm font-bold text-gray-800">
+                    {selectedAptForDetails.date} · {selectedAptForDetails.time}
+                  </span>
+                </div>
+              </div>
+
+              {/* Call Log Audit history */}
+              {selectedAptForDetails.metadata?.calls && selectedAptForDetails.metadata.calls.length > 0 && (
+                <div className="space-y-2.5">
+                  <h4 className="font-bold text-xs text-gray-500">سجل الاتصالات الهاتفية للموعد</h4>
+                  <div className="max-h-24 overflow-y-auto space-y-1.5 pr-1 border border-gray-150 rounded-xl p-2 bg-gray-50/50">
+                    {selectedAptForDetails.metadata.calls.map((c, i) => (
+                      <div key={i} className="text-xs flex justify-between items-center text-gray-600 border-b border-gray-100 last:border-0 pb-1">
+                        <span>📞 محاولة اتصال {i + 1}</span>
+                        <span className="font-mono">{new Date(c.calledAt).toLocaleString('ar-IQ')}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 border-t border-gray-100 bg-gray-50/70 rounded-b-3xl flex flex-wrap justify-between gap-3 shrink-0" dir="rtl">
+              {/* Right Side: Delete Button */}
+              <button
+                type="button"
+                onClick={() => handleDeleteAppointmentFromModal(selectedAptForDetails.id)}
+                className="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 border border-red-200"
+              >
+                <Trash2 className="w-4 h-4" />
+                حذف الحجز
+              </button>
+
+              {/* Left Side: Operations */}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedAptForDetails(null)}
+                  className="px-4 py-2.5 text-gray-700 hover:bg-gray-200 bg-gray-100 rounded-xl font-bold text-xs transition-all"
+                >
+                  إغلاق
+                </button>
+
+                {patients.some(p => p.id === selectedAptForDetails.patientId) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedAptForDetails(null);
+                      navigate(`/doctor/clinic/${clinicId}/patient/${selectedAptForDetails.patientId}`);
+                    }}
+                    className="px-4 py-2.5 bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5"
+                  >
+                    <FileText className="w-4 h-4 text-gray-500" />
+                    دخول الملف
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const apt = selectedAptForDetails;
+                    setSelectedAptForDetails(null);
+                    setSelectedAptForReminder(apt);
+                  }}
+                  className="px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 border border-blue-200"
+                >
+                  <Bell className="w-4 h-4" />
+                  إرسال تذكير
+                </button>
+
+                {(selectedAptForDetails.patientPhone || patients.find(p => p.id === selectedAptForDetails.patientId)?.phone) && (
+                  <a
+                    href={`tel:${selectedAptForDetails.patientPhone || patients.find(p => p.id === selectedAptForDetails.patientId)?.phone}`}
+                    onClick={() => handleLogPhoneCall(selectedAptForDetails)}
+                    className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 shadow-md shadow-green-200 hover:scale-[1.02]"
+                  >
+                    <Phone className="w-4 h-4" />
+                    اتصال بالمراجع
+                  </a>
+                )}
+              </div>
             </div>
           </div>
         </div>

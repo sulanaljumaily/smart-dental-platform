@@ -69,6 +69,12 @@ export interface Appointment {
   notes?: string;         // ملاحظات الطبيب
   priority: 'low' | 'normal' | 'high' | 'urgent';
 
+  // التتبع والاتصال
+  metadata?: {
+    calls?: { calledAt: string; callerId?: string; result?: string }[];
+    reminders?: { sentAt: string; method: string; templateType?: string; status?: string; message?: string }[];
+  };
+
   // معلومات إضافية
   createdAt: string;
   createdBy: string;

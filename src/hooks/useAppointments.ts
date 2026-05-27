@@ -87,29 +87,59 @@ export const useAppointments = (clinicId?: string) => {
 
             if (error) throw error;
 
-            const mappedAppointments: Appointment[] = (data || []).map((a: any) => ({
-                id: a.id,
-                clinicId: a.clinic_id?.toString(),
-                patientId: a.patient_id?.toString(),
-                patientName: a.patient_name,
-                doctorId: a.staff_id?.toString(),
-                doctorName: a.doctor_name || a.staff?.full_name,
-                date: a.appointment_date || a.date,
-                time: a.appointment_time || a.time || a.start_time, // Support multiple formats
-                startTime: a.start_time || a.appointment_time,
-                endTime: a.end_time,
-                duration: a.duration || 30,
-                type: a.type || a.appointment_type,
-                status: a.status,
-                title: a.title,
-                priority: a.priority || 'normal',
-                notes: a.notes,
-                cost: a.cost,
-                patientPhone: a.patient_phone || a.phone_number || a.phone || '',
-                createdAt: a.created_at || '',
-                createdBy: a.created_by || '',
-                patientUserId: a.patient_user_id || undefined
-            }));
+            const parseMetadata = (metadata: any, notes: string | null) => {
+                if (metadata && (typeof metadata === 'object' || Array.isArray(metadata))) {
+                    return metadata;
+                }
+                if (metadata && typeof metadata === 'string') {
+                    try {
+                        return JSON.parse(metadata);
+                    } catch (e) {}
+                }
+                if (notes && notes.includes('--- [METADATA] ---')) {
+                    const parts = notes.split('--- [METADATA] ---');
+                    try {
+                        return JSON.parse(parts[1].trim());
+                    } catch (e) {}
+                }
+                return { calls: [], reminders: [] };
+            };
+
+            const cleanNotes = (notes: string | null) => {
+                if (notes && notes.includes('--- [METADATA] ---')) {
+                    return notes.split('--- [METADATA] ---')[0].trim();
+                }
+                return notes || '';
+            };
+
+            const mappedAppointments: Appointment[] = (data || []).map((a: any) => {
+                const metadata = parseMetadata(a.metadata, a.notes);
+                const notes = cleanNotes(a.notes);
+                return {
+                    id: a.id,
+                    clinicId: a.clinic_id?.toString(),
+                    patientId: a.patient_id?.toString(),
+                    patientName: a.patient_name,
+                    doctorId: a.staff_id?.toString(),
+                    doctorName: a.doctor_name || a.staff?.full_name,
+                    date: a.appointment_date || a.date,
+                    time: a.appointment_time || a.time || a.start_time,
+                    startTime: a.start_time || a.appointment_time,
+                    endTime: a.end_time,
+                    duration: a.duration || 30,
+                    type: a.type || a.appointment_type,
+                    status: a.status,
+                    title: a.title,
+                    priority: a.priority || 'normal',
+                    notes: notes,
+                    metadata: metadata,
+                    cost: a.cost,
+                    patientPhone: a.patient_phone || a.phone_number || a.phone || '',
+                    createdAt: a.created_at || '',
+                    createdBy: a.created_by || '',
+                    patientUserId: a.patient_user_id || undefined
+                };
+            });
 
             setAppointments(mappedAppointments);
         } catch (err: any) {
@@ -120,9 +150,20 @@ export const useAppointments = (clinicId?: string) => {
         }
     };
 
+    const cleanNotes = (notes: string | null) => {
+        if (notes && notes.includes('--- [METADATA] ---')) {
+            return notes.split('--- [METADATA] ---')[0].trim();
+        }
+        return notes || '';
+    };
+
     const createAppointment = async (appointment: Appointment) => {
         try {
-            const newApt = {
+            const cleanNote = cleanNotes(appointment.notes || '');
+            const serializedMetadata = JSON.stringify(appointment.metadata || { calls: [], reminders: [] });
+            const notesWithMetadata = `${cleanNote}\n\n--- [METADATA] ---\n${serializedMetadata}`;
+
+            const newApt: any = {
                 clinic_id: clinicId || appointment.clinicId || '101',
                 patient_id: appointment.patientId,
                 staff_id: appointment.doctorId ? Number(appointment.doctorId) : null,
@@ -137,12 +178,22 @@ export const useAppointments = (clinicId?: string) => {
                 status: appointment.status || 'scheduled',
                 title: appointment.title,
                 priority: appointment.priority,
-                notes: appointment.notes,
-                cost: appointment.cost || 0
+                notes: notesWithMetadata,
+                cost: appointment.cost || 0,
+                metadata: appointment.metadata || { calls: [], reminders: [] }
             };
 
             const { error } = await supabase.from('appointments').insert(newApt);
-            if (error) throw error;
+            if (error) {
+                if (error.code === '42703' || error.code === 'PGRST204' || error.message?.includes('metadata')) {
+                    const fallbackApt = { ...newApt };
+                    delete fallbackApt.metadata;
+                    const { error: fallbackError } = await supabase.from('appointments').insert(fallbackApt);
+                    if (fallbackError) throw fallbackError;
+                } else {
+                    throw error;
+                }
+            }
             fetchAppointments();
         } catch (err) {
             console.error('Error creating appointment:', err);
@@ -151,6 +202,10 @@ export const useAppointments = (clinicId?: string) => {
 
     const updateAppointment = async (updatedAppointment: Appointment) => {
         try {
+            const cleanNote = cleanNotes(updatedAppointment.notes || '');
+            const serializedMetadata = JSON.stringify(updatedAppointment.metadata || { calls: [], reminders: [] });
+            const notesWithMetadata = `${cleanNote}\n\n--- [METADATA] ---\n${serializedMetadata}`;
+
             const updates: any = {
                 appointment_date: updatedAppointment.date,
                 appointment_time: updatedAppointment.startTime || updatedAppointment.time,
@@ -161,13 +216,23 @@ export const useAppointments = (clinicId?: string) => {
                 type: updatedAppointment.type,
                 title: updatedAppointment.title,
                 priority: updatedAppointment.priority,
-                notes: updatedAppointment.notes,
+                notes: notesWithMetadata,
                 staff_id: updatedAppointment.doctorId ? Number(updatedAppointment.doctorId) : null,
-                doctor_name: updatedAppointment.doctorName || null
+                doctor_name: updatedAppointment.doctorName || null,
+                metadata: updatedAppointment.metadata || { calls: [], reminders: [] }
             };
 
             const { error } = await supabase.from('appointments').update(updates).eq('id', updatedAppointment.id);
-            if (error) throw error;
+            if (error) {
+                if (error.code === '42703' || error.code === 'PGRST204' || error.message?.includes('metadata')) {
+                    const fallbackUpdates = { ...updates };
+                    delete fallbackUpdates.metadata;
+                    const { error: fallbackError } = await supabase.from('appointments').update(fallbackUpdates).eq('id', updatedAppointment.id);
+                    if (fallbackError) throw fallbackError;
+                } else {
+                    throw error;
+                }
+            }
             fetchAppointments();
         } catch (err) {
             console.error('Error updating appointment:', err);
