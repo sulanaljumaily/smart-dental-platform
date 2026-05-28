@@ -304,8 +304,10 @@ export const useStaff = (clinicId?: string) => {
 
     const logActivity = async (action: string, entityId: string, details: any) => {
         try {
+            const { data: { user } } = await supabase.auth.getUser();
             await supabase.from('activity_logs').insert({
                 clinic_id: clinicId,
+                user_id: user?.id,
                 action_type: action,
                 entity_type: 'staff',
                 entity_id: entityId,
@@ -373,12 +375,27 @@ export const useStaff = (clinicId?: string) => {
             const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(invitationId);
 
             if (isUuid) {
+                // Fetch details first before deleting
+                const { data: invData } = await supabase
+                    .from('clinic_invitations')
+                    .select('email, role')
+                    .eq('id', invitationId)
+                    .maybeSingle();
+
                 // clinic_invitations: RLS only allows DELETE (not UPDATE) for owners
                 const { error: inviteError } = await supabase
                     .from('clinic_invitations')
                     .delete()
                     .eq('id', invitationId);
                 if (inviteError) throw inviteError;
+
+                toast.success('تم إلغاء الدعوة بنجاح');
+                await logActivity('cancel_invitation', 'invitation', {
+                    invitationId,
+                    email: invData?.email || '',
+                    role: invData?.role || ''
+                });
+                fetchStaff();
             } else {
                 // This is a staff record (integer id) — soft-cancel by setting status to terminated
                 const { error: staffError } = await supabase
@@ -387,11 +404,11 @@ export const useStaff = (clinicId?: string) => {
                     .eq('id', parseInt(invitationId, 10))
                     .eq('status', 'pending');
                 if (staffError) throw staffError;
-            }
 
-            toast.success('تم إلغاء الدعوة بنجاح');
-            await logActivity('cancel_invitation', 'invitation', { invitationId });
-            fetchStaff();
+                toast.success('تم إلغاء الدعوة بنجاح');
+                await logActivity('cancel_invitation', 'invitation', { invitationId });
+                fetchStaff();
+            }
         } catch (error) {
             console.error('Error cancelling invitation:', error);
             toast.error('فشل إلغاء الدعوة');

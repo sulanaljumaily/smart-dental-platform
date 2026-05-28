@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal } from '../../../components/common/Modal';
 import { useActivityLogs } from '../../../hooks/useActivityLogs';
-import { formatDate } from '../../../lib/utils';
+import { formatDate, formatActivityDetails } from '../../../lib/utils';
 import { RefreshCw, RotateCcw, Search, Filter } from 'lucide-react';
 import { Button } from '../../../components/common/Button';
 
@@ -20,7 +20,8 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({ isOpen, onCl
         const matchesSearch =
             log.action_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
             JSON.stringify(log.details).toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (log.user?.email || '').toLowerCase().includes(searchTerm.toLowerCase());
+            (log.profiles?.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (log.profiles?.email || '').toLowerCase().includes(searchTerm.toLowerCase());
 
         const matchesType = filterType === 'all' || log.entity_type === filterType;
 
@@ -99,7 +100,10 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({ isOpen, onCl
                                         {formatDate(log.created_at)}
                                     </td>
                                     <td className="p-3 font-medium">
-                                        {log.user?.email || 'System'}
+                                        <div className="text-gray-900">{log.profiles?.full_name || 'System'}</div>
+                                        {log.profiles?.email && (
+                                            <div className="text-xs text-gray-400 font-normal">{log.profiles.email}</div>
+                                        )}
                                     </td>
                                     <td className="p-3">
                                         {getActionLabel(log.action_type)}
@@ -109,8 +113,8 @@ export const ActivityLogModal: React.FC<ActivityLogModalProps> = ({ isOpen, onCl
                                             {getEntityLabel(log.entity_type)}
                                         </span>
                                     </td>
-                                    <td className="p-3 text-gray-600 max-w-xs truncate">
-                                        {JSON.stringify(log.details)}
+                                    <td className="p-3 text-gray-600 max-w-xs truncate" title={formatActivityDetails(log.action_type, log.details)}>
+                                        {formatActivityDetails(log.action_type, log.details)}
                                     </td>
                                     <td className="p-3">
                                         {(log.action_type === 'delete_staff' || log.action_type === 'delete_patient') && (

@@ -12,6 +12,7 @@ export interface ActivityLog {
     details: any;
     created_at: string;
     user?: { email: string }; // Joined
+    profiles?: { full_name: string; email: string }; // Joined profiles
 }
 
 export const useActivityLogs = (clinicId?: string) => {
@@ -24,7 +25,7 @@ export const useActivityLogs = (clinicId?: string) => {
         try {
             const { data, error } = await supabase
                 .from('activity_logs')
-                .select('*')
+                .select('*, profiles:user_id(full_name, email)')
                 .eq('clinic_id', clinicId)
                 .order('created_at', { ascending: false })
                 .limit(100);
@@ -62,8 +63,10 @@ export const useActivityLogs = (clinicId?: string) => {
             if (error) throw error;
 
             // Log the restore action
+            const { data: { user } } = await supabase.auth.getUser();
             await supabase.from('activity_logs').insert({
                 clinic_id: log.clinic_id,
+                user_id: user?.id,
                 action_type: `restore_${log.entity_type}`,
                 entity_type: log.entity_type,
                 entity_id: log.entity_id,

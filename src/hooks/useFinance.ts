@@ -131,8 +131,10 @@ export const useFinance = (clinicId?: string, patientId?: string, staffId?: stri
 
     const logActivity = async (action: string, entityId: string, details: any) => {
         try {
+            const { data: { user } } = await supabase.auth.getUser();
             await supabase.from('activity_logs').insert({
                 clinic_id: clinicId,
+                user_id: user?.id,
                 action_type: action,
                 entity_type: 'transaction',
                 entity_id: entityId,
@@ -176,7 +178,12 @@ export const useFinance = (clinicId?: string, patientId?: string, staffId?: stri
 
             if (error) throw error;
 
-            await logActivity('create_transaction', data.id, { amount: data.amount, type: data.type, category: data.category });
+            await logActivity('create_transaction', data.id, { 
+                amount: data.amount, 
+                type: data.type, 
+                category: data.category,
+                patientName: data.patient?.full_name || ''
+            });
 
             // Manual State Update for Immediate Feedback
             const newTransaction: Transaction = {

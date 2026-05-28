@@ -95,8 +95,10 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
 
     const logActivity = async (action: string, entityId: string, details: any) => {
         try {
+            const { data: { user } } = await supabase.auth.getUser();
             await supabase.from('activity_logs').insert({
                 clinic_id: clinicId,
+                user_id: user?.id,
                 action_type: action,
                 entity_type: 'patient',
                 entity_id: entityId,
@@ -191,6 +193,9 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
 
     const deletePatient = async (id: string) => {
         try {
+            const patientToDelete = patients.find(p => p.id === id || p.id.toString() === id);
+            const patientName = patientToDelete ? patientToDelete.name : '';
+
             // Soft delete
             const { error } = await supabase
                 .from('patients')
@@ -199,7 +204,10 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
 
             if (error) throw error;
 
-            await logActivity('delete_patient', id, { reason: 'Soft delete from UI' });
+            await logActivity('delete_patient', id, { 
+                reason: 'Soft delete from UI',
+                name: patientName 
+            });
             fetchPatients();
         } catch (err) {
             console.error('Error deleting patient:', err);

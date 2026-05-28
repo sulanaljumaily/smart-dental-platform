@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { formatActivityDetails } from '../lib/utils';
 
 export interface ActivityLog {
     id: string;
     action: string; // e.g., 'CREATE_PATIENT', 'DELETE_APPOINTMENT'
-    entityType: 'patient' | 'appointment' | 'inventory' | 'financial' | 'settings';
+    entityType: 'patient' | 'appointment' | 'inventory' | 'financial' | 'settings' | 'staff';
     entityId?: string;
     description: string;
     performedBy: string; // Staff Name
     performedAt: string;
-    metadata?: any; // To store restore data (e.g. deleted patient object)
+    metadata?: any; // To store restore data
     loading?: boolean;
 }
 
@@ -36,7 +37,7 @@ export const useClinicActivity = (clinicId: string) => {
 
         try {
             // 1. Fetch from 'activity_logs' (System Logs)
-            let logQuery = supabase.from('activity_logs').select('*');
+            let logQuery = supabase.from('activity_logs').select('*, profiles:user_id(full_name, email)');
             if (clinicId && clinicId !== 'all') logQuery = logQuery.eq('clinic_id', clinicId);
             const { data: logs } = await logQuery;
 
@@ -45,9 +46,10 @@ export const useClinicActivity = (clinicId: string) => {
                     allLogs.push({
                         id: item.id,
                         action: item.action_type || item.action,
-                        entityType: item.entity_type,
-                        description: item.details ? JSON.stringify(item.details) : item.description,
-                        performedBy: 'النظام', // Placeholder or fetch user
+                        entityType: item.entity_type as any,
+                        entityId: item.entity_id,
+                        description: formatActivityDetails(item.action_type || item.action, item.details),
+                        performedBy: item.profiles?.full_name || item.profiles?.email || 'النظام',
                         performedAt: item.created_at,
                         metadata: item.details
                     });
@@ -84,7 +86,7 @@ export const useClinicActivity = (clinicId: string) => {
             if (user) {
                 let aptQuery = supabase
                     .from('appointments')
-                    .select('id, patient_name, status, type, created_at, clinic_id')
+                    .select('id, patient_name, status, type, created_at, clinic_id, doctor_name')
                     .order('created_at', { ascending: false })
                     .limit(20);
 
@@ -99,7 +101,7 @@ export const useClinicActivity = (clinicId: string) => {
                             entityType: 'appointment',
                             entityId: a.id,
                             description: `موعد جديد للمريض ${a.patient_name} (${a.type})`,
-                            performedBy: 'النظام',
+                            performedBy: a.doctor_name || 'سلطان الجميلي',
                             performedAt: a.created_at
                         });
                     });
@@ -176,30 +178,43 @@ export const useClinicActivity = (clinicId: string) => {
     };
 
     const undoAction = async (activityId: string) => {
-        // 1. Find activity
         const activity = activities.find(a => a.id === activityId);
-        if (!activity || !activity.metadata?.restoreId) return false;
+        if (!activity) return false;
 
-        // 2. Optimistic update
+        // Ensure we only restore soft-deletes of staff/patients
+        const isRestorable = activity.action === 'delete_staff' || activity.action === 'delete_patient';
+        if (!isRestorable || !activity.entityId) return false;
+
         setActivities(prev => prev.map(a => a.id === activityId ? { ...a, loading: true } : a));
 
         try {
-            // Mock Undo: just remove the activity for now as "restored"
-            // Start of Undo Logic
+            let tableName = '';
+            if (activity.action === 'delete_staff') tableName = 'staff';
+            else if (activity.action === 'delete_patient') tableName = 'patients';
+
             const { error } = await supabase
-                .from('activity_logs')
-                .delete()
-                .eq('id', activityId);
+                .from(tableName)
+                .update({ deleted_at: null })
+                .eq('id', activity.entityId);
 
             if (error) throw error;
-            // End of Undo Logic
 
-            // 3. Remove from log or mark as 'undone'
-            // For now, we'll just show success and refresh
+            // Log the restore action
+            const { data: { user } } = await supabase.auth.getUser();
+            await supabase.from('activity_logs').insert({
+                clinic_id: clinicId,
+                user_id: user?.id,
+                action_type: `restore_${activity.entityType}`,
+                entity_type: activity.entityType,
+                entity_id: activity.entityId,
+                details: { restored_from_log_id: activityId }
+            });
+
             await fetchActivities();
             return true;
         } catch (err) {
             console.error('Undo failed:', err);
+            setActivities(prev => prev.map(a => a.id === activityId ? { ...a, loading: false } : a));
             return false;
         }
     };

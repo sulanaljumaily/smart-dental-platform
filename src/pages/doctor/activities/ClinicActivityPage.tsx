@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import {
     ArrowRight,
     Activity,
@@ -166,17 +167,26 @@ export const ClinicActivityPage: React.FC = () => {
                                                 </div>
 
                                                 {/* Undo Button */}
-                                                {log.metadata?.restoreId && (
+                                                {(log.action === 'delete_staff' || log.action === 'delete_patient') && (
                                                     <button
-                                                        onClick={() => undoAction(log.id)}
+                                                        onClick={async () => {
+                                                            if (window.confirm('هل أنت متأكد من استعادة هذا العنصر؟')) {
+                                                                const success = await undoAction(log.id);
+                                                                if (success) {
+                                                                    toast.success('تم استعادة العنصر بنجاح');
+                                                                } else {
+                                                                    toast.error('فشل استعادة العنصر');
+                                                                }
+                                                            }
+                                                        }}
                                                         disabled={log.loading}
-                                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors border ${log.loading
+                                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors border ${log.loading
                                                                 ? 'bg-gray-100 text-gray-400 border-transparent cursor-wait'
                                                                 : 'bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50 hover:border-indigo-300'
                                                             }`}
                                                     >
                                                         <RotateCcw className={`w-3.5 h-3.5 ${log.loading ? 'animate-spin' : ''}`} />
-                                                        {log.loading ? 'جاري التراجع...' : 'تراجع عن الاجراء'}
+                                                        {log.loading ? 'جاري الاستعادة...' : 'استعادة'}
                                                     </button>
                                                 )}
                                             </div>
