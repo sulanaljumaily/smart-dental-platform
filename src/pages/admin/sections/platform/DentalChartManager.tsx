@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   Upload, X, Eye, RotateCcw, ChevronLeft, ChevronRight,
-  CheckCircle2, AlertCircle, Loader2, Tooth, Layers, Zap,
+  CheckCircle2, AlertCircle, Loader2, Layers, Zap,
   ArrowLeftRight, Info
 } from 'lucide-react';
 import { supabase } from '../../../../lib/supabase';
@@ -9,7 +9,7 @@ import { HEALTHY_TEETH_SVGS } from '../../../../constants/healthyTeeth';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ToothState =
-  | 'healthy' | 'decayed' | 'broken' | 'stained' | 'abscess' | 'impacted' | 'mobile'
+  | 'healthy' | 'decayed' | 'broken' | 'stained' | 'abscess' | 'impacted' | 'mobile' | 'missing'
   | 'filled' | 'endo' | 'crown' | 'bridge' | 'implant' | 'ortho';
 
 interface OdontogramTemplate {
