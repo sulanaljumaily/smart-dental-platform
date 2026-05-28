@@ -30,13 +30,14 @@ import { ClinicDetailsModal } from '../components/ClinicDetailsModal';
 import { AgentDetailsModal } from '../components/AgentDetailsModal'; // Import new modal
 import { PendingRequestsManager } from './platform/PendingRequestsManager';
 import { RecentActivitiesManager } from './platform/RecentActivitiesManager';
+import { DentalChartManager } from './platform/DentalChartManager';
 
 interface PlatformManagementSectionProps {
-  initialTab?: 'settings' | 'agents' | 'payment' | 'users' | 'pending_requests' | 'activities';
+  initialTab?: 'settings' | 'agents' | 'payment' | 'users' | 'pending_requests' | 'activities' | 'odontogram';
 }
 
 export const PlatformManagementSection: React.FC<PlatformManagementSectionProps> = ({ initialTab = 'users' }) => {
-  const [activeTab, setActiveTab] = useState<'settings' | 'agents' | 'payment' | 'users' | 'pending_requests' | 'activities'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'settings' | 'agents' | 'payment' | 'users' | 'pending_requests' | 'activities' | 'odontogram'>(initialTab);
   const [showAgentModal, setShowAgentModal] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
 
@@ -731,6 +732,15 @@ export const PlatformManagementSection: React.FC<PlatformManagementSectionProps>
             <Users className="w-4 h-4" />
             الوكلاء
           </button>
+          <button
+            onClick={() => setActiveTab('odontogram')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap shrink-0 ${activeTab === 'odontogram' ? 'bg-teal-50 text-teal-600' : 'text-gray-600 hover:bg-gray-50'}`}
+          >
+            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 2C8.5 2 6 5 6 8c0 4 2 6 3 10h6c1-4 3-6 3-10 0-3-2.5-6-6-6z"/>
+            </svg>
+            مخطط الأسنان
+          </button>
         </div>
       </div>
 
@@ -785,6 +795,7 @@ export const PlatformManagementSection: React.FC<PlatformManagementSectionProps>
         {activeTab === 'settings' && renderSettingsTab()}
         {activeTab === 'payment' && renderPaymentTab()}
         {activeTab === 'agents' && renderAgentsTab()}
+        {activeTab === 'odontogram' && <DentalChartManager />}
       </div>
 
       <FormModal

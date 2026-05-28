@@ -64,9 +64,28 @@ export interface TreatmentPlan {
     notes?: string;
 }
 
+export type ToothDiagnosticCondition =
+    | 'healthy'   // سليم
+    | 'decayed'   // تسوس
+    | 'broken'    // مكسور
+    | 'stained'   // تصبغ
+    | 'abscess'   // خراج
+    | 'impacted'  // مطمور
+    | 'missing';  // مفقود (يُولّد تلقائياً من healthy بدون رفع ملف)
+
+export type ToothTreatmentState =
+    | 'filled'    // حشوة
+    | 'endo'      // علاج عصب
+    | 'crown'     // تلبيس / تاج
+    | 'bridge'    // جسر
+    | 'implant'   // زرعة
+    | 'ortho';    // تقويم
+
+export type ToothState = ToothDiagnosticCondition | ToothTreatmentState;
+
 export interface ToothCondition {
     number: number;
-    condition: 'healthy' | 'decayed' | 'filled' | 'missing' | 'crown' | 'endo' | 'implant';
+    condition: ToothState;
     notes?: string;
     existingTreatments?: string[];
     treatmentPlan?: {

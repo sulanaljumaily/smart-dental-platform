@@ -32,12 +32,13 @@ export const ToothConditionModal: React.FC<ToothConditionModalProps> = ({
     }, [isOpen, initialCondition, initialNotes]);
 
     const conditions = [
-        { id: 'healthy', label: 'سليم', color: 'bg-green-100 text-green-800' },
-        { id: 'cavity', label: 'تسوس', color: 'bg-red-100 text-red-800' },
-        { id: 'broken', label: 'مكسور', color: 'bg-orange-100 text-orange-800' },
-        { id: 'missing', label: 'مفقود', color: 'bg-gray-100 text-gray-800' },
-        { id: 'stained', label: 'تصبغ', color: 'bg-yellow-100 text-yellow-800' },
-        { id: 'abscess', label: 'خراج', color: 'bg-red-200 text-red-900' }
+        { id: 'healthy',  label: 'سليم',   color: 'bg-green-100 text-green-800',   dotColor: 'bg-green-400',  icon: '✓' },
+        { id: 'decayed',  label: 'تسوس',   color: 'bg-red-100 text-red-800',       dotColor: 'bg-red-500',    icon: '●' },
+        { id: 'broken',   label: 'مكسور',  color: 'bg-orange-100 text-orange-800', dotColor: 'bg-orange-500', icon: '✕' },
+        { id: 'missing',  label: 'مفقود',  color: 'bg-gray-100 text-gray-800',     dotColor: 'bg-gray-400',   icon: '○' },
+        { id: 'stained',  label: 'تصبغ',   color: 'bg-yellow-100 text-yellow-800', dotColor: 'bg-yellow-500', icon: '◐' },
+        { id: 'abscess',  label: 'خراج',   color: 'bg-rose-100 text-rose-900',     dotColor: 'bg-rose-600',   icon: '⊕' },
+        { id: 'impacted', label: 'مطمور',  color: 'bg-purple-100 text-purple-800', dotColor: 'bg-purple-500', icon: '↓' },
     ];
 
     const handleSave = () => {
@@ -66,20 +67,22 @@ export const ToothConditionModal: React.FC<ToothConditionModalProps> = ({
 
                 {/* Content */}
                 <div className="p-6">
-                    <div className="mb-8">
+                        <div className="mb-8">
                         <label className="block text-sm font-bold text-gray-700 mb-4">اختر حالة السن التشخيصية</label>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                             {conditions.map(cond => (
                                 <button
                                     key={cond.id}
                                     onClick={() => setCondition(cond.id as any)}
-                                    className={`p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 hover:shadow-md ${condition === cond.id
+                                    className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 hover:shadow-md ${condition === cond.id
                                         ? 'border-teal-500 bg-teal-50 ring-2 ring-teal-200 transform scale-105'
-                                        : 'border-transparent bg-white hover:border-gray-200'
+                                        : `border-transparent bg-white hover:border-gray-200`
                                         }`}
                                 >
-                                    <div className={`w-3 h-3 rounded-full ${cond.color.split(' ')[0].replace('bg-', 'bg-')}`}></div>
-                                    <span className={`text-sm font-bold ${condition === cond.id ? 'text-teal-700' : 'text-gray-600'}`}>
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold ${cond.dotColor}`}>
+                                        {cond.icon}
+                                    </div>
+                                    <span className={`text-xs font-bold ${condition === cond.id ? 'text-teal-700' : 'text-gray-600'}`}>
                                         {cond.label}
                                     </span>
                                 </button>
