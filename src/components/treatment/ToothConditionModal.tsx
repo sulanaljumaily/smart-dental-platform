@@ -70,7 +70,7 @@ export const ToothConditionModal: React.FC<ToothConditionModalProps> = ({
                 <div className="p-6">
                         <div className="mb-8">
                         <label className="block text-sm font-bold text-gray-700 mb-4">اختر حالة السن التشخيصية</label>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                             {conditions.map(cond => (
                                 <button
                                     key={cond.id}

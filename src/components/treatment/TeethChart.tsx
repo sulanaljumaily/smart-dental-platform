@@ -284,7 +284,125 @@ export const TeethChart: React.FC<TeethChartProps> = ({
         // 3. Fallback to basic tooth if no custom template exists
         if (!isCustom) {
             const isLeft = (toothNum >= 21 && toothNum <= 28) || (toothNum >= 31 && toothNum <= 38);
-            
+            const healthySvg = templates[`${toothNum}_healthy`];
+
+            if (healthySvg) {
+                // Strip static width/height attributes
+                let baseSvg = healthySvg;
+                const svgStart = baseSvg.toLowerCase().indexOf('<svg');
+                if (svgStart !== -1) {
+                    baseSvg = baseSvg.slice(svgStart);
+                }
+                baseSvg = baseSvg.replace(/<svg([^>]*?)(width|height)="[^"]*"/gi, '<svg$1');
+
+                // Extract width dynamically from viewBox for exact horizontal mirroring
+                let viewBoxWidth = 40; // Default
+                const viewBoxMatch = baseSvg.match(/viewBox=["']\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*["']/i);
+                if (viewBoxMatch) {
+                    const parsedWidth = parseFloat(viewBoxMatch[3]);
+                    if (!isNaN(parsedWidth) && parsedWidth > 0) {
+                        viewBoxWidth = parsedWidth;
+                    }
+                }
+
+                if (!baseSvg.includes('viewBox')) {
+                    baseSvg = baseSvg.replace('<svg', `<svg viewBox="0 0 ${viewBoxWidth} 80"`);
+                }
+
+                // Target opening tag of SVG to wrap contents inside a mirroring <g> group
+                let processedHealthy = baseSvg;
+                const svgOpenIndex = processedHealthy.indexOf('>');
+                if (svgOpenIndex !== -1) {
+                    const openTag = processedHealthy.slice(0, svgOpenIndex + 1);
+                    const contents = processedHealthy.slice(svgOpenIndex + 1, processedHealthy.lastIndexOf('</svg>'));
+                    
+                    if (isLeft) {
+                        processedHealthy = `${openTag}<g transform="scale(-1,1) translate(-${viewBoxWidth},0)">${contents}</g></svg>`;
+                    } else {
+                        processedHealthy = `${openTag}${contents}</svg>`;
+                    }
+                }
+
+                return (
+                    <div className="w-full h-full relative flex items-center justify-center p-0">
+                        {/* Background: High-fidelity healthy SVG */}
+                        <div 
+                            className="absolute inset-0 w-full h-full flex items-center justify-center p-0 sm:p-0.5"
+                            dangerouslySetInnerHTML={{ __html: processedHealthy }}
+                        />
+                        {/* Foreground Overlay: Transparent SVG with the clinical markings (e.g. decayed dot, crown, implant screw, bridge, endo line, etc.) */}
+                        <div className="absolute inset-0 w-full h-full flex items-center justify-center z-10 pointer-events-none p-0 sm:p-0.5">
+                            <svg viewBox="0 0 20 52" className="w-full h-full overflow-visible drop-shadow-sm">
+                                <g transform={isLeft ? "scale(-1,1) translate(-20,0)" : ""}>
+                                    {/* Decay overlay */}
+                                    {condition === 'decayed' && (
+                                        <circle cx="10" cy="12" r="3.2" fill="#ef4444" opacity="0.95" stroke="white" strokeWidth="0.8" />
+                                    )}
+
+                                    {/* Filled overlay */}
+                                    {condition === 'filled' && (
+                                        <path d="M6,8 Q10,12 14,8 L14,14 Q10,18 6,14 Z" fill="#3b82f6" opacity="0.85" stroke="white" strokeWidth="0.8" />
+                                    )}
+
+                                    {/* Endo overlay */}
+                                    {condition === 'endo' && (
+                                        <g stroke="#9333ea" strokeWidth="1.6" strokeLinecap="round">
+                                            <line x1="10" y1="10" x2="10" y2="45" strokeDasharray="1 1" />
+                                            <circle cx="10" cy="8" r="1.8" fill="#9333ea" stroke="white" strokeWidth="0.6" />
+                                        </g>
+                                    )}
+
+                                    {/* Implant overlay */}
+                                    {condition === 'implant' && (
+                                        <g>
+                                            <path d="M7,28 L13,30 M7,32 L13,34 M7,36 L13,38 M7,40 L13,42" stroke="#4b5563" strokeWidth="1.5" />
+                                            <rect x="8.5" y="25" width="3" height="22" rx="1" fill="#6b7280" stroke="white" strokeWidth="0.6" />
+                                            <rect x="7" y="20" width="6" height="4" fill="#4b5563" />
+                                        </g>
+                                    )}
+
+                                    {/* Crown overlay */}
+                                    {condition === 'crown' && (
+                                        <path d="M2,10 L2,2 Q10,-2 18,2 L18,10 Q10,14 2,10 Z" fill="rgba(202, 138, 4, 0.15)" stroke="#ca8a04" strokeWidth="2.2" />
+                                    )}
+
+                                    {/* Broken overlay */}
+                                    {condition === 'broken' && (
+                                        <path d="M2,10 L8,10 L4,16 L2,10" fill="#f97316" stroke="#ea580c" strokeWidth="1.2" />
+                                    )}
+
+                                    {/* Stained overlay */}
+                                    {condition === 'stained' && (
+                                        <ellipse cx="10" cy="12" rx="4" ry="2.5" fill="#eab308" opacity="0.65" stroke="white" strokeWidth="0.6" />
+                                    )}
+
+                                    {/* Abscess overlay */}
+                                    {condition === 'abscess' && (
+                                        <circle cx="10" cy="46" r="3.8" fill="#dc2626" opacity="0.9" className="animate-pulse" stroke="white" strokeWidth="0.8" />
+                                    )}
+
+                                    {/* Ortho overlay */}
+                                    {condition === 'ortho' && (
+                                        <g stroke="#0891b2" strokeWidth="1.4">
+                                            <line x1="1" y1="12" x2="19" y2="12" />
+                                            <rect x="8" y="10" width="4" height="4" fill="#0891b2" stroke="white" strokeWidth="0.5" />
+                                            <rect x="3" y="10" width="3" height="4" fill="#0891b2" stroke="white" strokeWidth="0.5" />
+                                            <rect x="14" y="10" width="3" height="4" fill="#0891b2" stroke="white" strokeWidth="0.5" />
+                                        </g>
+                                    )}
+
+                                    {/* Bridge overlay */}
+                                    {condition === 'bridge' && (
+                                        <rect x="0" y="8" width="20" height="4.5" fill="#06b6d4" opacity="0.75" rx="1.2" stroke="white" strokeWidth="0.6" />
+                                    )}
+                                </g>
+                            </svg>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Absolute basic fallback outline only if healthySvg is somehow missing (impossible since preloaded)
             return (
                 <svg viewBox="0 0 20 52" className={`w-full h-full overflow-visible drop-shadow-sm 
                     ${condition === 'missing' ? 'missing-tooth-svg' : ''} 
