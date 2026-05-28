@@ -442,7 +442,7 @@ export const TeethChart: React.FC<TeethChartProps> = ({
                     ${condition === 'missing' ? 'opacity-40 grayscale' : 'hover:-translate-y-1 hover:drop-shadow-md'}
                     ${isSelectionMode && isSelected ? 'scale-110 drop-shadow-xl z-10' : ''}`}
             >
-                <div className={`relative w-6 h-10 sm:w-8 sm:h-12 flex items-center justify-center rounded-xl transition-all ${isSelectionMode && isSelected ? 'bg-indigo-50 ring-2 ring-indigo-400' : ''}`}>
+                <div className={`relative w-[21px] h-10 sm:w-8 sm:h-12 flex items-center justify-center rounded-xl transition-all ${isSelectionMode && isSelected ? 'bg-indigo-50 ring-2 ring-indigo-400' : ''}`}>
                     {renderToothSvg(tooth.number, condition)}
 
                     {isSelectionMode && isSelected && (
@@ -543,7 +543,7 @@ export const TeethChart: React.FC<TeethChartProps> = ({
                 </div>
             </div>
 
-            <div className="mt-8 pt-4 border-t border-gray-100 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-2 text-[10px] text-gray-600">
+            <div className="mt-8 pt-4 border-t border-gray-100 grid grid-cols-4 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-2 text-[10px] text-gray-600">
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-red-100 border border-red-400 rounded-sm"></div> تسوس</div>
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-orange-100 border border-orange-400 rounded-sm"></div> مكسور</div>
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-yellow-100 border border-yellow-400 rounded-sm"></div> تصبغ</div>
