@@ -3,6 +3,7 @@ import { ToothCondition } from '../../types/treatment';
 import { Check, MousePointerClick, Sparkles } from 'lucide-react';
 import { Button } from '../common/Button';
 import { supabase } from '../../lib/supabase';
+import { HEALTHY_TEETH_SVGS } from '../../constants/healthyTeeth';
 
 interface TeethChartProps {
     teeth: ToothCondition[];
@@ -27,7 +28,13 @@ export const TeethChart: React.FC<TeethChartProps> = ({
     onEnableSelection,
     onGeneralTreatmentClick
 }) => {
-    const [templates, setTemplates] = useState<Record<string, string>>({});
+    const [templates, setTemplates] = useState<Record<string, string>>(() => {
+        const initial: Record<string, string> = {};
+        Object.entries(HEALTHY_TEETH_SVGS).forEach(([toothNum, svg]) => {
+            initial[`${toothNum}_healthy`] = svg;
+        });
+        return initial;
+    });
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -42,7 +49,7 @@ export const TeethChart: React.FC<TeethChartProps> = ({
                     data.forEach((row: any) => {
                         loaded[`${row.tooth_number}_${row.state}`] = row.svg_content;
                     });
-                    setTemplates(loaded);
+                    setTemplates(prev => ({ ...prev, ...loaded }));
                 }
             } catch (e) {
                 console.error('Error fetching odontogram templates:', e);
@@ -75,6 +82,158 @@ export const TeethChart: React.FC<TeethChartProps> = ({
     );
 
     const renderToothSvg = (toothNum: number, condition: string) => {
+        // Handle abscess tooth with red drop shadow shape glow
+        if (condition === 'abscess') {
+            const isLeft = (toothNum >= 21 && toothNum <= 28) || (toothNum >= 31 && toothNum <= 38);
+            let abscessSvg = templates[`${toothNum}_abscess`] || templates[`${toothNum}_healthy`];
+            
+            if (abscessSvg) {
+                // Strip static width/height attributes
+                let baseSvg = abscessSvg;
+                const svgStart = baseSvg.toLowerCase().indexOf('<svg');
+                if (svgStart !== -1) {
+                    baseSvg = baseSvg.slice(svgStart);
+                }
+                baseSvg = baseSvg.replace(/<svg([^>]*?)(width|height)="[^"]*"/gi, '<svg$1');
+
+                // Extract width dynamically from viewBox for exact horizontal mirroring
+                let viewBoxWidth = 40; // Default
+                const viewBoxMatch = baseSvg.match(/viewBox=["']\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*["']/i);
+                if (viewBoxMatch) {
+                    const parsedWidth = parseFloat(viewBoxMatch[3]);
+                    if (!isNaN(parsedWidth) && parsedWidth > 0) {
+                        viewBoxWidth = parsedWidth;
+                    }
+                }
+
+                if (!baseSvg.includes('viewBox')) {
+                    baseSvg = baseSvg.replace('<svg', `<svg viewBox="0 0 ${viewBoxWidth} 80"`);
+                }
+
+                // Inject abscess class
+                let processedAbscess = baseSvg.replace('<svg ', '<svg class="abscess-tooth-svg" ');
+                const svgOpenIndex = processedAbscess.indexOf('>');
+                if (svgOpenIndex !== -1) {
+                    const openTag = processedAbscess.slice(0, svgOpenIndex + 1);
+                    const contents = processedAbscess.slice(svgOpenIndex + 1, processedAbscess.lastIndexOf('</svg>'));
+                    if (isLeft) {
+                        processedAbscess = `${openTag}<g transform="scale(-1,1) translate(-${viewBoxWidth},0)">${contents}</g></svg>`;
+                    } else {
+                        processedAbscess = `${openTag}${contents}</svg>`;
+                    }
+                }
+
+                return (
+                    <div 
+                        className="w-full h-full flex items-center justify-center p-0 sm:p-0.5"
+                        dangerouslySetInnerHTML={{ __html: processedAbscess }}
+                    />
+                );
+            }
+        }
+
+        // Handle mobile tooth (mobility) with stacked static stroke and moving foreground
+        if (condition === 'mobile') {
+            const isLeft = (toothNum >= 21 && toothNum <= 28) || (toothNum >= 31 && toothNum <= 38);
+            const healthySvg = templates[`${toothNum}_healthy`];
+            
+            if (healthySvg) {
+                // Strip static width/height attributes
+                let baseSvg = healthySvg;
+                const svgStart = baseSvg.toLowerCase().indexOf('<svg');
+                if (svgStart !== -1) {
+                    baseSvg = baseSvg.slice(svgStart);
+                }
+                baseSvg = baseSvg.replace(/<svg([^>]*?)(width|height)="[^"]*"/gi, '<svg$1');
+
+                // Extract width dynamically from viewBox for exact horizontal mirroring
+                let viewBoxWidth = 40; // Default
+                const viewBoxMatch = baseSvg.match(/viewBox=["']\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*["']/i);
+                if (viewBoxMatch) {
+                    const parsedWidth = parseFloat(viewBoxMatch[3]);
+                    if (!isNaN(parsedWidth) && parsedWidth > 0) {
+                        viewBoxWidth = parsedWidth;
+                    }
+                }
+
+                if (!baseSvg.includes('viewBox')) {
+                    baseSvg = baseSvg.replace('<svg', `<svg viewBox="0 0 ${viewBoxWidth} 80"`);
+                }
+
+                // Create static background outline SVG
+                let staticOutlineSvg = baseSvg.replace('<svg ', '<svg class="mobile-tooth-static-stroke" ');
+                const svgOpenIndex1 = staticOutlineSvg.indexOf('>');
+                if (svgOpenIndex1 !== -1) {
+                    const openTag = staticOutlineSvg.slice(0, svgOpenIndex1 + 1);
+                    const contents = staticOutlineSvg.slice(svgOpenIndex1 + 1, staticOutlineSvg.lastIndexOf('</svg>'));
+                    if (isLeft) {
+                        staticOutlineSvg = `${openTag}<g transform="scale(-1,1) translate(-${viewBoxWidth},0)">${contents}</g></svg>`;
+                    } else {
+                        staticOutlineSvg = `${openTag}${contents}</svg>`;
+                    }
+                }
+
+                // Create moving foreground SVG
+                let movingSvg = baseSvg.replace('<svg ', '<svg class="mobile-tooth-svg" ');
+                const svgOpenIndex2 = movingSvg.indexOf('>');
+                if (svgOpenIndex2 !== -1) {
+                    const openTag = movingSvg.slice(0, svgOpenIndex2 + 1);
+                    const contents = movingSvg.slice(svgOpenIndex2 + 1, movingSvg.lastIndexOf('</svg>'));
+                    if (isLeft) {
+                        movingSvg = `${openTag}<g transform="scale(-1,1) translate(-${viewBoxWidth},0)">${contents}</g></svg>`;
+                    } else {
+                        movingSvg = `${openTag}${contents}</svg>`;
+                    }
+                }
+
+                return (
+                    <div className="w-full h-full relative flex items-center justify-center p-0">
+                        <div 
+                            className="absolute inset-0 w-full h-full flex items-center justify-center pointer-events-none p-0 sm:p-0.5"
+                            dangerouslySetInnerHTML={{ __html: staticOutlineSvg }}
+                        />
+                        <div 
+                            className="relative w-full h-full flex items-center justify-center z-10 p-0 sm:p-0.5"
+                            dangerouslySetInnerHTML={{ __html: movingSvg }}
+                        />
+                    </div>
+                );
+            }
+
+            // Fallback basic tooth for mobile state (stacked)
+            return (
+                <div className="w-full h-full relative flex items-center justify-center p-0">
+                    <div className="absolute inset-0 w-full h-full flex items-center justify-center pointer-events-none p-0 sm:p-0.5">
+                        <svg viewBox="0 0 20 52" className="w-full h-full overflow-visible drop-shadow-sm mobile-tooth-static-stroke">
+                            <g transform={isLeft ? "scale(-1,1) translate(-20,0)" : ""}>
+                                <RootShape />
+                                <path 
+                                    d="M10,2 C5,2 2,5 2,10 L2,25 C2,35 8,40 10,40 C12,40 18,35 18,25 L18,10 C18,5 15,2 10,2 Z" 
+                                    fill="none" 
+                                    stroke="#14b8a6" 
+                                    strokeWidth="1.2" 
+                                    style={{ strokeDasharray: '2,2', opacity: 0.6 }}
+                                />
+                            </g>
+                        </svg>
+                    </div>
+                    <div className="relative w-full h-full flex items-center justify-center z-10 p-0 sm:p-0.5">
+                        <svg viewBox="0 0 20 52" className="w-full h-full overflow-visible drop-shadow-sm mobile-tooth-svg">
+                            <g transform={isLeft ? "scale(-1,1) translate(-20,0)" : ""}>
+                                <RootShape />
+                                <path 
+                                    d="M10,2 C5,2 2,5 2,10 L2,25 C2,35 8,40 10,40 C12,40 18,35 18,25 L18,10 C18,5 15,2 10,2 Z" 
+                                    fill="white" 
+                                    stroke="#e5e7eb" 
+                                    strokeWidth="1.5" 
+                                />
+                            </g>
+                        </svg>
+                    </div>
+                </div>
+            );
+        }
+
         // 1. Try to get template for this specific tooth and condition
         let svg = templates[`${toothNum}_${condition}`];
         let isCustom = !!svg;
@@ -108,12 +267,29 @@ export const TeethChart: React.FC<TeethChartProps> = ({
             }
         }
 
+        // If impacted and no custom template is uploaded, automatically use healthy template with rotation/opacity effect!
+        if (!svg && condition === 'impacted') {
+            svg = templates[`${toothNum}_healthy`];
+            if (svg) {
+                const svgStart = svg.toLowerCase().indexOf('<svg');
+                if (svgStart !== -1) {
+                    svg = svg.slice(svgStart);
+                }
+                // Rotate 25deg, translate down, and set semi-transparent opacity to represent impacted tooth under the gumline
+                svg = svg.replace('<svg ', '<svg style="transform: rotate(25deg) translateY(6px); opacity: 0.8; transform-origin: center;" ');
+                isCustom = true;
+            }
+        }
+
         // 3. Fallback to basic tooth if no custom template exists
         if (!isCustom) {
             const isLeft = (toothNum >= 21 && toothNum <= 28) || (toothNum >= 31 && toothNum <= 38);
             
             return (
-                <svg viewBox="0 0 20 52" className={`w-full h-full overflow-visible drop-shadow-sm ${condition === 'missing' ? 'missing-tooth-svg' : ''}`}>
+                <svg viewBox="0 0 20 52" className={`w-full h-full overflow-visible drop-shadow-sm 
+                    ${condition === 'missing' ? 'missing-tooth-svg' : ''} 
+                    ${condition === 'mobile' ? 'mobile-tooth-svg' : ''}
+                    ${condition === 'abscess' ? 'abscess-tooth-svg' : ''}`}>
                     <g transform={isLeft ? "scale(-1,1) translate(-20,0)" : ""}>
                         <RootShape />
                         <path 
@@ -228,7 +404,7 @@ export const TeethChart: React.FC<TeethChartProps> = ({
 
         return (
             <div 
-                className="w-full h-full flex items-center justify-center p-1"
+                className="w-full h-full flex items-center justify-center p-0 sm:p-0.5"
                 dangerouslySetInnerHTML={{ __html: processedSvg }}
             />
         );
@@ -237,34 +413,37 @@ export const TeethChart: React.FC<TeethChartProps> = ({
     const renderToothInfo = (tooth: ToothCondition) => {
         const isSelected = selectedTeethNumbers.includes(tooth.number);
         const condition = tooth.condition;
+        const isHealthy = condition === 'healthy';
+
+        const getConditionBadgeClass = (cond: string) => {
+            switch (cond) {
+                case 'decayed': return 'border-red-500 text-red-600 bg-red-500/5';
+                case 'missing': return 'border-gray-400 text-gray-500 bg-gray-500/5';
+                case 'filled': return 'border-blue-500 text-blue-600 bg-blue-500/5';
+                case 'endo': return 'border-purple-500 text-purple-600 bg-purple-500/5';
+                case 'implant': return 'border-gray-600 text-gray-700 bg-gray-600/5';
+                case 'crown': return 'border-amber-500 text-amber-600 bg-amber-500/5';
+                case 'broken': return 'border-orange-500 text-orange-600 bg-orange-500/5';
+                case 'stained': return 'border-yellow-600 text-yellow-600 bg-yellow-500/5';
+                case 'abscess': return 'border-rose-600 text-rose-700 bg-rose-500/5';
+                case 'impacted': return 'border-purple-600 text-purple-700 bg-purple-600/5';
+                case 'mobile': return 'border-teal-500 text-teal-600 bg-teal-500/5';
+                case 'bridge': return 'border-cyan-500 text-cyan-600 bg-cyan-500/5';
+                case 'ortho': return 'border-teal-500 text-teal-600 bg-teal-500/5';
+                default: return 'border-gray-300 text-gray-500 bg-transparent';
+            }
+        };
 
         return (
             <button
                 key={tooth.number}
                 onClick={() => handleToothInteraction(tooth)}
-                className={`relative group flex flex-col items-center p-0.5 transition-all duration-200 outline-none
+                className={`relative group flex flex-col items-center p-0 transition-all duration-200 outline-none
                     ${condition === 'missing' ? 'opacity-40 grayscale' : 'hover:-translate-y-1 hover:drop-shadow-md'}
                     ${isSelectionMode && isSelected ? 'scale-110 drop-shadow-xl z-10' : ''}`}
             >
-                <div className={`relative w-10 h-14 flex items-center justify-center rounded-xl transition-all ${isSelectionMode && isSelected ? 'bg-indigo-50 ring-2 ring-indigo-400' : ''}`}>
+                <div className={`relative w-6 h-10 sm:w-8 sm:h-12 flex items-center justify-center rounded-xl transition-all ${isSelectionMode && isSelected ? 'bg-indigo-50 ring-2 ring-indigo-400' : ''}`}>
                     {renderToothSvg(tooth.number, condition)}
-
-                    {condition !== 'healthy' && !isSelected && (
-                        <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border border-white ${
-                            condition === 'decayed' ? 'bg-red-500' :
-                            condition === 'missing' ? 'bg-gray-400' :
-                            condition === 'filled' ? 'bg-blue-500' :
-                            condition === 'endo' ? 'bg-purple-500' :
-                            condition === 'implant' ? 'bg-gray-600' :
-                            condition === 'crown' ? 'bg-amber-500' :
-                            condition === 'broken' ? 'bg-orange-500' :
-                            condition === 'stained' ? 'bg-yellow-500' :
-                            condition === 'abscess' ? 'bg-rose-600' :
-                            condition === 'impacted' ? 'bg-purple-600' :
-                            condition === 'bridge' ? 'bg-cyan-500' :
-                            condition === 'ortho' ? 'bg-teal-500' : 'bg-gray-200'
-                        }`}></div>
-                    )}
 
                     {isSelectionMode && isSelected && (
                         <div className="absolute -top-2 -right-2 bg-indigo-600 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center shadow-sm z-20">
@@ -272,7 +451,16 @@ export const TeethChart: React.FC<TeethChartProps> = ({
                         </div>
                     )}
                 </div>
-                <span className={`text-xs font-bold mt-1 font-mono transition-colors group-hover:text-blue-600 ${isSelected ? 'text-indigo-700' : 'text-gray-500'}`}>{tooth.number}</span>
+
+                {isHealthy ? (
+                    <span className={`text-[9px] font-bold mt-1 font-mono transition-colors group-hover:text-blue-600 ${isSelected ? 'text-indigo-700' : 'text-gray-500'}`}>
+                        {tooth.number}
+                    </span>
+                ) : (
+                    <span className={`mt-1 w-[17px] h-[14px] flex items-center justify-center rounded-[4px] border text-[8px] font-bold font-mono transition-all ${getConditionBadgeClass(condition)}`}>
+                        {tooth.number}
+                    </span>
+                )}
             </button>
         );
     };
@@ -283,13 +471,39 @@ export const TeethChart: React.FC<TeethChartProps> = ({
     const lowerLeft = teeth.filter(t => t.number >= 31 && t.number <= 38).sort((a, b) => a.number - b.number);
 
     return (
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 transition-all duration-300 relative">
+        <div className="bg-white p-3 sm:p-6 rounded-xl shadow-sm border border-gray-200 transition-all duration-300 relative">
             <style>{`
                 .missing-tooth-svg * {
                     fill: none !important;
                     stroke: #a8a29e !important;
                     stroke-dasharray: 3 3 !important;
                     stroke-width: 1.5px !important;
+                }
+                .mobile-tooth-static-stroke * {
+                    fill: none !important;
+                    stroke: #14b8a6 !important;
+                    stroke-dasharray: 2 2 !important;
+                    stroke-width: 1.2px !important;
+                    opacity: 0.6 !important;
+                }
+                @keyframes mobile-tooth-shake {
+                    0%, 100% { transform: rotate(0deg) translateX(0px); }
+                    50% { transform: rotate(1.5deg) translateX(0.5px); }
+                }
+                @keyframes mobile-tooth-svg-glow {
+                    0%, 100% { filter: drop-shadow(0 0 1px rgba(20, 184, 166, 0.35)); }
+                    50% { filter: drop-shadow(0 0 5px rgba(20, 184, 166, 0.95)); }
+                }
+                .mobile-tooth-svg {
+                    animation: mobile-tooth-shake 2.5s ease-in-out infinite, mobile-tooth-svg-glow 2s ease-in-out infinite;
+                    transform-origin: bottom center;
+                }
+                @keyframes abscess-tooth-svg-glow {
+                    0%, 100% { filter: drop-shadow(0 0 1px rgba(220, 38, 38, 0.35)); }
+                    50% { filter: drop-shadow(0 0 5px rgba(220, 38, 38, 0.95)); }
+                }
+                .abscess-tooth-svg {
+                    animation: abscess-tooth-svg-glow 2s ease-in-out infinite;
                 }
             `}</style>
             <div className="flex justify-between items-center mb-6 border-b pb-4">
@@ -316,26 +530,26 @@ export const TeethChart: React.FC<TeethChartProps> = ({
                 </div>
             </div>
 
-             <div className={`flex flex-col items-center gap-6 transition-opacity duration-300 ${isSelectionMode ? 'bg-slate-50/50 p-4 rounded-xl ring-1 ring-slate-100 ring-inset' : ''}`}>
-                <div className="flex justify-center gap-0.5 md:gap-2 pb-6 border-b border-dashed border-gray-200 w-full overflow-x-auto">
-                    <div className="flex gap-0.5 md:gap-1">{upperRight.map(renderToothInfo)}</div>
-                    <div className="w-px bg-gray-300 h-10 self-center mx-1 md:mx-3 opacity-30"></div>
-                    <div className="flex gap-0.5 md:gap-1">{upperLeft.map(renderToothInfo)}</div>
+             <div className={`flex flex-col items-center gap-4 transition-opacity duration-300 ${isSelectionMode ? 'bg-slate-50/50 p-1 sm:p-2 rounded-xl ring-1 ring-slate-100 ring-inset' : ''}`}>
+                <div className="flex justify-center gap-0 pb-4 border-b border-dashed border-gray-200 w-full overflow-x-auto">
+                    <div className="flex gap-0 sm:gap-[1px]">{upperRight.map(renderToothInfo)}</div>
+                    <div className="w-px bg-gray-300 h-9 self-center mx-0.5 sm:mx-1 opacity-30"></div>
+                    <div className="flex gap-0 sm:gap-[1px]">{upperLeft.map(renderToothInfo)}</div>
                 </div>
-                <div className="flex justify-center gap-0.5 md:gap-2 w-full overflow-x-auto">
-                    <div className="flex gap-0.5 md:gap-1">{lowerRight.map(renderToothInfo)}</div>
-                    <div className="w-px bg-gray-300 h-10 self-center mx-1 md:mx-3 opacity-30"></div>
-                    <div className="flex gap-0.5 md:gap-1">{lowerLeft.map(renderToothInfo)}</div>
+                <div className="flex justify-center gap-0 w-full overflow-x-auto">
+                    <div className="flex gap-0 sm:gap-[1px]">{lowerRight.map(renderToothInfo)}</div>
+                    <div className="w-px bg-gray-300 h-9 self-center mx-0.5 sm:mx-1 opacity-30"></div>
+                    <div className="flex gap-0 sm:gap-[1px]">{lowerLeft.map(renderToothInfo)}</div>
                 </div>
             </div>
 
             <div className="mt-8 pt-4 border-t border-gray-100 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-2 text-[10px] text-gray-600">
-                <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-white border border-gray-300 rounded-sm"></div> سليم</div>
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-red-100 border border-red-400 rounded-sm"></div> تسوس</div>
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-orange-100 border border-orange-400 rounded-sm"></div> مكسور</div>
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-yellow-100 border border-yellow-400 rounded-sm"></div> تصبغ</div>
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-rose-100 border border-rose-400 rounded-sm"></div> خراج</div>
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-purple-100 border border-purple-400 rounded-sm"></div> مطمور</div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-teal-100 border border-teal-400 rounded-sm"></div> حركة</div>
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-gray-100 border border-dashed border-gray-300 rounded-sm opacity-50"></div> مفقود</div>
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-blue-100 border border-blue-400 rounded-sm"></div> حشوة</div>
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-violet-100 border border-violet-400 rounded-sm"></div> عصب</div>

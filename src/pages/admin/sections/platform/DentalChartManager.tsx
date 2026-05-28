@@ -5,10 +5,11 @@ import {
   ArrowLeftRight, Info
 } from 'lucide-react';
 import { supabase } from '../../../../lib/supabase';
+import { HEALTHY_TEETH_SVGS } from '../../../../constants/healthyTeeth';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ToothState =
-  | 'healthy' | 'decayed' | 'broken' | 'stained' | 'abscess' | 'impacted'
+  | 'healthy' | 'decayed' | 'broken' | 'stained' | 'abscess' | 'impacted' | 'mobile'
   | 'filled' | 'endo' | 'crown' | 'bridge' | 'implant' | 'ortho';
 
 interface OdontogramTemplate {
@@ -35,7 +36,6 @@ const DIAGNOSTIC_STATES: { id: ToothState; label: string; color: string; dot: st
   { id: 'broken',   label: 'مكسور',  color: 'bg-orange-50 border-orange-300 text-orange-800', dot: 'bg-orange-500' },
   { id: 'stained',  label: 'تصبغ',   color: 'bg-yellow-50 border-yellow-300 text-yellow-800', dot: 'bg-yellow-500' },
   { id: 'abscess',  label: 'خراج',   color: 'bg-rose-50 border-rose-300 text-rose-800',     dot: 'bg-rose-600' },
-  { id: 'impacted', label: 'مطمور',  color: 'bg-purple-50 border-purple-300 text-purple-800', dot: 'bg-purple-500' },
 ];
 
 const TREATMENT_STATES: { id: ToothState; label: string; color: string; dot: string }[] = [
@@ -51,15 +51,17 @@ const ALL_UPLOADABLE_STATES = [...DIAGNOSTIC_STATES, ...TREATMENT_STATES];
 
 // ─── SVG Upload Card ──────────────────────────────────────────────────────────
 const SvgUploadCard: React.FC<{
-  stateInfo: typeof DIAGNOSTIC_STATES[0];
+  stateInfo: { id: ToothState; label: string; color: string; dot: string };
   toothNumber: number;
   existing?: string;
   onUploaded: (state: ToothState, svg: string) => void;
   onReset: (state: ToothState) => void;
   isMissingAuto?: boolean;
   isStainedAuto?: boolean;
+  isImpactedAuto?: boolean;
+  isMobileAuto?: boolean;
   healthySvg?: string;
-}> = ({ stateInfo, toothNumber, existing, onUploaded, onReset, isMissingAuto, isStainedAuto, healthySvg }) => {
+}> = ({ stateInfo, toothNumber, existing, onUploaded, onReset, isMissingAuto, isStainedAuto, isImpactedAuto, isMobileAuto, healthySvg }) => {
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<string | null>(existing || null);
@@ -114,12 +116,36 @@ const SvgUploadCard: React.FC<{
     return healthySvg.replace('<svg ', '<svg style="filter: sepia(0.6) saturate(1.8) hue-rotate(10deg) brightness(0.95)" ');
   };
 
-  const isShowingAuto = isMissingAuto || (isStainedAuto && !preview && !!healthySvg);
+  // Auto-generate impacted state preview from healthy SVG with rotation and opacity effect
+  const getImpactedPreview = () => {
+    if (!healthySvg) return null;
+    return healthySvg.replace('<svg ', '<svg style="transform: rotate(25deg) translateY(6px); opacity: 0.8; transform-origin: center;" ');
+  };
+
+  // Auto-generate mobile state preview from healthy SVG with class for shake animation
+  const getMobilePreview = () => {
+    if (!healthySvg) return null;
+    return healthySvg.replace('<svg ', '<svg class="mobile-tooth-svg" ');
+  };
+
+  // Add red drop-shadow glow to abscess preview if uploaded
+  const getAbscessPreview = () => {
+    if (!preview) return null;
+    return preview.replace('<svg ', '<svg class="abscess-tooth-svg" ');
+  };
+
+  const isShowingAuto = isMissingAuto || isImpactedAuto || isMobileAuto || (isStainedAuto && !preview && !!healthySvg);
   const displayPreview = isMissingAuto 
     ? getMissingPreview() 
-    : (isStainedAuto && !preview)
-      ? getStainedPreview()
-      : preview;
+    : isImpactedAuto
+      ? getImpactedPreview()
+      : isMobileAuto
+        ? getMobilePreview()
+        : (isStainedAuto && !preview)
+          ? getStainedPreview()
+          : (stateInfo.id === 'abscess' && preview)
+            ? getAbscessPreview()
+            : preview;
 
   return (
     <div className={`relative rounded-xl border-2 p-3 transition-all ${stateInfo.color} ${dragging ? 'scale-105 shadow-lg' : ''}`}>
@@ -130,7 +156,7 @@ const SvgUploadCard: React.FC<{
           <span className="text-xs font-bold">{stateInfo.label}</span>
         </div>
         <div className="flex gap-1">
-          {!isMissingAuto && preview && (
+          {!isMissingAuto && !isImpactedAuto && !isMobileAuto && preview && (
             <button
               onClick={() => { setPreview(null); onReset(stateInfo.id); }}
               className="p-1 rounded-full hover:bg-white/60 transition-colors"
@@ -148,12 +174,12 @@ const SvgUploadCard: React.FC<{
       {/* Preview / Upload Zone */}
       <div
         className={`relative h-20 rounded-lg flex items-center justify-center cursor-pointer transition-all
-          ${isMissingAuto ? 'cursor-default bg-white/30' : 'hover:bg-white/50 bg-white/30'}
+          ${(isMissingAuto || isImpactedAuto || isMobileAuto) ? 'cursor-default bg-white/30' : 'hover:bg-white/50 bg-white/30'}
           ${dragging ? 'bg-white/60' : ''}`}
-        onDragOver={e => { if (!isMissingAuto) { e.preventDefault(); setDragging(true); } }}
+        onDragOver={e => { if (!isMissingAuto && !isImpactedAuto && !isMobileAuto) { e.preventDefault(); setDragging(true); } }}
         onDragLeave={() => setDragging(false)}
-        onDrop={isMissingAuto ? undefined : handleDrop}
-        onClick={isMissingAuto ? undefined : () => fileRef.current?.click()}
+        onDrop={isMissingAuto || isImpactedAuto || isMobileAuto ? undefined : handleDrop}
+        onClick={isMissingAuto || isImpactedAuto || isMobileAuto ? undefined : () => fileRef.current?.click()}
       >
         {loading ? (
           <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
@@ -169,7 +195,7 @@ const SvgUploadCard: React.FC<{
           </div>
         )}
 
-        {!isMissingAuto && (
+        {!isMissingAuto && !isImpactedAuto && !isMobileAuto && (
           <input
             ref={fileRef}
             type="file"
@@ -248,7 +274,13 @@ const ToothMini: React.FC<{
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 export const DentalChartManager: React.FC = () => {
-  const [templates, setTemplates] = useState<Record<string, string>>({});
+  const [templates, setTemplates] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+    Object.entries(HEALTHY_TEETH_SVGS).forEach(([toothNum, svg]) => {
+      initial[`${toothNum}_healthy`] = svg;
+    });
+    return initial;
+  });
   const [selectedTooth, setSelectedTooth] = useState<number | null>(11);
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [saveSuccess, setSaveSuccess] = useState<Record<string, boolean>>({});
@@ -272,7 +304,7 @@ export const DentalChartManager: React.FC = () => {
           data.forEach((row: any) => {
             loaded[`${row.tooth_number}_${row.state}`] = row.svg_content;
           });
-          setTemplates(loaded);
+          setTemplates(prev => ({ ...prev, ...loaded }));
         }
       } catch (e) {
         console.error('Error fetching odontogram templates:', e);
@@ -354,6 +386,32 @@ export const DentalChartManager: React.FC = () => {
             stroke: #a8a29e !important;
             stroke-dasharray: 3 3 !important;
             stroke-width: 1.5px !important;
+        }
+        @keyframes mobile-tooth-shake {
+            0%, 100% { transform: rotate(0deg) translateX(0px); }
+            50% { transform: rotate(1.5deg) translateX(0.5px); }
+        }
+        @keyframes mobile-tooth-svg-glow {
+            0%, 100% { filter: drop-shadow(0 0 1px rgba(20, 184, 166, 0.35)); }
+            50% { filter: drop-shadow(0 0 5px rgba(20, 184, 166, 0.95)); }
+        }
+        .mobile-tooth-svg {
+            animation: mobile-tooth-shake 2.5s ease-in-out infinite, mobile-tooth-svg-glow 2s ease-in-out infinite;
+            transform-origin: bottom center;
+        }
+        .mobile-tooth-static-stroke * {
+            fill: none !important;
+            stroke: #14b8a6 !important;
+            stroke-dasharray: 2 2 !important;
+            stroke-width: 1.2px !important;
+            opacity: 0.6 !important;
+        }
+        @keyframes abscess-tooth-svg-glow {
+            0%, 100% { filter: drop-shadow(0 0 1px rgba(220, 38, 38, 0.35)); }
+            50% { filter: drop-shadow(0 0 5px rgba(220, 38, 38, 0.95)); }
+        }
+        .abscess-tooth-svg {
+            animation: abscess-tooth-svg-glow 2s ease-in-out infinite;
         }
       `}</style>
 
@@ -477,7 +535,7 @@ export const DentalChartManager: React.FC = () => {
                   }`}
                 >
                   <AlertCircle className="w-4 h-4" />
-                  حالات التشخيص (6)
+                  حالات التشخيص (5)
                 </button>
                 <button
                   onClick={() => setActiveSection('treatment')}
@@ -529,19 +587,43 @@ export const DentalChartManager: React.FC = () => {
                   </div>
                 ))}
 
-                {/* Auto-missing card (only in diagnosis section) */}
+                {/* Auto-missing, Auto-impacted, and Auto-mobile cards (only in diagnosis section) */}
                 {activeSection === 'diagnosis' && (
-                  <div className="flex flex-col gap-2">
-                    <SvgUploadCard
-                      stateInfo={{ id: 'missing', label: 'مفقود', color: 'bg-gray-50 border-gray-300 text-gray-600', dot: 'bg-gray-400' }}
-                      toothNumber={selectedTooth}
-                      onUploaded={() => {}}
-                      onReset={() => {}}
-                      isMissingAuto={true}
-                      healthySvg={healthySvg}
-                    />
-                    <div className="text-center text-[10px] text-gray-400 font-medium">يُولَّد تلقائياً</div>
-                  </div>
+                  <>
+                    <div className="flex flex-col gap-2">
+                      <SvgUploadCard
+                        stateInfo={{ id: 'missing', label: 'مفقود', color: 'bg-gray-50 border-gray-300 text-gray-600', dot: 'bg-gray-400' }}
+                        toothNumber={selectedTooth}
+                        onUploaded={() => {}}
+                        onReset={() => {}}
+                        isMissingAuto={true}
+                        healthySvg={healthySvg}
+                      />
+                      <div className="text-center text-[10px] text-gray-400 font-medium">يُولَّد تلقائياً</div>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <SvgUploadCard
+                        stateInfo={{ id: 'impacted', label: 'مطمور', color: 'bg-purple-50 border-purple-300 text-purple-800', dot: 'bg-purple-500' }}
+                        toothNumber={selectedTooth}
+                        onUploaded={() => {}}
+                        onReset={() => {}}
+                        isImpactedAuto={true}
+                        healthySvg={healthySvg}
+                      />
+                      <div className="text-center text-[10px] text-gray-400 font-medium">يُولَّد تلقائياً</div>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <SvgUploadCard
+                        stateInfo={{ id: 'mobile', label: 'حركة (Mobile)', color: 'bg-teal-50 border-teal-300 text-teal-800', dot: 'bg-teal-500' }}
+                        toothNumber={selectedTooth}
+                        onUploaded={() => {}}
+                        onReset={() => {}}
+                        isMobileAuto={true}
+                        healthySvg={healthySvg}
+                      />
+                      <div className="text-center text-[10px] text-gray-400 font-medium">يُولَّد تلقائياً</div>
+                    </div>
+                  </>
                 )}
               </div>
 

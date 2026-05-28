@@ -39,6 +39,7 @@ export const ToothConditionModal: React.FC<ToothConditionModalProps> = ({
         { id: 'stained',  label: 'تصبغ',   color: 'bg-yellow-100 text-yellow-800', dotColor: 'bg-yellow-500', icon: '◐' },
         { id: 'abscess',  label: 'خراج',   color: 'bg-rose-100 text-rose-900',     dotColor: 'bg-rose-600',   icon: '⊕' },
         { id: 'impacted', label: 'مطمور',  color: 'bg-purple-100 text-purple-800', dotColor: 'bg-purple-500', icon: '↓' },
+        { id: 'mobile',   label: 'حركة السن', color: 'bg-teal-100 text-teal-800', dotColor: 'bg-teal-500', icon: '⏵' },
     ];
 
     const handleSave = () => {

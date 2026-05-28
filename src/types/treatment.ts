@@ -71,7 +71,8 @@ export type ToothDiagnosticCondition =
     | 'stained'   // تصبغ
     | 'abscess'   // خراج
     | 'impacted'  // مطمور
-    | 'missing';  // مفقود (يُولّد تلقائياً من healthy بدون رفع ملف)
+    | 'missing'   // مفقود (يُولّد تلقائياً من healthy بدون رفع ملف)
+    | 'mobile';   // حركة سن (يُولّد تلقائياً من healthy مع تأثير حركة بطيئة وبسيطة)
 
 export type ToothTreatmentState =
     | 'filled'    // حشوة
