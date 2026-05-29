@@ -1,4 +1,4 @@
-export type AIAgentType = 'image_analysis' | 'doctor_assistant' | 'patient_assistant';
+export type AIAgentType = 'image_analysis' | 'doctor_assistant' | 'patient_assistant' | 'smile_design' | string;
 
 export interface AIAgentConfig {
     id: AIAgentType;
@@ -10,6 +10,9 @@ export interface AIAgentConfig {
     isActive: boolean;
     systemRules: string; // The "Rules" the user requested
     temperature: number;
+    visionProvider?: 'openai' | 'google' | 'mock';
+    visionModel?: string;
+    visionApiKey?: string;
 }
 
 export type DentalImageType =

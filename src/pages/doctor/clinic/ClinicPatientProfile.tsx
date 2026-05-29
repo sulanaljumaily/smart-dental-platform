@@ -2771,7 +2771,7 @@ export const ClinicPatientProfile = () => {
             </div>
           </div>
           <div className="px-3 pb-3 sm:px-4 sm:pb-4">
-            <h3 className="text-xs sm:text-sm font-bold text-gray-900 mb-1 group-hover:text-emerald-600 transition-colors">ابتسامة هوليوود (DSD)</h3>
+            <h3 className="text-xs sm:text-sm font-bold text-gray-900 mb-1 group-hover:text-emerald-600 transition-colors">تصميم الابتسامة dsd</h3>
             <p className="text-[10px] sm:text-xs text-gray-500 leading-normal line-clamp-2">
               تصميم الابتسامة التلقائي ومحاكاة النتيجة قبل وبعد العلاج التقويمي.
             </p>
@@ -4007,7 +4007,7 @@ const SmileDesignModalContent: React.FC<{ patientName?: string; patientId?: stri
   const [splitPosAi, setSplitPosAi] = useState(50);
   const [generatedSmileImage, setGeneratedSmileImage] = useState<string | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
-  const [userApiKey, setUserApiKey] = useState('');
+
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
 
   // ===== WHITENESS FILTER =====
@@ -4100,62 +4100,60 @@ const SmileDesignModalContent: React.FC<{ patientName?: string; patientId?: stri
     setAiError(null);
     setGeneratedSmileImage(null);
 
-    // Get API key: try aiService config first, then user-entered key
-    const config = aiService.getConfig('image_analysis');
-    const rawApiKey = userApiKey.trim() || config?.apiKey?.trim() || '';
-    const apiKey = rawApiKey.replace(/[^\x20-\x7E]/g, '');
-
-    if (!apiKey) {
-      setShowApiKeyInput(true);
-      toast.error('يرجى إدخال مفتاح OpenAI API لتوليد الصورة بالـ AI.');
+    if (!patientPhoto) {
+      toast.error('يرجى تحميل صورة المريض أولاً.');
       return;
     }
 
     setIsAiProcessing(true);
     setAiSimulated(false);
-    setShowApiKeyInput(false);
 
     // Build a dental-specific DALL-E prompt from user input
     const vitaColor = whiteness === 5 ? 'VITA B1 ultra-white Hollywood' :
                       whiteness === 4 ? 'VITA A1 bright white' :
                       whiteness === 3 ? 'VITA A2 natural white' : 'VITA A3 natural';
-    const shapeDesc = toothShape === 'square' ? 'rectangular Hollywood square veneers' :
-                      toothShape === 'oval' ? 'soft oval rounded veneers' : 'natural anatomical tooth shape';
-    const dallePrompt = `Professional dental photography of a beautiful realistic smile after cosmetic dental treatment. ${shapeDesc}, ${vitaColor} porcelain veneers with natural light reflection and translucency. Perfect symmetrical smile, ultra-realistic dental photography, studio lighting, close-up smile photo, no background. Clinical dental photography style. ${aiPrompt}`;
 
-    setProcessingStep('📡 الاتصال بـ OpenAI DALL-E 3...');
+    setProcessingStep('⚙️ جاري معالجة وصورة المريض...');
 
     try {
-      setProcessingStep('🎨 جاري توليد صورة الابتسامة بالذكاء الاصطناعي...');
-      const response = await fetch('https://api.openai.com/v1/images/generations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model: 'dall-e-3',
-          prompt: dallePrompt,
-          n: 1,
-          size: '1024x1024',
-          quality: 'hd'
-        })
-      });
+      let base64Photo = '';
+      let mimeType = 'image/jpeg';
 
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error?.message || `خطأ ${response.status}: فشل الاتصال بـ OpenAI`);
+      if (patientPhoto.startsWith('data:')) {
+        const parts = patientPhoto.split(',');
+        base64Photo = parts[1] || '';
+        const match = parts[0].match(/data:(.*?);/);
+        mimeType = match ? match[1] : 'image/jpeg';
+      } else {
+        setProcessingStep('📡 جاري جلب صورة المريض من الخادم...');
+        const res = await fetch(patientPhoto);
+        const blob = await res.blob();
+        mimeType = blob.type;
+        base64Photo = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result?.toString().split(',')[1] || '');
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
       }
 
-      const data = await response.json();
-      const imageUrl = data.data?.[0]?.url;
+      setProcessingStep('👁️ جاري تحليل ملامح الوجه وتصميم الابتسامة بالرؤية...');
 
-      if (!imageUrl) throw new Error('لم يتم استقبال صورة من الـ API.');
+      const generatedImageUrl = await aiService.generateSmileDesign(
+        base64Photo,
+        mimeType,
+        {
+          prompt: aiPrompt,
+          toothShape,
+          whiteness,
+          vitaColor
+        }
+      );
 
-      setGeneratedSmileImage(imageUrl);
+      setGeneratedSmileImage(generatedImageUrl);
       setAiSimulated(true);
       setIsAiProcessing(false);
-      toast.success('✨ تم توليد صورة الابتسامة بنجاح! اسحب شريط المقارنة لرؤية النتيجة.');
+      toast.success('✨ تم توليد تصميم الابتسامة الجديد بنجاح! اسحب شريط المقارنة لرؤية النتيجة.');
     } catch (err: any) {
       setIsAiProcessing(false);
       const msg = err.message || 'فشل توليد الصورة';
@@ -4602,27 +4600,6 @@ const SmileDesignModalContent: React.FC<{ patientName?: string; patientId?: stri
       {/* AI Control Panel */}
       <div className="bg-gradient-to-br from-purple-950/70 to-fuchsia-950/50 rounded-2xl border border-purple-800/40 p-4 space-y-4">
 
-        {/* OpenAI API Key input */}
-        <div className="bg-amber-950/40 border border-amber-700/40 rounded-xl p-3 space-y-2">
-          <div className="flex items-center gap-2">
-            <span className="text-amber-400 text-sm">🔑</span>
-            <p className="text-[11px] font-bold text-amber-300">مفتاح OpenAI API لتوليد الصورة</p>
-          </div>
-          <p className="text-[10px] text-amber-200/70 leading-relaxed">
-            يتطلب توليد صورة حقيقية بالـ AI مفتاح OpenAI API (DALL-E 3).
-            احصل عليه من <span className="text-amber-300 font-mono">platform.openai.com</span>
-          </p>
-          <input
-            type="password"
-            value={userApiKey}
-            onChange={e => setUserApiKey(e.target.value)}
-            placeholder="sk-proj-..."
-            className="w-full bg-slate-900 text-white rounded-lg border border-amber-800/40 px-3 py-2 text-xs font-mono placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-amber-500"
-          />
-          {userApiKey && (
-            <p className="text-[10px] text-green-400">✓ تم إدخال المفتاح — جاهز للتوليد</p>
-          )}
-        </div>
 
         {/* Prompt */}
         <div className="space-y-1.5">
@@ -4687,12 +4664,8 @@ const SmileDesignModalContent: React.FC<{ patientName?: string; patientId?: stri
         <button onClick={handleTriggerAi} disabled={isAiProcessing}
           className="w-full py-3 bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-700 hover:to-fuchsia-700 text-white font-extrabold rounded-2xl text-xs shadow-lg shadow-purple-900/30 flex items-center justify-center gap-2 disabled:opacity-50 transition-all active:scale-95">
           <Brain className="w-4 h-4" />
-          {isAiProcessing ? processingStep || 'جاري توليد الصورة...' : '🍌 توليد صورة الابتسامة بـ DALL-E 3'}
+          {isAiProcessing ? processingStep || 'جاري توليد الابتسامة...' : '✨ توليد تصميم الابتسامة بالذكاء الاصطناعي'}
         </button>
-
-        <p className="text-[9px] text-purple-500 text-center leading-relaxed">
-          يستخدم OpenAI DALL-E 3 لتوليد صورة ابتسامة احترافية واقعية • ~$0.08 لكل صورة HD
-        </p>
       </div>
 
       {/* Post-AI Results Panel */}

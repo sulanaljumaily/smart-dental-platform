@@ -15,6 +15,7 @@ import {
     Trash2,
     Eye,
     Settings,
+    Sparkles,
     Zap,
     Tag,
     Building2,
@@ -31,6 +32,7 @@ import { supabase } from '../../../lib/supabase';
 import { aiService } from '../../../services/ai/AIService';
 import { AIAgentConfig } from '../../../types/ai';
 import { MessagingSettingsManager } from './MessagingSettingsManager';
+import { ClinicDetailsModal } from '../components/ClinicDetailsModal';
 
 export const MedicalServicesSection: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'featured-clinics' | 'articles' | 'nearby' | 'ai' | 'emergency' | 'messaging'>('featured-clinics');
@@ -468,222 +470,480 @@ const AIConfigManager = () => {
                                     </div>
                                 </div>
 
-                                <div className="space-y-6">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">مزود الخدمة (Provider)</label>
-                                            <select
-                                                value={editForm.provider}
-                                                onChange={e => {
-                                                    const provider = e.target.value as any;
-                                                    let defaultModel = '';
-                                                    if (provider === 'openai') defaultModel = 'gpt-4.1';
-                                                    if (provider === 'anthropic') defaultModel = 'claude-sonnet-4-5';
-                                                    if (provider === 'google') defaultModel = 'gemini-2.5-pro-preview-03-25';
-                                                    if (provider === 'deepseek') defaultModel = 'deepseek-chat';
-
-                                                    setEditForm(prev => ({ ...prev, provider, model: defaultModel }));
-                                                }}
-                                                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none"
-                                            >
-                                                <option value="openai">OpenAI</option>
-                                                <option value="anthropic">Anthropic (Claude)</option>
-                                                <option value="google">Google (Gemini)</option>
-                                                <option value="deepseek">DeepSeek</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <div className="flex items-center justify-between mb-1">
-                                                <label className="block text-sm font-medium text-gray-700">موديل الذكاء الاصطناعي</label>
-                                                <button
-                                                    type="button"
-                                                    onClick={handleFetchModels}
-                                                    disabled={isFetchingModels}
-                                                    title="جلب الموديلات المتاحة من المزود مباشرةً"
-                                                    className="flex items-center gap-1.5 text-xs font-medium text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-2.5 py-1 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                                >
-                                                    {isFetchingModels ? (
-                                                        <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                                                        </svg>
-                                                    ) : (
-                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                                        </svg>
-                                                    )}
-                                                    {isFetchingModels ? 'جاري الجلب...' : 'جلب الموديلات'}
-                                                    {fetchedModels && !isFetchingModels && (
-                                                        <span className="bg-green-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5">{fetchedModels.length}</span>
-                                                    )}
-                                                </button>
+                                {selectedAgent.id === 'smile_design' ? (
+                                    <div className="space-y-6">
+                                        <div className="bg-gradient-to-br from-pink-50/40 via-purple-50/20 to-indigo-50/10 p-5 rounded-2xl border border-pink-100/50 space-y-5 shadow-sm animate-in fade-in duration-300">
+                                            <div className="flex items-center gap-2">
+                                                <div className="p-2 bg-pink-100 rounded-xl text-pink-600">
+                                                    <Sparkles className="w-5 h-5 animate-pulse" />
+                                                </div>
+                                                <div>
+                                                    <h4 className="text-sm font-extrabold text-gray-900">محرك تصميم وإنتاج الصور (Image Design & Generation Engine)</h4>
+                                                    <p className="text-xs text-gray-500">تكوين إعدادات المولد الذكي لتصميم الابتسامات وإنتاج صور واقعية بجودة سريرية.</p>
+                                                </div>
                                             </div>
 
-                                            {fetchModelsError && (
-                                                <p className="text-xs text-red-500 mb-1.5 flex items-center gap-1">
-                                                    <span>⚠️</span> {fetchModelsError}
-                                                </p>
-                                            )}
+                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                                                 <div>
+                                                     <label className="block text-sm font-medium text-gray-700 mb-1">مزود الخدمة (Provider)</label>
+                                                     <select
+                                                         value={editForm.provider || 'openai'}
+                                                         onChange={e => {
+                                                             const provider = e.target.value as any;
+                                                             let defaultModel = '';
+                                                             let defaultVisionModel = '';
+                                                             let defaultVisionProvider = provider;
 
-                                            {fetchedModels ? (
-                                                // Dynamic list from API
-                                                <div className="space-y-1">
+                                                             if (provider === 'openai') {
+                                                                 defaultModel = 'dall-e-3';
+                                                                 defaultVisionModel = 'gpt-4o';
+                                                             } else if (provider === 'google') {
+                                                                 defaultModel = 'imagen-3.0-generate-001';
+                                                                 defaultVisionModel = 'gemini-1.5-pro';
+                                                             }
+
+                                                             setEditForm(prev => ({
+                                                                 ...prev,
+                                                                 provider,
+                                                                 model: defaultModel,
+                                                                 visionProvider: defaultVisionProvider,
+                                                                 visionModel: defaultVisionModel
+                                                             }));
+                                                             // Clear fetched models when provider changes
+                                                             setFetchedModels(null);
+                                                             setFetchModelsError(null);
+                                                         }}
+                                                         className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm"
+                                                     >
+                                                         <option value="openai">OpenAI</option>
+                                                         <option value="google">Google (Gemini)</option>
+                                                     </select>
+                                                 </div>
+                                                 <div>
+                                                     <div className="flex items-center justify-between mb-1">
+                                                         <label className="block text-sm font-medium text-gray-700">موديل الذكاء الاصطناعي</label>
+                                                         <button
+                                                             type="button"
+                                                             onClick={handleFetchModels}
+                                                             disabled={isFetchingModels}
+                                                             title="جلب الموديلات المتاحة من المزود مباشرةً"
+                                                             className="flex items-center gap-1.5 text-xs font-medium text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-2.5 py-1 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                                         >
+                                                             {isFetchingModels ? (
+                                                                 <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                                                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                                                                 </svg>
+                                                             ) : (
+                                                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                                 </svg>
+                                                             )}
+                                                             {isFetchingModels ? 'جاري الجلب...' : 'جلب الموديلات'}
+                                                             {fetchedModels && !isFetchingModels && (
+                                                                 <span className="bg-green-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5">{fetchedModels.length}</span>
+                                                             )}
+                                                         </button>
+                                                     </div>
+
+                                                     {fetchModelsError && (
+                                                         <p className="text-xs text-red-500 mb-1.5 flex items-center gap-1">
+                                                             <span>⚠️</span> {fetchModelsError}
+                                                         </p>
+                                                     )}
+
+                                                     {fetchedModels ? (
+                                                         <div className="space-y-1">
+                                                             <select
+                                                                 value={editForm.model || ''}
+                                                                 onChange={e => setEditForm(prev => ({ ...prev, model: e.target.value }))}
+                                                                 className="w-full p-2.5 bg-gray-50 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm"
+                                                             >
+                                                                 {fetchedModels.map(m => (
+                                                                     <option key={m.id} value={m.id} title={m.description}>
+                                                                         {m.name !== m.id ? `${m.name} (${m.id})` : m.id}
+                                                                     </option>
+                                                                 ))}
+                                                             </select>
+                                                             <button
+                                                                 type="button"
+                                                                 onClick={() => setFetchedModels(null)}
+                                                                 className="text-xs text-gray-400 hover:text-gray-600 underline block"
+                                                             >
+                                                                 العودة للقائمة الثابتة
+                                                             </button>
+                                                         </div>
+                                                     ) : (
+                                                         <select
+                                                             value={editForm.model || 'dall-e-3'}
+                                                             onChange={e => setEditForm(prev => ({ ...prev, model: e.target.value }))}
+                                                             className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm shadow-sm transition-all"
+                                                         >
+                                                             {editForm.provider === 'openai' && (
+                                                                 <>
+                                                                     <option value="dall-e-3">dall-e-3 (الأنسب والأعلى واقعية)</option>
+                                                                     <option value="dall-e-2">dall-e-2 (سريع ويدعم التعديل بالقناع)</option>
+                                                                     <option value="gpt-image-2">gpt-image-2 (مخصص)</option>
+                                                                 </>
+                                                             )}
+                                                             {editForm.provider === 'google' && (
+                                                                 <>
+                                                                     <option value="imagen-3.0-generate-001">imagen-3.0-generate-001 (Imagen 3)</option>
+                                                                     <option value="imagen-3.0-fast-001">imagen-3.0-fast-001 (سريع جداً)</option>
+                                                                 </>
+                                                             )}
+                                                         </select>
+                                                     )}
+                                                 </div>
+                                             </div>
+
+                                            <div>
+                                                <label className="block text-xs font-semibold text-gray-700 mb-1">مفتاح API لتصميم وتوليد الصور (API Key)</label>
+                                                <div className="relative">
+                                                    <Lock className="w-4 h-4 text-gray-400 absolute right-3 top-3" />
+                                                    <input
+                                                        type={editForm.apiKey && editForm.apiKey.length > 0 && !isSaving ? "password" : "text"}
+                                                        value={editForm.apiKey || ''}
+                                                        onChange={e => {
+                                                            const apiKey = e.target.value;
+                                                            setEditForm(prev => ({
+                                                                ...prev,
+                                                                apiKey,
+                                                                visionApiKey: apiKey // automatically sync vision API key as well
+                                                            }));
+                                                        }}
+                                                        placeholder="sk-... أو مفتاح الوصول الخاص بالمزود"
+                                                        className="w-full pr-10 pl-4 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none font-mono text-xs shadow-sm transition-all"
+                                                    />
+                                                </div>
+                                                <p className="text-[10px] text-gray-400 mt-1">يتم تخزين المفتاح بشكل آمن لتفويض طلبات توليد وتصميم الصور.</p>
+                                            </div>
+                                        </div>
+
+                                        {/* System Rules */}
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                                                تعليمات تصميم الابتسامة الفنية (Design Prompt & Rules)
+                                                <span className="text-xs text-purple-600 font-semibold bg-purple-50 px-2.5 py-0.5 rounded-full">هام جداً</span>
+                                            </label>
+                                            <p className="text-xs text-gray-500">القواعد والتعليمات الفنية الثابتة التي يتبعها محرك الذكاء الاصطناعي لإنتاج تفاصيل الابتسامة والأسنان بشكل واقعي.</p>
+                                            <textarea
+                                                rows={8}
+                                                value={editForm.systemRules || ''}
+                                                onChange={e => setEditForm(prev => ({ ...prev, systemRules: e.target.value }))}
+                                                className="w-full p-4 bg-gray-900 text-green-400 font-mono text-sm rounded-2xl border border-gray-200 focus:ring-2 focus:ring-purple-500 outline-none shadow-inner leading-relaxed"
+                                                placeholder="أنت وكيل مسؤول عن توليد وتصميم الابتسامات الطبية والسريرية بشكل فائق الواقعية..."
+                                            />
+                                        </div>
+
+                                        {/* Temperature / Creativity */}
+                                        <div className="p-4 rounded-xl bg-gray-50/50 border border-gray-100 space-y-3">
+                                            <div className="flex justify-between items-center">
+                                                <label className="text-sm font-bold text-gray-700">درجة الإبداع والتنوع في التصميم (Temperature)</label>
+                                                <span className="text-sm font-black text-purple-600 bg-purple-50 px-2 py-0.5 rounded">{editForm.temperature || 0.7}</span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min="0"
+                                                max="1"
+                                                step="0.1"
+                                                value={editForm.temperature || 0.7}
+                                                onChange={e => setEditForm(prev => ({ ...prev, temperature: Number(e.target.value) }))}
+                                                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                                            />
+                                            <div className="flex justify-between text-[10px] font-medium text-gray-400">
+                                                <span>دقيق ومقيد بالملامح (0.0)</span>
+                                                <span>إبداعي مع تنوع فني (1.0)</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Action Buttons */}
+                                        <div className="pt-4 border-t border-gray-100 flex justify-end gap-3">
+                                            <Button variant="outline" onClick={() => handleSelectAgent(configs.find(c => c.id === selectedAgentId)!)}>
+                                                إلغاء التغييرات
+                                            </Button>
+                                            <Button onClick={handleSave} className="bg-purple-600 hover:bg-purple-700 text-white min-w-[120px]">
+                                                {isSaving ? 'جاري الحفظ...' : (
+                                                    <>
+                                                        <Save className="w-4 h-4 ml-2" />
+                                                        حفظ الإعدادات
+                                                    </>
+                                                )}
+                                            </Button>
+                                        </div>
+
+                                        {/* Testing Area */}
+                                        <div className="mt-8 pt-6 border-t border-gray-100">
+                                            <h4 className="text-md font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                                <Zap className="w-4 h-4 text-yellow-500" />
+                                                فحص ومحاكاة تصميم الابتسامة (DSD Test Panel)
+                                            </h4>
+                                            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-4">
+                                                <div>
+                                                    <label className="block text-xs font-semibold text-gray-700 mb-1">وصف الابتسامة المطلوبة للاختبار (Test Prompt)</label>
+                                                    <div className="flex gap-2">
+                                                        <input 
+                                                            type="text" 
+                                                            value={testPrompt}
+                                                            onChange={e => setTestPrompt(e.target.value)}
+                                                            placeholder="مثال: ابتسامة هوليوود واقعية، لون أسنان VITA A1، تفاصيل سريرية واضحة..."
+                                                            className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                                                            onKeyDown={e => e.key === 'Enter' && handleTestConnection()}
+                                                        />
+                                                        <Button onClick={handleTestConnection} disabled={isTesting} className="bg-gray-900 hover:bg-black text-white shrink-0 rounded-xl">
+                                                            {isTesting ? 'جاري التوليد...' : 'بدء التوليد التجريبي'}
+                                                        </Button>
+                                                    </div>
+                                                </div>
+
+                                                {/* Test Output Area */}
+                                                {testError && (
+                                                    <div className="p-3 bg-red-50 text-red-600 border border-red-100 rounded-xl text-sm font-medium">
+                                                        خطأ أثناء توليد الصورة: {testError}
+                                                    </div>
+                                                )}
+                                                {testResponse && (
+                                                    <div className="p-4 bg-white border border-green-100 rounded-xl shadow-sm space-y-3">
+                                                        <div className="text-xs font-bold text-green-600 flex items-center gap-1">
+                                                            <CheckCircle className="w-4 h-4" />
+                                                            تم توليد الابتسامة بنجاح:
+                                                        </div>
+                                                        {testResponse.startsWith('http') || testResponse.startsWith('data:image') ? (
+                                                            <div className="rounded-xl overflow-hidden border border-gray-100 bg-gray-50 flex justify-center max-w-md mx-auto">
+                                                                <img src={testResponse} alt="Generated Smile Design" className="max-h-72 object-contain" />
+                                                            </div>
+                                                        ) : (
+                                                            <div className="text-sm text-gray-800 font-mono whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto bg-gray-50 p-3 rounded-lg border">
+                                                                {testResponse}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-6">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">مزود الخدمة (Provider)</label>
+                                                <select
+                                                    value={editForm.provider}
+                                                    onChange={e => {
+                                                        const provider = e.target.value as any;
+                                                        let defaultModel = '';
+                                                        if (provider === 'openai') defaultModel = 'gpt-4.1';
+                                                        if (provider === 'anthropic') defaultModel = 'claude-sonnet-4-5';
+                                                        if (provider === 'google') defaultModel = 'gemini-2.5-pro-preview-03-25';
+                                                        if (provider === 'deepseek') defaultModel = 'deepseek-chat';
+                                                        if (provider === 'banana') defaultModel = 'nano-banana';
+
+                                                        setEditForm(prev => ({ ...prev, provider, model: defaultModel }));
+                                                    }}
+                                                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none"
+                                                >
+                                                    <option value="openai">OpenAI</option>
+                                                    <option value="anthropic">Anthropic (Claude)</option>
+                                                    <option value="google">Google (Gemini)</option>
+                                                    <option value="deepseek">DeepSeek</option>
+                                                    <option value="banana">Banana AI</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <label className="block text-sm font-medium text-gray-700">موديل الذكاء الاصطناعي</label>
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleFetchModels}
+                                                        disabled={isFetchingModels}
+                                                        title="جلب الموديلات المتاحة من المزود مباشرةً"
+                                                        className="flex items-center gap-1.5 text-xs font-medium text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-2.5 py-1 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    >
+                                                        {isFetchingModels ? (
+                                                            <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                                                            </svg>
+                                                        ) : (
+                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                            </svg>
+                                                        )}
+                                                        {isFetchingModels ? 'جاري الجلب...' : 'جلب الموديلات'}
+                                                        {fetchedModels && !isFetchingModels && (
+                                                            <span className="bg-green-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5">{fetchedModels.length}</span>
+                                                        )}
+                                                    </button>
+                                                </div>
+
+                                                {fetchModelsError && (
+                                                    <p className="text-xs text-red-500 mb-1.5 flex items-center gap-1">
+                                                        <span>⚠️</span> {fetchModelsError}
+                                                    </p>
+                                                )}
+
+                                                {fetchedModels ? (
+                                                    // Dynamic list from API
+                                                    <div className="space-y-1">
+                                                        <select
+                                                            value={editForm.model}
+                                                            onChange={e => setEditForm(prev => ({ ...prev, model: e.target.value }))}
+                                                            className="w-full p-2.5 bg-gray-50 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm"
+                                                            size={Math.min(fetchedModels.length + 1, 8)}
+                                                        >
+                                                            {fetchedModels.map(m => (
+                                                                <option key={m.id} value={m.id} title={m.description}>
+                                                                    {m.name !== m.id ? `${m.name} (${m.id})` : m.id}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                        <p className="text-xs text-green-600 flex items-center gap-1">
+                                                            <CheckCircle className="w-3 h-3" />
+                                                            {fetchedModels.length} موديل متاح — الموديل المحدد: <strong className="font-mono">{editForm.model}</strong>
+                                                        </p>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setFetchedModels(null)}
+                                                            className="text-xs text-gray-400 hover:text-gray-600 underline"
+                                                        >
+                                                            العودة للقائمة الثابتة
+                                                        </button>
+                                                    </div>
+                                                ) : (
                                                     <select
                                                         value={editForm.model}
                                                         onChange={e => setEditForm(prev => ({ ...prev, model: e.target.value }))}
-                                                        className="w-full p-2.5 bg-gray-50 border border-purple-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-sm"
-                                                        size={Math.min(fetchedModels.length + 1, 8)}
+                                                        className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none"
                                                     >
-                                                        {fetchedModels.map(m => (
-                                                            <option key={m.id} value={m.id} title={m.description}>
-                                                                {m.name !== m.id ? `${m.name} (${m.id})` : m.id}
-                                                            </option>
-                                                        ))}
+                                                    {/* Dynamic Options based on Provider */}
+                                                    {editForm.provider === 'openai' && (
+                                                        <>
+                                                            <optgroup label="— GPT-4.1 Series (2025) ★ جديد —">
+                                                                <option value="gpt-4.1">GPT-4.1 ★ (Latest 2025)</option>
+                                                                <option value="gpt-4.1-mini">GPT-4.1 mini</option>
+                                                                <option value="gpt-4.1-nano">GPT-4.1 nano</option>
+                                                            </optgroup>
+                                                            <optgroup label="— سلسلة التفكير / Reasoning (2025) —">
+                                                                <option value="o4-mini">o4-mini ★ (Latest Reasoning)</option>
+                                                                <option value="o3">o3 (Full Reasoning)</option>
+                                                                <option value="o3-mini">o3-mini</option>
+                                                                <option value="o1">o1</option>
+                                                                <option value="o1-mini">o1-mini</option>
+                                                                <option value="o1-preview">o1-preview</option>
+                                                            </optgroup>
+                                                            <optgroup label="— GPT-4.5 —">
+                                                                <option value="gpt-4.5-preview">GPT-4.5 Preview</option>
+                                                            </optgroup>
+                                                            <optgroup label="— GPT-4o Series —">
+                                                                <option value="gpt-4o">GPT-4o</option>
+                                                                <option value="gpt-4o-mini">gpt-4o-mini</option>
+                                                                <option value="gpt-4o-2024-11-20">GPT-4o (2024-11-20)</option>
+                                                                <option value="chatgpt-4o-latest">ChatGPT-4o (Latest)</option>
+                                                            </optgroup>
+                                                            <optgroup label="— GPT-4 القديمة —">
+                                                                <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                                                                <option value="gpt-4">GPT-4</option>
+                                                                <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                                                            </optgroup>
+                                                        </>
+                                                    )}
+                                                    {editForm.provider === 'anthropic' && (
+                                                        <optgroup label="— Claude Models —">
+                                                            <option value="claude-sonnet-4-5">Claude Sonnet 4.5 ★ (Latest)</option>
+                                                            <option value="claude-opus-4-5">Claude Opus 4.5 (Latest)</option>
+                                                            <option value="claude-3-7-sonnet-20250219">Claude 3.7 Sonnet (Hybrid Reasoning)</option>
+                                                            <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet (Oct 2024)</option>
+                                                            <option value="claude-3-5-sonnet-20240620">Claude 3.5 Sonnet (Jun 2024)</option>
+                                                            <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku</option>
+                                                            <option value="claude-3-opus-20240229">Claude 3 Opus</option>
+                                                            <option value="claude-3-sonnet-20240229">Claude 3 Sonnet</option>
+                                                            <option value="claude-3-haiku-20240307">Claude 3 Haiku</option>
+                                                        </optgroup>
+                                                    )}
+                                                    {editForm.provider === 'google' && (
+                                                        <>
+                                                            <optgroup label="— Gemini 2.5 (الأحدث) ★ —">
+                                                                <option value="gemini-2.5-pro-preview-03-25">Gemini 2.5 Pro Preview ★ (v1beta)</option>
+                                                                <option value="gemini-2.5-flash-preview-04-17">Gemini 2.5 Flash Preview (v1beta)</option>
+                                                            </optgroup>
+                                                            <optgroup label="— Gemini 2.0 (مستقر) —">
+                                                                <option value="gemini-2.0-flash">Gemini 2.0 Flash ★</option>
+                                                                <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite</option>
+                                                                <option value="gemini-2.0-flash-thinking-exp">Gemini 2.0 Flash Thinking (v1beta)</option>
+                                                            </optgroup>
+                                                            <optgroup label="— Gemini 1.5 (مستقر) —">
+                                                                <option value="gemini-1.5-pro-002">Gemini 1.5 Pro 002 ★</option>
+                                                                <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                                                                <option value="gemini-1.5-flash-002">Gemini 1.5 Flash 002 ★</option>
+                                                                <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                                                                <option value="gemini-1.5-flash-8b">Gemini 1.5 Flash 8B</option>
+                                                            </optgroup>
+                                                            <optgroup label="— Gemini 1.0 (قديم) —">
+                                                                <option value="gemini-1.0-pro">Gemini 1.0 Pro</option>
+                                                            </optgroup>
+                                                        </>
+                                                    )}
+                                                    {editForm.provider === 'deepseek' && (
+                                                        <optgroup label="— DeepSeek Models —">
+                                                            <option value="deepseek-chat">DeepSeek V3 (Chat) ★</option>
+                                                            <option value="deepseek-reasoner">DeepSeek R1 (Reasoning)</option>
+                                                            <option value="deepseek-coder">DeepSeek Coder V2</option>
+                                                            <option value="deepseek-coder-v2-instruct">DeepSeek Coder V2 Instruct</option>
+                                                            <option value="deepseek-v2-5">DeepSeek V2.5</option>
+                                                        </optgroup>
+                                                    )}
+                                                    {editForm.provider === 'banana' && (
+                                                        <optgroup label="— Banana AI Models —">
+                                                            <option value="nano-banana">nano-banana</option>
+                                                            <option value="gpt-image-2">gpt-image-2</option>
+                                                        </optgroup>
+                                                    )}
+
+                                                    <option value="custom">مخصص (أخرى) — أدخل الاسم يدوياً</option>
                                                     </select>
-                                                    <p className="text-xs text-green-600 flex items-center gap-1">
-                                                        <CheckCircle className="w-3 h-3" />
-                                                        {fetchedModels.length} موديل متاح — الموديل المحدد: <strong className="font-mono">{editForm.model}</strong>
-                                                    </p>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setFetchedModels(null)}
-                                                        className="text-xs text-gray-400 hover:text-gray-600 underline"
-                                                    >
-                                                        العودة للقائمة الثابتة
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <select
-                                                    value={editForm.model}
-                                                    onChange={e => setEditForm(prev => ({ ...prev, model: e.target.value }))}
-                                                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none"
-                                                >
-                                                {/* Dynamic Options based on Provider */}
-                                                {editForm.provider === 'openai' && (
-                                                    <>
-                                                        <optgroup label="— GPT-4.1 Series (2025) ★ جديد —">
-                                                            <option value="gpt-4.1">GPT-4.1 ★ (Latest 2025)</option>
-                                                            <option value="gpt-4.1-mini">GPT-4.1 mini</option>
-                                                            <option value="gpt-4.1-nano">GPT-4.1 nano</option>
-                                                        </optgroup>
-                                                        <optgroup label="— سلسلة التفكير / Reasoning (2025) —">
-                                                            <option value="o4-mini">o4-mini ★ (Latest Reasoning)</option>
-                                                            <option value="o3">o3 (Full Reasoning)</option>
-                                                            <option value="o3-mini">o3-mini</option>
-                                                            <option value="o1">o1</option>
-                                                            <option value="o1-mini">o1-mini</option>
-                                                            <option value="o1-preview">o1-preview</option>
-                                                        </optgroup>
-                                                        <optgroup label="— GPT-4.5 —">
-                                                            <option value="gpt-4.5-preview">GPT-4.5 Preview</option>
-                                                        </optgroup>
-                                                        <optgroup label="— GPT-4o Series —">
-                                                            <option value="gpt-4o">GPT-4o</option>
-                                                            <option value="gpt-4o-mini">GPT-4o mini</option>
-                                                            <option value="gpt-4o-2024-11-20">GPT-4o (2024-11-20)</option>
-                                                            <option value="chatgpt-4o-latest">ChatGPT-4o (Latest)</option>
-                                                        </optgroup>
-                                                        <optgroup label="— GPT-4 القديمة —">
-                                                            <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                                                            <option value="gpt-4">GPT-4</option>
-                                                            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                                                        </optgroup>
-                                                    </>
                                                 )}
-                                                {editForm.provider === 'anthropic' && (
-                                                    <optgroup label="— Claude Models —">
-                                                        <option value="claude-sonnet-4-5">Claude Sonnet 4.5 ★ (Latest)</option>
-                                                        <option value="claude-opus-4-5">Claude Opus 4.5 (Latest)</option>
-                                                        <option value="claude-3-7-sonnet-20250219">Claude 3.7 Sonnet (Hybrid Reasoning)</option>
-                                                        <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet (Oct 2024)</option>
-                                                        <option value="claude-3-5-sonnet-20240620">Claude 3.5 Sonnet (Jun 2024)</option>
-                                                        <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku</option>
-                                                        <option value="claude-3-opus-20240229">Claude 3 Opus</option>
-                                                        <option value="claude-3-sonnet-20240229">Claude 3 Sonnet</option>
-                                                        <option value="claude-3-haiku-20240307">Claude 3 Haiku</option>
-                                                    </optgroup>
-                                                )}
-                                                {editForm.provider === 'google' && (
-                                                    <>
-                                                        <optgroup label="— Gemini 2.5 (الأحدث) ★ —">
-                                                            <option value="gemini-2.5-pro-preview-03-25">Gemini 2.5 Pro Preview ★ (v1beta)</option>
-                                                            <option value="gemini-2.5-flash-preview-04-17">Gemini 2.5 Flash Preview (v1beta)</option>
-                                                        </optgroup>
-                                                        <optgroup label="— Gemini 2.0 (مستقر) —">
-                                                            <option value="gemini-2.0-flash">Gemini 2.0 Flash ★</option>
-                                                            <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash Lite</option>
-                                                            <option value="gemini-2.0-flash-thinking-exp">Gemini 2.0 Flash Thinking (v1beta)</option>
-                                                        </optgroup>
-                                                        <optgroup label="— Gemini 1.5 (مستقر) —">
-                                                            <option value="gemini-1.5-pro-002">Gemini 1.5 Pro 002 ★</option>
-                                                            <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                                                            <option value="gemini-1.5-flash-002">Gemini 1.5 Flash 002 ★</option>
-                                                            <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-                                                            <option value="gemini-1.5-flash-8b">Gemini 1.5 Flash 8B</option>
-                                                        </optgroup>
-                                                        <optgroup label="— Gemini 1.0 (قديم) —">
-                                                            <option value="gemini-1.0-pro">Gemini 1.0 Pro</option>
-                                                        </optgroup>
-                                                    </>
-                                                )}
-                                                {editForm.provider === 'deepseek' && (
-                                                    <optgroup label="— DeepSeek Models —">
-                                                        <option value="deepseek-chat">DeepSeek V3 (Chat) ★</option>
-                                                        <option value="deepseek-reasoner">DeepSeek R1 (Reasoning)</option>
-                                                        <option value="deepseek-coder">DeepSeek Coder V2</option>
-                                                        <option value="deepseek-coder-v2-instruct">DeepSeek Coder V2 Instruct</option>
-                                                        <option value="deepseek-v2-5">DeepSeek V2.5</option>
-                                                    </optgroup>
-                                                )}
-
-                                                <option value="custom">مخصص (أخرى) — أدخل الاسم يدوياً</option>
-                                                </select>
-                                            )}
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    {/* API Key */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">مفتاح API (API Key)</label>
-                                        <div className="relative">
-                                            <Lock className="w-4 h-4 text-gray-400 absolute right-3 top-3" />
-                                            <input
-                                                type={editForm.apiKey && editForm.apiKey.length > 0 && !isSaving ? "password" : "text"}
-                                                value={editForm.apiKey || ''}
-                                                onChange={e => setEditForm(prev => ({ ...prev, apiKey: e.target.value }))}
-                                                placeholder="sk-..."
-                                                className="w-full pr-10 pl-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none font-mono text-sm"
+                                        {/* API Key */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">مفتاح API (API Key)</label>
+                                            <div className="relative">
+                                                <Lock className="w-4 h-4 text-gray-400 absolute right-3 top-3" />
+                                                <input
+                                                    type={editForm.apiKey && editForm.apiKey.length > 0 && !isSaving ? "password" : "text"}
+                                                    value={editForm.apiKey || ''}
+                                                    onChange={e => setEditForm(prev => ({ ...prev, apiKey: e.target.value }))}
+                                                    placeholder="sk-..."
+                                                    className="w-full pr-10 pl-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none font-mono text-sm"
+                                                />
+                                            </div>
+                                            <p className="text-xs text-gray-400 mt-1">يتم تخزين المفتاح بشكل آمن في قاعدة البيانات لاستخدامه في الخدمة.</p>
+                                        </div>
+
+                                        {/* System Rules */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                قواعد النظام (System Rules)
+                                                <span className="text-xs text-purple-600 font-normal mr-2 bg-purple-50 px-2 py-0.5 rounded-full">هام جداً</span>
+                                            </label>
+                                            <p className="text-xs text-gray-500 mb-2">تعليمات تحدد سلوك المساعد، طريقة حديثه، وما يجب عليه فعله أو تجنبه.</p>
+                                            <textarea
+                                                rows={8}
+                                                value={editForm.systemRules}
+                                                onChange={e => setEditForm(prev => ({ ...prev, systemRules: e.target.value }))}
+                                                className="w-full p-4 bg-gray-900 text-green-400 font-mono text-sm rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 outline-none"
+                                                placeholder="You are a helpful assistant..."
                                             />
                                         </div>
-                                        <p className="text-xs text-gray-400 mt-1">يتم تخزين المفتاح بشكل آمن في قاعدة البيانات لاستخدامه في الخدمة.</p>
-                                    </div>
 
-                                    {/* System Rules - THE CONFIRMATION OF "Rules help guide behavior" */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            قواعد النظام (System Rules)
-                                            <span className="text-xs text-purple-600 font-normal mr-2 bg-purple-50 px-2 py-0.5 rounded-full">هام جداً</span>
-                                        </label>
-                                        <p className="text-xs text-gray-500 mb-2">تعليمات تحدد سلوك المساعد، طريقة حديثه، وما يجب عليه فعله أو تجنبه.</p>
-                                        <textarea
-                                            rows={8}
-                                            value={editForm.systemRules}
-                                            onChange={e => setEditForm(prev => ({ ...prev, systemRules: e.target.value }))}
-                                            className="w-full p-4 bg-gray-900 text-green-400 font-mono text-sm rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500 outline-none"
-                                            placeholder="You are a helpful assistant..."
-                                        />
-                                    </div>
-
-                                    {/* Temperature */}
-                                    <div>
-                                        <div className="flex justify-between mb-2">
-                                            <label className="text-sm font-medium text-gray-700">درجة الإبداع (Temperature)</label>
-                                            <span className="text-sm font-bold text-purple-600">{editForm.temperature}</span>
-                                        </div>
-                                        <input
-                                            type="range"
-                                            min="0"
-                                            max="1"
+                                        {/* Temperature */}
+                                        <div>
+                                            <div className="flex justify-between mb-2">
+                                                <label className="text-sm font-medium text-gray-700">درجة الإبداع (Temperature)</label>
+                                                <span className="text-sm font-bold text-purple-600">{editForm.temperature}</span>
+                                            </div>
+                                            <input
                                             step="0.1"
                                             value={editForm.temperature || 0.5}
                                             onChange={e => setEditForm(prev => ({ ...prev, temperature: Number(e.target.value) }))}
@@ -767,6 +1027,7 @@ const AIConfigManager = () => {
                                     </div>
                                     
                                 </div>
+                            )}
                             </Card>
                         ) : (
                             <div className="h-full flex flex-col items-center justify-center p-12 bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400">
@@ -780,9 +1041,6 @@ const AIConfigManager = () => {
         </div>
     );
 };
-
-import { ClinicDetailsModal } from '../components/ClinicDetailsModal'; // Add Import
-
 
 const FeaturedClinicsManager = () => {
     const [autoFeature, setAutoFeature] = useState(true);

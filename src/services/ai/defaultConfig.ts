@@ -84,5 +84,18 @@ export const DEFAULT_AI_CONFIGS: Record<string, AIAgentConfig> = {
 2. Do NOT provide specific medical diagnosis; always advise seeing a doctor.
 3. Assist with appointment scheduling logic (mock).
 4. Be reassuring if the patient is anxious.`
+    },
+    smile_design: {
+        id: 'smile_design',
+        name: 'وكيل تصميم الابتسامة (Smile Design AI)',
+        description: 'متخصص في إنشاء صور لمحاكاة تصميم الابتسامة (DSD) قبل وبعد العلاج باستخدام تقنيات DALL-E 3.',
+        provider: 'openai',
+        model: 'dall-e-3',
+        isActive: true,
+        temperature: 0.7,
+        systemRules: `أنت وكيل مسؤول عن تحليل وتوليد صور تصميم الابتسامة (Digital Smile Design).`,
+        visionProvider: 'openai',
+        visionModel: 'gpt-4o',
+        visionApiKey: ''
     }
 };
