@@ -5,7 +5,7 @@ import { useCurrentClinic } from '../../../hooks/useCurrentClinic';
 import { supabase } from '../../../lib/supabase';
 import {
   User, UserCheck, Phone, Mail, MapPin, Calendar, Activity,
-  FileText, Eye, ChevronRight, Share2, Printer, MoreVertical,
+  FileText, Eye, ChevronRight, ChevronDown, Share2, Printer, MoreVertical,
   Plus, Search, Filter, ShieldCheck, AlertCircle, CheckCircle,
   X, DollarSign, Brain, Sparkles, Send, ImageIcon, ExternalLink, Trash2,
   Minus, ChevronLeft, Settings as SettingsIcon, Save, Edit2, Archive,
@@ -34,6 +34,108 @@ import { formatDate } from '../../../lib/utils';
 import { Modal } from '../../../components/common/Modal';
 import { useLabs } from '../../../hooks/useLabs';
 import { useLabOrders } from '../../../hooks/useLabOrders';
+import { HEALTHY_TEETH_SVGS } from '../../../constants/healthyTeeth';
+
+const getClinicProcessedToothSvg = (toothNum: number, cond: string) => {
+  const rawSvg = HEALTHY_TEETH_SVGS[toothNum];
+  if (!rawSvg) return '';
+
+  let processedSvg = rawSvg;
+
+  const svgStart = processedSvg.toLowerCase().indexOf('<svg');
+  if (svgStart !== -1) {
+    processedSvg = processedSvg.slice(svgStart);
+  }
+
+  processedSvg = processedSvg.replace(/<svg([^>]*?)(width|height)="[^"]*"/gi, '<svg$1');
+
+  let viewBoxWidth = 40;
+  const viewBoxMatch = processedSvg.match(/viewBox=["']\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*["']/i);
+  if (viewBoxMatch) {
+    const parsedWidth = parseFloat(viewBoxMatch[3]);
+    if (!isNaN(parsedWidth) && parsedWidth > 0) {
+      viewBoxWidth = parsedWidth;
+    }
+  }
+
+  if (!processedSvg.includes('viewBox')) {
+    processedSvg = processedSvg.replace('<svg', `<svg viewBox="0 0 ${viewBoxWidth} 80"`);
+  }
+
+  const isLeft = (toothNum >= 21 && toothNum <= 28) || (toothNum >= 31 && toothNum <= 38);
+  const svgOpenIndex = processedSvg.indexOf('>');
+  if (svgOpenIndex !== -1) {
+    const openTag = processedSvg.slice(0, svgOpenIndex + 1);
+    const contents = processedSvg.slice(svgOpenIndex + 1, processedSvg.lastIndexOf('</svg>'));
+    
+    if (isLeft) {
+      processedSvg = `${openTag}<g transform="scale(-1,1) translate(-${viewBoxWidth},0)">${contents}</g></svg>`;
+    } else {
+      processedSvg = `${openTag}${contents}</svg>`;
+    }
+  }
+
+  let color = '#ffffff';
+  let opacity = '1.0';
+  let filter = '';
+  let transform = '';
+
+  switch (cond) {
+    case 'healthy':
+      color = '#ffffff';
+      break;
+    case 'decayed':
+      color = '#f87171';
+      break;
+    case 'broken':
+      color = '#fb923c';
+      break;
+    case 'missing':
+      color = '#ffffff';
+      opacity = '0.25';
+      break;
+    case 'stained':
+      color = '#facc15';
+      break;
+    case 'abscess':
+      color = '#fb7185';
+      filter = 'drop-shadow(0 0 4px #f43f5e)';
+      break;
+    case 'impacted':
+      color = '#c084fc';
+      transform = 'rotate(20deg)';
+      break;
+    case 'mobile':
+      color = '#2dd4bf';
+      break;
+    case 'filled':
+      color = '#60a5fa';
+      break;
+    case 'endo':
+      color = '#c084fc';
+      break;
+    case 'crown':
+      color = '#fbbf24';
+      break;
+    case 'bridge':
+      color = '#22d3ee';
+      break;
+    case 'implant':
+      color = '#cbd5e1';
+      break;
+    case 'ortho':
+      color = '#22d3ee';
+      break;
+  }
+
+  processedSvg = processedSvg
+    .replace(/fill:rgb\([^)]+\)/gi, `fill:${color}`)
+    .replace(/style="[^"]*"/gi, `style="fill:${color}; stroke:none;"`)
+    .replace(/<svg/gi, `<svg style="width:100%; height:100%; overflow:visible; opacity:${opacity}; filter:${filter}; transform:${transform}; transition:all 0.3s ease;"`);
+
+  return processedSvg;
+};
+
 import { useAuth } from '../../../contexts/AuthContext';
 import { useAIAnalysis } from '../../../hooks/useAIAnalysis';
 import { aiService } from '../../../services/ai/AIService';
@@ -3302,17 +3404,39 @@ export const ClinicPatientProfile = () => {
             >
               <X className="w-5 h-5" />
             </button>
-            <div className="flex items-center gap-3 sm:gap-4 pl-6">
-              <div className="h-10 w-10 min-w-[2.5rem] sm:h-14 sm:min-w-[3.5rem] px-2 sm:px-3 bg-white/20 rounded-lg sm:rounded-xl flex items-center justify-center font-bold text-lg sm:text-2xl shadow-lg border border-white/30 backdrop-blur-sm">
-                {selectedTeethNumbers.join(', ')}
+            <div className="flex items-center flex-wrap gap-4 pl-6 select-none">
+              <div className={`flex items-center ${selectedTeethNumbers.length > 1 ? 'gap-0.5' : 'gap-3.5'}`}>
+                {selectedTeethNumbers.map((num) => {
+                  const tooth = patientTeeth.find((t) => t.number === num);
+                  const cond = tooth ? tooth.condition : 'healthy';
+                  const svgContent = HEALTHY_TEETH_SVGS[num];
+
+                  return (
+                    <div key={num} className={`flex items-center ${selectedTeethNumbers.length > 1 ? 'gap-0' : 'gap-2'}`}>
+                      {svgContent ? (
+                        <div 
+                          className="w-7 h-10 flex items-center justify-center overflow-visible select-none"
+                          dangerouslySetInnerHTML={{ __html: getClinicProcessedToothSvg(num, cond) }}
+                        />
+                      ) : (
+                        <span className="w-8 h-8 rounded bg-white/20 text-white flex items-center justify-center text-xs font-bold font-mono">
+                          {num}
+                        </span>
+                      )}
+                      {selectedTeethNumbers.length === 1 && (
+                        <span className="text-lg sm:text-xl font-extrabold font-mono text-white">
+                          {num}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-              <div>
-                <h3 className="text-lg sm:text-xl font-bold">
-                  {selectedTeethNumbers.length > 1 ? 'مجموعة أسنان محددة' : `تفاصيل السن`}
+
+              <div className="border-r border-white/25 pr-3 py-1 flex items-center">
+                <h3 className="text-lg sm:text-xl font-bold text-white">
+                  تفاصيل السن
                 </h3>
-                <p className="text-blue-100 opacity-90 mt-1 text-xs sm:text-sm">
-                  {selectedTeethNumbers.length > 1 ? `يحتوي على ${selectedTeethNumbers.length} أسنان` : 'تحقق من حالة السن والخطط المرتبطة به'}
-                </p>
               </div>
             </div>
           </div>
@@ -3412,44 +3536,111 @@ export const ClinicPatientProfile = () => {
                   {treatmentPlans.filter(p => {
                     const tNums = p.toothNumbers || [p.toothNumber];
                     return tNums.some(n => selectedTeethNumbers.includes(n)) && p.status !== 'completed';
-                  }).map((plan, idx) => (
-                    <li key={plan.id} className="text-sm bg-white p-3 rounded-lg shadow-sm border border-blue-100 hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="min-w-[1.5rem] px-2 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-sm">
-                            {(plan.toothNumbers || [plan.toothNumber]).join(', ')}
-                          </span>
-                          <div>
-                            <span className="font-bold text-gray-800 block">
-                              {plan.notes || getTreatmentLabel(plan.type)}
+                  }).map((plan, idx) => {
+                    const isPlanExpanded = expandedPlanId === plan.id;
+                    return (
+                      <li 
+                        key={plan.id} 
+                        onClick={() => setExpandedPlanId(isPlanExpanded ? null : plan.id)}
+                        className={`text-sm bg-white p-3 rounded-lg shadow-sm border transition-all cursor-pointer select-none group ${
+                          isPlanExpanded ? 'border-blue-300 shadow-md ring-1 ring-blue-50/50' : 'border-blue-100 hover:border-blue-200 hover:shadow-md'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="min-w-[1.5rem] px-2 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-sm">
+                              {(plan.toothNumbers || [plan.toothNumber]).join(', ')}
                             </span>
-                            <span className="text-[10px] text-gray-400 block mt-0.5">ID: {plan.id.slice(0, 6)} • {new Date(plan.startDate).toLocaleDateString('en-GB')}</span>
+                            <div>
+                              <span className="font-bold text-gray-800 block">
+                                {plan.notes || getTreatmentLabel(plan.type)}
+                              </span>
+                              <span className="text-[10px] text-gray-400 block mt-0.5">ID: {plan.id.slice(0, 6)} • {new Date(plan.startDate).toLocaleDateString('en-GB')}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCancelPlan(plan.id);
+                              }}
+                              className="text-gray-300 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-full transition-all"
+                              title="إلغاء الخطة"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                            <span className="text-gray-400 p-0.5 group-hover:text-blue-500 transition-colors">
+                              <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isPlanExpanded ? 'transform rotate-180 text-blue-500' : ''}`} />
+                            </span>
                           </div>
                         </div>
-                        <button
-                          onClick={() => handleCancelPlan(plan.id)}
-                          className="text-gray-300 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-full transition-all"
-                          title="إلغاء الخطة"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
 
-                      {/* Progress Bar */}
-                      <div className="mt-3">
-                        <div className="flex justify-between text-xs mb-1">
-                          <span className="text-gray-500">التقدم: {plan.completedSessions} / {plan.totalSessions} جلسات</span>
-                          <span className="font-bold text-blue-600">{Math.round((plan.completedSessions / plan.totalSessions) * 100)}%</span>
+                        {/* Progress Bar */}
+                        <div className="mt-3">
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="text-gray-500">التقدم: {plan.completedSessions} / {plan.totalSessions} جلسات</span>
+                            <span className="font-bold text-blue-600">{Math.round((plan.completedSessions / plan.totalSessions) * 100)}%</span>
+                          </div>
+                          <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className="bg-blue-500 h-full rounded-full transition-all duration-500"
+                              style={{ width: `${(plan.completedSessions / plan.totalSessions) * 100}%` }}
+                            ></div>
+                          </div>
                         </div>
-                        <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                          <div
-                            className="bg-blue-500 h-full rounded-full transition-all duration-500"
-                            style={{ width: `${(plan.completedSessions / plan.totalSessions) * 100}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
+
+                        {/* Expanded Sessions Timeline */}
+                        {isPlanExpanded && plan.sessions && plan.sessions.length > 0 && (
+                          <div className="mt-4 pt-3 border-t border-gray-100 space-y-2.5 animate-in slide-in-from-top-3 duration-200">
+                            <h5 className="text-[11px] font-bold text-gray-400 mb-2 flex items-center gap-1.5">
+                              <Clock className="w-3.5 h-3.5" /> خطوات الجلسات العلاجية
+                            </h5>
+                            <div className="space-y-2 relative before:absolute before:inset-y-0 before:right-2.5 before:w-0.5 before:bg-gray-100">
+                              {plan.sessions.map((session: any, sIdx: number) => {
+                                const isSessionCompleted = session.status === 'completed';
+                                return (
+                                  <div key={session.id || sIdx} className="relative flex items-center gap-3 pr-7 py-0.5">
+                                    {/* Timeline bullet node */}
+                                    <div className={`absolute right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center border z-10 ${
+                                      isSessionCompleted 
+                                        ? 'bg-green-500 border-green-600 text-white shadow-sm' 
+                                        : 'bg-white border-gray-300 text-gray-400'
+                                    }`}>
+                                      {isSessionCompleted ? (
+                                        <CheckCircle className="w-2.5 h-2.5 text-white" />
+                                      ) : (
+                                        <span className="text-[8px] font-bold">{sIdx + 1}</span>
+                                      )}
+                                    </div>
+                                    {/* Session item card */}
+                                    <div className="flex-grow flex items-center justify-between py-1 px-2.5 bg-gray-50/50 rounded border border-gray-100 text-xs">
+                                      <span className={`font-medium ${isSessionCompleted ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
+                                        {session.title}
+                                      </span>
+                                      <div className="flex items-center gap-1.5">
+                                        {session.duration && (
+                                          <span className="text-[9px] font-semibold text-gray-400">
+                                            {session.duration} د
+                                          </span>
+                                        )}
+                                        <span className={`px-1.5 py-0.25 rounded-full text-[9px] font-bold ${
+                                          isSessionCompleted 
+                                            ? 'bg-green-50 text-green-700 border border-green-100' 
+                                            : 'bg-gray-100 text-gray-500 border border-gray-200'
+                                        }`}>
+                                          {isSessionCompleted ? 'تم' : 'انتظار'}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : (
                 <p className="text-sm text-gray-500 bg-white p-3 rounded-lg border border-dashed border-gray-300">لا توجد خطط نشطة حالياً.</p>

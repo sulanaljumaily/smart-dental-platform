@@ -103,38 +103,38 @@ export const GeneralTreatmentModal: React.FC<GeneralTreatmentModalProps> = ({
                     </button>
                 </div>
 
-                <div className="p-6 space-y-8 overflow-y-auto max-h-[70vh]">
+                <div className="p-4 sm:p-6 space-y-5 sm:space-y-6 overflow-y-auto max-h-[70vh]">
                     {Object.entries(groupedTreatments).map(([category, treatments]) => (
                         <div key={category}>
-                            <h4 className="font-bold text-gray-700 mb-4 px-2 border-r-4 border-teal-500 bg-gray-100 py-1 rounded-l-md inline-block">
+                            <h4 className="font-bold text-xs sm:text-sm text-gray-700 mb-2.5 px-2 border-r-4 border-teal-500 bg-gray-100 py-0.5 rounded-l-md inline-block">
                                 {category}
                             </h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
                                 {treatments.map(asset => (
                                     <div
                                         key={asset.id}
                                         onClick={() => handleSelectTreatment(asset)}
-                                        className="cursor-pointer group relative overflow-hidden rounded-xl border-2 border-white bg-white p-5 transition-all hover:shadow-lg hover:border-teal-200 hover:-translate-y-1"
+                                        className="cursor-pointer group relative overflow-hidden rounded-lg border border-gray-100 bg-white p-3 sm:p-4 transition-all hover:shadow-md hover:border-teal-200"
                                     >
-                                        <div className="flex justify-between items-start mb-2">
-                                            <span className={`px-2 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-600`}>
+                                        <div className="flex justify-between items-start mb-1.5">
+                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-600`}>
                                                 {asset.category}
                                             </span>
                                             {asset.isComplex && (
-                                                <span className="flex items-center gap-1 text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded-full border border-orange-100">
-                                                    <Clock className="w-3 h-3" /> جلسات متعددة
+                                                <span className="flex items-center gap-0.5 text-[10px] text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-full border border-orange-100">
+                                                    <Clock className="w-2.5 h-2.5" /> جلسات
                                                 </span>
                                             )}
                                         </div>
 
-                                        <h4 className="font-bold text-gray-900 mb-2 group-hover:text-teal-700 transition-colors">{asset.name}</h4>
+                                        <h4 className="font-bold text-xs sm:text-sm text-gray-900 mb-1 group-hover:text-teal-700 transition-colors line-clamp-2">{asset.name}</h4>
 
-                                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-                                            <span className="font-bold text-lg text-teal-600">{formatCurrency(asset.basePrice)}</span>
+                                        <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-gray-100">
+                                            <span className="font-bold text-sm sm:text-base text-teal-600">{formatCurrency(asset.basePrice)}</span>
                                         </div>
-                                        <div className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <div className="bg-teal-50 text-teal-600 p-1.5 rounded-full shadow-sm">
-                                                <ChevronRight className="w-4 h-4 rotate-180" />
+                                        <div className="absolute top-1.5 left-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="bg-teal-50 text-teal-600 p-1 rounded-full shadow-sm">
+                                                <ChevronRight className="w-3.5 h-3.5 rotate-180" />
                                             </div>
                                         </div>
                                     </div>

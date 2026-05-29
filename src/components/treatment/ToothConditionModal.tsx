@@ -1,8 +1,73 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Activity } from 'lucide-react';
+import { X, Save } from 'lucide-react';
 import { Button } from '../common/Button';
 import { Modal } from '../common/Modal';
 import { ToothCondition } from '../../types/treatment';
+import { HEALTHY_TEETH_SVGS } from '../../constants/healthyTeeth';
+
+const getProcessedToothSvg = (toothNum: number, cond: ToothCondition['condition']) => {
+    const rawSvg = HEALTHY_TEETH_SVGS[toothNum];
+    if (!rawSvg) return '';
+
+    let processedSvg = rawSvg;
+
+    // Strip leading comments/declarations
+    const svgStart = processedSvg.toLowerCase().indexOf('<svg');
+    if (svgStart !== -1) {
+        processedSvg = processedSvg.slice(svgStart);
+    }
+
+    // Strip static width/height
+    processedSvg = processedSvg.replace(/<svg([^>]*?)(width|height)="[^"]*"/gi, '<svg$1');
+
+    // Extract width dynamically from viewBox for exact horizontal mirroring
+    let viewBoxWidth = 40; // Default
+    const viewBoxMatch = processedSvg.match(/viewBox=["']\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*["']/i);
+    if (viewBoxMatch) {
+        const parsedWidth = parseFloat(viewBoxMatch[3]);
+        if (!isNaN(parsedWidth) && parsedWidth > 0) {
+            viewBoxWidth = parsedWidth;
+        }
+    }
+
+    if (!processedSvg.includes('viewBox')) {
+        processedSvg = processedSvg.replace('<svg', `<svg viewBox="0 0 ${viewBoxWidth} 80"`);
+    }
+
+    // Wrap contents in a mirroring <g> group if it's a left-side tooth
+    const isLeft = (toothNum >= 21 && toothNum <= 28) || (toothNum >= 31 && toothNum <= 38);
+    const svgOpenIndex = processedSvg.indexOf('>');
+    if (svgOpenIndex !== -1) {
+        const openTag = processedSvg.slice(0, svgOpenIndex + 1);
+        const contents = processedSvg.slice(svgOpenIndex + 1, processedSvg.lastIndexOf('</svg>'));
+        
+        if (isLeft) {
+            processedSvg = `${openTag}<g transform="scale(-1,1) translate(-${viewBoxWidth},0)">${contents}</g></svg>`;
+        } else {
+            processedSvg = `${openTag}${contents}</svg>`;
+        }
+    }
+
+    // Get condition specific color & styles
+    let color = '#ffffff'; // always clean white like the teeth chart for premium contrast
+    let opacity = '1.0';
+    let filter = '';
+    let transform = '';
+
+    if (cond === 'missing') {
+        opacity = '0.25';
+    } else if (cond === 'impacted') {
+        transform = 'rotate(20deg)';
+    }
+
+    // Apply color replacements to fill colors
+    processedSvg = processedSvg
+        .replace(/fill:rgb\([^)]+\)/gi, `fill:${color}`)
+        .replace(/style="[^"]*"/gi, `style="fill:${color}; stroke:none;"`)
+        .replace(/<svg/gi, `<svg style="width:100%; height:100%; overflow:visible; opacity:${opacity}; filter:${filter}; transform:${transform}; transition:all 0.3s ease;"`);
+
+    return processedSvg;
+};
 
 interface ToothConditionModalProps {
     isOpen: boolean;
@@ -54,9 +119,16 @@ export const ToothConditionModal: React.FC<ToothConditionModalProps> = ({
                 <div className="bg-gradient-to-r from-teal-600 to-emerald-700 text-white p-6 flex justify-between items-center shadow-md">
                     <div>
                         <h2 className="text-xl font-bold flex items-center gap-3">
-                            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-                                <Activity className="w-5 h-5" />
-                            </div>
+                            {HEALTHY_TEETH_SVGS[toothNumber] ? (
+                                <div 
+                                    className="w-7 h-10 flex items-center justify-center select-none overflow-visible"
+                                    dangerouslySetInnerHTML={{ __html: getProcessedToothSvg(toothNumber, condition) }}
+                                />
+                            ) : (
+                                <span className="w-8 h-8 rounded bg-white/20 text-white flex items-center justify-center text-xs font-bold font-mono">
+                                    {toothNumber}
+                                </span>
+                            )}
                             تعديل حالة السن رقم {toothNumber}
                         </h2>
                     </div>
