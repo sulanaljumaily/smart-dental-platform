@@ -563,7 +563,11 @@ class AIService {
 Your task is to analyze the clinical dental photo and describe a beautiful cosmetic teeth restoration.
 Provide a highly descriptive, realistic English prompt for an image generator (like DALL-E) to show the final result.
 Describe the smile with perfect anatomical teeth shape, natural whiteness, symmetrical alignment, and realistic enamel texture, perfectly integrated within the natural lip boundary.
-Focus strictly on the dental and smile aesthetics: describe a realistic smile with high-quality clinical dental photography details.`
+
+CRITICAL INSTRUCTIONS FOR PHOTO COMPOSITION & DETAILS:
+1. DETECT THE FRAMING: You must closely check if the uploaded photo is an "extreme macro close-up of teeth only with lips open" or a "lips and mouth shot" or a "full face shot". You MUST explicitly instruct the image generator to keep the EXACT same crop, framing, and macro scale. If the input is only a close-up of teeth, the output MUST be only a close-up of teeth. Never add a face, neck, body, or hair if they are not in the original photo.
+2. PRESERVE ORIGINAL PERSPECTIVE: The camera angle, head tilt, gaze, lighting, lip shape, and background must be kept exactly 100% identical. 
+3. DSD LINE PLANNING & GRID OVERLAYS: If the doctor's custom instructions mention DSD planning, drawing lines, grids, margins, curves, or percentages (15%, 30%), you MUST instruct the image generator to draw thin, neat, white vector lines, white curves marking the margins of the teeth and gingiva, vertical dashed white lines, and white horizontal planning lines with text labels like "15%" and "30%" directly overlaying the teeth, exactly like a professional digital smile design blueprint.`
         };
 
         const shapeDesc = settings.toothShape === 'square' ? 'rectangular Hollywood square veneers' :
@@ -574,7 +578,13 @@ Focus strictly on the dental and smile aesthetics: describe a realistic smile wi
 - Shade: VITA ${settings.vitaColor}
 - Doctor's custom instructions: ${settings.prompt}
 
-Generate a detailed English description prompt for an image generator. The prompt should describe a professional, ultra-realistic clinical post-treatment photo. It must show a perfect smile with ${shapeDesc} in VITA ${settings.vitaColor} whiteness, featuring natural enamel translucency, photorealistic texture, and seamless facial integration within the patient's natural lips. Keep the description completely professional and focused on the dental aesthetics. Output ONLY the generated prompt text with no introduction or conversational wrapper.`;
+Generate a detailed English description prompt for an image generator. The prompt should describe a professional, ultra-realistic clinical post-treatment photo.
+
+CRITICAL INSTRUCTIONS TO GENERATE THE PERFECT BLUEPRINT:
+1. Describe the exact camera composition (e.g. "An extreme clinical macro close-up photography of teeth only with open lips" or "A mouth-only shot", matching the input photo exactly). Command the image generator: "Do not show a full face, do not show a head or body. Keep it strictly focused on the teeth as a close-up macro dental photo."
+2. Command the generator to keep the lips shape, perspective, lighting, and camera angle identical.
+3. If DSD lines/grids/margin curves/percentages are requested, specify: "Directly overlay thin, neat, clean, white planning vector lines, white margin curves tracing the outlines of the teeth and gums, vertical white dashed alignment lines, and horizontal planning axis lines with white text labels reading '15%' and '30%' directly drawn over the teeth as a professional Digital Smile Design clinical template overlay."
+Output ONLY the generated prompt text with no conversational wrapper.`;
 
         const messages = [
             { role: 'system', content: visionAgentConfig.systemRules },
@@ -582,41 +592,52 @@ Generate a detailed English description prompt for an image generator. The promp
         ];
 
         let generatedPrompt = '';
-        try {
-            console.log(`[DSD] Running Vision analysis using ${visionProvider}/${visionModel}...`);
-            const visionResult = await this.callDirectAPI(visionAgentConfig, messages, imageBase64, imageMimeType, false);
-            generatedPrompt = visionResult.response;
-            console.log(`[DSD] Vision analysis succeeded. Prompt:`, generatedPrompt);
-            
-            // Safety refusal or short prompt detection
-            const lowerPrompt = generatedPrompt.toLowerCase().trim();
-            if (
-                lowerPrompt.includes("sorry") || 
-                lowerPrompt.includes("can't help") || 
-                lowerPrompt.includes("cannot help") ||
-                lowerPrompt.includes("cannot fulfill") ||
-                lowerPrompt.includes("unable to") ||
-                lowerPrompt.includes("policy") ||
-                lowerPrompt.length < 30
-            ) {
-                console.warn('[DSD] Vision model refused or returned invalid prompt. Falling back to high-quality default.');
-                generatedPrompt = `A professional clinical dental photography of a patient showing a beautiful restored smile. Symmetrical teeth, ${shapeDesc}, porcelain veneers with VITA ${settings.vitaColor} whiteness, natural light reflection and translucency. Clean facial integration, harmonious lip alignment, natural studio lighting, ultra-realistic teeth texture, 8k resolution. ${settings.prompt || ''}`;
-            }
-        } catch (e: any) {
-            console.error('[DSD] Vision analysis failed, checking fallback:', e);
-            if (visionProvider === 'banana') {
-                try {
-                    console.log('[DSD] Banana Vision failed. Retrying with OpenAI gpt-4o as fallback...');
-                    const fallbackAgentConfig = { ...visionAgentConfig, provider: 'openai' as any, model: 'gpt-4o' };
-                    const visionResult = await this.callDirectAPI(fallbackAgentConfig, messages, imageBase64, imageMimeType, false);
-                    generatedPrompt = visionResult.response;
-                    console.log('[DSD] Fallback Vision analysis succeeded:', generatedPrompt);
-                } catch (fallbackErr) {
-                    console.error('[DSD] Fallback Vision also failed, using default prompt:', fallbackErr);
-                    generatedPrompt = `Professional dental photography of a beautiful realistic smile after cosmetic dental treatment. ${shapeDesc}, VITA ${settings.vitaColor} porcelain veneers with natural light reflection and translucency. Perfect symmetrical smile, ultra-realistic dental photography, studio lighting, close-up smile photo, no background. Clinical dental photography style. ${settings.prompt}`;
+        const isDsdPlanning = settings.prompt.toLowerCase().includes('dsd') || 
+                              settings.prompt.includes('خطوط') || 
+                              settings.prompt.includes('تخطيط') || 
+                              settings.prompt.includes('منحنيات');
+
+        if (isDsdPlanning) {
+            console.log('[DSD] DSD Planning template detected. Skipping GPT-4o Vision analysis to prevent prompt distortion, sending direct professional prompt to Image Generator.');
+            // Send the exact highly-engineered DSD planning grid prompt directly to gpt-image-2 / DALL-E 3
+            generatedPrompt = `A professional clinical Digital Smile Design (DSD) analysis and teeth planning template overlaying a close-up photo of only the teeth and gums. Directly overlaying the teeth, draw thin crisp white outline curves tracing the tooth borders, white vertical dashed grid lines indicating width metrics (15%, 15%, 30%, 15%, 15%) below the teeth, a solid white horizontal reference line, and dashed white curves tracing the gingival margins over the teeth. Clean, professional white vector geometry overlays directly on the smile. Direct close-up macro dental photo composition. Keep the background, perspective, and lighting exactly the same.`;
+        } else {
+            try {
+                console.log(`[DSD] Running Vision analysis using ${visionProvider}/${visionModel}...`);
+                const visionResult = await this.callDirectAPI(visionAgentConfig, messages, imageBase64, imageMimeType, false);
+                generatedPrompt = visionResult.response;
+                console.log(`[DSD] Vision analysis succeeded. Prompt:`, generatedPrompt);
+                
+                // Safety refusal or short prompt detection
+                const lowerPrompt = generatedPrompt.toLowerCase().trim();
+                if (
+                    lowerPrompt.includes("sorry") || 
+                    lowerPrompt.includes("can't help") || 
+                    lowerPrompt.includes("cannot help") ||
+                    lowerPrompt.includes("cannot fulfill") ||
+                    lowerPrompt.includes("unable to") ||
+                    lowerPrompt.includes("policy") ||
+                    lowerPrompt.length < 30
+                ) {
+                    console.warn('[DSD] Vision model refused or returned invalid prompt. Falling back to high-quality default.');
+                    generatedPrompt = `A professional clinical dental photography of a patient showing a beautiful restored smile. Symmetrical teeth, ${shapeDesc}, porcelain veneers with VITA ${settings.vitaColor} whiteness, natural light reflection and translucency. Maintain the original patient's face, lips shape, skin, gaze, head tilt, lighting, and camera angle exactly. ONLY modify and enhance the teeth. Clean facial integration, harmonious lip alignment, natural studio lighting, ultra-realistic teeth texture, 8k resolution. ${settings.prompt || ''}`;
                 }
-            } else {
-                generatedPrompt = `Professional dental photography of a beautiful realistic smile after cosmetic dental treatment. ${shapeDesc}, VITA ${settings.vitaColor} porcelain veneers with natural light reflection and translucency. Perfect symmetrical smile, ultra-realistic dental photography, studio lighting, close-up smile photo, no background. Clinical dental photography style. ${settings.prompt}`;
+            } catch (e: any) {
+                console.error('[DSD] Vision analysis failed, checking fallback:', e);
+                if (visionProvider === 'banana') {
+                    try {
+                        console.log('[DSD] Banana Vision failed. Retrying with OpenAI gpt-4o as fallback...');
+                        const fallbackAgentConfig = { ...visionAgentConfig, provider: 'openai' as any, model: 'gpt-4o' };
+                        const visionResult = await this.callDirectAPI(fallbackAgentConfig, messages, imageBase64, imageMimeType, false);
+                        generatedPrompt = visionResult.response;
+                        console.log('[DSD] Fallback Vision analysis succeeded:', generatedPrompt);
+                    } catch (fallbackErr) {
+                        console.error('[DSD] Fallback Vision also failed, using default prompt:', fallbackErr);
+                        generatedPrompt = `Professional dental photography of a beautiful realistic smile after cosmetic dental treatment. ${shapeDesc}, VITA ${settings.vitaColor} porcelain veneers with natural light reflection and translucency. Symmetrical smile, close-up smile photo. Maintain the original patient's face, lips shape, skin, gaze, head angle, lighting, and camera perspective exactly. Only enhance and improve the teeth. Clinical dental photography style. ${settings.prompt}`;
+                    }
+                } else {
+                    generatedPrompt = `Professional dental photography of a beautiful realistic smile after cosmetic dental treatment. ${shapeDesc}, VITA ${settings.vitaColor} porcelain veneers with natural light reflection and translucency. Symmetrical smile, close-up smile photo. Maintain the original patient's face, lips shape, skin, gaze, head angle, lighting, and camera perspective exactly. Only enhance and improve the teeth. Clinical dental photography style. ${settings.prompt}`;
+                }
             }
         }
 
@@ -631,39 +652,84 @@ Generate a detailed English description prompt for an image generator. The promp
 
         if (genProvider === 'openai' || genProvider === 'banana') {
             const isBanana = genProvider === 'banana';
-            const endpoint = isBanana ? 'https://api.banana.ai/v1/images/generations' : 'https://api.openai.com/v1/images/generations';
-            const requestModel = genModel || 'dall-e-3';
             
-            console.log(`[DSD] Requesting Image generation using ${requestModel} via ${isBanana ? 'Banana AI' : 'OpenAI'}...`);
+            console.log(`[DSD] Requesting Image generation via ${isBanana ? 'Banana AI' : 'OpenAI'}...`);
             
             try {
-                const response = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${genApiKey}`
-                    },
-                    body: JSON.stringify({
-                        model: requestModel,
-                        prompt: generatedPrompt,
-                        n: 1,
-                        size: '1024x1024'
-                    })
-                });
-
-                if (!response.ok) {
-                    const errData = await response.json().catch(() => ({}));
-                    throw new Error(errData.error?.message || `خطأ ${response.status}: فشل توليد الصورة من ${isBanana ? 'Banana AI' : 'OpenAI'}`);
+                let imageUrl = '';
+                if (!isBanana) {
+                    // Direct Image-to-Image Editing (Inpainting) via OpenAI to preserve patient face and camera angles perfectly!
+                    console.log('[DSD] Running direct Image Edits API (Inpainting) on patient photo...');
+                    const editsEndpoint = 'https://api.openai.com/v1/images/edits';
+                    
+                    // Convert patient base64 photo to PNG Blob
+                    const byteCharacters = atob(imageBase64);
+                    const byteNumbers = new Array(byteCharacters.length);
+                    for (let i = 0; i < byteCharacters.length; i++) {
+                        byteNumbers[i] = byteCharacters.charCodeAt(i);
+                    }
+                    const byteArray = new Uint8Array(byteNumbers);
+                    const pngBlob = new Blob([byteArray], { type: 'image/png' });
+                    
+                    const formData = new FormData();
+                    formData.append('image', pngBlob, 'patient_photo.png');
+                    formData.append('prompt', generatedPrompt);
+                    formData.append('model', genModel);
+                    formData.append('n', '1');
+                    formData.append('size', '1024x1024');
+                    
+                    const response = await fetch(editsEndpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${genApiKey}`
+                        },
+                        body: formData
+                    });
+                    
+                    if (!response.ok) {
+                        const errText = await response.text();
+                        console.warn('[DSD] Image Edits API failed, falling back to standard generations. Error:', errText);
+                        // Fallback to standard text-to-image generations if edits API is not supported on this key
+                        throw new Error(errText);
+                    }
+                    
+                    const editData = await response.json();
+                    imageUrl = editData.data?.[0]?.url || (editData.data?.[0]?.b64_json ? `data:image/png;base64,${editData.data[0].b64_json}` : '');
                 }
+                
+                if (!imageUrl) {
+                    // Standard Text-to-Image Generations fallback
+                    const endpoint = isBanana ? 'https://api.banana.ai/v1/images/generations' : 'https://api.openai.com/v1/images/generations';
+                    const requestModel = genModel || 'dall-e-3';
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${genApiKey}`
+                        },
+                        body: JSON.stringify({
+                            model: requestModel,
+                            prompt: generatedPrompt,
+                            n: 1,
+                            size: '1024x1024'
+                        })
+                    });
 
-                const data = await response.json();
-                console.log('[DSD] Image generation raw API response:', data);
-                const imageUrl = data.data?.[0]?.url || 
-                                 (data.data?.[0]?.b64_json ? `data:image/png;base64,${data.data[0].b64_json}` : null) ||
-                                 data.url ||
-                                 data.image ||
-                                 data.data?.[0]?.image ||
-                                 (data.images?.[0] ? data.images[0] : null);
+                    if (!response.ok) {
+                        const errData = await response.json().catch(() => ({}));
+                        throw new Error(errData.error?.message || `خطأ ${response.status}: فشل توليد الصورة من ${isBanana ? 'Banana AI' : 'OpenAI'}`);
+                    }
+
+                    const data = await response.json();
+                    console.log('[DSD] Image generation raw API response:', data);
+                    imageUrl = data.data?.[0]?.url || 
+                               (data.data?.[0]?.b64_json ? `data:image/png;base64,${data.data[0].b64_json}` : null) ||
+                               data.url ||
+                               data.image ||
+                               data.data?.[0]?.image ||
+                               (data.images?.[0] ? data.images[0] : null);
+                }
+                
                 if (!imageUrl) throw new Error('لم يتم إرجاع أي رابط للصورة المولدة.');
                 return imageUrl;
             } catch (e: any) {

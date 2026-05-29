@@ -3753,7 +3753,11 @@ export const ClinicPatientProfile = () => {
         title="تصميم الابتسامة الرقمي بالذكاء الاصطناعي (DSD Preview)"
       >
         <div className="space-y-6">
-          <SmileDesignModalContent patientName={patient?.name} patientId={patient?.id} />
+          <SmileDesignModalContent 
+            patientName={patient?.name} 
+            patientId={patient?.id} 
+            onFileSaved={(newFile) => setFiles(prev => [newFile, ...prev])} 
+          />
         </div>
       </Modal>
 
@@ -3964,7 +3968,14 @@ const VoiceExamDictatorModalContent: React.FC<{ patientName?: string }> = ({ pat
   );
 };
 
-const SmileDesignModalContent: React.FC<{ patientName?: string; patientId?: string }> = ({ patientName, patientId }) => {
+interface SmileDesignModalContentProps {
+  patientName?: string;
+  patientId?: string;
+  onFileSaved?: (newFile: FileItem) => void;
+}
+
+const SmileDesignModalContent: React.FC<SmileDesignModalContentProps> = ({ patientName, patientId, onFileSaved }) => {
+  const { uploadFile } = useStorage();
   // ===== STEP FLOW =====
   // step 0: upload photo
   // step 1: choose method (manual | nanobanana)
@@ -4007,6 +4018,7 @@ const SmileDesignModalContent: React.FC<{ patientName?: string; patientId?: stri
   const [splitPosAi, setSplitPosAi] = useState(50);
   const [generatedSmileImage, setGeneratedSmileImage] = useState<string | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [isSavingDsd, setIsSavingDsd] = useState(false);
 
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
 
@@ -4162,6 +4174,65 @@ const SmileDesignModalContent: React.FC<{ patientName?: string; patientId?: stri
     }
   };
 
+  const handleSaveDsdImage = async () => {
+    if (!generatedSmileImage || !patientId) return;
+    setIsSavingDsd(true);
+    try {
+      let finalUrl = generatedSmileImage;
+      if (generatedSmileImage.startsWith('data:') || generatedSmileImage.startsWith('http')) {
+        try {
+          const res = await fetch(generatedSmileImage);
+          const blob = await res.blob();
+          const fileName = `dsd_${Date.now()}.jpg`;
+          const file = new File([blob], fileName, { type: 'image/jpeg' });
+          
+          const uploadRes = await uploadFile(file, 'patient-docs', `${patientId}/images`);
+          if (uploadRes && uploadRes.url) {
+            finalUrl = uploadRes.url;
+          }
+        } catch (uploadErr) {
+          console.error('Error uploading DSD image, using fallback URL:', uploadErr);
+        }
+      }
+
+      // Now insert into patient_files
+      const { data, error } = await supabase
+        .from('patient_files')
+        .insert({
+          patient_id: patientId,
+          name: `تصميم ابتسامة AI - VITA ${whiteness >= 5 ? 'B1' : whiteness === 4 ? 'A1' : whiteness === 3 ? 'A2' : 'A3'} (${toothShape === 'natural' ? 'طبيعي' : toothShape === 'oval' ? 'بيضاوي' : 'هوليوود'}).jpg`,
+          type: 'xray',
+          url: finalUrl,
+          size: 'AI Processed',
+          date: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        const newFile: FileItem = {
+          id: data.id,
+          name: data.name,
+          type: data.type as any,
+          date: new Date(data.created_at).toLocaleDateString('ar-IQ'),
+          size: data.size || '-',
+          url: data.url
+        };
+        if (onFileSaved) {
+          onFileSaved(newFile);
+        }
+        toast.success('تم حفظ نتيجة تصميم الابتسامة في سجلات وصور المريض بنجاح!');
+      }
+    } catch (err) {
+      console.error('DSD Save Error:', err);
+      toast.error('فشل حفظ تصميم الابتسامة في السجل');
+    } finally {
+      setIsSavingDsd(false);
+    }
+  };
+
   // ===== EXPORT =====
   const handleExport = () => {
     if (!patientPhoto) return;
@@ -4206,23 +4277,27 @@ const SmileDesignModalContent: React.FC<{ patientName?: string; patientId?: stri
           <div className="absolute inset-0">
             <img src={patientPhoto!} alt="Before" className="w-full h-full object-cover"
               style={{ transform: `scale(${bgScale}) translate(${bgX}px,${bgY}px)`, transformOrigin: 'center' }} />
-            <div className="absolute bottom-3 right-3 bg-black/70 text-slate-300 px-2.5 py-1 rounded-lg text-[10px] font-bold backdrop-blur-sm">قبل التصميم</div>
+            <div className="absolute bottom-3 right-3 bg-slate-950/70 border border-slate-800/80 backdrop-blur-md text-slate-300 font-bold px-3 py-1.5 rounded-xl text-[10px] shadow-lg tracking-wide select-none">قبل التصميم</div>
           </div>
           {/* AFTER */}
-          <div className="absolute inset-0 overflow-hidden border-l-2 border-violet-400 z-10" style={{ clipPath: `inset(0 ${100 - splitPos}% 0 0)` }}>
+          <div className="absolute inset-0 overflow-hidden z-10" style={{ clipPath: `inset(0 ${100 - splitPos}% 0 0)` }}>
             {generatedSmileImage ? (
               <img src={generatedSmileImage} alt="AI Generated Smile" className="w-full h-full object-cover" />
             ) : (
               <img src={patientPhoto!} alt="After" className="w-full h-full object-cover"
                 style={{ transform: `scale(${bgScale}) translate(${bgX}px,${bgY}px)`, transformOrigin: 'center', filter }} />
             )}
-            <div className="absolute bottom-3 left-3 bg-violet-600/90 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold backdrop-blur-sm flex items-center gap-1">
+            <div className="absolute bottom-3 left-3 bg-purple-950/70 border border-purple-800/80 backdrop-blur-md text-purple-200 font-bold px-3 py-1.5 rounded-xl text-[10px] shadow-lg shadow-purple-950/40 flex items-center gap-1.5 select-none">
               {generatedSmileImage ? <><span>✨</span> صورة AI حقيقية</> : 'بعد التصميم'}
             </div>
           </div>
-          {/* Handle */}
-          <div className="absolute top-0 bottom-0 w-0.5 bg-violet-400 shadow-[0_0_10px_rgba(167,139,250,0.8)] pointer-events-none z-20" style={{ left: `${splitPos}%` }}>
-            <div className="absolute top-1/2 left-0 w-8 h-8 -ml-4 -mt-4 bg-violet-600 rounded-full border-2 border-white shadow-xl flex items-center justify-center text-white text-xs select-none">⟺</div>
+          {/* Neon Split Line & Glowing Glassmorphic Drag Indicator */}
+          <div className="absolute top-0 bottom-0 w-0.5 bg-gradient-to-b from-purple-400 via-fuchsia-500 to-purple-400 shadow-[0_0_15px_rgba(167,139,250,0.9)] pointer-events-none z-20" style={{ left: `${splitPos}%` }}>
+            <div className="absolute top-1/2 left-0 w-10 h-10 -ml-5 -mt-5 bg-slate-950/60 backdrop-blur-md border border-purple-500/50 rounded-full shadow-[0_0_20px_rgba(167,139,250,0.6)] flex items-center justify-center text-white select-none transition-all scale-100 cursor-ew-resize">
+              <svg className="w-5 h-5 text-purple-300 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7l-5 5 5 5M16 7l5 5-5 5" />
+              </svg>
+            </div>
           </div>
           <input type="range" min="0" max="100" value={splitPos} onChange={e => onSplitChange(parseInt(e.target.value))}
             className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-30" />
@@ -4616,6 +4691,7 @@ const SmileDesignModalContent: React.FC<{ patientName?: string; patientId?: stri
             'ابتسامة هوليوود VITA B1 براقة مع قشور E-Max مربعة وانعكاس ضوئي فائق.',
             'ابتسامة ناعمة بيضاوية VITA A2 طبيعية مناسبة للفك الصغير مع شفافية المينا.',
             'ابتسامة كلاسيكية منتظمة VITA A1 متناسقة مع الشفاه وخط القواطع.',
+            'تحليل وتخطيط تصميم الابتسامة (DSD): رسم خطوط قياس ونسب مئوية رقمية (15%، 30%) مع منحنيات بيضاء رفيعة لتحديد حدود الأسنان واللثة فوق الابتسامة.',
           ].map((t, i) => (
             <button key={i} onClick={() => { setAiPrompt(t); toast.success('تم اختيار القالب.'); }}
               className="w-full text-right text-[10px] py-2 px-3 rounded-xl bg-slate-900/60 hover:bg-slate-900 text-purple-200 border border-purple-900/40 hover:border-purple-700 transition-all">
@@ -4660,46 +4736,59 @@ const SmileDesignModalContent: React.FC<{ patientName?: string; patientId?: stri
           </div>
         )}
 
-        {/* Trigger button */}
-        <button onClick={handleTriggerAi} disabled={isAiProcessing}
-          className="w-full py-3 bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-700 hover:to-fuchsia-700 text-white font-extrabold rounded-2xl text-xs shadow-lg shadow-purple-900/30 flex items-center justify-center gap-2 disabled:opacity-50 transition-all active:scale-95">
-          <Brain className="w-4 h-4" />
-          {isAiProcessing ? processingStep || 'جاري توليد الابتسامة...' : '✨ توليد تصميم الابتسامة بالذكاء الاصطناعي'}
-        </button>
-      </div>
+        {/* Trigger / Re-generate & Save button slot */}
+        {!aiSimulated ? (
+          <button onClick={handleTriggerAi} disabled={isAiProcessing}
+            className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-700 hover:to-fuchsia-700 text-white font-extrabold rounded-2xl text-xs shadow-lg shadow-purple-900/30 flex items-center justify-center gap-2 disabled:opacity-50 transition-all active:scale-95">
+            <Brain className="w-4 h-4 animate-pulse" />
+            {isAiProcessing ? processingStep || 'جاري توليد الابتسامة...' : '✨ توليد تصميم الابتسامة بالذكاء الاصطناعي'}
+          </button>
+        ) : (
+          <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2">
+            <div className="flex gap-2.5">
+              {/* Save Results Button */}
+              <button 
+                onClick={handleSaveDsdImage} 
+                disabled={isSavingDsd || isAiProcessing}
+                className="flex-1 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold rounded-2xl text-xs shadow-lg shadow-emerald-950/30 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+              >
+                {isSavingDsd ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    جاري الحفظ...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    حفظ في سجل المريض
+                  </>
+                )}
+              </button>
 
-      {/* Post-AI Results Panel */}
-      {aiSimulated && !isAiProcessing && generatedSmileImage && (
-        <div className="bg-green-950/40 rounded-2xl border border-green-800/30 p-4 space-y-3 animate-in fade-in slide-in-from-bottom-2">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-green-400 animate-ping inline-block"></span>
-            <span className="text-xs font-bold text-green-300">✅ تم توليد صورة الابتسامة بالـ AI بنجاح!</span>
-          </div>
-          {/* Thumbnail of generated image */}
-          <div className="rounded-xl overflow-hidden border border-green-700/30" style={{ height: 120 }}>
-            <img src={generatedSmileImage} alt="Generated smile" className="w-full h-full object-cover" />
-          </div>
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-[10px] font-bold text-green-300">
-              <span>⟺ شريط مقارنة قبل/بعد:</span>
-              <span>{splitPosAi}%</span>
+              {/* Re-generate Button (In same place, with a refresh look) */}
+              <button 
+                onClick={() => { setAiSimulated(false); setGeneratedSmileImage(null); setAiError(null); }}
+                disabled={isSavingDsd || isAiProcessing}
+                className="flex-1 py-3.5 bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-700 hover:to-fuchsia-700 text-white font-extrabold rounded-2xl text-xs shadow-lg shadow-purple-950/30 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+              >
+                <RefreshCcw className="w-4 h-4 animate-spin-slow" />
+                إعادة توليد الابتسامة
+              </button>
             </div>
-            <input type="range" min="0" max="100" value={splitPosAi} onChange={e => setSplitPosAi(parseInt(e.target.value))}
-              className="w-full h-1.5 bg-green-900 rounded-lg appearance-none cursor-pointer accent-green-400" />
-            <p className="text-[10px] text-green-500/70 text-center">اسحب الشريط على الصورة أعلاه لمشاهدة الفرق</p>
-          </div>
-          <div className="flex gap-2">
-            <a href={generatedSmileImage} target="_blank" rel="noopener noreferrer"
-              className="flex-1 py-2 text-[11px] font-bold text-green-300 border border-green-700/40 rounded-xl hover:bg-green-900/30 transition-all flex items-center justify-center gap-1">
-              <ExternalLink className="w-3 h-3" /> فتح الصورة كاملة
+
+            {/* View Full Image link, styled as a subtle sleek link or button */}
+            <a 
+              href={generatedSmileImage} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="w-full py-2.5 bg-slate-900/60 hover:bg-slate-900 text-purple-300 border border-purple-900/40 hover:border-purple-700/80 rounded-xl text-center text-[11px] font-bold transition-all flex items-center justify-center gap-1.5"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              فتح الصورة المولّدة بحجمها الكامل ↗
             </a>
-            <button onClick={() => { setAiSimulated(false); setGeneratedSmileImage(null); setAiError(null); }}
-              className="flex-1 py-2 text-[11px] font-bold text-purple-300 border border-purple-800/40 rounded-xl hover:bg-purple-900/30 transition-all flex items-center justify-center gap-1">
-              <RefreshCcw className="w-3 h-3" /> إعادة التوليد
-            </button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Export */}
       <button onClick={handleExport}
