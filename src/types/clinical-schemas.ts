@@ -35,7 +35,7 @@ export const ClinicalSchemas: Record<string, SessionSchema> = {
                 label: 'Identified Canals & Initial WL',
                 type: 'table',
                 columns: [
-                    { id: 'name', label: 'Canal', type: 'select', options: ['MB', 'MB1', 'MB2', 'DB', 'P', 'D', 'DL', 'All'] },
+                    { id: 'name', label: 'Canal', type: 'select', options: ['MB', 'MB1', 'MB2', 'DB', 'P', 'D', 'DL', 'All', 'Single Canal'] },
                     { id: 'wl', label: 'Working Length (mm)', type: 'number' },
                     { id: 'ref', label: 'Ref Point', type: 'text' },
                     { id: 'patency', label: 'Patency', type: 'select', options: ['Yes', 'No'] }
@@ -54,7 +54,7 @@ export const ClinicalSchemas: Record<string, SessionSchema> = {
                 label: 'Instrumentation Details (Syncs from Session 1)',
                 type: 'table',
                 columns: [
-                    { id: 'name', label: 'Canal', type: 'select', options: ['MB', 'MB1', 'MB2', 'DB', 'P', 'D', 'DL'] },
+                    { id: 'name', label: 'Canal', type: 'select', options: ['MB', 'MB1', 'MB2', 'DB', 'P', 'D', 'DL', 'Single Canal'] },
                     { id: 'wl', label: 'Confirmed WL (mm)', type: 'number' },
                     { id: 'size', label: 'Master File Size', type: 'text' },
                     { id: 'taper', label: 'Taper (%)', type: 'text' }
@@ -76,7 +76,7 @@ export const ClinicalSchemas: Record<string, SessionSchema> = {
                 label: 'Obturation Details (Syncs from Session 2)',
                 type: 'table',
                 columns: [
-                    { id: 'name', label: 'Canal', type: 'select', options: ['MB', 'MB1', 'MB2', 'DB', 'P', 'D', 'DL'] },
+                    { id: 'name', label: 'Canal', type: 'select', options: ['MB', 'MB1', 'MB2', 'DB', 'P', 'D', 'DL', 'Single Canal'] },
                     { id: 'cone_size', label: 'Master Cone Size', type: 'text' },
                     { id: 'length', label: 'Obturation Length', type: 'number' },
                     { id: 'tugback', label: 'Tug-back', type: 'select', options: ['Good', 'Weak', 'None'] }

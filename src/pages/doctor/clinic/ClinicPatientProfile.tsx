@@ -1004,36 +1004,34 @@ export const ClinicPatientProfile = () => {
 
                   return (
                     <Card key={plan.id} className="overflow-hidden border-0 shadow-md ring-1 ring-gray-100">
-                      <div className="bg-white border-b p-5">
-                        <div className="flex justify-between items-start mb-4">
-                          <div className="flex items-center gap-4">
-                            <div className="min-w-[3.5rem] h-14 px-3 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl flex items-center justify-center font-bold text-2xl shadow-blue-200 shadow-lg">
+                      <div className="bg-white border-b p-4 sm:p-5">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-4 mb-4">
+                          <div className="flex items-center gap-3 sm:gap-4">
+                            <div className="min-w-[2.5rem] w-10 h-10 sm:min-w-[3.5rem] sm:w-14 sm:h-14 px-2 sm:px-3 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-lg sm:rounded-xl flex items-center justify-center font-bold text-lg sm:text-2xl shadow-blue-200 shadow-md sm:shadow-lg">
                               {(plan.toothNumbers && plan.toothNumbers.length > 0)
                                 ? plan.toothNumbers.join(', ')
                                 : plan.toothNumber !== 0 ? plan.toothNumber : 'عام'}
                             </div>
                             <div>
-                              <div className="flex items-center gap-2">
-                                <h4 className="font-bold text-xl text-gray-900">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h4 className="font-bold text-sm sm:text-base text-gray-900">
                                   {plan.notes || getTreatmentLabel(plan.type)}
                                 </h4>
-                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${plan.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold ${plan.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
                                   }`}>
                                   {plan.status === 'completed' ? 'مكتمل' : 'قيد المعالجة'}
                                 </span>
                               </div>
-                              <div className="text-sm text-gray-500 mt-1 flex items-center gap-3">
+                              <div className="text-[11px] sm:text-xs text-gray-500 mt-1 flex items-center gap-2 sm:gap-3 flex-wrap">
                                 <span>تاريخ البدء: {plan.startDate}</span>
-                                <span>•</span>
+                                <span className="hidden sm:inline">•</span>
                                 <span>الطبيب: {plan.doctor?.includes('@') ? `د. ${plan.doctor.split('@')[0].split('.').map((s: string) => s.charAt(0).toUpperCase() + s.slice(1)).join(' ')}` : (plan.doctor || 'غير محدد')}</span>
                               </div>
                             </div>
                           </div>
-                          <div className="text-left flex flex-col items-end gap-2">
-                            <div>
-                              <span className="block text-2xl font-bold text-gray-900">{(plan.cost || 0).toLocaleString()} <span className="text-xs text-gray-500 font-normal">د.ع</span></span>
-                              <span className={`text-xs font-medium ${paymentStatusColor}`}>{paymentStatusText}</span>
-                            </div>
+                          <div className="flex sm:flex-col justify-between items-center sm:items-end gap-2 border-t sm:border-t-0 pt-2.5 sm:pt-0 border-gray-100 w-full sm:w-auto">
+                            <span className="block text-base sm:text-lg font-bold text-gray-900">{(plan.cost || 0).toLocaleString()} <span className="text-xs text-gray-500 font-normal">د.ع</span></span>
+                            <span className={`text-[11px] sm:text-xs font-medium ${paymentStatusColor}`}>{paymentStatusText}</span>
                           </div>
                         </div>
 
@@ -3292,22 +3290,27 @@ export const ClinicPatientProfile = () => {
       <Modal
         isOpen={isDetailsPopupOpen}
         onClose={() => setIsDetailsPopupOpen(false)}
-        title={`تفاصيل ${selectedTeethNumbers.length > 1 ? 'الأسنان المحددة' : `السن #${selectedTeethNumbers[0]}`}`}
         size="md"
         contentClassName="p-0"
       >
         <div className="flex flex-col bg-gray-50/50">
           {/* Header */}
-          <div className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white p-6 shadow-md border-b border-indigo-800/30">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="h-14 min-w-[3.5rem] px-3 bg-white/20 rounded-xl flex items-center justify-center font-bold text-2xl shadow-lg border border-white/30 backdrop-blur-sm">
+          <div className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white p-4 sm:p-6 shadow-md border-b border-indigo-800/30 relative">
+            <button
+              onClick={() => setIsDetailsPopupOpen(false)}
+              className="absolute left-3 top-3 sm:left-4 sm:top-4 p-2 hover:bg-white/10 rounded-lg transition-colors text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-3 sm:gap-4 pl-6">
+              <div className="h-10 w-10 min-w-[2.5rem] sm:h-14 sm:min-w-[3.5rem] px-2 sm:px-3 bg-white/20 rounded-lg sm:rounded-xl flex items-center justify-center font-bold text-lg sm:text-2xl shadow-lg border border-white/30 backdrop-blur-sm">
                 {selectedTeethNumbers.join(', ')}
               </div>
               <div>
-                <h3 className="text-xl font-bold">
+                <h3 className="text-lg sm:text-xl font-bold">
                   {selectedTeethNumbers.length > 1 ? 'مجموعة أسنان محددة' : `تفاصيل السن`}
                 </h3>
-                <p className="text-blue-100 opacity-90 mt-1 text-sm">
+                <p className="text-blue-100 opacity-90 mt-1 text-xs sm:text-sm">
                   {selectedTeethNumbers.length > 1 ? `يحتوي على ${selectedTeethNumbers.length} أسنان` : 'تحقق من حالة السن والخطط المرتبطة به'}
                 </p>
               </div>

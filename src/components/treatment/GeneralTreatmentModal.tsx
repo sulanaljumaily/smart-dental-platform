@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Modal } from '../common/Modal';
 import { TreatmentAsset } from '../../data/mock/assets';
 import { Card } from '../common/Card';
-import { Clock, Stethoscope, ChevronRight, Activity, Zap, CheckCircle } from 'lucide-react';
+import { Clock, Stethoscope, ChevronRight, Activity, Zap, CheckCircle, X } from 'lucide-react';
 import { Button } from '../common/Button';
 import { formatCurrency } from '../../lib/utils';
 import { treatmentWorkflows } from '../../data/treatmentWorkflows';
@@ -82,7 +82,6 @@ export const GeneralTreatmentModal: React.FC<GeneralTreatmentModalProps> = ({
             onClose={onClose}
             size="2xl"
             contentClassName="p-0"
-            title="إضافة علاج عام" // Optional, can be removed if header is custom
         >
             <div className="flex flex-col h-full bg-gray-50/50">
                 {/* Header */}
@@ -96,6 +95,12 @@ export const GeneralTreatmentModal: React.FC<GeneralTreatmentModalProps> = ({
                         </h2>
                         <p className="text-teal-100 opacity-90 mt-1 mr-14">اختر العلاج لإضافته مباشرة للخطة العلاجية</p>
                     </div>
+                    <button
+                        onClick={onClose}
+                        className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
                 </div>
 
                 <div className="p-6 space-y-8 overflow-y-auto max-h-[70vh]">

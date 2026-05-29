@@ -64,42 +64,55 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
             const definedCanals = (accessSession.data.canals_data as any[]) || [];
             const currentPrepData = (cleaningSession.data?.canal_prep as any[]) || [];
 
-            if (definedCanals.length > 0) {
-                const newPrepData = [...currentPrepData];
-                let changed = false;
+            const newPrepData: any[] = [];
+            let changed = false;
 
-                definedCanals.forEach(sourceCanal => {
-                    const existingIndex = newPrepData.findIndex(p => p.name === sourceCanal.name);
+            // 1. Map/sync source canals to target prep data
+            definedCanals.forEach((sourceCanal) => {
+                const existing = currentPrepData.find(p => p.name === sourceCanal.name);
 
-                    if (existingIndex === -1) {
-                        // Add new canal
-                        newPrepData.push({
-                            name: sourceCanal.name,
-                            size: '',
-                            taper: '04',
-                            wl: sourceCanal.wl
-                        });
+                if (existing) {
+                    const hasWlChanged = !existing.wl && sourceCanal.wl;
+
+                    if (hasWlChanged) {
                         changed = true;
-                    } else {
-                        // Update existing? Only if empty? 
-                        // Let's perform a soft update: if WL is missing in target but present in source, update it.
-                        // But generally, we just ensure it exists. 
-                        // User likely wants WL to carry over if they haven't confirmed it yet.
-                        if (!newPrepData[existingIndex].wl && sourceCanal.wl) {
-                            newPrepData[existingIndex] = { ...newPrepData[existingIndex], wl: sourceCanal.wl };
-                            changed = true;
-                        }
                     }
-                });
 
-                if (changed) {
-                    const cleaningIndex = updatedSessions.findIndex(s => s.id === cleaningSession.id);
-                    updatedSessions[cleaningIndex] = {
-                        ...cleaningSession,
-                        data: { ...cleaningSession.data, canal_prep: newPrepData }
-                    };
-                    needsUpdate = true;
+                    newPrepData.push({
+                        name: sourceCanal.name,
+                        size: existing.size || '',
+                        taper: existing.taper || '04',
+                        wl: existing.wl || sourceCanal.wl || ''
+                    });
+                } else {
+                    newPrepData.push({
+                        name: sourceCanal.name,
+                        size: '',
+                        taper: '04',
+                        wl: sourceCanal.wl || ''
+                    });
+                    changed = true;
                 }
+            });
+
+            // 2. Keep any custom empty/new rows manually added by the user
+            currentPrepData.forEach(targetCanal => {
+                if (!targetCanal.name) {
+                    newPrepData.push(targetCanal);
+                }
+            });
+
+            if (newPrepData.length !== currentPrepData.length) {
+                changed = true;
+            }
+
+            if (changed) {
+                const cleaningIndex = updatedSessions.findIndex(s => s.id === cleaningSession.id);
+                updatedSessions[cleaningIndex] = {
+                    ...cleaningSession,
+                    data: { ...cleaningSession.data, canal_prep: newPrepData }
+                };
+                needsUpdate = true;
             }
         }
 
@@ -110,44 +123,55 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
             const prepData = (updatedCleaningSession.data.canal_prep as any[]) || [];
             const currentFillData = (fillSession.data?.obturation_data as any[]) || [];
 
-            if (prepData.length > 0) {
-                const newFillData = [...currentFillData];
-                let changed = false;
+            const newFillData: any[] = [];
+            let changed = false;
 
-                prepData.forEach(sourceCanal => {
-                    const existingIndex = newFillData.findIndex(p => p.name === sourceCanal.name);
+            prepData.forEach((sourceCanal) => {
+                const existing = currentFillData.find(p => p.name === sourceCanal.name);
 
-                    if (existingIndex === -1) {
-                        newFillData.push({
-                            name: sourceCanal.name,
-                            cone_size: sourceCanal.size,
-                            length: sourceCanal.wl,
-                            sealer: 'Resin'
-                        });
+                if (existing) {
+                    const hasConeSizeChanged = !existing.cone_size && sourceCanal.size;
+                    const hasLengthChanged = !existing.length && sourceCanal.wl;
+
+                    if (hasConeSizeChanged || hasLengthChanged) {
                         changed = true;
-                    } else {
-                        // Update values if missing in target
-                        let updated = false;
-                        const target = { ...newFillData[existingIndex] }; // clone
-
-                        if (!target.cone_size && sourceCanal.size) { target.cone_size = sourceCanal.size; updated = true; }
-                        if (!target.length && sourceCanal.wl) { target.length = sourceCanal.wl; updated = true; }
-
-                        if (updated) {
-                            newFillData[existingIndex] = target;
-                            changed = true;
-                        }
                     }
-                });
 
-                if (changed) {
-                    const fillIndex = updatedSessions.findIndex(s => s.id === fillSession.id);
-                    updatedSessions[fillIndex] = {
-                        ...fillSession,
-                        data: { ...fillSession.data, obturation_data: newFillData }
-                    };
-                    needsUpdate = true;
+                    newFillData.push({
+                        name: sourceCanal.name,
+                        cone_size: existing.cone_size || sourceCanal.size || '',
+                        length: existing.length || sourceCanal.wl || '',
+                        tugback: existing.tugback || 'Good'
+                    });
+                } else {
+                    newFillData.push({
+                        name: sourceCanal.name,
+                        cone_size: sourceCanal.size || '',
+                        length: sourceCanal.wl || '',
+                        tugback: 'Good'
+                    });
+                    changed = true;
                 }
+            });
+
+            // Keep any custom empty/new rows manually added by the user
+            currentFillData.forEach(targetCanal => {
+                if (!targetCanal.name) {
+                    newFillData.push(targetCanal);
+                }
+            });
+
+            if (newFillData.length !== currentFillData.length) {
+                changed = true;
+            }
+
+            if (changed) {
+                const fillIndex = updatedSessions.findIndex(s => s.id === fillSession.id);
+                updatedSessions[fillIndex] = {
+                    ...fillSession,
+                    data: { ...fillSession.data, obturation_data: newFillData }
+                };
+                needsUpdate = true;
             }
         }
 
@@ -301,7 +325,7 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
                 };
 
                 return (
-                    <div key={field.id} className="col-span-1 md:col-span-2 mt-2">
+                    <div key={field.id} className="col-span-2 mt-2">
                         <div className="flex justify-between items-end mb-2">
                             <label className="block text-xs font-bold text-gray-700">
                                 {field.label} {field.required && <span className="text-red-500">*</span>}
@@ -411,7 +435,7 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
                     <Clock className="w-4 h-4 text-blue-600" />
                     {schema.title}
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3 md:gap-4">
                     {schema.fields.map(field => renderField(field, session))}
                 </div>
             </div>
@@ -466,12 +490,12 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
                                     </div>
                                     <div>
                                         <div className="flex items-center gap-2">
-                                            <h4 className={`font-bold text-base ${isCompleted ? 'text-green-900' : 'text-gray-900'}`}>
+                                            <h4 className={`font-bold text-sm ${isCompleted ? 'text-green-900' : 'text-gray-900'}`}>
                                                 {session.title}
                                             </h4>
                                             {isDisabled && <Lock className="w-3 h-3 text-gray-400" />}
                                         </div>
-                                        {isCompleted && <span className="text-green-600 font-bold">تم الإكمال</span>}
+                                        {isCompleted && <span className="text-green-600 font-bold text-xs">تم الإكمال</span>}
                                     </div>
                                 </div>
                             </div>
@@ -523,10 +547,10 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
                                                 const estimatedSessionCost = 50000;
                                                 onCompleteSession(plan.id, session.id, estimatedSessionCost);
                                             }}
-                                            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-200 px-8 py-2.5 h-auto text-sm font-bold rounded-lg transform hover:-translate-y-0.5 transition-all"
-                                        >
+                                            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-200 px-4 py-2 sm:px-8 sm:py-2.5 h-auto text-xs sm:text-sm font-bold rounded-lg transform hover:-translate-y-0.5 transition-all"
+                                            >
                                             <CheckCircle className="w-4 h-4 ml-2" />
-                                            إكمال الجلسة وتوثيق البيانات
+                                            إكمال الجلسة
                                         </Button>
                                     </div>
                                 )}

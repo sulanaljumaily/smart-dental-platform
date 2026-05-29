@@ -59,7 +59,6 @@ export const ToothConditionModal: React.FC<ToothConditionModalProps> = ({
                             </div>
                             تعديل حالة السن رقم {toothNumber}
                         </h2>
-                        <p className="text-teal-100 opacity-90 mt-1">تحديث الحالة السريرية الحالية للسن</p>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full transition-colors">
                         <X className="w-6 h-6" />
