@@ -2135,6 +2135,8 @@ export const ClinicPatientProfile = () => {
   // Actually, I can replace the whole renderArchiveTab function start to finish to include the new state.)
 
   const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
+  const [dsdSplitPos, setDsdSplitPos] = useState(50);
+  const [isDsdDragging, setIsDsdDragging] = useState(false);
   const [analysisContext, setAnalysisContext] = useState<'xray' | 'clinical'>('xray');
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
   const [isVoiceExamModalOpen, setIsVoiceExamModalOpen] = useState(false);
@@ -2556,6 +2558,99 @@ export const ClinicPatientProfile = () => {
   const renderAnalysisModalContent = () => {
     // 1. Result View
     if (selectedAnalysis) {
+      if (selectedAnalysis.analysis_result?.isDsd) {
+        const originalUrl = selectedAnalysis.analysis_result.original_image_url;
+        const generatedUrl = selectedAnalysis.image_url;
+        return (
+          <div className="animate-in fade-in slide-in-from-bottom-4 space-y-4">
+            <div className="flex justify-between items-center mb-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-base text-gray-800">مقارنة تصميم الابتسامة الرقمي</h4>
+                  <p className="text-xs text-gray-500">{selectedAnalysis.analysis_result.summary}</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" onClick={() => {
+                  setSelectedAnalysis(null);
+                }}>
+                  إغلاق المعاينة
+                </Button>
+              </div>
+            </div>
+
+            {/* Before/After Split Screen Slider */}
+            <div 
+              className="relative bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 shadow-inner w-full max-w-2xl mx-auto cursor-ew-resize select-none" 
+              style={{ aspectRatio: '4/3' }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setIsDsdDragging(true);
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+                setDsdSplitPos(percentage);
+              }}
+              onMouseMove={(e) => {
+                if (!isDsdDragging) return;
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+                setDsdSplitPos(percentage);
+              }}
+              onMouseUp={() => setIsDsdDragging(false)}
+              onMouseLeave={() => setIsDsdDragging(false)}
+              onTouchMove={(e) => {
+                if (e.touches.length === 0) return;
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = e.touches[0].clientX - rect.left;
+                const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+                setDsdSplitPos(percentage);
+              }}
+              onTouchEnd={() => setIsDsdDragging(false)}
+            >
+              <div className="w-full h-full relative overflow-hidden pointer-events-none">
+                {/* BEFORE */}
+                <div className="absolute inset-0">
+                  <img src={originalUrl} alt="Before" className="w-full h-full object-cover" />
+                  <div className="absolute bottom-3 right-3 bg-slate-950/70 border border-slate-800/80 backdrop-blur-md text-slate-300 font-bold px-3 py-1.5 rounded-xl text-[10px] shadow-lg tracking-wide select-none">قبل التصميم</div>
+                </div>
+                {/* AFTER */}
+                <div className="absolute inset-0 overflow-hidden z-10" style={{ clipPath: `inset(0 ${100 - dsdSplitPos}% 0 0)` }}>
+                  <img src={generatedUrl} alt="AI Generated Smile" className="w-full h-full object-cover" />
+                  <div className="absolute bottom-3 left-3 bg-purple-950/70 border border-purple-800/80 backdrop-blur-md text-purple-200 font-bold px-3 py-1.5 rounded-xl text-[10px] shadow-lg shadow-purple-950/40 flex items-center gap-1.5 select-none">
+                    <span>✨</span> صورة AI حقيقية
+                  </div>
+                </div>
+                {/* Neon Split Line & Drag Handle */}
+                <div className="absolute top-0 bottom-0 w-0.5 bg-gradient-to-b from-purple-400 via-fuchsia-500 to-purple-400 shadow-[0_0_15px_rgba(167,139,250,0.9)] pointer-events-none z-20" style={{ left: `${dsdSplitPos}%` }}>
+                  <div className="absolute top-1/2 left-0 w-10 h-10 -ml-5 -mt-5 bg-slate-950/60 backdrop-blur-md border border-purple-500/50 rounded-full shadow-[0_0_20px_rgba(167,139,250,0.6)] flex items-center justify-center text-white select-none transition-all scale-100 cursor-ew-resize">
+                    <svg className="w-5 h-5 text-purple-300 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7l-5 5 5 5M16 7l5 5-5 5" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Design Details Card */}
+            <div className="bg-purple-50/50 border border-purple-100 rounded-xl p-4 text-sm text-purple-950">
+              <h5 className="font-bold mb-1 flex items-center gap-1.5 text-purple-900">
+                <Info className="w-4 h-4" /> تفاصيل التصميم الرقمي:
+              </h5>
+              <ul className="list-disc list-inside space-y-1 text-xs text-purple-800">
+                <li>شكل السن المختار: <strong>{selectedAnalysis.analysis_result.toothShape === 'natural' ? 'طبيعي' : selectedAnalysis.analysis_result.toothShape === 'oval' ? 'بيضاوي' : 'هوليوود'}</strong></li>
+                <li>درجة اللون المعتمدة: <strong>VITA {selectedAnalysis.analysis_result.vitaColor || 'A2'}</strong></li>
+                <li>تاريخ التوليد: <strong>{new Date(selectedAnalysis.created_at).toLocaleDateString('ar-IQ')} في {new Date(selectedAnalysis.created_at).toLocaleTimeString('ar-IQ')}</strong></li>
+              </ul>
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div className="animate-in fade-in slide-in-from-bottom-4">
           <div className="flex justify-between items-center mb-4">
@@ -2835,10 +2930,12 @@ export const ClinicPatientProfile = () => {
                   <tr key={item.id} className="hover:bg-gray-50/50 transition-colors group">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                          <Brain className="w-5 h-5" />
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${item.analysis_result?.isDsd ? 'bg-purple-50 text-purple-600' : 'bg-indigo-50 text-indigo-600'}`}>
+                          {item.analysis_result?.isDsd ? <Sparkles className="w-5 h-5" /> : <Brain className="w-5 h-5" />}
                         </div>
-                        <span className="font-bold text-gray-900">تحليل صورة</span>
+                        <span className="font-bold text-gray-900">
+                          {item.analysis_result?.isDsd ? 'تصميم ابتسامة AI' : 'تحليل صورة'}
+                        </span>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
@@ -2852,9 +2949,16 @@ export const ClinicPatientProfile = () => {
 
                         if (item.status === 'completed') {
                           return (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              مكتمل
-                            </span>
+                            <div className="flex flex-col gap-1">
+                              <span className="inline-flex items-center w-fit px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                مكتمل
+                              </span>
+                              {item.analysis_result?.summary && (
+                                <span className="text-xs text-gray-500 font-medium">
+                                  {item.analysis_result.summary}
+                                </span>
+                              )}
+                            </div>
                           );
                         } else if (hasFailed) {
                           return (
@@ -3705,16 +3809,18 @@ export const ClinicPatientProfile = () => {
         isOpen={isAnalysisModalOpen}
         onClose={() => setIsAnalysisModalOpen(false)}
         title={
-          (selectedAnalysis 
-            ? (selectedAnalysis.analysis_result?.service_type === 'clinical' || 
-               (selectedAnalysis.analysis_result?.image_type && 
-                !selectedAnalysis.analysis_result.image_type.includes('xray') && 
-                !selectedAnalysis.analysis_result.image_type.includes('cbct') && 
-                !selectedAnalysis.analysis_result.image_type.includes('bitewing')))
-            : analysisContext === 'clinical'
-          )
-            ? 'تحليل الصور السريرية والفوتوغرافية بالـ AI'
-            : 'تشخيص الصور بالأشعة والذكاء الاصطناعي'
+          selectedAnalysis?.analysis_result?.isDsd
+            ? 'مقارنة تصميم الابتسامة الرقمي (DSD)'
+            : (selectedAnalysis 
+                ? (selectedAnalysis.analysis_result?.service_type === 'clinical' || 
+                   (selectedAnalysis.analysis_result?.image_type && 
+                    !selectedAnalysis.analysis_result.image_type.includes('xray') && 
+                    !selectedAnalysis.analysis_result.image_type.includes('cbct') && 
+                    !selectedAnalysis.analysis_result.image_type.includes('bitewing')))
+                : analysisContext === 'clinical'
+              )
+                ? 'تحليل الصور السريرية والفوتوغرافية بالـ AI'
+                : 'تشخيص الصور بالأشعة والذكاء الاصطناعي'
         }
       >
         <div className="space-y-6">
@@ -4223,6 +4329,41 @@ const SmileDesignModalContent: React.FC<SmileDesignModalContentProps> = ({ patie
         if (onFileSaved) {
           onFileSaved(newFile);
         }
+
+        // Also insert into ai_analyses
+        try {
+          const resolvedClinicId = await resolveClinicId();
+          const activeToothShape = toothShape === 'natural' ? 'طبيعي' : toothShape === 'oval' ? 'بيضاوي' : 'هوليوود';
+          const activeShade = whiteness >= 5 ? 'B1' : whiteness === 4 ? 'A1' : whiteness === 3 ? 'A2' : 'A3';
+          
+          const { error: aiHistoryError } = await supabase
+            .from('ai_analyses')
+            .insert({
+              clinic_id: resolvedClinicId,
+              image_url: finalUrl,
+              status: 'completed',
+              patient_id: parseInt(patientId),
+              analysis_result: {
+                isDsd: true,
+                original_image_url: patientPhoto,
+                generated_image_url: finalUrl,
+                whiteness: whiteness,
+                toothShape: toothShape,
+                vitaColor: activeShade,
+                summary: `تصميم ابتسامة بالذكاء الاصطناعي - VITA ${activeShade} (${activeToothShape})`,
+                issues: []
+              }
+            });
+          
+          if (aiHistoryError) {
+            console.error('Error saving DSD to AI history table:', aiHistoryError);
+          } else {
+            refreshAI();
+          }
+        } catch (aiHistoryErr) {
+          console.error('Error saving DSD to AI history table:', aiHistoryErr);
+        }
+
         toast.success('تم حفظ نتيجة تصميم الابتسامة في سجلات وصور المريض بنجاح!');
       }
     } catch (err) {
@@ -4269,40 +4410,80 @@ const SmileDesignModalContent: React.FC<SmileDesignModalContentProps> = ({ patie
   const PhotoCanvas = ({ filter, showSplit, splitPos, onSplitChange, children }: {
     filter: string; showSplit: boolean; splitPos: number;
     onSplitChange: (v: number) => void; children?: React.ReactNode;
-  }) => (
-    <div className="relative bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 shadow-inner" style={{ aspectRatio: '4/3' }}>
-      {showSplit ? (
-        <div className="w-full h-full relative overflow-hidden">
-          {/* BEFORE */}
-          <div className="absolute inset-0">
-            <img src={patientPhoto!} alt="Before" className="w-full h-full object-cover"
-              style={{ transform: `scale(${bgScale}) translate(${bgX}px,${bgY}px)`, transformOrigin: 'center' }} />
-            <div className="absolute bottom-3 right-3 bg-slate-950/70 border border-slate-800/80 backdrop-blur-md text-slate-300 font-bold px-3 py-1.5 rounded-xl text-[10px] shadow-lg tracking-wide select-none">قبل التصميم</div>
-          </div>
-          {/* AFTER */}
-          <div className="absolute inset-0 overflow-hidden z-10" style={{ clipPath: `inset(0 ${100 - splitPos}% 0 0)` }}>
-            {generatedSmileImage ? (
-              <img src={generatedSmileImage} alt="AI Generated Smile" className="w-full h-full object-cover" />
-            ) : (
-              <img src={patientPhoto!} alt="After" className="w-full h-full object-cover"
-                style={{ transform: `scale(${bgScale}) translate(${bgX}px,${bgY}px)`, transformOrigin: 'center', filter }} />
-            )}
-            <div className="absolute bottom-3 left-3 bg-purple-950/70 border border-purple-800/80 backdrop-blur-md text-purple-200 font-bold px-3 py-1.5 rounded-xl text-[10px] shadow-lg shadow-purple-950/40 flex items-center gap-1.5 select-none">
-              {generatedSmileImage ? <><span>✨</span> صورة AI حقيقية</> : 'بعد التصميم'}
+  }) => {
+    const splitRef = useRef<HTMLDivElement>(null);
+    const [isDragging, setIsDragging] = useState(false);
+
+    const handleMove = (clientX: number) => {
+      if (!splitRef.current) return;
+      const rect = splitRef.current.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+      onSplitChange(percentage);
+    };
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+      e.preventDefault();
+      setIsDragging(true);
+      handleMove(e.clientX);
+    };
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+      if (!isDragging) return;
+      handleMove(e.clientX);
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+      if (e.touches.length === 0) return;
+      handleMove(e.touches[0].clientX);
+    };
+
+    return (
+      <div className="relative bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 shadow-inner select-none" style={{ aspectRatio: '4/3' }}>
+        {showSplit ? (
+          <div 
+            ref={splitRef}
+            className="w-full h-full relative overflow-hidden cursor-ew-resize"
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleMouseUp}
+          >
+            {/* BEFORE */}
+            <div className="absolute inset-0 pointer-events-none">
+              <img src={patientPhoto!} alt="Before" className="w-full h-full object-cover"
+                style={{ transform: `scale(${bgScale}) translate(${bgX}px,${bgY}px)`, transformOrigin: 'center' }} />
+              <div className="absolute bottom-3 right-3 bg-slate-950/70 border border-slate-800/80 backdrop-blur-md text-slate-300 font-bold px-3 py-1.5 rounded-xl text-[10px] shadow-lg tracking-wide select-none">قبل التصميم</div>
+            </div>
+            {/* AFTER */}
+            <div className="absolute inset-0 overflow-hidden z-10 pointer-events-none" style={{ clipPath: `inset(0 ${100 - splitPos}% 0 0)` }}>
+              {generatedSmileImage ? (
+                <img src={generatedSmileImage} alt="AI Generated Smile" className="w-full h-full object-cover"
+                  style={{ transform: `scale(${bgScale}) translate(${bgX}px,${bgY}px)`, transformOrigin: 'center' }} />
+              ) : (
+                <img src={patientPhoto!} alt="After" className="w-full h-full object-cover"
+                  style={{ transform: `scale(${bgScale}) translate(${bgX}px,${bgY}px)`, transformOrigin: 'center', filter }} />
+              )}
+              <div className="absolute bottom-3 left-3 bg-purple-950/70 border border-purple-800/80 backdrop-blur-md text-purple-200 font-bold px-3 py-1.5 rounded-xl text-[10px] shadow-lg shadow-purple-950/40 flex items-center gap-1.5 select-none">
+                {generatedSmileImage ? <><span>✨</span> صورة AI حقيقية</> : 'بعد التصميم'}
+              </div>
+            </div>
+            {/* Neon Split Line & Glowing Glassmorphic Drag Indicator */}
+            <div className="absolute top-0 bottom-0 w-0.5 bg-gradient-to-b from-purple-400 via-fuchsia-500 to-purple-400 shadow-[0_0_15px_rgba(167,139,250,0.9)] pointer-events-none z-20" style={{ left: `${splitPos}%` }}>
+              <div className="absolute top-1/2 left-0 w-10 h-10 -ml-5 -mt-5 bg-slate-950/60 backdrop-blur-md border border-purple-500/50 rounded-full shadow-[0_0_20px_rgba(167,139,250,0.6)] flex items-center justify-center text-white select-none transition-all scale-100 cursor-ew-resize">
+                <svg className="w-5 h-5 text-purple-300 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7l-5 5 5 5M16 7l5 5-5 5" />
+                </svg>
+              </div>
             </div>
           </div>
-          {/* Neon Split Line & Glowing Glassmorphic Drag Indicator */}
-          <div className="absolute top-0 bottom-0 w-0.5 bg-gradient-to-b from-purple-400 via-fuchsia-500 to-purple-400 shadow-[0_0_15px_rgba(167,139,250,0.9)] pointer-events-none z-20" style={{ left: `${splitPos}%` }}>
-            <div className="absolute top-1/2 left-0 w-10 h-10 -ml-5 -mt-5 bg-slate-950/60 backdrop-blur-md border border-purple-500/50 rounded-full shadow-[0_0_20px_rgba(167,139,250,0.6)] flex items-center justify-center text-white select-none transition-all scale-100 cursor-ew-resize">
-              <svg className="w-5 h-5 text-purple-300 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7l-5 5 5 5M16 7l5 5-5 5" />
-              </svg>
-            </div>
-          </div>
-          <input type="range" min="0" max="100" value={splitPos} onChange={e => onSplitChange(parseInt(e.target.value))}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-30" />
-        </div>
-      ) : (
+        ) : (
         <div ref={canvasRef} className="w-full h-full relative overflow-hidden"
           onClick={step === 2 ? handleCanvasClick : undefined}
           onMouseMove={step === 2 ? handleMouseMove : undefined}
