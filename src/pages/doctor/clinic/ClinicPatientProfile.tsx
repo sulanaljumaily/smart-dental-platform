@@ -2962,11 +2962,11 @@ export const ClinicPatientProfile = () => {
                   <tr key={item.id} className="hover:bg-gray-50/50 transition-colors group">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${item.analysis_result?.isDsd ? 'bg-purple-50 text-purple-600' : 'bg-indigo-50 text-indigo-600'}`}>
-                          {item.analysis_result?.isDsd ? <Sparkles className="w-5 h-5" /> : <Brain className="w-5 h-5" />}
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${(item.analysis_result as any)?.isDsd ? 'bg-purple-50 text-purple-600' : 'bg-indigo-50 text-indigo-600'}`}>
+                          {(item.analysis_result as any)?.isDsd ? <Sparkles className="w-5 h-5" /> : <Brain className="w-5 h-5" />}
                         </div>
                         <span className="font-bold text-gray-900">
-                          {item.analysis_result?.isDsd ? 'تصميم ابتسامة AI' : 'تحليل صورة'}
+                          {(item.analysis_result as any)?.isDsd ? 'تصميم ابتسامة AI' : 'تحليل صورة'}
                         </span>
                       </div>
                     </td>
