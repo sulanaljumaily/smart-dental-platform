@@ -4161,6 +4161,7 @@ const SmileDesignModalContent: React.FC<SmileDesignModalContentProps> = ({ patie
   const [isSavingToGallery, setIsSavingToGallery] = useState(false);
   const [isSavingToHistory, setIsSavingToHistory] = useState(false);
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
+  const [uploadedOriginalUrl, setUploadedOriginalUrl] = useState<string | null>(null);
 
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
 
@@ -4340,6 +4341,34 @@ const SmileDesignModalContent: React.FC<SmileDesignModalContentProps> = ({ patie
     return finalUrl;
   };
 
+  const getUploadedOriginalUrl = async () => {
+    if (uploadedOriginalUrl) return uploadedOriginalUrl;
+    if (!patientPhoto) return null;
+
+    if (!patientPhoto.startsWith('data:')) {
+      setUploadedOriginalUrl(patientPhoto);
+      return patientPhoto;
+    }
+
+    let finalUrl = patientPhoto;
+    try {
+      const res = await fetch(patientPhoto);
+      const blob = await res.blob();
+      const fileName = `original_${Date.now()}.jpg`;
+      const file = new File([blob], fileName, { type: 'image/jpeg' });
+      
+      const uploadRes = await uploadFile(file, 'patient-docs', `${patientId}/images`);
+      if (uploadRes && uploadRes.url) {
+        finalUrl = uploadRes.url;
+      }
+    } catch (uploadErr) {
+      console.error('Error uploading original image, using fallback:', uploadErr);
+    }
+    
+    setUploadedOriginalUrl(finalUrl);
+    return finalUrl;
+  };
+
   const handleSaveToGallery = async () => {
     if (!generatedSmileImage || !patientId) return;
     setIsSavingToGallery(true);
@@ -4389,7 +4418,10 @@ const SmileDesignModalContent: React.FC<SmileDesignModalContentProps> = ({ patie
     setIsSavingToHistory(true);
     try {
       const finalUrl = await getUploadedUrl();
-      if (!finalUrl) throw new Error('فشل رفع الصورة');
+      const originalPublicUrl = await getUploadedOriginalUrl();
+      
+      if (!finalUrl) throw new Error('فشل رفع الصورة المولدة');
+      if (!originalPublicUrl) throw new Error('فشل رفع الصورة الأصلية');
 
       const resolvedClinicId = await resolveClinicId();
       const activeToothShape = toothShape === 'natural' ? 'طبيعي' : toothShape === 'oval' ? 'بيضاوي' : 'هوليوود';
@@ -4404,7 +4436,7 @@ const SmileDesignModalContent: React.FC<SmileDesignModalContentProps> = ({ patie
           patient_id: parseInt(patientId),
           analysis_result: {
             isDsd: true,
-            original_image_url: patientPhoto,
+            original_image_url: originalPublicUrl,
             generated_image_url: finalUrl,
             whiteness: whiteness,
             toothShape: toothShape,
@@ -4463,167 +4495,7 @@ const SmileDesignModalContent: React.FC<SmileDesignModalContentProps> = ({ patie
     toast.success('تم فتح التقرير للطباعة.');
   };
 
-  // ===== SHARED CANVAS PHOTO =====
-  const PhotoCanvas = ({ filter, showSplit, splitPos, onSplitChange, children }: {
-    filter: string; showSplit: boolean; splitPos: number;
-    onSplitChange: (v: number) => void; children?: React.ReactNode;
-  }) => {
-    const splitRef = useRef<HTMLDivElement>(null);
-    const [isDragging, setIsDragging] = useState(false);
 
-    useEffect(() => {
-      if (!isDragging) return;
-
-      const handleWindowMouseMove = (e: MouseEvent) => {
-        if (!splitRef.current) return;
-        const rect = splitRef.current.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
-        onSplitChange(percentage);
-      };
-
-      const handleWindowMouseUp = () => {
-        setIsDragging(false);
-      };
-
-      const handleWindowTouchMove = (e: TouchEvent) => {
-        if (e.touches.length === 0 || !splitRef.current) return;
-        const rect = splitRef.current.getBoundingClientRect();
-        const x = e.touches[0].clientX - rect.left;
-        const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
-        onSplitChange(percentage);
-      };
-
-      window.addEventListener('mousemove', handleWindowMouseMove);
-      window.addEventListener('mouseup', handleWindowMouseUp);
-      window.addEventListener('touchmove', handleWindowTouchMove);
-      window.addEventListener('touchend', handleWindowMouseUp);
-
-      return () => {
-        window.removeEventListener('mousemove', handleWindowMouseMove);
-        window.removeEventListener('mouseup', handleWindowMouseUp);
-        window.removeEventListener('touchmove', handleWindowTouchMove);
-        window.removeEventListener('touchend', handleWindowMouseUp);
-      };
-    }, [isDragging, onSplitChange]);
-
-    const handleMouseDown = (e: React.MouseEvent) => {
-      e.preventDefault();
-      setIsDragging(true);
-      if (splitRef.current) {
-        const rect = splitRef.current.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
-        onSplitChange(percentage);
-      }
-    };
-
-    const handleTouchStart = (e: React.TouchEvent) => {
-      setIsDragging(true);
-      if (e.touches.length > 0 && splitRef.current) {
-        const rect = splitRef.current.getBoundingClientRect();
-        const x = e.touches[0].clientX - rect.left;
-        const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
-        onSplitChange(percentage);
-      }
-    };
-
-    return (
-      <div className="relative bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 shadow-inner select-none" style={{ aspectRatio: '4/3' }}>
-        {showSplit ? (
-          <div 
-            ref={splitRef}
-            className="w-full h-full relative overflow-hidden cursor-ew-resize"
-            onMouseDown={handleMouseDown}
-            onTouchStart={handleTouchStart}
-          >
-            {/* BEFORE */}
-            <div className="absolute inset-0 pointer-events-none">
-              <img src={patientPhoto!} alt="Before" className="w-full h-full object-cover"
-                style={{ transform: `scale(${bgScale}) translate(${bgX}px,${bgY}px)`, transformOrigin: 'center' }} />
-              <div className="absolute bottom-3 right-3 bg-slate-950/70 border border-slate-800/80 backdrop-blur-md text-slate-300 font-bold px-3 py-1.5 rounded-xl text-[10px] shadow-lg tracking-wide select-none">قبل التصميم</div>
-            </div>
-            {/* AFTER */}
-            <div className="absolute inset-0 overflow-hidden z-10 pointer-events-none" style={{ clipPath: `inset(0 ${100 - splitPos}% 0 0)` }}>
-              {generatedSmileImage ? (
-                <img src={generatedSmileImage} alt="AI Generated Smile" className="w-full h-full object-cover"
-                  style={{ transform: `scale(${bgScale}) translate(${bgX}px,${bgY}px)`, transformOrigin: 'center' }} />
-              ) : (
-                <img src={patientPhoto!} alt="After" className="w-full h-full object-cover"
-                  style={{ transform: `scale(${bgScale}) translate(${bgX}px,${bgY}px)`, transformOrigin: 'center', filter }} />
-              )}
-              <div className="absolute bottom-3 left-3 bg-purple-950/70 border border-purple-800/80 backdrop-blur-md text-purple-200 font-bold px-3 py-1.5 rounded-xl text-[10px] shadow-lg shadow-purple-950/40 flex items-center gap-1.5 select-none">
-                {generatedSmileImage ? <><span>✨</span> صورة AI حقيقية</> : 'بعد التصميم'}
-              </div>
-            </div>
-            {/* Neon Split Line & Glowing Glassmorphic Drag Indicator */}
-            <div className="absolute top-0 bottom-0 w-0.5 bg-gradient-to-b from-purple-400 via-fuchsia-500 to-purple-400 shadow-[0_0_15px_rgba(167,139,250,0.9)] pointer-events-none z-20" style={{ left: `${splitPos}%` }}>
-              <div className="absolute top-1/2 left-0 w-10 h-10 -ml-5 -mt-5 bg-slate-950/60 backdrop-blur-md border border-purple-500/50 rounded-full shadow-[0_0_20px_rgba(167,139,250,0.6)] flex items-center justify-center text-white select-none transition-all scale-100 cursor-ew-resize">
-                <svg className="w-5 h-5 text-purple-300 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7l-5 5 5 5M16 7l5 5-5 5" />
-                </svg>
-              </div>
-            </div>
-          </div>
-        ) : (
-        <div ref={canvasRef} className="w-full h-full relative overflow-hidden"
-          onClick={step === 2 ? handleCanvasClick : undefined}
-          onMouseMove={step === 2 ? handleMouseMove : undefined}
-          style={{ cursor: (step === 2 && annotationMode !== 'none') ? 'crosshair' : 'default' }}
-        >
-          <img src={patientPhoto!} alt="DSD" className="w-full h-full object-cover"
-            style={{ transform: `scale(${bgScale}) translate(${bgX}px,${bgY}px)`, transformOrigin: 'center', filter }} />
-
-          {/* AI glow overlay */}
-          {step === 3 && aiSimulated && (
-            <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 55% 18% at 50% 63%, rgba(255,255,255,0.14) 0%, transparent 70%)' }} />
-          )}
-
-          {/* Annotation SVG layer */}
-          {step === 2 && (
-            <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-              {annotations.map(ann => {
-                if ((ann.type === 'measure' || ann.type === 'draw') && ann.x2 !== undefined && ann.y2 !== undefined) {
-                  const dx = ann.x2 - ann.x, dy = ann.y2 - ann.y;
-                  const dist = Math.sqrt(dx * dx + dy * dy).toFixed(1);
-                  return (
-                    <g key={ann.id}>
-                      <line x1={ann.x} y1={ann.y} x2={ann.x2} y2={ann.y2} stroke={ann.color}
-                        strokeWidth={ann.type === 'measure' ? '0.5' : '0.8'}
-                        strokeDasharray={ann.type === 'measure' ? '2,1' : undefined}
-                        strokeLinecap="round" />
-                      {ann.type === 'measure' && (
-                        <text x={(ann.x + ann.x2) / 2} y={(ann.y + ann.y2) / 2 - 1.5}
-                          fontSize="2.5" fill={ann.color} textAnchor="middle" fontWeight="bold">{dist}</text>
-                      )}
-                    </g>
-                  );
-                }
-                if (ann.type === 'note') {
-                  const w = Math.min((ann.text?.length || 3) * 2.2, 38);
-                  return (
-                    <g key={ann.id}>
-                      <circle cx={ann.x} cy={ann.y} r="2.5" fill={ann.color} />
-                      <rect x={ann.x + 3} y={ann.y - 4} width={w} height="6" fill={ann.color} rx="1.5" />
-                      <text x={ann.x + 4.5} y={ann.y - 0.3} fontSize="2.5" fill="white" fontWeight="bold">{ann.text}</text>
-                    </g>
-                  );
-                }
-                return null;
-              })}
-              {drawingStart && drawingCurrent && (
-                <line x1={drawingStart.x} y1={drawingStart.y} x2={drawingCurrent.x} y2={drawingCurrent.y}
-                  stroke={activeColor} strokeWidth="0.6" strokeDasharray="1.5,1" opacity="0.8" />
-              )}
-            </svg>
-          )}
-
-          {children}
-        </div>
-      )}
-    </div>
-  );
-};
 
   // ===================================================
   //  RENDER
@@ -4749,6 +4621,21 @@ const SmileDesignModalContent: React.FC<SmileDesignModalContentProps> = ({ patie
           showSplit={showSplitManual}
           splitPos={splitPosManual}
           onSplitChange={setSplitPosManual}
+          patientPhoto={patientPhoto}
+          bgScale={bgScale}
+          bgX={bgX}
+          bgY={bgY}
+          generatedSmileImage={generatedSmileImage}
+          step={step}
+          annotationMode={annotationMode}
+          activeColor={activeColor}
+          annotations={annotations}
+          drawingStart={drawingStart}
+          drawingCurrent={drawingCurrent}
+          canvasRef={canvasRef}
+          handleCanvasClick={handleCanvasClick}
+          handleMouseMove={handleMouseMove}
+          aiSimulated={aiSimulated}
         >
           <div className="absolute top-3 right-3 bg-indigo-600/90 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold backdrop-blur-sm">
             📐 تصميم يدوي
@@ -4917,6 +4804,21 @@ const SmileDesignModalContent: React.FC<SmileDesignModalContentProps> = ({ patie
           showSplit={aiSimulated}
           splitPos={splitPosAi}
           onSplitChange={setSplitPosAi}
+          patientPhoto={patientPhoto}
+          bgScale={bgScale}
+          bgX={bgX}
+          bgY={bgY}
+          generatedSmileImage={generatedSmileImage}
+          step={step}
+          annotationMode={annotationMode}
+          activeColor={activeColor}
+          annotations={annotations}
+          drawingStart={drawingStart}
+          drawingCurrent={drawingCurrent}
+          canvasRef={canvasRef}
+          handleCanvasClick={handleCanvasClick}
+          handleMouseMove={handleMouseMove}
+          aiSimulated={aiSimulated}
         >
           <div className={`absolute top-3 right-3 px-2.5 py-1 rounded-lg text-[10px] font-bold backdrop-blur-sm ${aiSimulated ? 'bg-purple-600/90 text-white' : 'bg-slate-800/80 text-slate-300'}`}>
             {aiSimulated ? '✨ تصميم الابتسامة بالـ AI' : '✨ انتظر المعالجة'}
@@ -4955,7 +4857,7 @@ const SmileDesignModalContent: React.FC<SmileDesignModalContentProps> = ({ patie
             'ابتسامة هوليوود VITA B1 براقة مع قشور E-Max مربعة وانعكاس ضوئي فائق.',
             'ابتسامة ناعمة بيضاوية VITA A2 طبيعية مناسبة للفك الصغير مع شفافية المينا.',
             'ابتسامة كلاسيكية منتظمة VITA A1 متناسقة مع الشفاه وخط القواطع.',
-            'تحليل وتخطيط تصميم الابتسامة (DSD): رسم خطوط قياس ونسب مئوية رقمية (15%، 30%) مع منحنيات بيضاء رفيعة لتحديد حدود الأسنان واللثة فوق الابتسامة.',
+            'تحليل وتخطيط تصميم الابتسامة (DSD): رسم خطوط قياس ونسب مئوية رقمية (15%، 30%) مع منحنيات بيضاء رفيعة لتحديد حدود الأسنان واللثة للابتسامة المحسنة .',
           ].map((t, i) => (
             <button key={i} onClick={() => { setAiPrompt(t); toast.success('تم اختيار القالب.'); }}
               className="w-full text-right text-[10px] py-2 px-3 rounded-xl bg-slate-900/60 hover:bg-slate-900 text-purple-200 border border-purple-900/40 hover:border-purple-700 transition-all">
@@ -5082,6 +4984,208 @@ const SmileDesignModalContent: React.FC<SmileDesignModalContentProps> = ({ patie
         className="w-full bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-700 hover:to-fuchsia-700 text-white font-bold py-3 rounded-2xl text-xs shadow-md flex items-center justify-center gap-2 transition-all active:scale-95">
         <Printer className="w-4 h-4" /> تصدير تقرير DSD
       </button>
+    </div>
+  );
+};
+
+interface PhotoCanvasProps {
+  filter: string;
+  showSplit: boolean;
+  splitPos: number;
+  onSplitChange: (v: number) => void;
+  children?: React.ReactNode;
+  patientPhoto: string | null;
+  bgScale: number;
+  bgX: number;
+  bgY: number;
+  generatedSmileImage: string | null;
+  step: number;
+  annotationMode: string;
+  activeColor: string;
+  annotations: any[];
+  drawingStart: any;
+  drawingCurrent: any;
+  canvasRef: React.RefObject<HTMLDivElement>;
+  handleCanvasClick: (e: React.MouseEvent<HTMLDivElement>) => void;
+  handleMouseMove: (e: React.MouseEvent<HTMLDivElement>) => void;
+  aiSimulated: boolean;
+}
+
+const PhotoCanvas = ({
+  filter,
+  showSplit,
+  splitPos,
+  onSplitChange,
+  children,
+  patientPhoto,
+  bgScale,
+  bgX,
+  bgY,
+  generatedSmileImage,
+  step,
+  annotationMode,
+  activeColor,
+  annotations,
+  drawingStart,
+  drawingCurrent,
+  canvasRef,
+  handleCanvasClick,
+  handleMouseMove,
+  aiSimulated
+}: PhotoCanvasProps) => {
+  const splitRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleWindowMouseMove = (e: MouseEvent) => {
+      if (!splitRef.current) return;
+      const rect = splitRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+      onSplitChange(percentage);
+    };
+
+    const handleWindowMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    const handleWindowTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 0 || !splitRef.current) return;
+      const rect = splitRef.current.getBoundingClientRect();
+      const x = e.touches[0].clientX - rect.left;
+      const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+      onSplitChange(percentage);
+    };
+
+    window.addEventListener('mousemove', handleWindowMouseMove);
+    window.addEventListener('mouseup', handleWindowMouseUp);
+    window.addEventListener('touchmove', handleWindowTouchMove);
+    window.addEventListener('touchend', handleWindowMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleWindowMouseMove);
+      window.removeEventListener('mouseup', handleWindowMouseUp);
+      window.removeEventListener('touchmove', handleWindowTouchMove);
+      window.removeEventListener('touchend', handleWindowMouseUp);
+    };
+  }, [isDragging, onSplitChange]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    if (splitRef.current) {
+      const rect = splitRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+      onSplitChange(percentage);
+    }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setIsDragging(true);
+    if (e.touches.length > 0 && splitRef.current) {
+      const rect = splitRef.current.getBoundingClientRect();
+      const x = e.touches[0].clientX - rect.left;
+      const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+      onSplitChange(percentage);
+    }
+  };
+
+  return (
+    <div className="relative bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 shadow-inner select-none" style={{ aspectRatio: '4/3' }}>
+      {showSplit ? (
+        <div 
+          ref={splitRef}
+          className="w-full h-full relative overflow-hidden cursor-ew-resize"
+          onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
+        >
+          {/* BEFORE */}
+          <div className="absolute inset-0 pointer-events-none">
+            <img src={patientPhoto!} alt="Before" className="w-full h-full object-cover"
+              style={{ transform: `scale(${bgScale}) translate(${bgX}px,${bgY}px)`, transformOrigin: 'center' }} />
+            <div className="absolute bottom-3 right-3 bg-slate-950/70 border border-slate-800/80 backdrop-blur-md text-slate-300 font-bold px-3 py-1.5 rounded-xl text-[10px] shadow-lg tracking-wide select-none">قبل التصميم</div>
+          </div>
+          {/* AFTER */}
+          <div className="absolute inset-0 overflow-hidden z-10 pointer-events-none" style={{ clipPath: `inset(0 ${100 - splitPos}% 0 0)` }}>
+            {generatedSmileImage ? (
+              <img src={generatedSmileImage} alt="AI Generated Smile" className="w-full h-full object-cover"
+                style={{ transform: `scale(${bgScale}) translate(${bgX}px,${bgY}px)`, transformOrigin: 'center' }} />
+            ) : (
+              <img src={patientPhoto!} alt="After" className="w-full h-full object-cover"
+                style={{ transform: `scale(${bgScale}) translate(${bgX}px,${bgY}px)`, transformOrigin: 'center', filter }} />
+            )}
+            <div className="absolute bottom-3 left-3 bg-purple-950/70 border border-purple-800/80 backdrop-blur-md text-purple-200 font-bold px-3 py-1.5 rounded-xl text-[10px] shadow-lg shadow-purple-950/40 flex items-center gap-1.5 select-none">
+              {generatedSmileImage ? <><span>✨</span> صورة AI حقيقية</> : 'بعد التصميم'}
+            </div>
+          </div>
+          {/* Neon Split Line & Glowing Glassmorphic Drag Indicator */}
+          <div className="absolute top-0 bottom-0 w-0.5 bg-gradient-to-b from-purple-400 via-fuchsia-500 to-purple-400 shadow-[0_0_15px_rgba(167,139,250,0.9)] pointer-events-none z-20" style={{ left: `${splitPos}%` }}>
+            <div className="absolute top-1/2 left-0 w-10 h-10 -ml-5 -mt-5 bg-slate-950/60 backdrop-blur-md border border-purple-500/50 rounded-full shadow-[0_0_20px_rgba(167,139,250,0.6)] flex items-center justify-center text-white select-none transition-all scale-100 cursor-ew-resize">
+              <svg className="w-5 h-5 text-purple-300 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7l-5 5 5 5M16 7l5 5-5 5" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div ref={canvasRef} className="w-full h-full relative overflow-hidden"
+          onClick={step === 2 ? handleCanvasClick : undefined}
+          onMouseMove={step === 2 ? handleMouseMove : undefined}
+          style={{ cursor: (step === 2 && annotationMode !== 'none') ? 'crosshair' : 'default' }}
+        >
+          <img src={patientPhoto!} alt="DSD" className="w-full h-full object-cover"
+            style={{ transform: `scale(${bgScale}) translate(${bgX}px,${bgY}px)`, transformOrigin: 'center', filter }} />
+
+          {/* AI glow overlay */}
+          {step === 3 && aiSimulated && (
+            <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 55% 18% at 50% 63%, rgba(255,255,255,0.14) 0%, transparent 70%)' }} />
+          )}
+
+          {/* Annotation SVG layer */}
+          {step === 2 && (
+            <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+              {annotations.map(ann => {
+                if ((ann.type === 'measure' || ann.type === 'draw') && ann.x2 !== undefined && ann.y2 !== undefined) {
+                  const dx = ann.x2 - ann.x, dy = ann.y2 - ann.y;
+                  const dist = Math.sqrt(dx * dx + dy * dy).toFixed(1);
+                  return (
+                    <g key={ann.id}>
+                      <line x1={ann.x} y1={ann.y} x2={ann.x2} y2={ann.y2} stroke={ann.color}
+                        strokeWidth={ann.type === 'measure' ? '0.5' : '0.8'}
+                        strokeDasharray={ann.type === 'measure' ? '2,1' : undefined}
+                        strokeLinecap="round" />
+                      {ann.type === 'measure' && (
+                        <text x={(ann.x + ann.x2) / 2} y={(ann.y + ann.y2) / 2 - 1.5}
+                          fontSize="2.5" fill={ann.color} textAnchor="middle" fontWeight="bold">{dist}</text>
+                      )}
+                    </g>
+                  );
+                }
+                if (ann.type === 'note') {
+                  const w = Math.min((ann.text?.length || 3) * 2.2, 38);
+                  return (
+                    <g key={ann.id}>
+                      <circle cx={ann.x} cy={ann.y} r="2.5" fill={ann.color} />
+                      <rect x={ann.x + 3} y={ann.y - 4} width={w} height="6" fill={ann.color} rx="1.5" />
+                      <text x={ann.x + 4.5} y={ann.y - 0.3} fontSize="2.5" fill="white" fontWeight="bold">{ann.text}</text>
+                    </g>
+                  );
+                }
+                return null;
+              })}
+              {drawingStart && drawingCurrent && (
+                <line x1={drawingStart.x} y1={drawingStart.y} x2={drawingCurrent.x} y2={drawingCurrent.y}
+                  stroke={activeColor} strokeWidth="0.6" strokeDasharray="1.5,1" opacity="0.8" />
+              )}
+            </svg>
+          )}
+
+          {children}
+        </div>
+      )}
     </div>
   );
 };
