@@ -2137,6 +2137,45 @@ export const ClinicPatientProfile = () => {
   const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
   const [dsdSplitPos, setDsdSplitPos] = useState(50);
   const [isDsdDragging, setIsDsdDragging] = useState(false);
+
+  useEffect(() => {
+    if (!isDsdDragging) return;
+
+    const handleWindowMouseMove = (e: MouseEvent) => {
+      const sliderEl = document.getElementById('dsd-history-slider');
+      if (!sliderEl) return;
+      const rect = sliderEl.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+      setDsdSplitPos(percentage);
+    };
+
+    const handleWindowMouseUp = () => {
+      setIsDsdDragging(false);
+    };
+
+    const handleWindowTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 0) return;
+      const sliderEl = document.getElementById('dsd-history-slider');
+      if (!sliderEl) return;
+      const rect = sliderEl.getBoundingClientRect();
+      const x = e.touches[0].clientX - rect.left;
+      const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+      setDsdSplitPos(percentage);
+    };
+
+    window.addEventListener('mousemove', handleWindowMouseMove);
+    window.addEventListener('mouseup', handleWindowMouseUp);
+    window.addEventListener('touchmove', handleWindowTouchMove);
+    window.addEventListener('touchend', handleWindowMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleWindowMouseMove);
+      window.removeEventListener('mouseup', handleWindowMouseUp);
+      window.removeEventListener('touchmove', handleWindowTouchMove);
+      window.removeEventListener('touchend', handleWindowMouseUp);
+    };
+  }, [isDsdDragging]);
   const [analysisContext, setAnalysisContext] = useState<'xray' | 'clinical'>('xray');
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
   const [isVoiceExamModalOpen, setIsVoiceExamModalOpen] = useState(false);
@@ -2584,6 +2623,7 @@ export const ClinicPatientProfile = () => {
 
             {/* Before/After Split Screen Slider */}
             <div 
+              id="dsd-history-slider"
               className="relative bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 shadow-inner w-full max-w-2xl mx-auto cursor-ew-resize select-none" 
               style={{ aspectRatio: '4/3' }}
               onMouseDown={(e) => {
@@ -2594,23 +2634,15 @@ export const ClinicPatientProfile = () => {
                 const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
                 setDsdSplitPos(percentage);
               }}
-              onMouseMove={(e) => {
-                if (!isDsdDragging) return;
-                const rect = e.currentTarget.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
-                setDsdSplitPos(percentage);
+              onTouchStart={(e) => {
+                setIsDsdDragging(true);
+                if (e.touches.length > 0) {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const x = e.touches[0].clientX - rect.left;
+                  const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+                  setDsdSplitPos(percentage);
+                }
               }}
-              onMouseUp={() => setIsDsdDragging(false)}
-              onMouseLeave={() => setIsDsdDragging(false)}
-              onTouchMove={(e) => {
-                if (e.touches.length === 0) return;
-                const rect = e.currentTarget.getBoundingClientRect();
-                const x = e.touches[0].clientX - rect.left;
-                const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
-                setDsdSplitPos(percentage);
-              }}
-              onTouchEnd={() => setIsDsdDragging(false)}
             >
               <div className="w-full h-full relative overflow-hidden pointer-events-none">
                 {/* BEFORE */}
@@ -4082,6 +4114,7 @@ interface SmileDesignModalContentProps {
 
 const SmileDesignModalContent: React.FC<SmileDesignModalContentProps> = ({ patientName, patientId, onFileSaved }) => {
   const { uploadFile } = useStorage();
+  const { resolveClinicId, refresh: refreshAI } = useAIAnalysis(patientId);
   // ===== STEP FLOW =====
   // step 0: upload photo
   // step 1: choose method (manual | nanobanana)
@@ -4125,6 +4158,9 @@ const SmileDesignModalContent: React.FC<SmileDesignModalContentProps> = ({ patie
   const [generatedSmileImage, setGeneratedSmileImage] = useState<string | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [isSavingDsd, setIsSavingDsd] = useState(false);
+  const [isSavingToGallery, setIsSavingToGallery] = useState(false);
+  const [isSavingToHistory, setIsSavingToHistory] = useState(false);
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
 
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
 
@@ -4280,28 +4316,37 @@ const SmileDesignModalContent: React.FC<SmileDesignModalContentProps> = ({ patie
     }
   };
 
-  const handleSaveDsdImage = async () => {
-    if (!generatedSmileImage || !patientId) return;
-    setIsSavingDsd(true);
-    try {
-      let finalUrl = generatedSmileImage;
-      if (generatedSmileImage.startsWith('data:') || generatedSmileImage.startsWith('http')) {
-        try {
-          const res = await fetch(generatedSmileImage);
-          const blob = await res.blob();
-          const fileName = `dsd_${Date.now()}.jpg`;
-          const file = new File([blob], fileName, { type: 'image/jpeg' });
-          
-          const uploadRes = await uploadFile(file, 'patient-docs', `${patientId}/images`);
-          if (uploadRes && uploadRes.url) {
-            finalUrl = uploadRes.url;
-          }
-        } catch (uploadErr) {
-          console.error('Error uploading DSD image, using fallback URL:', uploadErr);
-        }
-      }
+  const getUploadedUrl = async () => {
+    if (uploadedUrl) return uploadedUrl;
+    if (!generatedSmileImage) return null;
 
-      // Now insert into patient_files
+    let finalUrl = generatedSmileImage;
+    if (generatedSmileImage.startsWith('data:') || generatedSmileImage.startsWith('http')) {
+      try {
+        const res = await fetch(generatedSmileImage);
+        const blob = await res.blob();
+        const fileName = `dsd_${Date.now()}.jpg`;
+        const file = new File([blob], fileName, { type: 'image/jpeg' });
+        
+        const uploadRes = await uploadFile(file, 'patient-docs', `${patientId}/images`);
+        if (uploadRes && uploadRes.url) {
+          finalUrl = uploadRes.url;
+        }
+      } catch (uploadErr) {
+        console.error('Error uploading DSD image, using fallback URL:', uploadErr);
+      }
+    }
+    setUploadedUrl(finalUrl);
+    return finalUrl;
+  };
+
+  const handleSaveToGallery = async () => {
+    if (!generatedSmileImage || !patientId) return;
+    setIsSavingToGallery(true);
+    try {
+      const finalUrl = await getUploadedUrl();
+      if (!finalUrl) throw new Error('فشل رفع الصورة');
+
       const { data, error } = await supabase
         .from('patient_files')
         .insert({
@@ -4329,49 +4374,61 @@ const SmileDesignModalContent: React.FC<SmileDesignModalContentProps> = ({ patie
         if (onFileSaved) {
           onFileSaved(newFile);
         }
-
-        // Also insert into ai_analyses
-        try {
-          const resolvedClinicId = await resolveClinicId();
-          const activeToothShape = toothShape === 'natural' ? 'طبيعي' : toothShape === 'oval' ? 'بيضاوي' : 'هوليوود';
-          const activeShade = whiteness >= 5 ? 'B1' : whiteness === 4 ? 'A1' : whiteness === 3 ? 'A2' : 'A3';
-          
-          const { error: aiHistoryError } = await supabase
-            .from('ai_analyses')
-            .insert({
-              clinic_id: resolvedClinicId,
-              image_url: finalUrl,
-              status: 'completed',
-              patient_id: parseInt(patientId),
-              analysis_result: {
-                isDsd: true,
-                original_image_url: patientPhoto,
-                generated_image_url: finalUrl,
-                whiteness: whiteness,
-                toothShape: toothShape,
-                vitaColor: activeShade,
-                summary: `تصميم ابتسامة بالذكاء الاصطناعي - VITA ${activeShade} (${activeToothShape})`,
-                issues: []
-              }
-            });
-          
-          if (aiHistoryError) {
-            console.error('Error saving DSD to AI history table:', aiHistoryError);
-          } else {
-            refreshAI();
-          }
-        } catch (aiHistoryErr) {
-          console.error('Error saving DSD to AI history table:', aiHistoryErr);
-        }
-
-        toast.success('تم حفظ نتيجة تصميم الابتسامة في سجلات وصور المريض بنجاح!');
+        toast.success('تم حفظ تصميم الابتسامة في معرض صور المريض بنجاح!');
       }
     } catch (err) {
-      console.error('DSD Save Error:', err);
-      toast.error('فشل حفظ تصميم الابتسامة في السجل');
+      console.error('DSD Gallery Save Error:', err);
+      toast.error('فشل حفظ تصميم الابتسامة في معرض الصور');
     } finally {
-      setIsSavingDsd(false);
+      setIsSavingToGallery(false);
     }
+  };
+
+  const handleSaveToHistory = async () => {
+    if (!generatedSmileImage || !patientId) return;
+    setIsSavingToHistory(true);
+    try {
+      const finalUrl = await getUploadedUrl();
+      if (!finalUrl) throw new Error('فشل رفع الصورة');
+
+      const resolvedClinicId = await resolveClinicId();
+      const activeToothShape = toothShape === 'natural' ? 'طبيعي' : toothShape === 'oval' ? 'بيضاوي' : 'هوليوود';
+      const activeShade = whiteness >= 5 ? 'B1' : whiteness === 4 ? 'A1' : whiteness === 3 ? 'A2' : 'A3';
+      
+      const { error } = await supabase
+        .from('ai_analyses')
+        .insert({
+          clinic_id: resolvedClinicId,
+          image_url: finalUrl,
+          status: 'completed',
+          patient_id: parseInt(patientId),
+          analysis_result: {
+            isDsd: true,
+            original_image_url: patientPhoto,
+            generated_image_url: finalUrl,
+            whiteness: whiteness,
+            toothShape: toothShape,
+            vitaColor: activeShade,
+            summary: `تصميم ابتسامة بالذكاء الاصطناعي - VITA ${activeShade} (${activeToothShape})`,
+            issues: []
+          }
+        });
+      
+      if (error) throw error;
+
+      refreshAI();
+      toast.success('تم تسجيل نتيجة التصميم في سجل التشخيصات والخدمات الطبية الذكية بنجاح!');
+    } catch (err) {
+      console.error('DSD History Save Error:', err);
+      toast.error('فشل تسجيل النتيجة في سجل التشخيصات والتحليلات');
+    } finally {
+      setIsSavingToHistory(false);
+    }
+  };
+
+  const handleSaveDsdImage = async () => {
+    await handleSaveToGallery();
+    await handleSaveToHistory();
   };
 
   // ===== EXPORT =====
@@ -4414,32 +4471,61 @@ const SmileDesignModalContent: React.FC<SmileDesignModalContentProps> = ({ patie
     const splitRef = useRef<HTMLDivElement>(null);
     const [isDragging, setIsDragging] = useState(false);
 
-    const handleMove = (clientX: number) => {
-      if (!splitRef.current) return;
-      const rect = splitRef.current.getBoundingClientRect();
-      const x = clientX - rect.left;
-      const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
-      onSplitChange(percentage);
-    };
+    useEffect(() => {
+      if (!isDragging) return;
+
+      const handleWindowMouseMove = (e: MouseEvent) => {
+        if (!splitRef.current) return;
+        const rect = splitRef.current.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+        onSplitChange(percentage);
+      };
+
+      const handleWindowMouseUp = () => {
+        setIsDragging(false);
+      };
+
+      const handleWindowTouchMove = (e: TouchEvent) => {
+        if (e.touches.length === 0 || !splitRef.current) return;
+        const rect = splitRef.current.getBoundingClientRect();
+        const x = e.touches[0].clientX - rect.left;
+        const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+        onSplitChange(percentage);
+      };
+
+      window.addEventListener('mousemove', handleWindowMouseMove);
+      window.addEventListener('mouseup', handleWindowMouseUp);
+      window.addEventListener('touchmove', handleWindowTouchMove);
+      window.addEventListener('touchend', handleWindowMouseUp);
+
+      return () => {
+        window.removeEventListener('mousemove', handleWindowMouseMove);
+        window.removeEventListener('mouseup', handleWindowMouseUp);
+        window.removeEventListener('touchmove', handleWindowTouchMove);
+        window.removeEventListener('touchend', handleWindowMouseUp);
+      };
+    }, [isDragging, onSplitChange]);
 
     const handleMouseDown = (e: React.MouseEvent) => {
       e.preventDefault();
       setIsDragging(true);
-      handleMove(e.clientX);
+      if (splitRef.current) {
+        const rect = splitRef.current.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+        onSplitChange(percentage);
+      }
     };
 
-    const handleMouseMove = (e: React.MouseEvent) => {
-      if (!isDragging) return;
-      handleMove(e.clientX);
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-    };
-
-    const handleTouchMove = (e: React.TouchEvent) => {
-      if (e.touches.length === 0) return;
-      handleMove(e.touches[0].clientX);
+    const handleTouchStart = (e: React.TouchEvent) => {
+      setIsDragging(true);
+      if (e.touches.length > 0 && splitRef.current) {
+        const rect = splitRef.current.getBoundingClientRect();
+        const x = e.touches[0].clientX - rect.left;
+        const percentage = Math.max(0, Math.min(100, (x / rect.width) * 100));
+        onSplitChange(percentage);
+      }
     };
 
     return (
@@ -4449,11 +4535,7 @@ const SmileDesignModalContent: React.FC<SmileDesignModalContentProps> = ({ patie
             ref={splitRef}
             className="w-full h-full relative overflow-hidden cursor-ew-resize"
             onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleMouseUp}
+            onTouchStart={handleTouchStart}
           >
             {/* BEFORE */}
             <div className="absolute inset-0 pointer-events-none">
@@ -4541,6 +4623,7 @@ const SmileDesignModalContent: React.FC<SmileDesignModalContentProps> = ({ patie
       )}
     </div>
   );
+};
 
   // ===================================================
   //  RENDER
@@ -4926,47 +5009,70 @@ const SmileDesignModalContent: React.FC<SmileDesignModalContentProps> = ({ patie
           </button>
         ) : (
           <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2">
+            {/* Row 1: The two Save Buttons */}
             <div className="flex gap-2.5">
-              {/* Save Results Button */}
+              {/* Save to Gallery Button */}
               <button 
-                onClick={handleSaveDsdImage} 
-                disabled={isSavingDsd || isAiProcessing}
+                onClick={handleSaveToGallery} 
+                disabled={isSavingToGallery || isSavingToHistory || isAiProcessing}
                 className="flex-1 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold rounded-2xl text-xs shadow-lg shadow-emerald-950/30 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
               >
-                {isSavingDsd ? (
+                {isSavingToGallery ? (
                   <>
                     <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                    جاري الحفظ...
+                    جاري الحفظ بالمعرض...
                   </>
                 ) : (
                   <>
-                    <Save className="w-4 h-4" />
-                    حفظ في سجل المريض
+                    <ImageIcon className="w-4 h-4" />
+                    حفظ في معرض الصور
                   </>
                 )}
               </button>
 
-              {/* Re-generate Button (In same place, with a refresh look) */}
+              {/* Save to AI History Button */}
               <button 
-                onClick={() => { setAiSimulated(false); setGeneratedSmileImage(null); setAiError(null); }}
-                disabled={isSavingDsd || isAiProcessing}
-                className="flex-1 py-3.5 bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-700 hover:to-fuchsia-700 text-white font-extrabold rounded-2xl text-xs shadow-lg shadow-purple-950/30 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+                onClick={handleSaveToHistory} 
+                disabled={isSavingToGallery || isSavingToHistory || isAiProcessing}
+                className="flex-1 py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-extrabold rounded-2xl text-xs shadow-lg shadow-indigo-950/30 flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
               >
-                <RefreshCcw className="w-4 h-4 animate-spin-slow" />
-                إعادة توليد الابتسامة
+                {isSavingToHistory ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    جاري الحفظ بالسجل...
+                  </>
+                ) : (
+                  <>
+                    <Brain className="w-4 h-4" />
+                    حفظ في سجل التشخيصات
+                  </>
+                )}
               </button>
             </div>
 
-            {/* View Full Image link, styled as a subtle sleek link or button */}
-            <a 
-              href={generatedSmileImage} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="w-full py-2.5 bg-slate-900/60 hover:bg-slate-900 text-purple-300 border border-purple-900/40 hover:border-purple-700/80 rounded-xl text-center text-[11px] font-bold transition-all flex items-center justify-center gap-1.5"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              فتح الصورة المولّدة بحجمها الكامل ↗
-            </a>
+            {/* Row 2: Re-generate & Full Image links */}
+            <div className="flex gap-2.5">
+              {/* Re-generate Button */}
+              <button 
+                onClick={() => { setAiSimulated(false); setGeneratedSmileImage(null); setAiError(null); setUploadedUrl(null); }}
+                disabled={isSavingToGallery || isSavingToHistory || isAiProcessing}
+                className="flex-1 py-3 bg-slate-900/60 hover:bg-slate-900 text-purple-200 border border-purple-900/40 hover:border-purple-700/80 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+              >
+                <RefreshCcw className="w-3.5 h-3.5 animate-spin-slow" />
+                إعادة توليد الابتسامة
+              </button>
+
+              {/* View Full Image link */}
+              <a 
+                href={generatedSmileImage!} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex-1 py-3 bg-slate-900/60 hover:bg-slate-900 text-purple-300 border border-purple-900/40 hover:border-purple-700/80 rounded-xl text-center text-[11px] font-bold transition-all flex items-center justify-center gap-1.5"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                فتح الصورة بالكامل ↗
+              </a>
+            </div>
           </div>
         )}
       </div>

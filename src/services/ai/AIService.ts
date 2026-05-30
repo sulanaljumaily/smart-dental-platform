@@ -68,7 +68,7 @@ class AIService {
         const currentConfig = this.configs[type] || DEFAULT_AI_CONFIGS[type];
         const mergedConfig = { ...currentConfig, ...updates };
 
-        const capabilities = mergedConfig.capabilities || {};
+        const capabilities = (mergedConfig as any).capabilities || {};
         if (type === 'smile_design') {
             capabilities.visionProvider = mergedConfig.visionProvider;
             capabilities.visionModel = mergedConfig.visionModel;
@@ -624,7 +624,7 @@ Output ONLY the generated prompt text with no conversational wrapper.`;
                 }
             } catch (e: any) {
                 console.error('[DSD] Vision analysis failed, checking fallback:', e);
-                if (visionProvider === 'banana') {
+                if ((visionProvider as any) === 'banana') {
                     try {
                         console.log('[DSD] Banana Vision failed. Retrying with OpenAI gpt-4o as fallback...');
                         const fallbackAgentConfig = { ...visionAgentConfig, provider: 'openai' as any, model: 'gpt-4o' };
