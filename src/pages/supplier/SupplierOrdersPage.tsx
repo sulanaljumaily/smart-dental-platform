@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   Search, Filter, Eye, CheckCircle, XCircle, Clock, Truck, Trash2,
   MoreVertical, FileText, Printer, ChevronDown, Calendar, Phone, MapPin, Package, MessageCircle, User,
-  TrendingUp, Building, Undo2, Send
+  TrendingUp, Building, Undo2, Send, Stethoscope, FlaskConical
 } from 'lucide-react';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
@@ -10,6 +10,32 @@ import { formatCurrency } from '../../lib/utils';
 import { useSupplierOrders } from '../../hooks/useSupplierOrders';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
+
+const getBuyerInfo = (buyerType?: string) => {
+  const type = buyerType?.toLowerCase() || 'patient';
+  if (type === 'doctor' || type === 'clinic' || type === 'staff') {
+    return {
+      label: 'عيادة طبية',
+      bgClass: 'bg-blue-50 text-blue-700 border-blue-100',
+      iconClass: 'text-blue-500',
+      icon: Stethoscope
+    };
+  } else if (type === 'laboratory') {
+    return {
+      label: 'مختبر أسنان',
+      bgClass: 'bg-purple-50 text-purple-700 border-purple-100',
+      iconClass: 'text-purple-500',
+      icon: FlaskConical
+    };
+  } else {
+    return {
+      label: 'مراجع (مريض)',
+      bgClass: 'bg-teal-50 text-teal-700 border-teal-100',
+      iconClass: 'text-teal-500',
+      icon: User
+    };
+  }
+};
 
 export const SupplierOrdersPage: React.FC = () => {
   const { orders, loading, updateOrderStatus, refresh, analytics, platformStats, updateItemStatus } = useSupplierOrders();
@@ -36,6 +62,16 @@ export const SupplierOrdersPage: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Track expanded customer details for each order ID
+  const [expandedCustomers, setExpandedCustomers] = useState<Record<string, boolean>>({});
+
+  const toggleCustomerExpand = (orderId: string) => {
+    setExpandedCustomers(prev => ({
+      ...prev,
+      [orderId]: !prev[orderId]
+    }));
+  };
 
   // Message Modal State
   const [messageModal, setMessageModal] = useState<{ open: boolean; orderId: string; customerId: string; customerName: string; itemName: string } | null>(null);
@@ -365,33 +401,70 @@ export const SupplierOrdersPage: React.FC = () => {
                 </div>
 
                 {/* Customer Details */}
-                <div className="bg-gray-50/80 rounded-2xl p-5 grid grid-cols-1 sm:grid-cols-2 gap-5 border border-gray-100">
-                  <div className="sm:col-span-2 flex items-center gap-2 pb-2 border-b border-gray-200/60">
-                    <Building className="w-4 h-4 text-blue-600" />
-                    <p className="font-bold text-gray-900 text-lg">{order.customer?.clinicName || 'عيادة غير محددة'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-gray-400 mb-1 flex items-center gap-1"><User className="w-3 h-3" /> الشخص المستلم</p>
-                    <p className="font-bold text-gray-900">{order.customer?.name || 'غير محدد'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-gray-400 mb-1 flex items-center gap-1"><Phone className="w-3 h-3" /> أرقام الهاتف</p>
-                    <div className="flex flex-col">
-                      <p className="font-bold text-gray-900 dir-ltr font-mono">{order.customer?.phone || '-'}</p>
-                      {order.customer?.backupPhone && <p className="text-xs text-gray-500 dir-ltr font-mono">{order.customer.backupPhone}</p>}
+                {(() => {
+                  const fullName = order.customer?.name || 'غير محدد';
+                  const nameParts = fullName.includes(' - ') ? fullName.split(' - ') : [fullName];
+                  const userName = nameParts[0].trim();
+                  const recipientName = nameParts[1]?.trim() || userName;
+
+                  return (
+                    <div 
+                      className="bg-gray-50/80 rounded-2xl p-4 border border-gray-100 transition-all duration-300 hover:bg-gray-100/50 cursor-pointer shadow-sm"
+                      onClick={() => toggleCustomerExpand(order.id)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {(() => {
+                            const buyer = getBuyerInfo(order.buyerType);
+                            const Icon = buyer.icon;
+                            return (
+                              <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border shadow-sm ${buyer.bgClass}`}>
+                                <Icon className="w-3.5 h-3.5" />
+                                {buyer.label}
+                              </span>
+                            );
+                          })()}
+                          <span className="text-gray-300">|</span>
+                          <p className="font-bold text-gray-800 text-sm">{userName}</p>
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-blue-600 font-bold bg-blue-50/60 hover:bg-blue-50 px-2 py-1 rounded-lg transition-colors">
+                          <span>{expandedCustomers[order.id] ? 'عرض أقل' : 'عرض التفاصيل'}</span>
+                          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${expandedCustomers[order.id] ? 'rotate-180' : ''}`} />
+                        </div>
+                      </div>
+
+                      {/* Collapsible Content */}
+                      <div 
+                        className={`grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-hidden transition-all duration-300 ${
+                          expandedCustomers[order.id] ? 'max-h-[500px] opacity-100 mt-4 pt-3 border-t border-gray-200/60' : 'max-h-0 opacity-0 pointer-events-none'
+                        }`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div>
+                          <p className="text-xs font-bold text-gray-400 mb-1 flex items-center gap-1"><User className="w-3 h-3 text-gray-400" /> الشخص المستلم</p>
+                          <p className="font-bold text-gray-900 text-sm">{recipientName}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-gray-400 mb-1 flex items-center gap-1"><Phone className="w-3 h-3 text-gray-400" /> أرقام الهاتف</p>
+                          <div className="flex flex-col">
+                            <p className="font-bold text-gray-900 dir-ltr font-mono text-sm">{order.customer?.phone || '-'}</p>
+                            {order.customer?.backupPhone && <p className="text-xs text-gray-500 dir-ltr font-mono">{order.customer.backupPhone}</p>}
+                          </div>
+                        </div>
+                        <div className="sm:col-span-2">
+                          <p className="text-xs font-bold text-gray-400 mb-1 flex items-center gap-1"><MapPin className="w-3 h-3 text-gray-400" /> العنوان</p>
+                          <div className="flex items-center gap-1">
+                            <p className="font-medium text-gray-900 leading-relaxed text-sm">
+                              {order.customer?.governorate
+                                ? `${order.customer.governorate}${order.customer.city ? `، ${order.customer.city}` : ''} - ${order.customer.address}`
+                                : (order.customer?.address || 'العنوان غير متوفر')}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <p className="text-xs font-bold text-gray-400 mb-1 flex items-center gap-1"><MapPin className="w-3 h-3" /> العنوان</p>
-                    <div className="flex items-center gap-1">
-                      <p className="font-medium text-gray-900 leading-relaxed">
-                        {order.customer?.governorate
-                          ? `${order.customer.governorate}${order.customer.city ? `، ${order.customer.city}` : ''} - ${order.customer.address}`
-                          : (order.customer?.address || 'العنوان غير متوفر')}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                  );
+                })()}
               </div>
 
               {/* Vertical Divider (Desktop) */}
@@ -420,7 +493,11 @@ export const SupplierOrdersPage: React.FC = () => {
                                 <XCircle className="w-6 h-6 text-red-500" />
                               </div>
                             )}
-                            <Package className="w-6 h-6 text-gray-300" />
+                            {item.image ? (
+                              <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <Package className="w-6 h-6 text-gray-300" />
+                            )}
                           </div>
                           <div>
                             <p className={`font-bold text-sm line-clamp-1 ${item.status === 'unavailable' ? 'text-gray-500 line-through' : 'text-gray-900'}`}>{item.name}</p>

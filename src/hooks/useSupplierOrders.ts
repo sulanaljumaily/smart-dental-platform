@@ -8,6 +8,7 @@ export interface SupplierOrder {
     orderNumber: string;
     clinicId: number;
     clinicName?: string;
+    buyerType?: string;
     totalAmount: number;
     total: number;
     status: 'pending' | 'received' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'returned';
@@ -27,6 +28,7 @@ export interface SupplierOrder {
         address: string;
         governorate?: string;
         city?: string;
+        clinicName?: string;
         rating: number;
     };
 }
@@ -168,11 +170,29 @@ export const useSupplierOrders = () => {
 
             console.log('Fetched Supplier Orders:', data);
 
+            // Fetch profiles in a single grouped batch to resolve roles
+            const userIds = Array.from(new Set(data?.map((o: any) => o.user_id).filter(Boolean) || []));
+            const profilesMap: Record<string, string> = {};
+
+            if (userIds.length > 0) {
+                const { data: profilesData, error: profilesError } = await supabase
+                    .from('profiles')
+                    .select('id, role')
+                    .in('id', userIds);
+
+                if (!profilesError && profilesData) {
+                    profilesData.forEach((p: any) => {
+                        profilesMap[p.id] = p.role;
+                    });
+                }
+            }
+
             const mappedOrders: SupplierOrder[] = data.map((o: any) => ({
                 id: o.id,
                 orderNumber: o.order_number || o.id.slice(0, 8),
                 clinicId: 0, // Not explicitly in simple orders table unless we join users->clinics
                 clinicName: o.user_name || 'Client',
+                buyerType: profilesMap[o.user_id] || 'patient',
                 totalAmount: o.total_amount,
                 total: o.total_amount,
                 status: o.status,

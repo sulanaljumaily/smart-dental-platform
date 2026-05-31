@@ -53,7 +53,10 @@ export const PatientDealsPage: React.FC = () => {
             original_price: originalPrice,
             originalPrice,
             image: p.image_url,
-            supplierName: p.supplier?.name
+            supplierName: p.supplier?.name,
+            supplier_name: p.supplier?.name,
+            supplierId: p.supplier?.id,
+            supplier_id: p.supplier?.id
           };
         }));
       }

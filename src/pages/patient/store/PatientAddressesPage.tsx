@@ -5,9 +5,11 @@ import { Button } from '../../../components/common/Button';
 import { useStoreAddresses } from '../../../hooks/useStoreAddresses';
 import { BottomNavigation } from '../../../components/layout/BottomNavigation';
 import { PatientStoreHeader } from '../../../components/patient/store/PatientStoreHeader';
+import { useAuth } from '../../../contexts/AuthContext';
 
 export const PatientAddressesPage: React.FC = () => {
   const { addresses, loading, addAddress, deleteAddress } = useStoreAddresses();
+  const { user } = useAuth();
   const [showForm, setShowForm] = useState(false);
 
   if (loading) return <div className="p-12 text-center text-slate-500">جاري تحميل العناوين...</div>;
@@ -40,8 +42,14 @@ export const PatientAddressesPage: React.FC = () => {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-500">اسم العنوان (مثلاً: المنزل)</label>
-                <input type="text" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-teal-200 outline-none" placeholder="الاسم" id="addr-name" />
+                <label className="text-xs font-bold text-slate-500">اسم المستلم</label>
+                <input 
+                  type="text" 
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-teal-200 outline-none" 
+                  placeholder="اسم المستلم" 
+                  id="addr-name" 
+                  defaultValue={user?.name || ''}
+                />
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-500">المحافظة</label>
@@ -57,10 +65,16 @@ export const PatientAddressesPage: React.FC = () => {
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-500">رقم الهاتف</label>
-                <input type="tel" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-teal-200 outline-none" placeholder="0770..." id="addr-phone" />
+                <input 
+                  type="tel" 
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-teal-200 outline-none" 
+                  placeholder="0770..." 
+                  id="addr-phone" 
+                  defaultValue={user?.phone || ''}
+                />
               </div>
               <div className="md:col-span-2 space-y-2">
-                <label className="text-xs font-bold text-slate-500">العنوان التفصيلي</label>
+                <label className="text-xs font-bold text-slate-500">العنوان التفصيلي (اختياري)</label>
                 <textarea className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-teal-200 outline-none h-24" placeholder="الشارع، رقم المبنى، علامة مميزة..." id="addr-street" />
               </div>
             </div>
@@ -73,8 +87,8 @@ export const PatientAddressesPage: React.FC = () => {
                   const city = (document.getElementById('addr-city') as HTMLInputElement).value;
                   const street = (document.getElementById('addr-street') as HTMLTextAreaElement).value;
                   const phone = (document.getElementById('addr-phone') as HTMLInputElement).value;
-                  if (name && city && street && phone) {
-                    addAddress({ name, city: gov, street: `${city} - ${street}`, phone });
+                  if (name && city && phone) {
+                    addAddress({ name, city: gov, street: street ? `${city} - ${street}` : city, phone });
                     setShowForm(false);
                   }
                 }}

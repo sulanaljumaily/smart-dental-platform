@@ -20,16 +20,16 @@ export const PatientOrdersPage: React.FC = () => {
   const fetchOrders = async () => {
     try {
       const { data, error } = await supabase
-        .from('orders')
+        .from('store_orders')
         .select(`
           *,
           supplier:suppliers(name),
-          items:order_items(
-            quantity, unit_price, total_price,
+          items:store_order_items(
+            quantity, price_at_purchase,
             product:products(name, image_url)
           )
         `)
-        .eq('buyer_id', user?.id)
+        .eq('user_id', user?.id)
         .order('created_at', { ascending: false });
 
       if (data) {
@@ -82,7 +82,7 @@ export const PatientOrdersPage: React.FC = () => {
                 <div key={order.id} className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
                   <div className="p-6 border-b border-slate-50 flex flex-wrap justify-between items-center gap-4 bg-slate-50/50">
                     <div>
-                      <p className="text-sm text-slate-500 mb-1">رقم الطلب: #{order.id.split('-')[0]}</p>
+                      <p className="text-sm text-slate-500 mb-1">رقم الطلب: #{order.order_number || order.id.split('-')[0]}</p>
                       <p className="font-bold text-slate-900">{new Date(order.created_at).toLocaleDateString('ar-IQ')} - المورد: {order.supplier?.name}</p>
                     </div>
                     <div className="text-left">
@@ -101,7 +101,7 @@ export const PatientOrdersPage: React.FC = () => {
                           <img src={item.product?.image_url} alt={item.product?.name} className="w-16 h-16 object-cover rounded-xl bg-slate-50" />
                           <div>
                             <p className="font-bold text-slate-900 text-sm line-clamp-2 mb-1">{item.product?.name}</p>
-                            <p className="text-xs text-slate-500">الكمية: {item.quantity} × {formatCurrency(item.unit_price)}</p>
+                            <p className="text-xs text-slate-500">الكمية: {item.quantity} × {formatCurrency(item.price_at_purchase)}</p>
                           </div>
                         </div>
                       ))}

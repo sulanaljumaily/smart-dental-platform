@@ -78,7 +78,9 @@ export const PatientStoreHome: React.FC = () => {
           originalPrice,
           image: p.image_url,
           supplier_name: p.supplier?.name,
-          supplierName: p.supplier?.name
+          supplierName: p.supplier?.name,
+          supplierId: p.supplier?.id,
+          supplier_id: p.supplier?.id
         };
       });
       setProducts(mappedProds);

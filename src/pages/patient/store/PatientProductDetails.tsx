@@ -62,6 +62,9 @@ export const PatientProductDetails: React.FC = () => {
           original_price: originalPrice,
           originalPrice,
           supplierName: data.supplier?.name || 'Unknown Supplier',
+          supplier_name: data.supplier?.name || 'Unknown Supplier',
+          supplierId: data.supplier?.id || data.supplier_id,
+          supplier_id: data.supplier?.id || data.supplier_id,
           brandName: data.brand?.name || 'Generic'
         });
       }
@@ -91,7 +94,7 @@ export const PatientProductDetails: React.FC = () => {
         name: product.name,
         price: Number(product.price),
         image: product.image_url,
-        supplierId: product.supplier_id,
+        supplierId: product.supplierId || product.supplier_id,
         supplierName: product.supplierName
       } as any, quantity);
       toast.success('تمت الإضافة للسلة');

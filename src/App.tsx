@@ -358,11 +358,14 @@ import { CommunityProvider } from './contexts/CommunityContext';
 import { PlatformProvider } from './contexts/PlatformContext';
 import { HelmetProvider } from 'react-helmet-async';
 
+import { Toaster } from 'sonner';
+
 function App() {
   return (
     <HelmetProvider>
       <LanguageProvider>
         <AuthProvider>
+          <Toaster position="top-center" richColors />
           <CompleteRegistrationModal />
           <StoreProvider>
             <CommunityProvider>

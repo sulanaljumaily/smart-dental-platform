@@ -48,15 +48,39 @@ export const PatientProductsPage: React.FC = () => {
             const { data } = await req;
             
             if (data) {
-                let filtered = data;
+                let mapped = data.map((p: any) => {
+                    let price = p.price;
+                    let originalPrice = p.original_price;
+
+                    // Fallback if original_price is null or equal to price but discount is present
+                    if (p.discount && p.discount > 0) {
+                        if (!originalPrice || originalPrice <= price) {
+                            originalPrice = price;
+                            price = Math.round(originalPrice * (1 - p.discount / 100));
+                        }
+                    }
+
+                    return {
+                        ...p,
+                        price,
+                        original_price: originalPrice,
+                        originalPrice,
+                        image: p.image_url,
+                        supplierName: p.supplier?.name,
+                        supplier_name: p.supplier?.name,
+                        supplierId: p.supplier?.id,
+                        supplier_id: p.supplier?.id
+                    };
+                });
+
                 if (query) {
                     const lowerQuery = query.toLowerCase();
-                    filtered = filtered.filter((p: any) =>
+                    mapped = mapped.filter((p: any) =>
                         p.name.toLowerCase().includes(lowerQuery) ||
                         p.description?.toLowerCase().includes(lowerQuery)
                     );
                 }
-                setProducts(filtered);
+                setProducts(mapped);
             }
         } catch (error) {
             console.error('Error fetching patient products:', error);

@@ -9,13 +9,19 @@ import { toast } from 'sonner';
 import { supabase } from '../../../lib/supabase';
 import { PatientStoreHeader } from '../../../components/patient/store/PatientStoreHeader';
 import { BottomNavigation } from '../../../components/layout/BottomNavigation';
+import { useStoreAddresses } from '../../../hooks/useStoreAddresses';
 
 export const PatientCartPage: React.FC = () => {
   const navigate = useNavigate();
   const { cartItems, updateQuantity, removeFromCart, clearCart, totals } = useStoreCart();
   const { user } = useAuth();
+  const { addresses, addAddress } = useStoreAddresses();
 
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [selectedAddressId, setSelectedAddressId] = useState<string>('new');
+  const [newAddressName, setNewAddressName] = useState('المنزل');
+  const [saveAsNewAddress, setSaveAsNewAddress] = useState(false);
+
   const [shippingAddress, setShippingAddress] = useState({
     governorate: 'بغداد',
     city: '',
@@ -28,6 +34,7 @@ export const PatientCartPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderComplete, setOrderComplete] = useState(false);
 
+  // Set default prefilled user info
   useEffect(() => {
     if (user) {
       setShippingAddress(prev => ({
@@ -38,6 +45,39 @@ export const PatientCartPage: React.FC = () => {
     }
   }, [user]);
 
+  // Set default selected address on mount if available
+  useEffect(() => {
+    if (addresses.length > 0) {
+      const def = addresses.find(a => a.isDefault);
+      setSelectedAddressId(def ? def.id : addresses[0].id);
+    }
+  }, [addresses]);
+
+  // Sync selected address fields
+  useEffect(() => {
+    if (selectedAddressId === 'new') {
+      setShippingAddress(prev => ({
+        ...prev,
+        governorate: 'بغداد',
+        city: '',
+        address: '',
+        phone: user?.phone || '',
+        recipientName: user?.name || ''
+      }));
+    } else {
+      const selected = addresses.find(a => a.id === selectedAddressId);
+      if (selected) {
+        setShippingAddress({
+          governorate: selected.governorate || 'بغداد',
+          city: selected.city || '',
+          address: selected.street || '',
+          phone: selected.phone || '',
+          recipientName: selected.name || user?.name || ''
+        });
+      }
+    }
+  }, [selectedAddressId, addresses, user]);
+
   const handleCheckout = async () => {
     if (!shippingAddress.phone || !shippingAddress.city || !shippingAddress.address) {
       toast.error('يرجى ملء جميع معلومات التوصيل');
@@ -46,25 +86,66 @@ export const PatientCartPage: React.FC = () => {
 
     setIsSubmitting(true);
     try {
+      // Save address if chosen to save
+      if (selectedAddressId === 'new' && saveAsNewAddress) {
+        try {
+          await addAddress({
+            name: newAddressName || 'عنوان جديد',
+            governorate: shippingAddress.governorate,
+            city: shippingAddress.city,
+            street: shippingAddress.address,
+            phone: shippingAddress.phone
+          });
+        } catch (err) {
+          console.error("Error saving new address:", err);
+        }
+      }
+
+      // Get a valid supplier ID fallback from the database to avoid foreign key violations
+      let fallbackSupplierId = '00000000-0000-0000-0000-000000000000';
+      try {
+        const { data: firstSupplier } = await supabase.from('suppliers').select('id').limit(1);
+        if (firstSupplier && firstSupplier.length > 0) {
+          fallbackSupplierId = firstSupplier[0].id;
+        }
+      } catch (err) {
+        console.error("Error fetching fallback supplier:", err);
+      }
+
       // Group items by supplier for orders
-      const suppliersSet = new Set(cartItems.map(i => i.supplierId));
+      const suppliersSet = new Set(cartItems.map(i => i.supplierId || (i as any).supplier_id || fallbackSupplierId));
       const suppliersArr = Array.from(suppliersSet);
       
+      const orderNumber = `ORD-${Math.floor(Math.random() * 1000000000)}`;
+
       for (let index = 0; index < suppliersArr.length; index++) {
-        const supplierId = suppliersArr[index];
-        const items = cartItems.filter(i => i.supplierId === supplierId);
+        const supplierId = suppliersArr[index] || fallbackSupplierId;
+        const items = cartItems.filter(i => (i.supplierId || (i as any).supplier_id || fallbackSupplierId) === supplierId);
         const subtotal = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
         const shippingShare = index === 0 ? totals.shipping : 0;
         const total = subtotal + shippingShare;
+        const subOrderNumber = `${orderNumber}-${supplierId.slice(0, 4)}`;
 
-        const { data: order, error } = await supabase.from('orders').insert({
-          buyer_id: user?.id,
-          buyer_type: 'patient',
+        let orderUserName = user?.name || 'مريض';
+        if (shippingAddress.recipientName) {
+          orderUserName += ` - ${shippingAddress.recipientName}`;
+        }
+
+        const orderNotes = `Phone: ${shippingAddress.phone}\nAddress: ${shippingAddress.governorate || ''}، ${shippingAddress.city || ''}، ${shippingAddress.address || ''}`;
+
+        const { data: order, error } = await supabase.from('store_orders').insert({
+          order_number: subOrderNumber,
+          user_id: user?.id || '00000000-0000-0000-0000-000000000000',
+          user_name: orderUserName,
+          ordered_by: user?.name || 'مريض',
           supplier_id: supplierId,
-          status: 'pending',
           total_amount: total,
+          status: 'pending',
+          payment_method: paymentMethod,
+          payment_status: paymentMethod === 'cash' ? 'pending' : 'paid',
           shipping_address: shippingAddress,
-          payment_method: paymentMethod
+          notes: orderNotes,
+          created_at: new Date().toISOString()
         }).select().single();
 
         if (error) throw error;
@@ -72,12 +153,12 @@ export const PatientCartPage: React.FC = () => {
         const orderItems = items.map(item => ({
           order_id: order.id,
           product_id: item.id,
+          supplier_id: supplierId,
           quantity: item.quantity,
-          unit_price: item.price,
-          total_price: item.price * item.quantity
+          price_at_purchase: item.price
         }));
 
-        const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
+        const { error: itemsError } = await supabase.from('store_order_items').insert(orderItems);
         if (itemsError) throw itemsError;
       }
 
@@ -164,98 +245,179 @@ export const PatientCartPage: React.FC = () => {
                     بيانات التوصيل
                   </h3>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">الاسم الكامل</label>
-                    <input
-                      type="text"
-                      placeholder="اسم المستلم"
-                      value={shippingAddress.recipientName}
-                      onChange={(e) => setShippingAddress({ ...shippingAddress, recipientName: e.target.value })}
-                      className="w-full rounded-xl border-slate-200 focus:ring-teal-500 focus:border-teal-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">المحافظة</label>
-                    <select
-                      value={shippingAddress.governorate}
-                      onChange={(e) => setShippingAddress({ ...shippingAddress, governorate: e.target.value })}
-                      className="w-full rounded-xl border-slate-200 focus:ring-teal-500 focus:border-teal-500"
-                    >
-                      {['بغداد', 'البصرة', 'نينوى', 'أربيل', 'السليمانية', 'دهوك', 'كركوك', 'صلاح الدين', 'ديالى', 'الأنبار', 'بابل', 'كربلاء', 'النجف', 'واسط', 'القادسية', 'ميسان', 'ذي قار', 'المثنى'].map((gov) => (
-                        <option key={gov} value={gov}>{gov}</option>
+
+                {/* Saved Addresses List */}
+                {addresses.length > 0 && (
+                  <div className="mb-6 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <label className="block text-xs font-bold text-slate-400 mb-3 text-right">اختر من العناوين المحفوظة</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {addresses.map((addr) => (
+                        <div
+                          key={addr.id}
+                          onClick={() => setSelectedAddressId(addr.id)}
+                          className={`p-4 rounded-xl border text-right cursor-pointer transition-all flex flex-col justify-between ${selectedAddressId === addr.id ? 'border-teal-500 bg-teal-50/50 ring-2 ring-teal-500/20' : 'border-slate-200 bg-white hover:bg-slate-50/50'}`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-bold text-slate-900 text-sm">{addr.name}</span>
+                            <input
+                              type="radio"
+                              name="selectedAddress"
+                              checked={selectedAddressId === addr.id}
+                              onChange={() => setSelectedAddressId(addr.id)}
+                              className="text-teal-600 focus:ring-teal-500 w-4 h-4"
+                            />
+                          </div>
+                          <p className="text-xs text-slate-500 leading-relaxed">{addr.governorate}، {addr.city}، {addr.street}</p>
+                          <p className="text-xs text-slate-400 mt-2 font-mono" dir="ltr">{addr.phone}</p>
+                        </div>
                       ))}
-                    </select>
+                      
+                      {/* Option to type new address */}
+                      <div
+                        onClick={() => setSelectedAddressId('new')}
+                        className={`p-4 rounded-xl border text-right cursor-pointer transition-all flex items-center justify-between ${selectedAddressId === 'new' ? 'border-teal-500 bg-teal-50/50 ring-2 ring-teal-500/20' : 'border-slate-200 bg-white hover:bg-slate-50/50'}`}
+                      >
+                        <div>
+                          <span className="font-bold text-slate-900 text-sm block">أدخل عنواناً جديداً</span>
+                          <span className="text-xs text-slate-400 block mt-1">تحديد موقع توصيل جديد</span>
+                        </div>
+                        <input
+                          type="radio"
+                          name="selectedAddress"
+                          checked={selectedAddressId === 'new'}
+                          onChange={() => setSelectedAddressId('new')}
+                          className="text-teal-600 focus:ring-teal-500 w-4 h-4"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">المدينة / المنطقة</label>
-                    <input
-                      type="text"
-                      placeholder="مثال: المنصور"
-                      value={shippingAddress.city}
-                      onChange={(e) => setShippingAddress({ ...shippingAddress, city: e.target.value })}
-                      className="w-full rounded-xl border-slate-200 focus:ring-teal-500 focus:border-teal-500"
-                    />
+                )}
+
+                {/* Conditional Form Inputs */}
+                {selectedAddressId === 'new' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">الاسم الكامل للمستلم</label>
+                      <input
+                        type="text"
+                        placeholder="أدخل الاسم الكامل"
+                        value={shippingAddress.recipientName}
+                        onChange={(e) => setShippingAddress({ ...shippingAddress, recipientName: e.target.value })}
+                        className="w-full rounded-xl border-slate-200 focus:ring-teal-500 focus:border-teal-500 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">اسم العنوان (مثال: المنزل، العمل)</label>
+                      <input
+                        type="text"
+                        placeholder="المنزل"
+                        value={newAddressName}
+                        onChange={(e) => setNewAddressName(e.target.value)}
+                        className="w-full rounded-xl border-slate-200 focus:ring-teal-500 focus:border-teal-500 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">المحافظة</label>
+                      <select
+                        value={shippingAddress.governorate}
+                        onChange={(e) => setShippingAddress({ ...shippingAddress, governorate: e.target.value })}
+                        className="w-full rounded-xl border-slate-200 focus:ring-teal-500 focus:border-teal-500 text-sm"
+                      >
+                        {['بغداد', 'البصرة', 'نينوى', 'أربيل', 'السليمانية', 'دهوك', 'كركوك', 'صلاح الدين', 'ديالى', 'الأنبار', 'بابل', 'كربلاء', 'النجف', 'واسط', 'القادسية', 'ميسان', 'ذي قار', 'المثنى'].map((gov) => (
+                          <option key={gov} value={gov}>{gov}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">المدينة / المنطقة</label>
+                      <input
+                        type="text"
+                        placeholder="مثال: المنصور"
+                        value={shippingAddress.city}
+                        onChange={(e) => setShippingAddress({ ...shippingAddress, city: e.target.value })}
+                        className="w-full rounded-xl border-slate-200 focus:ring-teal-500 focus:border-teal-500 text-sm"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">العنوان التفصيلي</label>
+                      <input
+                        type="text"
+                        placeholder="المحلة، الزقاق، الدار..."
+                        value={shippingAddress.address}
+                        onChange={(e) => setShippingAddress({ ...shippingAddress, address: e.target.value })}
+                        className="w-full rounded-xl border-slate-200 focus:ring-teal-500 focus:border-teal-500 text-sm"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">رقم الهاتف</label>
+                      <input
+                        type="tel"
+                        placeholder="0770..."
+                        value={shippingAddress.phone}
+                        onChange={(e) => setShippingAddress({ ...shippingAddress, phone: e.target.value })}
+                        className="w-full rounded-xl border-slate-200 focus:ring-teal-500 focus:border-teal-500 text-sm"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="flex items-center gap-2 cursor-pointer mt-2">
+                        <input
+                          type="checkbox"
+                          checked={saveAsNewAddress}
+                          onChange={(e) => setSaveAsNewAddress(e.target.checked)}
+                          className="rounded text-teal-600 focus:ring-teal-500 w-4 h-4"
+                        />
+                        <span className="text-sm text-slate-600">حفظ هذا العنوان لاستخدامه مستقبلاً</span>
+                      </label>
+                    </div>
                   </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">العنوان التفصيلي</label>
-                    <input
-                      type="text"
-                      placeholder="المحلة، الزقاق، الدار..."
-                      value={shippingAddress.address}
-                      onChange={(e) => setShippingAddress({ ...shippingAddress, address: e.target.value })}
-                      className="w-full rounded-xl border-slate-200 focus:ring-teal-500 focus:border-teal-500"
-                    />
+                ) : (
+                  // Selection from Saved Addresses
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50/50 p-6 rounded-3xl border border-slate-100">
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-slate-700 mb-1 text-right">الاسم الكامل للمستلم</label>
+                      <input
+                        type="text"
+                        placeholder="اسم المستلم"
+                        value={shippingAddress.recipientName}
+                        onChange={(e) => setShippingAddress({ ...shippingAddress, recipientName: e.target.value })}
+                        className="w-full rounded-xl border-slate-200 focus:ring-teal-500 focus:border-teal-500 bg-white text-sm font-bold text-right"
+                      />
+                      <p className="text-xs text-slate-400 mt-1 text-right">يمكنك تعديل اسم المستلم لهذا الطلب بسهولة.</p>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-slate-700 mb-1 text-right">رقم هاتف المستلم</label>
+                      <input
+                        type="tel"
+                        placeholder="0770..."
+                        value={shippingAddress.phone}
+                        onChange={(e) => setShippingAddress({ ...shippingAddress, phone: e.target.value })}
+                        className="w-full rounded-xl border-slate-200 focus:ring-teal-500 focus:border-teal-500 bg-white text-sm text-right"
+                      />
+                    </div>
+                    <div className="md:col-span-2 text-right pt-2 border-t border-slate-200/60 mt-2">
+                      <span className="text-xs font-bold text-slate-400 block mb-1">موقع التوصيل المحدد:</span>
+                      <p className="text-sm text-slate-800 font-bold">
+                        {shippingAddress.governorate}، {shippingAddress.city}، {shippingAddress.address}
+                      </p>
+                    </div>
                   </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">رقم الهاتف</label>
-                    <input
-                      type="tel"
-                      placeholder="0770..."
-                      value={shippingAddress.phone}
-                      onChange={(e) => setShippingAddress({ ...shippingAddress, phone: e.target.value })}
-                      className="w-full rounded-xl border-slate-200 focus:ring-teal-500 focus:border-teal-500"
-                    />
-                  </div>
-                </div>
+                )}
               </section>
 
-              {/* Payment Method */}
-              <section>
-                <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-slate-500" />
-                  طريقة الدفع
-                </h3>
-                <div className="space-y-3">
-                  <label className={`flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all ${paymentMethod === 'cash' ? 'border-teal-500 bg-teal-50' : 'border-slate-200 hover:border-slate-300'}`}>
-                    <input
-                      type="radio"
-                      name="payment"
-                      value="cash"
-                      checked={paymentMethod === 'cash'}
-                      onChange={() => setPaymentMethod('cash')}
-                      className="w-5 h-5 text-teal-600 focus:ring-teal-500"
-                    />
-                    <div className="flex-1">
-                      <p className="font-bold text-slate-900">الدفع عند الاستلام</p>
-                      <p className="text-sm text-slate-500">ادفع نقداً عند استلام طلبك</p>
-                    </div>
-                  </label>
-                </div>
-              </section>
             </div>
 
-            <div className="p-6 border-t border-slate-100 bg-slate-50 rounded-b-3xl">
-              <div className="flex justify-between items-center mb-4 text-lg font-bold">
-                <span>الإجمالي للدفع</span>
-                <span className="text-teal-600">{formatCurrency(totals.total)}</span>
+            <div className="mx-6 mb-6 p-3.5 sm:py-4 sm:px-6 bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200/80 flex flex-row items-center justify-between gap-4 shadow-xl shadow-teal-600/5 sticky bottom-4 hover:shadow-2xl hover:shadow-teal-600/10 hover:-translate-y-0.5 transition-all duration-300 z-20">
+              <div className="flex flex-col items-start gap-0.5">
+                <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">الإجمالي للدفع</span>
+                <span className="text-base sm:text-xl font-black text-teal-600 tracking-tight">{formatCurrency(totals.total)}</span>
               </div>
               <Button
                 onClick={handleCheckout}
                 disabled={isSubmitting}
-                className="w-full bg-teal-600 hover:bg-teal-700 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-teal-200"
+                className="bg-teal-600 hover:bg-teal-700 text-white px-5 sm:px-8 py-2.5 sm:py-3.5 rounded-xl font-bold text-sm sm:text-base shadow-md shadow-teal-200 hover:shadow-lg hover:shadow-teal-300 active:scale-95 transition-all flex items-center justify-center gap-2 group/btn shrink-0"
               >
-                {isSubmitting ? 'جاري التنفيذ...' : 'تأكيد الطلب'}
+                <span>{isSubmitting ? 'جاري التنفيذ...' : 'تأكيد الطلب'}</span>
+                {!isSubmitting && <Check className="w-4 h-4 sm:w-5 h-5 group-hover/btn:scale-110 transition-transform" />}
               </Button>
             </div>
           </div>
@@ -366,7 +528,14 @@ export const PatientCartPage: React.FC = () => {
               </div>
 
               <Button
-                onClick={() => setIsCheckingOut(true)}
+                onClick={() => {
+                  if (!user) {
+                    toast.error('يرجى تسجيل الدخول أولاً لإتمام عملية الشراء');
+                    navigate('/patient-login');
+                    return;
+                  }
+                  setIsCheckingOut(true);
+                }}
                 className="w-full bg-teal-600 hover:bg-teal-700 text-white py-4 rounded-xl shadow-lg shadow-teal-200 mb-6 font-bold text-lg flex items-center justify-center gap-2 group"
               >
                 <span>إتمام الشراء</span>
