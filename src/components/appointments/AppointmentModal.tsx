@@ -79,7 +79,7 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
       if (editingAppointment) {
         // تحديث موعد موجود
         loadAppointmentData(editingAppointment);
-        setCurrentStep('details');
+        setCurrentStep('datetime');
       } else {
         // موعد جديد
         resetForm();

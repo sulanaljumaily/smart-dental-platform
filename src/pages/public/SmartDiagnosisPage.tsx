@@ -1232,9 +1232,11 @@ ${GOVERNORATES.join('، ')}
           </button>
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-md shrink-0">
-                <Sparkles className="w-5 h-5 text-white" />
-              </div>
+              <img 
+                src="https://nhueyaeyutfmadbgghfe.supabase.co/storage/v1/object/public/platform-assets/branding/platform-logo-1769556926386.png" 
+                alt="Logo" 
+                className="w-10 h-10 object-contain rounded-xl shadow-md shrink-0 bg-white p-1"
+              />
               <div>
                 <div className="font-bold text-gray-900">المساعد الذكي</div>
                 <div className="text-xs text-gray-500 flex items-center gap-1.5">
@@ -1262,10 +1264,17 @@ ${GOVERNORATES.join('، ')}
           >
             {messages.map((m) => (
               <div key={m.id} className={`flex gap-2 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-1 shadow-sm ${m.role === 'user' ? 'bg-gradient-to-br from-gray-600 to-gray-500 text-white' : 'bg-gradient-to-br from-blue-600 to-cyan-500 text-white'
-                  }`}>
-                  {m.role === 'user' ? <User className="w-4 h-4" /> : <Brain className="w-4 h-4" />}
-                </div>
+                {m.role === 'user' ? (
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-1 shadow-sm bg-gradient-to-br from-gray-600 to-gray-500 text-white">
+                    <User className="w-4 h-4" />
+                  </div>
+                ) : (
+                  <img 
+                    src="https://nhueyaeyutfmadbgghfe.supabase.co/storage/v1/object/public/platform-assets/branding/platform-logo-1769556926386.png" 
+                    alt="Logo" 
+                    className="w-8 h-8 object-contain rounded-lg shrink-0 mt-1 shadow-sm bg-white p-0.5 border border-gray-100"
+                  />
+                )}
                 <div className="max-w-[85%] flex-1">
                   {m.image && (
                     <img src={m.image} alt="" className="rounded-lg mb-1 max-w-[200px] border border-gray-200" />
@@ -1289,9 +1298,11 @@ ${GOVERNORATES.join('، ')}
             ))}
             {isLoading && (
               <div className="flex gap-2">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center text-white shadow-sm">
-                  <Brain className="w-4 h-4 animate-pulse" />
-                </div>
+                <img 
+                  src="https://nhueyaeyutfmadbgghfe.supabase.co/storage/v1/object/public/platform-assets/branding/platform-logo-1769556926386.png" 
+                  alt="Logo" 
+                  className="w-8 h-8 object-contain rounded-lg shrink-0 mt-1 shadow-sm bg-white p-0.5 border border-gray-100 animate-pulse"
+                />
                 <div className="bg-gray-50 border border-gray-100 rounded-2xl rounded-tl-none p-3 flex gap-1 items-center">
                   <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" />
                   <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce [animation-delay:150ms]" />

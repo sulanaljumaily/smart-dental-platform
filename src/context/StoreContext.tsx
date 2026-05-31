@@ -45,6 +45,13 @@ interface StoreContextType extends StoreState {
     removeFromWishlist: (productId: string) => void;
     toggleWishlist: (productId: string) => void;
     isInWishlist: (productId: string) => boolean;
+
+    // Shipping Configuration
+    shippingConfig: {
+        patient_shipping_cost: number;
+        doctor_shipping_cost: number;
+    };
+    refreshShipping: () => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -290,9 +297,47 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
     };
 
+    const [shippingConfig, setShippingConfig] = useState({
+        patient_shipping_cost: 5000,
+        doctor_shipping_cost: 10000
+    });
+
+    const fetchShippingConfig = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('platform_settings')
+                .select('value')
+                .eq('key', 'store_shipping')
+                .maybeSingle();
+
+            if (error) {
+                console.warn('Error fetching shipping config:', error);
+                return;
+            }
+
+            if (data?.value) {
+                setShippingConfig(data.value);
+            } else {
+                const defaultConfig = {
+                    patient_shipping_cost: 5000,
+                    doctor_shipping_cost: 10000
+                };
+                await supabase.from('platform_settings').upsert({
+                    key: 'store_shipping',
+                    value: defaultConfig,
+                    updated_at: new Date().toISOString()
+                });
+                setShippingConfig(defaultConfig);
+            }
+        } catch (e) {
+            console.error('Error in fetchShippingConfig:', e);
+        }
+    };
+
     useEffect(() => {
         mountedRef.current = true;
         fetchStoreData();
+        fetchShippingConfig();
         return () => { mountedRef.current = false; };
     }, []);
 
@@ -403,7 +448,8 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     // Calculate Totals
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const tax = 0;
-    const shipping = subtotal > 500000 ? 0 : 5000;
+    const isPatientStore = typeof window !== 'undefined' && window.location.pathname.includes('/patient');
+    const shipping = subtotal > 500000 ? 0 : (isPatientStore ? shippingConfig.patient_shipping_cost : shippingConfig.doctor_shipping_cost);
     const total = subtotal + tax + shipping;
 
     // Wishlist Actions
@@ -476,7 +522,9 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             addToWishlist,
             removeFromWishlist,
             toggleWishlist,
-            isInWishlist
+            isInWishlist,
+            shippingConfig,
+            refreshShipping: fetchShippingConfig
         }}>
             {children}
         </StoreContext.Provider>

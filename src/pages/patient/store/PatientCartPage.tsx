@@ -48,11 +48,14 @@ export const PatientCartPage: React.FC = () => {
     try {
       // Group items by supplier for orders
       const suppliersSet = new Set(cartItems.map(i => i.supplierId));
+      const suppliersArr = Array.from(suppliersSet);
       
-      for (const supplierId of suppliersSet) {
+      for (let index = 0; index < suppliersArr.length; index++) {
+        const supplierId = suppliersArr[index];
         const items = cartItems.filter(i => i.supplierId === supplierId);
         const subtotal = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-        const total = subtotal; // Simplified
+        const shippingShare = index === 0 ? totals.shipping : 0;
+        const total = subtotal + shippingShare;
 
         const { data: order, error } = await supabase.from('orders').insert({
           buyer_id: user?.id,
@@ -352,7 +355,9 @@ export const PatientCartPage: React.FC = () => {
                 </div>
                 <div className="flex justify-between text-slate-600">
                   <span>الشحن</span>
-                  <span className="font-medium text-green-600">مجاني</span>
+                  <span className={`font-medium ${totals.shipping === 0 ? 'text-green-600' : ''}`}>
+                    {totals.shipping === 0 ? 'مجاني' : formatCurrency(totals.shipping)}
+                  </span>
                 </div>
                 <div className="pt-4 border-t border-slate-100 flex justify-between font-bold text-slate-900 text-xl">
                   <span>الإجمالي</span>

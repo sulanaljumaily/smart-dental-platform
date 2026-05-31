@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrandsManager } from '../../../components/admin/store/BrandsManager';
 
 import { AdminTable, Column } from '../../../components/admin/AdminTable';
@@ -16,8 +16,11 @@ import {
   Settings,
   Truck,
   ShoppingCart,
-  Eye
+  Eye,
+  Save,
+  RefreshCw
 } from 'lucide-react';
+import { useStoreContext } from '../../../context/StoreContext';
 import { useAdminSuppliers, Supplier } from '../../../hooks/useAdminSuppliers';
 import { useAdminStore } from '../../../hooks/useAdminStore';
 import { Button } from '../../../components/common/Button';
@@ -194,15 +197,50 @@ const DealsTabContent = () => {
 };
 
 const StoreSettingsTab = () => {
+  const { shippingConfig, refreshShipping } = useStoreContext();
   const [allowMultiSupplier, setAllowMultiSupplier] = useState(
     localStorage.getItem('allow_multi_supplier') === 'true'
   );
+
+  const [patientShippingCost, setPatientShippingCost] = useState(shippingConfig.patient_shipping_cost);
+  const [doctorShippingCost, setDoctorShippingCost] = useState(shippingConfig.doctor_shipping_cost);
+  const [savingShipping, setSavingShipping] = useState(false);
+
+  useEffect(() => {
+    setPatientShippingCost(shippingConfig.patient_shipping_cost);
+    setDoctorShippingCost(shippingConfig.doctor_shipping_cost);
+  }, [shippingConfig]);
 
   const toggleMultiSupplier = () => {
     const newState = !allowMultiSupplier;
     setAllowMultiSupplier(newState);
     localStorage.setItem('allow_multi_supplier', String(newState));
     toast.success(newState ? 'تم تفعيل الطلب من موردين مختلفين' : 'تم تعطيل الطلب من موردين مختلفين');
+  };
+
+  const handleSaveShipping = async () => {
+    setSavingShipping(true);
+    try {
+      const { error } = await supabase
+        .from('platform_settings')
+        .upsert({
+          key: 'store_shipping',
+          value: {
+            patient_shipping_cost: Number(patientShippingCost),
+            doctor_shipping_cost: Number(doctorShippingCost)
+          },
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'key' });
+
+      if (error) throw error;
+      await refreshShipping();
+      toast.success('تم حفظ إعدادات الشحن بنجاح');
+    } catch (e: any) {
+      console.error(e);
+      toast.error('حدث خطأ أثناء حفظ أسعار الشحن');
+    } finally {
+      setSavingShipping(false);
+    }
   };
 
   return (
@@ -226,6 +264,54 @@ const StoreSettingsTab = () => {
             >
               <span className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${allowMultiSupplier ? 'translate-x-7' : 'translate-x-0'}`} />
             </button>
+          </div>
+        </div>
+
+        {/* Shipping Cost Settings Section */}
+        <div className="pt-8 border-t border-gray-100">
+          <div className="flex items-center gap-2 mb-2">
+            <h3 className="text-xl font-bold text-gray-900">تكاليف شحن وتوصيل المتجر</h3>
+          </div>
+          <p className="text-gray-500 mb-6">التحكم في أسعار وقيمة شحن المنتجات المخصصة لكل من المراجعين (المرضى) والأطباء</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50 rounded-2xl border border-slate-100">
+            <div>
+              <label className="block text-sm font-bold text-slate-800 mb-2">قيمة شحن متجر المراجعين (المرضى) (د.ع)</label>
+              <input
+                type="number"
+                min="0"
+                className="w-full p-3 rounded-xl border border-slate-200 focus:ring-purple-500 focus:border-purple-500 text-right font-medium"
+                value={patientShippingCost}
+                onChange={(e) => setPatientShippingCost(Number(e.target.value))}
+                placeholder="مثال: 5000"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">قيمة الشحن الحالية لمتجر المرضى المطبقة عند الدفع.</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-slate-800 mb-2">قيمة شحن متجر الأطباء والعيادات (د.ع)</label>
+              <input
+                type="number"
+                min="0"
+                className="w-full p-3 rounded-xl border border-slate-200 focus:ring-purple-500 focus:border-purple-500 text-right font-medium"
+                value={doctorShippingCost}
+                onChange={(e) => setDoctorShippingCost(Number(e.target.value))}
+                placeholder="مثال: 10000"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">قيمة الشحن الحالية لمتجر الأطباء والعيادات المطبقة عند الدفع.</p>
+            </div>
+
+            <div className="md:col-span-2 flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={handleSaveShipping}
+                disabled={savingShipping}
+                className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold rounded-xl text-xs shadow-md shadow-purple-200 flex items-center gap-2 transition-all disabled:opacity-50"
+              >
+                {savingShipping ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                حفظ تكاليف الشحن
+              </button>
+            </div>
           </div>
         </div>
 

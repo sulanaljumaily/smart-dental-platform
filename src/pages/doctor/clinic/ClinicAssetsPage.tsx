@@ -19,7 +19,7 @@ export const ClinicAssetsPage: React.FC<ClinicAssetsPageProps> = ({ clinicId = '
     const renderActiveTab = () => {
         switch (activeTab) {
             case 'overview':
-                return <AssetsOverview />;
+                return <AssetsOverview clinicId={clinicId} />;
             case 'treatments':
                 return <AssetsTreatments />;
             case 'inventory':
@@ -27,7 +27,7 @@ export const ClinicAssetsPage: React.FC<ClinicAssetsPageProps> = ({ clinicId = '
             case 'devices':
                 return <AssetsDevices clinicId={clinicId} />;
             default:
-                return <AssetsOverview />;
+                return <AssetsOverview clinicId={clinicId} />;
         }
     };
 
