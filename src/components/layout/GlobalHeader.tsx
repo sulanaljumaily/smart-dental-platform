@@ -107,8 +107,13 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({
   };
 
   const handleLogout = async () => {
+    const userRole = user?.role;
     await logout();
-    navigate('/login');
+    if (userRole === 'patient') {
+      navigate('/patient-login');
+    } else {
+      navigate('/login');
+    }
   };
 
   return (

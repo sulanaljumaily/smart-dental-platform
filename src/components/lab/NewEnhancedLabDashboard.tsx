@@ -418,7 +418,7 @@ export const NewEnhancedLabDashboard: React.FC = () => {
             <p><span className="font-bold">البريد:</span> support@smartdental.com</p>
           </div>
           <button
-            onClick={() => { logout(); navigate('/'); }}
+            onClick={() => { logout(); navigate('/login'); }}
             className="w-full py-3 px-6 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 transition-colors"
           >
             تسجيل الخروج

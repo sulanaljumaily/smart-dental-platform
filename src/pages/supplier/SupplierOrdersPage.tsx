@@ -29,7 +29,7 @@ const getBuyerInfo = (buyerType?: string) => {
     };
   } else {
     return {
-      label: 'مراجع (مريض)',
+      label: 'مراجع',
       bgClass: 'bg-teal-50 text-teal-700 border-teal-100',
       iconClass: 'text-teal-500',
       icon: User

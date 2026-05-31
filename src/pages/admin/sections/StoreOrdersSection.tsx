@@ -202,7 +202,7 @@ export const StoreOrdersSection: React.FC<StoreOrdersSectionProps> = ({ supplier
                                             <div key={idx} className="flex justify-between items-center text-sm">
                                                 <div className="flex items-center gap-2">
                                                     <div className="w-8 h-8 bg-white rounded border overflow-hidden">
-                                                        <img src={item.product?.images?.[0] || 'https://via.placeholder.com/50'} className="w-full h-full object-cover" />
+                                                        <img src={item.product?.image_url || 'https://via.placeholder.com/50'} className="w-full h-full object-cover" />
                                                     </div>
                                                     <span>{item.product?.name}</span>
                                                     <span className="text-gray-500">x{item.quantity}</span>

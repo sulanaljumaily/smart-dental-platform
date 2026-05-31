@@ -129,6 +129,10 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requiredRole?: strin
   }
 
   if (!isAuthenticated) {
+    const currentPath = window.location.pathname.toLowerCase();
+    if (requiredRole === 'patient' || currentPath.startsWith('/patient')) {
+      return <Navigate to="/patient-login" replace />;
+    }
     return <Navigate to="/login" replace />;
   }
 
