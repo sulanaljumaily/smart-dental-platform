@@ -352,6 +352,12 @@ export const ClinicPatientProfile = () => {
     .filter(t => t.type === 'income')
     .reduce((sum, t) => sum + t.amount, 0);
 
+  const getPlanPaidAmount = (plan: TreatmentPlan) => {
+    const planTx = patientTransactions.filter(t => t.treatmentId === plan.id && t.type === 'income');
+    const ledgerPaid = planTx.reduce((sum, t) => sum + t.amount, 0);
+    return Math.max(ledgerPaid, plan.paid || 0);
+  };
+
   const activePlans = treatmentPlans.filter(p => p.status !== 'completed' && p.status !== 'cancelled');
 
   // Calculate Outstanding: Sum of (Cost - Paid) for all plans
@@ -359,7 +365,7 @@ export const ClinicPatientProfile = () => {
   const outstanding = treatmentPlans.reduce((sum, plan) => {
     // If status is cancelled, usually we don't count remaining balance unless specific policy
     if (plan.status === 'cancelled') return sum;
-    return sum + (plan.cost - (plan.paid || 0));
+    return sum + (plan.cost - getPlanPaidAmount(plan));
   }, 0);
 
   // Treatment Status Logic
@@ -832,7 +838,7 @@ export const ClinicPatientProfile = () => {
     const treatmentStatus = activeTreatment ? 'قيد المعالجة' : 'لا يوجد علاج نشط';
 
     const totalPlanCost = treatmentPlans.reduce((sum, p) => p.status !== 'cancelled' ? sum + p.cost : sum, 0);
-    const totalPlanPaid = treatmentPlans.reduce((sum, p) => p.status !== 'cancelled' ? sum + (p.paid || 0) : sum, 0);
+    const totalPlanPaid = treatmentPlans.reduce((sum, p) => p.status !== 'cancelled' ? sum + getPlanPaidAmount(p) : sum, 0);
 
     return (
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 lg:gap-6 animate-in fade-in">
@@ -1360,6 +1366,20 @@ export const ClinicPatientProfile = () => {
         .eq('id', planId);
 
       if (error) throw error;
+
+      // Add financial transaction into the ledger
+      await addTransaction({
+        type: 'income',
+        amount: amount,
+        date: new Date().toISOString(),
+        description: `تسديد قسط للخطة العلاجية: ${plan.notes || getTreatmentLabel(plan.type)}`,
+        category: 'treatment',
+        paymentMethod: 'cash',
+        patientId,
+        treatmentId: planId,
+        recordedById: user?.id,
+        doctorId: user?.id
+      });
 
       toast.success(`تم تسجيل دفعة بقيمة ${amount.toLocaleString()} د.ع بنجاح`);
 

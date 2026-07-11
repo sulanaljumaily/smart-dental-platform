@@ -145,6 +145,33 @@ export const useFinance = (clinicId?: string, patientId?: string, staffId?: stri
         }
     };
 
+    const syncTreatmentPlanPaidAmount = async (treatmentId: string) => {
+        if (!treatmentId) return;
+        try {
+            // 1. Calculate sum of income transactions for this treatment plan
+            const { data: txData, error: txError } = await supabase
+                .from('financial_transactions')
+                .select('amount')
+                .eq('treatment_id', treatmentId)
+                .eq('type', 'income');
+
+            if (txError) throw txError;
+
+            const totalPaid = txData?.reduce((sum, tx) => sum + parseFloat(tx.amount), 0) || 0;
+
+            // 2. Update paid column in tooth_treatment_plans
+            const { error: planError } = await supabase
+                .from('tooth_treatment_plans')
+                .update({ paid: totalPaid })
+                .eq('id', treatmentId);
+
+            if (planError) throw planError;
+            console.log(`[useFinance] Synced treatment plan ${treatmentId} paid amount:`, totalPaid);
+        } catch (err) {
+            console.error('[useFinance] Error syncing treatment plan paid amount:', err);
+        }
+    };
+
     const addTransaction = async (t: Omit<Transaction, 'id'>) => {
         try {
             console.log('Adding transaction:', t);
@@ -177,6 +204,10 @@ export const useFinance = (clinicId?: string, patientId?: string, staffId?: stri
             }).select('*, patient:patients!fk_fin_patients(full_name), staff_record:staff!fk_fin_staff_record(full_name)').single();
 
             if (error) throw error;
+
+            if (data?.treatment_id) {
+                await syncTreatmentPlanPaidAmount(data.treatment_id);
+            }
 
             await logActivity('create_transaction', data.id, { 
                 amount: data.amount, 
@@ -233,6 +264,16 @@ export const useFinance = (clinicId?: string, patientId?: string, staffId?: stri
 
             if (error) throw error;
 
+            // Sync after update
+            const { data: updatedTx } = await supabase
+                .from('financial_transactions')
+                .select('treatment_id')
+                .eq('id', id)
+                .single();
+            if (updatedTx?.treatment_id) {
+                await syncTreatmentPlanPaidAmount(updatedTx.treatment_id);
+            }
+
             await logActivity('update_transaction', id, updates);
 
             // Local Update
@@ -254,6 +295,10 @@ export const useFinance = (clinicId?: string, patientId?: string, staffId?: stri
                 .eq('id', id);
 
             if (error) throw error;
+
+            if (transactionToDelete?.treatmentId) {
+                await syncTreatmentPlanPaidAmount(transactionToDelete.treatmentId);
+            }
 
             await logActivity('delete_transaction', id, {
                 amount: transactionToDelete?.amount,
