@@ -87,12 +87,23 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
 
             const newPrepData: any[] = [];
             let changed = false;
+            const matchedIndices = new Set<number>();
 
             // 1. Map/sync source canals to target prep data
             definedCanals.forEach((sourceCanal) => {
-                const existing = currentPrepData.find(p => p.name === sourceCanal.name);
+                const hasValue = sourceCanal.name || sourceCanal.wl || sourceCanal.ref;
+                if (!hasValue) return; // Skip empty rows
 
-                if (existing) {
+                let existingIndex = -1;
+                if (sourceCanal.name) {
+                    existingIndex = currentPrepData.findIndex((p, idx) => p.name === sourceCanal.name && !matchedIndices.has(idx));
+                } else {
+                    existingIndex = currentPrepData.findIndex((p, idx) => !p.name && !matchedIndices.has(idx));
+                }
+
+                if (existingIndex !== -1) {
+                    matchedIndices.add(existingIndex);
+                    const existing = currentPrepData[existingIndex];
                     const hasWlChanged = !existing.wl && sourceCanal.wl;
 
                     if (hasWlChanged) {
@@ -100,14 +111,14 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
                     }
 
                     newPrepData.push({
-                        name: sourceCanal.name,
+                        name: sourceCanal.name || '',
                         size: existing.size || '',
                         taper: existing.taper || '04',
                         wl: existing.wl || sourceCanal.wl || ''
                     });
                 } else {
                     newPrepData.push({
-                        name: sourceCanal.name,
+                        name: sourceCanal.name || '',
                         size: '',
                         taper: '04',
                         wl: sourceCanal.wl || ''
@@ -116,9 +127,9 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
                 }
             });
 
-            // 2. Keep any custom empty/new rows manually added by the user
-            currentPrepData.forEach(targetCanal => {
-                if (!targetCanal.name) {
+            // 2. Keep any custom/new rows manually added by the user in this session (unmatched rows)
+            currentPrepData.forEach((targetCanal, idx) => {
+                if (!matchedIndices.has(idx)) {
                     newPrepData.push(targetCanal);
                 }
             });
@@ -146,11 +157,22 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
 
             const newFillData: any[] = [];
             let changed = false;
+            const matchedIndices = new Set<number>();
 
             prepData.forEach((sourceCanal) => {
-                const existing = currentFillData.find(p => p.name === sourceCanal.name);
+                const hasValue = sourceCanal.name || sourceCanal.wl || sourceCanal.size;
+                if (!hasValue) return; // Skip empty rows
 
-                if (existing) {
+                let existingIndex = -1;
+                if (sourceCanal.name) {
+                    existingIndex = currentFillData.findIndex((p, idx) => p.name === sourceCanal.name && !matchedIndices.has(idx));
+                } else {
+                    existingIndex = currentFillData.findIndex((p, idx) => !p.name && !matchedIndices.has(idx));
+                }
+
+                if (existingIndex !== -1) {
+                    matchedIndices.add(existingIndex);
+                    const existing = currentFillData[existingIndex];
                     const hasConeSizeChanged = !existing.cone_size && sourceCanal.size;
                     const hasLengthChanged = !existing.length && sourceCanal.wl;
 
@@ -159,14 +181,14 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
                     }
 
                     newFillData.push({
-                        name: sourceCanal.name,
+                        name: sourceCanal.name || '',
                         cone_size: existing.cone_size || sourceCanal.size || '',
                         length: existing.length || sourceCanal.wl || '',
                         tugback: existing.tugback || 'Good'
                     });
                 } else {
                     newFillData.push({
-                        name: sourceCanal.name,
+                        name: sourceCanal.name || '',
                         cone_size: sourceCanal.size || '',
                         length: sourceCanal.wl || '',
                         tugback: 'Good'
@@ -175,9 +197,9 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
                 }
             });
 
-            // Keep any custom empty/new rows manually added by the user
-            currentFillData.forEach(targetCanal => {
-                if (!targetCanal.name) {
+            // Keep any custom/new rows manually added by the user in this session
+            currentFillData.forEach((targetCanal, idx) => {
+                if (!matchedIndices.has(idx)) {
                     newFillData.push(targetCanal);
                 }
             });
