@@ -8,6 +8,8 @@ import { getWorkflowForAsset, TreatmentWorkflow } from '../../lib/treatment-regi
 import { formatCurrency } from '../../lib/utils';
 import { ToothCondition } from '../../types/treatment';
 import { HEALTHY_TEETH_SVGS } from '../../constants/healthyTeeth';
+import { useStaff } from '../../hooks/useStaff';
+
 
 interface ToothInteractionModalProps {
     isOpen: boolean;
@@ -16,6 +18,8 @@ interface ToothInteractionModalProps {
     toothNumbers: number[];
     onSave: (data: any) => void;
     availableTreatments?: TreatmentAsset[];
+    clinicId?: string;
+    defaultDoctorName?: string;
 }
 
 export const ToothInteractionModal: React.FC<ToothInteractionModalProps> = ({
@@ -23,10 +27,20 @@ export const ToothInteractionModal: React.FC<ToothInteractionModalProps> = ({
     onClose,
     toothNumbers = [],
     onSave,
-    availableTreatments = []
+    availableTreatments = [],
+    clinicId,
+    defaultDoctorName
 }) => {
     // Only two tabs now: treatment and confirm
     const [activeTab, setActiveTab] = useState<'treatment' | 'confirm'>('treatment');
+    const { staff } = useStaff(clinicId);
+
+    const doctors = staff.filter(s => 
+        s.position === 'doctor' || 
+        s.role_title?.toLowerCase().includes('doctor') || 
+        s.role_title?.includes('طبيب') ||
+        s.name.includes('د.')
+    );
 
     // Reset when modal opens
     useEffect(() => {
@@ -38,12 +52,12 @@ export const ToothInteractionModal: React.FC<ToothInteractionModalProps> = ({
                 customCost: 0, // Cost PER TOOTH
                 priority: 'medium',
                 startDate: new Date().toISOString().split('T')[0],
-                assignedDoctor: 'د. أحمد محمد'
+                assignedDoctor: defaultDoctorName || (doctors[0]?.name || 'د. أحمد محمد')
             });
             setSelectedAsset(null);
             setSelectedWorkflow(null);
         }
-    }, [isOpen, toothNumbers]);
+    }, [isOpen, toothNumbers, defaultDoctorName, staff]);
 
     const [formData, setFormData] = useState({
         notes: '',
@@ -123,6 +137,7 @@ export const ToothInteractionModal: React.FC<ToothInteractionModalProps> = ({
             estimatedCostPerTooth: formData.customCost, // Note: per tooth
             startDate: formData.startDate,
             priority: formData.priority,
+            assignedDoctor: formData.assignedDoctor,
 
             // Construct the Plan blueprint
             treatmentPlan: {
@@ -318,6 +333,22 @@ export const ToothInteractionModal: React.FC<ToothInteractionModalProps> = ({
                                 <div className="space-y-6">
                                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
                                         <div className="space-y-4">
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-600 mb-1.5">الطبيب المعالج</label>
+                                                <div className="relative">
+                                                    <select
+                                                        value={formData.assignedDoctor}
+                                                        onChange={(e) => setFormData(prev => ({ ...prev, assignedDoctor: e.target.value }))}
+                                                        className="w-full p-2.5 border border-gray-200 bg-gray-50 rounded-lg text-sm appearance-none outline-none focus:ring-2 focus:ring-blue-500"
+                                                    >
+                                                        <option value="">اختر الطبيب المعالج...</option>
+                                                        {doctors.map(doc => (
+                                                            <option key={doc.id} value={doc.name}>{doc.name}</option>
+                                                        ))}
+                                                    </select>
+                                                    <ChevronDown className="w-4 h-4 text-gray-400 absolute left-3 top-3.5 pointer-events-none" />
+                                                </div>
+                                            </div>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div>
                                                     <label className="block text-xs font-bold text-gray-600 mb-1.5">تعديل التكلفة (للسن)</label>

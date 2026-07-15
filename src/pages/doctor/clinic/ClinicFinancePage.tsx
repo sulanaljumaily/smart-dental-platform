@@ -20,7 +20,11 @@ import {
   CreditCard,
   UserCheck,
   Box,
-  Calculator
+  Calculator,
+  Calendar,
+  Receipt,
+  FileText,
+  CheckCircle
 } from 'lucide-react';
 import {
   BarChart,
@@ -43,6 +47,7 @@ import { useLabOrders } from '../../../hooks/useLabOrders';
 import { BentoStatCard } from '../../../components/dashboard/BentoStatCard';
 import { ComprehensiveTransactionModal } from '../../../components/finance/ComprehensiveTransactionModal';
 import { useAssets, Asset } from '../../../hooks/useAssets';
+import { supabase } from '../../../lib/supabase';
 
 interface DoctorFinancePageProps {
   clinicId?: string;
@@ -51,13 +56,49 @@ interface DoctorFinancePageProps {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'income' | 'expenses' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'income' | 'expenses' | 'receivables' | 'settings'>('overview');
 
   // Data Contexts
   const { transactions, stats, addTransaction, updateTransaction, deleteTransaction, refresh } = useFinance(clinicId || '0');
   const { inventory, updateItem, addItem } = useInventory(clinicId || '0');
   const { updateOrderStatus } = useLabOrders({ clinicId: clinicId || '0' });
   const { assets, addAsset } = useAssets(clinicId || '0');
+
+  // Receivables State
+  const [receivables, setReceivables] = useState<any[]>([]);
+  const [loadingReceivables, setLoadingReceivables] = useState(false);
+  const [receivablesSearch, setReceivablesSearch] = useState('');
+  const [doctorFilter, setDoctorFilter] = useState('');
+
+  useEffect(() => {
+    if (activeTab === 'receivables' && clinicId) {
+      setLoadingReceivables(true);
+      supabase
+        .from('tooth_treatment_plans')
+        .select(`
+          *,
+          patients!inner(clinic_id, full_name)
+        `)
+        .eq('patients.clinic_id', clinicId)
+        .then(({ data, error }) => {
+          if (!error && data) {
+            const list = data.map(p => {
+              const remaining = (p.estimated_cost || 0) - (p.paid || 0);
+              return {
+                ...p,
+                patientName: p.patients?.full_name || 'مراجع غير معروف',
+                remaining
+              };
+            });
+            setReceivables(list);
+          } else {
+            console.error('Error fetching receivables:', error);
+            setReceivables([]);
+          }
+          setLoadingReceivables(false);
+        });
+    }
+  }, [activeTab, clinicId]);
 
   // URL Params for linking from Patient File
   const location = useLocation();
@@ -636,6 +677,209 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
 
 
 
+  const filteredReceivables = receivables.filter(r => {
+    const matchSearch = r.patientName.toLowerCase().includes(receivablesSearch.toLowerCase()) || 
+                        (r.treatment_description && r.treatment_description.toLowerCase().includes(receivablesSearch.toLowerCase()));
+    const matchDoctor = doctorFilter ? r.assigned_doctor === doctorFilter : true;
+    return matchSearch && matchDoctor;
+  });
+
+  const uniqueDoctors = Array.from(new Set(receivables.map(r => r.assigned_doctor).filter(Boolean)));
+
+  const totalOutstanding = receivables.reduce((sum, r) => sum + r.remaining, 0);
+  
+  const currentMonthStart = new Date();
+  currentMonthStart.setDate(1);
+  currentMonthStart.setHours(0,0,0,0);
+  
+  const outstandingThisMonth = receivables
+    .filter(r => new Date(r.created_at) >= currentMonthStart)
+    .reduce((sum, r) => sum + r.remaining, 0);
+
+  const totalSettled = receivables.reduce((sum, r) => sum + (r.paid || 0), 0);
+  const activePlansCount = receivables.filter(r => r.remaining > 0).length;
+
+  const renderReceivablesTab = () => (
+    <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500" dir="rtl">
+      {/* Bento Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+        <BentoStatCard
+          title="إجمالي الرصيد المستحق"
+          value={`${totalOutstanding.toLocaleString()} د.ع`}
+          icon={TrendingUp}
+          color="red"
+          trend="up"
+          trendValue="من كافة الخطط"
+          delay={100}
+        />
+        <BentoStatCard
+          title="المستحق هذا الشهر"
+          value={`${outstandingThisMonth.toLocaleString()} د.ع`}
+          icon={Calendar}
+          color="amber"
+          trend="neutral"
+          trendValue="الشهر الحالي"
+          delay={200}
+        />
+        <BentoStatCard
+          title="إجمالي السداد"
+          value={`${totalSettled.toLocaleString()} د.ع`}
+          icon={CheckCircle}
+          color="emerald"
+          trend="up"
+          trendValue="المسدد جزئياً"
+          delay={300}
+        />
+        <BentoStatCard
+          title="الخطط المستحقة"
+          value={activePlansCount}
+          icon={FileText}
+          color="blue"
+          trend="neutral"
+          trendValue="خطة نشطة"
+          delay={400}
+        />
+      </div>
+
+      <Card>
+        <div className="p-4 sm:p-6 border-b border-gray-100 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-base sm:text-lg md:text-xl font-bold flex items-center gap-1.5 sm:gap-2 text-gray-900 truncate">
+              <Receipt className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 shrink-0" />
+              إيرادات العلاج (الأرصدة المستحقة)
+            </h2>
+            <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1 hidden xs:block truncate">تتبع الرصيد المستحق وسداد أقساط الخطط العلاجية للعيادة مباشرة</p>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="p-4 bg-gray-50 border-b border-gray-100 flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute right-3 top-2.5 w-4 h-4 text-gray-400" />
+            <input 
+              type="text" 
+              placeholder="بحث باسم المراجع أو العلاج..." 
+              className="w-full pr-10 pl-4 py-2 rounded-lg border border-gray-200 text-sm focus:ring-2 focus:ring-blue-500/20"
+              value={receivablesSearch}
+              onChange={e => setReceivablesSearch(e.target.value)}
+            />
+          </div>
+          <div className="relative min-w-[200px]">
+            <select
+              className="w-full border rounded-lg p-2.5 text-right bg-white text-sm"
+              value={doctorFilter}
+              onChange={e => setDoctorFilter(e.target.value)}
+            >
+              <option value="">كل الأطباء المعالجين</option>
+              {uniqueDoctors.map((doc: any) => (
+                <option key={doc} value={doc}>{doc}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-right text-sm">
+            <thead className="bg-gray-50 text-gray-500 font-medium border-b border-gray-200">
+              <tr>
+                <th className="px-6 py-4">اسم المراجع / الطبيب</th>
+                <th className="px-6 py-4">السن</th>
+                <th className="px-6 py-4">العلاج</th>
+                <th className="px-6 py-4 w-1/3">حالة الدفع (الدفعات)</th>
+                <th className="px-6 py-4">الرصيد المستحق</th>
+                <th className="px-6 py-4">الإجراء</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {loadingReceivables ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-12 text-gray-400 italic">
+                    جاري تحميل الأرصدة المستحقة...
+                  </td>
+                </tr>
+              ) : filteredReceivables.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-12 text-gray-400">
+                    لا توجد أرصدة مستحقة مطابقة للبحث
+                  </td>
+                </tr>
+              ) : (
+                filteredReceivables.map(r => {
+                  const totalSessions = r.session_count || 1;
+                  const paid = r.paid || 0;
+                  const cost = r.estimated_cost || 0;
+                  const paidRatio = cost > 0 ? Math.min(1, paid / cost) : 0;
+                  const paidSegments = Math.floor(paidRatio * totalSessions);
+
+                  return (
+                    <tr key={r.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="font-bold text-gray-900">{r.patientName}</div>
+                        <div className="text-xs text-gray-400 mt-0.5">الطبيب: {r.assigned_doctor || 'غير محدد'}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="inline-block px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-xs font-semibold">
+                          {r.tooth_numbers && r.tooth_numbers.length > 0 ? r.tooth_numbers.join(', ') : (r.tooth_number || 'عام')}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-gray-600">{r.treatment_description || 'خطة علاجية'}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex gap-1 h-3 w-full max-w-[150px]">
+                          {Array.from({ length: totalSessions }).map((_, idx) => {
+                            const isPaid = idx < paidSegments;
+                            return (
+                              <div
+                                key={idx}
+                                className={`h-full flex-1 rounded-sm transition-all ${isPaid ? 'bg-green-500' : 'bg-red-200'}`}
+                                title={isPaid ? 'مدفوع' : 'غير مدفوع'}
+                              />
+                            );
+                          })}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1.5 flex justify-between w-full max-w-[150px]">
+                          <span>{totalSessions === 1 ? 'جلسة واحدة' : `${totalSessions} دفعات`}</span>
+                          <span>{Math.round(paidRatio * 100)}%</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 font-bold text-red-600 text-base">
+                        {r.remaining.toLocaleString()} د.ع
+                        <span className="text-[10px] text-gray-400 font-normal block">من أصل {cost.toLocaleString()}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <Button
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1 py-1.5 px-3 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
+                          disabled={r.remaining <= 0}
+                          onClick={() => {
+                            setPreselectedPatientId(r.patient_id);
+                            setModalType('income');
+                            // Prefill data for ComprehensiveTransactionModal
+                            setSelectedTransaction({
+                              amount: r.remaining,
+                              category: 'treatment',
+                              patientId: r.patient_id,
+                              treatmentId: r.id,
+                              description: `تسديد دفعة علاج - ${r.treatment_description || 'خطة علاجية'}`
+                            });
+                            setShowModal(true);
+                          }}
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          سداد دفعة
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+
   const renderSettingsTab = () => (
     <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
       <Card>
@@ -688,14 +932,15 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
         <div className="flex bg-gray-100 p-1 rounded-lg">
           <button onClick={() => setActiveTab('overview')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'overview' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>نظرة عامة</button>
           <button onClick={() => setActiveTab('income')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'income' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>الإيرادات</button>
+          <button onClick={() => setActiveTab('receivables')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'receivables' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>إيرادات العلاج</button>
           <button onClick={() => setActiveTab('expenses')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'expenses' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>المصروفات</button>
-
           <button onClick={() => setActiveTab('settings')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'settings' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>الإعدادات</button>
         </div>
       </div>
 
       {activeTab === 'overview' && renderOverview()}
       {activeTab === 'income' && renderIncomeTab()}
+      {activeTab === 'receivables' && renderReceivablesTab()}
       {activeTab === 'expenses' && renderExpensesTab()}
 
       {activeTab === 'settings' && renderSettingsTab()}

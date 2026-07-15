@@ -31,6 +31,7 @@ import { useAppointments } from '../../../hooks/useAppointments';
 import { useFinance } from '../../../hooks/useFinance';
 import { useTreatments, TreatmentService } from '../../../hooks/useTreatments';
 import { formatDate } from '../../../lib/utils';
+import { useStaff } from '../../../hooks/useStaff';
 import { Modal } from '../../../components/common/Modal';
 import { useLabs } from '../../../hooks/useLabs';
 import { useLabOrders } from '../../../hooks/useLabOrders';
@@ -218,6 +219,28 @@ export const ClinicPatientProfile = () => {
   // Restore original hook signature
   const { appointments, createAppointment, refresh: refreshAppointments } = useAppointments(effectiveClinicId ? effectiveClinicId.toString() : undefined);
   const { transactions, addTransaction } = useFinance(effectiveClinicId ? effectiveClinicId.toString() : undefined, patientId);
+  const { staff: clinicStaff } = useStaff(effectiveClinicId ? effectiveClinicId.toString() : undefined);
+
+  // Find latest appointment for this patient to determine default doctor
+  const latestAppointmentObj = (appointments || [])
+    .filter(apt => apt.patientId?.toString() === patientId?.toString())
+    .reduce((latest: any, current: any) => {
+      if (!latest) return current;
+      return new Date(current.date) > new Date(latest.date) ? current : latest;
+    }, null as any);
+  const defaultDoctorName = latestAppointmentObj?.doctorName || '';
+
+  // Get current logged in user's staff ID (integer)
+  const currentStaffMember = clinicStaff.find(s => s.userId === user?.id || s.authUserId === user?.id);
+  const currentStaffId = currentStaffMember ? currentStaffMember.id : undefined;
+
+  // Resolve staff ID from name
+  const getDoctorIdByName = (name: string) => {
+    if (!name) return undefined;
+    const doc = clinicStaff.find(s => s.name === name || s.name.replace('د. ', '').trim() === name.replace('د. ', '').trim());
+    return doc ? doc.id : undefined;
+  };
+
   const { uploadFile, loading: fileUploading, error: uploadError } = useStorage();
 
   // Lab Hooks
@@ -770,7 +793,8 @@ export const ClinicPatientProfile = () => {
         cost: totalPlanCost,
         paid: 0,
         startDate: data.startDate,
-        notes: data.treatmentPlan?.name || data.notes
+        notes: data.treatmentPlan?.name || data.notes,
+        doctor: data.assignedDoctor
       };
 
       await addPlan(newPlan);
@@ -783,11 +807,13 @@ export const ClinicPatientProfile = () => {
     setIsDetailsPopupOpen(false); // Close details modal upon adding treatment to avoid staled background state
   };
 
-  /* Financial State (Real) */
   // Complete Session & Add Transaction
   const handleCompleteSession = async (planId: string, sessionId: string, cost?: number) => {
     // 1. Update Treatment Plan via Hook
     completeSession(planId, sessionId, cost || 0);
+
+    const plan = treatmentPlans.find(p => p.id === planId);
+    const docId = plan?.doctor ? getDoctorIdByName(plan.doctor) : undefined;
 
     // 2. Add Financial Transaction if cost > 0
     if (cost && cost > 0) {
@@ -799,7 +825,10 @@ export const ClinicPatientProfile = () => {
           description: `جلسة علاج - خطة #${planId.slice(-4)}`,
           date: new Date().toISOString(),
           paymentMethod: 'cash',
-          patientId: patientId
+          patientId: patientId,
+          treatmentId: planId,
+          doctorId: docId,
+          recordedById: currentStaffId
         });
         alert(`تم إكمال الجلسة وتسجيل دفعة بقيمة ${cost.toLocaleString()} د.ع`);
       } catch (e) {
@@ -1367,6 +1396,8 @@ export const ClinicPatientProfile = () => {
 
       if (error) throw error;
 
+      const docId = plan.doctor ? getDoctorIdByName(plan.doctor) : undefined;
+
       // Add financial transaction into the ledger
       await addTransaction({
         type: 'income',
@@ -1377,8 +1408,8 @@ export const ClinicPatientProfile = () => {
         paymentMethod: 'cash',
         patientId,
         treatmentId: planId,
-        recordedById: user?.id,
-        doctorId: user?.id
+        recordedById: currentStaffId,
+        doctorId: docId
       });
 
       toast.success(`تم تسجيل دفعة بقيمة ${amount.toLocaleString()} د.ع بنجاح`);
@@ -1512,176 +1543,267 @@ export const ClinicPatientProfile = () => {
             </div>
           </div>
 
-          <table className="w-full text-right">
-            <thead className="bg-gray-50 text-xs text-gray-500 font-bold uppercase tracking-wider border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-4">العلاج</th>
-                <th className="px-6 py-4">السن</th>
-                <th className="px-6 py-4 w-1/3">حالة الدفع (الدفعات)</th>
-                <th className="px-6 py-4">الرصيد المستحق</th>
-                <th className="px-6 py-4">الإجراء</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {planPayments.filter(p => p.remaining > 0 || (p.paidAmount > 0 && p.ledgerPaid < p.paidAmount)).map(plan => {
-                // Calculate segments for progress bar
-                const totalSegments = plan.totalSessions || 1;
-                const isSingleSession = totalSegments === 1;
-                const paidRatio = Math.min(1, plan.paidAmount / (plan.cost || 1));
-                const paidSegments = Math.floor(paidRatio * totalSegments);
+          {/* Desktop Table */}
+          <div className="hidden md:block">
+            <table className="w-full text-right">
+              <thead className="bg-gray-50 text-xs text-gray-500 font-bold uppercase tracking-wider border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-4">العلاج</th>
+                  <th className="px-6 py-4">السن</th>
+                  <th className="px-6 py-4 w-1/3">حالة الدفع (الدفعات)</th>
+                  <th className="px-6 py-4">الرصيد المستحق</th>
+                  <th className="px-6 py-4">الإجراء</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {planPayments.filter(p => p.remaining > 0 || (p.paidAmount > 0 && p.ledgerPaid < p.paidAmount)).map(plan => {
+                  // Calculate segments for progress bar
+                  const totalSegments = plan.totalSessions || 1;
+                  const isSingleSession = totalSegments === 1;
+                  const paidRatio = Math.min(1, plan.paidAmount / (plan.cost || 1));
+                  const paidSegments = Math.floor(paidRatio * totalSegments);
 
-                return (
-                  <tr key={plan.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div>
-                        <span className="font-bold text-gray-900 block">{plan.notes || getTreatmentLabel(plan.type)}</span>
-                        <span className="text-xs text-gray-500">ID: {plan.id.slice(0, 6)}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="min-w-[2rem] px-2 h-8 rounded-lg bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs">
-                        {(plan.toothNumbers && plan.toothNumbers.length > 0)
-                          ? plan.toothNumbers.join(', ')
-                          : plan.toothNumber !== 0 ? plan.toothNumber : 'عام'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex gap-1 h-3 w-full max-w-[200px]">
-                        {Array.from({ length: totalSegments }).map((_, idx) => {
-                          const isPaid = idx < paidSegments;
-                          return (
-                            <div
-                              key={idx}
-                              className={`h-full flex-1 rounded-sm transition-all ${isPaid ? 'bg-green-500' : 'bg-red-200'}`}
-                              title={isPaid ? 'مدفوع' : 'غير مدفوع'}
-                            />
-                          );
-                        })}
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1.5 flex justify-between w-full max-w-[200px]">
-                        <span>{isSingleSession ? 'جلسة واحدة' : `${totalSegments} دفعات`}</span>
-                        <span>{Math.round(paidRatio * 100)}%</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      {plan.remaining > 0 ? (
+                  return (
+                    <tr key={plan.id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="px-6 py-4">
                         <div>
-                          <span className="font-bold text-red-600 block">{plan.remaining.toLocaleString()} د.ع</span>
-                          <span className="text-xs text-gray-400">من أصل {plan.cost?.toLocaleString()}</span>
+                          <span className="font-bold text-gray-900 block">{plan.notes || getTreatmentLabel(plan.type)}</span>
+                          <span className="text-xs text-gray-500">ID: {plan.id.slice(0, 6)}</span>
                         </div>
-                      ) : (
-                        <span className="font-bold text-green-600 flex items-center gap-1">
-                          <CheckCircle className="w-4 h-4" />
-                          تم السداد
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="min-w-[2rem] px-2 h-8 rounded-lg bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs">
+                          {(plan.toothNumbers && plan.toothNumbers.length > 0)
+                            ? plan.toothNumbers.join(', ')
+                            : plan.toothNumber !== 0 ? plan.toothNumber : 'عام'}
                         </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      {plan.remaining > 0 && (
-                        <div className="flex flex-col gap-2">
-                          {/* Confirm Full Settlement */}
-                          {(plan.remaining <= 0 || isSingleSession || (plan.remaining < (plan.cost || 0) * 0.1)) ? (
-                            <Button
-                              size="sm"
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white w-full"
-                              onClick={() => {
-                                if (confirm(`هل أنت متأكد من تسوية المبلغ المتبقي (${plan.remaining.toLocaleString()} د.ع)؟`)) {
-                                  handleSettleInstallment(plan.id, plan.remaining);
-                                }
-                              }}
-                            >
-                              <CheckSquare className="w-4 h-4 ml-1" />
-                              تأكيد التسديد
-                            </Button>
-                          ) : (
-                            // Pay Installment with Input
-                            <div className="flex items-center gap-2">
-                              <div className="relative w-24">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  max={plan.remaining}
-                                  className="w-full text-xs p-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none text-center"
-                                  placeholder="المبلغ..."
-                                  value={paymentAmounts[plan.id] || ''}
-                                  onChange={(e) => setPaymentAmounts(prev => ({ ...prev, [plan.id]: e.target.value }))}
-                                />
-                                <span className="absolute left-1 top-1.5 text-[10px] text-gray-400">د.ع</span>
-                              </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex gap-1 h-3 w-full max-w-[200px]">
+                          {Array.from({ length: totalSegments }).map((_, idx) => {
+                            const isPaid = idx < paidSegments;
+                            return (
+                              <div
+                                key={idx}
+                                className={`h-full flex-1 rounded-sm transition-all ${isPaid ? 'bg-green-500' : 'bg-red-200'}`}
+                                title={isPaid ? 'مدفوع' : 'غير مدفوع'}
+                              />
+                            );
+                          })}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1.5 flex justify-between w-full max-w-[200px]">
+                          <span>{isSingleSession ? 'جلسة واحدة' : `${totalSegments} دفعات`}</span>
+                          <span>{Math.round(paidRatio * 100)}%</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {plan.remaining > 0 ? (
+                          <div>
+                            <span className="font-bold text-red-600 block">{plan.remaining.toLocaleString()} د.ع</span>
+                            <span className="text-xs text-gray-400">من أصل {plan.cost?.toLocaleString()}</span>
+                          </div>
+                        ) : (
+                          <span className="font-bold text-green-600 flex items-center gap-1">
+                            <CheckCircle className="w-4 h-4" />
+                            تم السداد
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {plan.remaining > 0 && (
+                          <div className="flex flex-col gap-2">
+                            {/* Confirm Full Settlement */}
+                            {(plan.remaining <= 0 || isSingleSession || (plan.remaining < (plan.cost || 0) * 0.1)) ? (
                               <Button
                                 size="sm"
-                                variant="outline"
-                                className="border-blue-200 text-blue-700 hover:bg-blue-50 px-3"
-                                disabled={!paymentAmounts[plan.id] || parseFloat(paymentAmounts[plan.id]) <= 0 || parseFloat(paymentAmounts[plan.id]) > plan.remaining}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white w-full"
                                 onClick={() => {
-                                  const amount = parseFloat(paymentAmounts[plan.id]);
-                                  if (amount && amount > 0) {
-                                    if (confirm(`تأكيد دفع مبلغ ${amount.toLocaleString()} د.ع؟`)) {
-                                      handleSettleInstallment(plan.id, amount);
-                                      // Clear input after success
-                                      setPaymentAmounts(prev => ({ ...prev, [plan.id]: '' }));
-                                    }
+                                  if (confirm(`هل أنت متأكد من تسوية المبلغ المتبقي (${plan.remaining.toLocaleString()} د.ع)؟`)) {
+                                    handleSettleInstallment(plan.id, plan.remaining);
                                   }
                                 }}
                               >
-                                <Plus className="w-4 h-4" />
+                                <CheckSquare className="w-4 h-4 ml-1" />
+                                تأكيد التسديد
                               </Button>
-                            </div>
-                          )}
+                            ) : (
+                              // Pay Installment with Input
+                              <div className="flex items-center gap-2">
+                                <div className="relative w-24">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max={plan.remaining}
+                                    className="w-full text-xs p-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none text-center"
+                                    placeholder="المبلغ..."
+                                    value={paymentAmounts[plan.id] || ''}
+                                    onChange={(e) => setPaymentAmounts(prev => ({ ...prev, [plan.id]: e.target.value }))}
+                                  />
+                                  <span className="absolute left-1 top-1.5 text-[10px] text-gray-400">د.ع</span>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="border-blue-200 text-blue-700 hover:bg-blue-50 px-3"
+                                  disabled={!paymentAmounts[plan.id] || parseFloat(paymentAmounts[plan.id]) <= 0 || parseFloat(paymentAmounts[plan.id]) > plan.remaining}
+                                  onClick={() => {
+                                    const amount = parseFloat(paymentAmounts[plan.id]);
+                                    if (amount && amount > 0) {
+                                      if (confirm(`تأكيد دفع مبلغ ${amount.toLocaleString()} د.ع؟`)) {
+                                        handleSettleInstallment(plan.id, amount);
+                                        // Clear input after success
+                                        setPaymentAmounts(prev => ({ ...prev, [plan.id]: '' }));
+                                      }
+                                    }
+                                  }}
+                                >
+                                  <Plus className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            )}
 
-                          {(!isSingleSession && plan.remaining > 0 && paidSegments >= totalSegments - 1) && (
-                            <Button
-                              size="sm"
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white w-full animate-pulse"
-                              onClick={() => {
-                                if (confirm(`هل أنت متأكد من تسوية المبلغ المتبقي (${plan.remaining.toLocaleString()} د.ع)؟`)) {
-                                  handleSettleInstallment(plan.id, plan.remaining);
-                                }
-                              }}
-                            >
-                              <CheckSquare className="w-4 h-4 ml-1" />
-                              تسوية نهائية
-                            </Button>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Record Revenue Button */}
-                      {(plan.remaining <= 0 && plan.ledgerPaid < plan.paidAmount) && (
-                        <Button
-                          size="sm"
-                          className="bg-blue-600 hover:bg-blue-700 text-white w-full shadow-md shadow-blue-100"
-                          onClick={() => {
-                            setFinancePrefillData({
-                              amount: plan.paidAmount,
-                              category: 'treatment',
-                              patientId: patientId,
-                              treatmentId: plan.id,
-                              description: `إيراد علاج - ${plan.notes || getTreatmentLabel(plan.type)}`,
-                              date: new Date().toISOString()
-                            });
-                            setFinanceModalType('income');
-                            setIsFinanceModalOpen(true);
-                          }}
-                        >
-                          <DollarSign className="w-4 h-4 ml-1" />
-                          تسجيل الإيراد
-                        </Button>
-                      )}
+                            {(!isSingleSession && plan.remaining > 0 && paidSegments >= totalSegments - 1) && (
+                              <Button
+                                size="sm"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white w-full animate-pulse"
+                                onClick={() => {
+                                  if (confirm(`هل أنت متأكد من تسوية المبلغ المتبقي (${plan.remaining.toLocaleString()} د.ع)؟`)) {
+                                    handleSettleInstallment(plan.id, plan.remaining);
+                                  }
+                                }}
+                              >
+                                <CheckSquare className="w-4 h-4 ml-1" />
+                                تسوية نهائية
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {planPayments.filter(p => p.remaining > 0 || (p.paidAmount > 0 && p.ledgerPaid < p.paidAmount)).length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                      <CheckCircle className="w-12 h-12 text-green-100 mx-auto mb-3" />
+                      <p>لا توجد مبالغ مستحقة حالياً</p>
                     </td>
                   </tr>
-                );
-              })}
-              {planPayments.filter(p => p.remaining > 0 || (p.paidAmount > 0 && p.ledgerPaid < p.paidAmount)).length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
-                    <CheckCircle className="w-12 h-12 text-green-100 mx-auto mb-3" />
-                    <p>لا توجد مبالغ مستحقة حالياً</p>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Card List */}
+          <div className="block md:hidden divide-y divide-gray-100">
+            {planPayments.filter(p => p.remaining > 0 || (p.paidAmount > 0 && p.ledgerPaid < p.paidAmount)).map(plan => {
+              const totalSegments = plan.totalSessions || 1;
+              const isSingleSession = totalSegments === 1;
+              const paidRatio = Math.min(1, plan.paidAmount / (plan.cost || 1));
+              const paidSegments = Math.floor(paidRatio * totalSegments);
+
+              return (
+                <div key={plan.id} className="p-4 space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="font-bold text-gray-900 text-sm block">{plan.notes || getTreatmentLabel(plan.type)}</span>
+                      <span className="text-xs text-gray-400">ID: {plan.id.slice(0, 6)}</span>
+                    </div>
+                    <span className="min-w-[2rem] px-2 py-1 rounded bg-blue-50 text-blue-700 font-bold text-[10px] flex items-center justify-center">
+                      {(plan.toothNumbers && plan.toothNumbers.length > 0)
+                        ? `أسنان: ${plan.toothNumbers.join(', ')}`
+                        : plan.toothNumber !== 0 ? `سن: ${plan.toothNumber}` : 'عام'}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center bg-gray-50 p-2.5 rounded-lg border border-gray-100 text-xs">
+                    <div>
+                      <span className="text-gray-500 block">الرصيد المستحق</span>
+                      {plan.remaining > 0 ? (
+                        <span className="font-bold text-red-600 block">{plan.remaining.toLocaleString()} د.ع</span>
+                      ) : (
+                        <span className="font-bold text-green-600 block">تم السداد</span>
+                      )}
+                    </div>
+                    <div className="text-left">
+                      <span className="text-gray-500 block">المدفوع</span>
+                      <span className="font-bold text-slate-700 block">{plan.paidAmount.toLocaleString()} د.ع</span>
+                    </div>
+                  </div>
+
+                  {/* Progress segments */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[11px] text-gray-500">
+                      <span>{isSingleSession ? 'جلسة واحدة' : `${totalSegments} دفعات`}</span>
+                      <span>نسبة السداد: {Math.round(paidRatio * 100)}%</span>
+                    </div>
+                    <div className="flex gap-1 h-2 w-full">
+                      {Array.from({ length: totalSegments }).map((_, idx) => {
+                        const isPaid = idx < paidSegments;
+                        return (
+                          <div
+                            key={idx}
+                            className={`h-full flex-1 rounded-sm ${isPaid ? 'bg-green-500' : 'bg-red-200'}`}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  {plan.remaining > 0 && (
+                    <div className="pt-2 flex gap-2">
+                      {(plan.remaining <= 0 || isSingleSession || (plan.remaining < (plan.cost || 0) * 0.1)) ? (
+                        <Button
+                          size="sm"
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white w-full py-2 text-xs"
+                          onClick={() => {
+                            if (confirm(`هل أنت متأكد من تسوية المبلغ المتبقي (${plan.remaining.toLocaleString()} د.ع)؟`)) {
+                              handleSettleInstallment(plan.id, plan.remaining);
+                            }
+                          }}
+                        >
+                          <CheckSquare className="w-3.5 h-3.5 ml-1" />
+                          تأكيد التسديد
+                        </Button>
+                      ) : (
+                        <div className="flex items-center gap-2 w-full">
+                          <div className="relative flex-1">
+                            <input
+                              type="number"
+                              min="0"
+                              max={plan.remaining}
+                              className="w-full text-xs p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none text-center"
+                              placeholder="المبلغ..."
+                              value={paymentAmounts[plan.id] || ''}
+                              onChange={(e) => setPaymentAmounts(prev => ({ ...prev, [plan.id]: e.target.value }))}
+                            />
+                            <span className="absolute left-2 top-2 text-[10px] text-gray-400">د.ع</span>
+                          </div>
+                          <Button
+                            size="sm"
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-xs"
+                            disabled={!paymentAmounts[plan.id] || parseFloat(paymentAmounts[plan.id]) <= 0 || parseFloat(paymentAmounts[plan.id]) > plan.remaining}
+                            onClick={() => {
+                              const amount = parseFloat(paymentAmounts[plan.id]);
+                              if (amount && amount > 0) {
+                                if (confirm(`تأكيد دفع مبلغ ${amount.toLocaleString()} د.ع؟`)) {
+                                  handleSettleInstallment(plan.id, amount);
+                                  setPaymentAmounts(prev => ({ ...prev, [plan.id]: '' }));
+                                }
+                              }
+                            }}
+                          >
+                            دفع قسط
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         <div className="flex justify-between items-center mb-6">
@@ -3818,6 +3940,8 @@ export const ClinicPatientProfile = () => {
         onClose={() => setIsModalOpen(false)}
         toothNumbers={selectedTeethNumbers}
         onSave={handleModalSave}
+        clinicId={effectiveClinicId}
+        defaultDoctorName={defaultDoctorName}
         availableTreatments={clinicTreatments.map(t => ({
           id: t.id,
           name: t.name,

@@ -6,6 +6,9 @@ import { useInventory } from '../../hooks/useInventory';
 import { treatments } from '../../data/mock/assets';
 import { useAdminLabs } from '../../hooks/useAdminLabs';
 import { useLabOrders } from '../../hooks/useLabOrders';
+import { useFinance } from '../../hooks/useFinance';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 
 interface TransactionModalProps {
     isOpen: boolean;
@@ -36,8 +39,10 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
     const { inventory: inventoryItems } = useInventory(clinicId || '0');
     const { labs: adminLabs } = useAdminLabs();
     const { orders: labOrders } = useLabOrders({ clinicId });
+    const { transactions } = useFinance(clinicId || '0');
 
     // Local State
+    const { user } = useAuth();
     const [formData, setFormData] = useState({
         amount: '' as string | number,
         category: '',
@@ -61,6 +66,35 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
         assetLifeYears: 5,
         assetSalvageValue: 0
     });
+
+    const [patientPlans, setPatientPlans] = useState<any[]>([]);
+    const [loadingPlans, setLoadingPlans] = useState(false);
+
+    useEffect(() => {
+        if (formData.patientId && isOpen) {
+            setLoadingPlans(true);
+            supabase
+                .from('tooth_treatment_plans')
+                .select('*')
+                .eq('patient_id', formData.patientId)
+                .order('created_at', { ascending: false })
+                .then(({ data, error }) => {
+                    if (!error && data) {
+                        const active = data.map(p => {
+                            const remaining = (p.estimated_cost || 0) - (p.paid || 0);
+                            return { ...p, remaining };
+                        }).filter(p => p.remaining > 0 || (p.status !== 'completed' && p.status !== 'cancelled'));
+                        setPatientPlans(active);
+                    } else {
+                        console.error('[ComprehensiveTransactionModal] Error fetching patient plans:', error);
+                        setPatientPlans([]);
+                    }
+                    setLoadingPlans(false);
+                });
+        } else {
+            setPatientPlans([]);
+        }
+    }, [formData.patientId, isOpen, staff]);
 
     // Filters for Lab Orders (Smart Selection)
     const [labFilter, setLabFilter] = useState('');
@@ -97,6 +131,7 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                 if (initialData.patientId) setPatientFilter(initialData.patientId);
             } else if (prefillData) {
                 // New Entry Mode with Pre-filled Defaults (e.g., from Treatment Plan)
+                const currentStaff = staff.find(s => s.userId === user?.id || s.authUserId === user?.id);
                 setFormData(prev => ({
                     ...prev,
                     patientId: prefillData.patientId || preselectedPatientId || '',
@@ -108,12 +143,13 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                     // Reset others
                     staffId: '', inventoryItemId: '', itemName: '',
                     labId: '', labRequestId: '', paymentStatus: 'paid', extraCost: 0, assistantId: '',
-                    recordedById: ''
+                    recordedById: currentStaff ? currentStaff.id : ''
                 }));
                 // Set filters context if helpful
                 if (prefillData.patientId) setPatientFilter(prefillData.patientId);
             } else {
                 // Reset for New Entry (Blank)
+                const currentStaff = staff.find(s => s.userId === user?.id || s.authUserId === user?.id);
                 setFormData(prev => ({
                     ...prev,
                     patientId: preselectedPatientId || '',
@@ -122,14 +158,14 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                     description: '',
                     doctorId: '', staffId: '', inventoryItemId: '', itemName: '',
                     labId: '', labRequestId: '', paymentStatus: 'paid', extraCost: 0, treatmentId: '', assistantId: '',
-                    recordedById: ''
+                    recordedById: currentStaff ? currentStaff.id : ''
                 }));
                 setLabFilter('');
                 setPatientFilter(preselectedPatientId || '');
                 setDoctorFilter('');
             }
         }
-    }, [isOpen, type, preselectedPatientId, initialData, prefillData]);
+    }, [isOpen, type, preselectedPatientId, initialData, prefillData, staff, user]);
 
 
     // Derived Lab Orders based on Filters
@@ -225,7 +261,7 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                                     onChange={e => {
                                         setFormData({ ...formData, category: e.target.value, treatmentId: '' });
                                     }}
-                                    className="w-full border rounded-lg p-2.5 text-right focus:ring-2 focus:ring-green-500"
+                                    className="w-full border rounded-lg p-2.5 text-right focus:ring-2 focus:ring-green-500 bg-white"
                                 >
                                     <option value="">اختر التصنيف...</option>
                                     <option value="treatment">علاج (من القائمة)</option>
@@ -238,7 +274,7 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                                     onChange={e => {
                                         setFormData({ ...formData, category: e.target.value });
                                     }}
-                                    className="w-full border rounded-lg p-2.5 text-right focus:ring-2 focus:ring-red-500"
+                                    className="w-full border rounded-lg p-2.5 text-right focus:ring-2 focus:ring-red-500 bg-white"
                                 >
                                     <option value="">اختر التصنيف...</option>
                                     <option value="salary">رواتب موظفين</option>
@@ -253,23 +289,9 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">المبلغ الإجمالي (د.ع)</label>
-                            <input
-                                type="number"
-                                value={formData.amount}
-                                onChange={e => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
-                                className={`w-full border rounded-lg p-2.5 text-right font-bold text-gray-900 ${lockFields.includes('amount') ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''}`}
-                                placeholder="0.00"
-                                disabled={lockFields.includes('amount')}
-                            />
-                        </div>
-                    </div>
-
-
-                    {/* --- INCOME SPECIFIC: "Recorded By" integrated here naturally for Income --- */}
-                    {type === 'income' && (
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">الموظف المسجل (مستلم المبلغ)</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                {type === 'income' ? 'الموظف المسجل (مستلم المبلغ)' : 'الموظف المسؤول عن الصرف (المسجل)'}
+                            </label>
                             <select
                                 className="w-full border rounded-lg p-2.5 text-right bg-white"
                                 value={formData.recordedById}
@@ -281,7 +303,7 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                                 ))}
                             </select>
                         </div>
-                    )}
+                    </div>
 
 
                     {/* --- DYNAMIC INCOME FORMS (Treatment OR Consultation) --- */}
@@ -292,39 +314,110 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                                 {isConsultation ? 'تفاصيل الكشفية' : (isTreatment ? 'تفاصيل العلاج' : 'تفاصيل الإيراد')}
                             </h4>
 
-                            {/* Treatment Selection (Only if Treatment) */}
-                            {isTreatment && (
+                            {/* Patient & Treatment selectors in new hierarchy */}
+                            <div className="space-y-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">نوع العلاج</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">المريض</label>
                                     <select
-                                        className={`w-full border rounded-lg p-2.5 text-right bg-white ${lockFields.includes('treatment') ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                                        value={formData.treatmentId || ''}
-                                        disabled={lockFields.includes('treatment')}
-                                        onChange={e => {
-                                            const tId = e.target.value;
-                                            const treatment = treatments.find(t => t.id === tId);
-                                            setFormData({
-                                                ...formData,
-                                                treatmentId: tId,
-                                                amount: treatment ? treatment.basePrice : 0 // Auto-fill price
-                                            });
-                                        }}
+                                        className={`w-full border rounded-lg p-2.5 text-right bg-white ${lockFields.includes('patient') ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                        value={formData.patientId || ''}
+                                        onChange={e => setFormData({ ...formData, patientId: e.target.value, treatmentId: '' })}
+                                        disabled={!!preselectedPatientId || lockFields.includes('patient')}
                                     >
-                                        <option value="">اختر العلاج...</option>
-                                        {formData.treatmentId && !treatments.some(t => t.id === formData.treatmentId) && (
-                                            <option value={formData.treatmentId}>
-                                                {formData.description ? formData.description.replace('إيراد علاج - ', '') : 'علاج خطة العمل'}
-                                            </option>
-                                        )}
-                                        {treatments.filter(t => t.isActive).map(t => (
-                                            <option key={t.id} value={t.id}>{t.name} - {t.basePrice.toLocaleString()} د.ع</option>
+                                        <option value="">اختر المريض...</option>
+                                        {patients.map(p => (
+                                            <option key={p.id} value={p.id}>{p.name}</option>
                                         ))}
                                     </select>
                                 </div>
+
+                                {isTreatment && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">نوع العلاج</label>
+                                        <select
+                                            className={`w-full border rounded-lg p-2.5 text-right bg-white ${lockFields.includes('treatment') ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                                            value={formData.treatmentId || ''}
+                                            disabled={lockFields.includes('treatment')}
+                                            onChange={e => {
+                                                const tId = e.target.value;
+                                                const treatment = treatments.find(t => t.id === tId);
+                                                setFormData({
+                                                    ...formData,
+                                                    treatmentId: tId,
+                                                    amount: treatment ? treatment.basePrice : 0
+                                                });
+                                            }}
+                                        >
+                                            <option value="">اختر العلاج...</option>
+                                            {formData.treatmentId && !treatments.some(t => t.id === formData.treatmentId) && (
+                                                <option value={formData.treatmentId}>
+                                                    {formData.description ? formData.description.replace('إيراد علاج - ', '') : 'علاج خطة العمل'}
+                                                </option>
+                                            )}
+                                            {treatments.filter(t => t.isActive).map(t => (
+                                                <option key={t.id} value={t.id}>{t.name} - {t.basePrice.toLocaleString()} د.ع</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Active Treatment Plans List */}
+                            {isTreatment && formData.patientId && (
+                                <div className="mt-3 p-3 bg-white rounded-lg border border-green-200">
+                                    <h5 className="font-bold text-xs text-green-800 mb-2 flex items-center gap-1.5">
+                                        <FileText className="w-3.5 h-3.5" />
+                                        الخطط العلاجية النشطة ذات الرصيد المستحق:
+                                    </h5>
+                                    {loadingPlans ? (
+                                        <p className="text-xs text-gray-500 italic text-center py-2">جاري تحميل الخطط العلاجية...</p>
+                                    ) : patientPlans.length > 0 ? (
+                                        <div className="space-y-2 max-h-[180px] overflow-y-auto custom-scrollbar">
+                                            {patientPlans.map(plan => (
+                                                <div
+                                                    key={plan.id}
+                                                    onClick={() => {
+                                                        const doc = staff.find(s => 
+                                                            s.name === plan.assigned_doctor || 
+                                                            s.name.replace('د. ', '').trim() === plan.assigned_doctor?.replace('د. ', '').trim()
+                                                        );
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            treatmentId: plan.id,
+                                                            amount: plan.remaining,
+                                                            doctorId: doc ? doc.id : prev.doctorId,
+                                                            description: `تسديد دفعة علاج - ${plan.treatment_description || 'خطة علاجية'}`
+                                                        }));
+                                                    }}
+                                                    className={`cursor-pointer p-2.5 rounded-lg border transition-all text-xs flex justify-between items-center ${
+                                                        formData.treatmentId === plan.id
+                                                            ? 'border-green-500 bg-green-50/50 shadow-sm'
+                                                            : 'border-gray-200 hover:border-green-300 hover:bg-gray-50'
+                                                    }`}
+                                                >
+                                                    <div>
+                                                        <span className="font-bold text-gray-800 block">
+                                                            {plan.treatment_description || 'خطة علاجية'}
+                                                        </span>
+                                                        <span className="text-[10px] text-gray-400 block mt-0.5">
+                                                            السن: {(plan.tooth_numbers && plan.tooth_numbers.length > 0) ? plan.tooth_numbers.join(', ') : (plan.tooth_number || 'عام')} • الطبيب: {plan.assigned_doctor || 'غير محدد'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="text-left font-semibold">
+                                                        <span className="text-red-600 block">{plan.remaining.toLocaleString()} د.ع</span>
+                                                        <span className="text-[10px] text-gray-400 block font-normal">من أصل {plan.estimated_cost?.toLocaleString()}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-gray-400 italic text-center py-2">لا توجد خطط علاجية نشطة مستحقة لهذا المراجع.</p>
+                                    )}
+                                </div>
                             )}
 
-                            {/* Patient & Doctor (Required for both) */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Doctor & Assistant */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">الطبيب المعالج</label>
                                     <select
@@ -339,24 +432,6 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">المريض</label>
-                                    <select
-                                        className={`w-full border rounded-lg p-2.5 text-right bg-white ${lockFields.includes('patient') ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                                        value={formData.patientId || ''}
-                                        onChange={e => setFormData({ ...formData, patientId: e.target.value })}
-                                        disabled={!!preselectedPatientId || lockFields.includes('patient')} // Lock if preselected or explicit lock
-                                    >
-                                        <option value="">اختر المريض...</option>
-                                        {patients.map(p => (
-                                            <option key={p.id} value={p.id}>{p.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            {/* Assistant & Extra Cost */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">المساعد (اختياري)</label>
                                     <select
                                         className="w-full border rounded-lg p-2.5 text-right bg-white"
@@ -369,26 +444,28 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                                         ))}
                                     </select>
                                 </div>
-                                {isTreatment && (
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">تكلفة إضافية</label>
-                                        <input
-                                            type="number"
-                                            className="w-full border rounded-lg p-2.5 text-right bg-white"
-                                            placeholder="0"
-                                            value={formData.extraCost || ''}
-                                            onChange={e => {
-                                                const extra = parseFloat(e.target.value) || 0;
-                                                setFormData(prev => ({
-                                                    ...prev,
-                                                    extraCost: extra,
-                                                    amount: (treatments.find(t => t.id === prev.treatmentId)?.basePrice || 0) + extra
-                                                }));
-                                            }}
-                                        />
-                                    </div>
-                                )}
                             </div>
+
+                            {/* Extra Cost if Treatment */}
+                            {isTreatment && (
+                                <div className="mt-4">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">تكلفة إضافية</label>
+                                    <input
+                                        type="number"
+                                        className="w-full border rounded-lg p-2.5 text-right bg-white"
+                                        placeholder="0"
+                                        value={formData.extraCost || ''}
+                                        onChange={e => {
+                                            const extra = parseFloat(e.target.value) || 0;
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                extraCost: extra,
+                                                amount: (treatments.find(t => t.id === prev.treatmentId)?.basePrice || 0) + extra
+                                            }));
+                                        }}
+                                    />
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -399,13 +476,174 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                             <select
                                 className="w-full border rounded-lg p-2.5 text-right bg-white"
                                 value={formData.staffId || ''}
-                                onChange={e => setFormData({ ...formData, staffId: e.target.value })}
+                                onChange={e => {
+                                    const selectedId = e.target.value;
+                                    const selectedStaff = staff.find(s => s.id === selectedId);
+                                    let autoAmount = formData.amount;
+                                    
+                                    if (selectedStaff) {
+                                        const totalPaidSalaries = transactions
+                                            .filter(t => t.category === 'salary' && t.staffId === selectedId && t.type === 'expense' && t.id !== initialData?.id)
+                                            .reduce((sum, t) => sum + t.amount, 0);
+
+                                        if (!selectedStaff.salary_type || selectedStaff.salary_type === 'monthly') {
+                                            autoAmount = selectedStaff.salary || 0;
+                                        } else if (selectedStaff.salary_type === 'daily') {
+                                            const dailyWage = selectedStaff.salary || 0;
+                                            const daysPresent = selectedStaff.attendance?.present || 0;
+                                            autoAmount = Math.max(0, (daysPresent * dailyWage) - totalPaidSalaries);
+                                        } else if (selectedStaff.salary_type === 'percentage') {
+                                            const percentage = selectedStaff.salary || 0;
+                                            const generatedIncome = transactions
+                                                .filter(t => t.type === 'income' && t.doctorId === selectedId)
+                                                .reduce((sum, t) => sum + t.amount, 0);
+                                            autoAmount = Math.max(0, (generatedIncome * (percentage / 100)) - totalPaidSalaries);
+                                        }
+                                    }
+                                    setFormData({ ...formData, staffId: selectedId, amount: autoAmount });
+                                }}
                             >
                                 <option value="">اختر الموظف...</option>
                                 {staff.map(s => (
                                     <option key={s.id} value={s.id}>{s.name} - {s.position}</option>
                                 ))}
                             </select>
+
+                            {formData.staffId && (
+                                (() => {
+                                    const selectedStaff = staff.find(s => s.id === formData.staffId);
+                                    if (!selectedStaff) return null;
+                                    
+                                    const totalPaidSalaries = transactions
+                                        .filter(t => t.category === 'salary' && t.staffId === selectedStaff.id && t.type === 'expense' && t.id !== initialData?.id)
+                                        .reduce((sum, t) => sum + t.amount, 0);
+
+                                    let details = null;
+                                    if (!selectedStaff.salary_type || selectedStaff.salary_type === 'monthly') {
+                                        const monthlySalary = selectedStaff.salary || 0;
+                                        details = {
+                                            type: 'monthly',
+                                            label: 'راتب شهري',
+                                            value: monthlySalary,
+                                            paid: totalPaidSalaries,
+                                            due: monthlySalary,
+                                            suggested: monthlySalary
+                                        };
+                                    } else if (selectedStaff.salary_type === 'daily') {
+                                        const dailyWage = selectedStaff.salary || 0;
+                                        const daysPresent = selectedStaff.attendance?.present || 0;
+                                        const totalDue = daysPresent * dailyWage;
+                                        details = {
+                                            type: 'daily',
+                                            label: 'أجر يومي',
+                                            value: dailyWage,
+                                            daysPresent,
+                                            due: totalDue,
+                                            paid: totalPaidSalaries,
+                                            suggested: Math.max(0, totalDue - totalPaidSalaries)
+                                        };
+                                    } else if (selectedStaff.salary_type === 'percentage') {
+                                        const percentage = selectedStaff.salary || 0;
+                                        const generatedIncome = transactions
+                                            .filter(t => t.type === 'income' && t.doctorId === selectedStaff.id)
+                                            .reduce((sum, t) => sum + t.amount, 0);
+                                        const totalDue = generatedIncome * (percentage / 100);
+                                        details = {
+                                            type: 'percentage',
+                                            label: 'نسبة مئوية',
+                                            value: percentage,
+                                            incomeGenerated: generatedIncome,
+                                            due: totalDue,
+                                            paid: totalPaidSalaries,
+                                            suggested: Math.max(0, totalDue - totalPaidSalaries)
+                                        };
+                                    }
+
+                                    if (!details) return null;
+
+                                    return (
+                                        <div className="mt-3 bg-white p-3 rounded-lg border border-red-200 text-sm space-y-2">
+                                            <div className="flex justify-between items-center text-red-800 border-b pb-1 font-bold">
+                                                <span>تفاصيل احتساب المستحقات:</span>
+                                                <span className="bg-red-100 px-2 py-0.5 rounded text-xs">
+                                                    {details.label}
+                                                </span>
+                                            </div>
+                                            
+                                            {details.type === 'monthly' && (
+                                                <div className="space-y-1 text-gray-700">
+                                                    <div className="flex justify-between">
+                                                        <span>الراتب الشهري:</span>
+                                                        <span className="font-semibold">{details.value.toLocaleString()} د.ع</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span>المدفوع له مسبقاً (هذا الشهر):</span>
+                                                        <span className="font-semibold text-amber-600">{details.paid.toLocaleString()} د.ع</span>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {details.type === 'daily' && (
+                                                <div className="space-y-1 text-gray-700">
+                                                    <div className="flex justify-between">
+                                                        <span>الأجر اليومي:</span>
+                                                        <span className="font-semibold">{details.value.toLocaleString()} د.ع</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span>أيام العمل (الحضور):</span>
+                                                        <span className="font-semibold">{details.daysPresent} يوم</span>
+                                                    </div>
+                                                    <div className="flex justify-between border-t pt-1">
+                                                        <span>إجمالي المستحق المتراكم:</span>
+                                                        <span className="font-semibold">{details.due.toLocaleString()} د.ع</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span>إجمالي المدفوع له سابقاً:</span>
+                                                        <span className="font-semibold text-amber-600">{details.paid.toLocaleString()} د.ع</span>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {details.type === 'percentage' && (
+                                                <div className="space-y-1 text-gray-700">
+                                                    <div className="flex justify-between">
+                                                        <span>النسبة المتفق عليها:</span>
+                                                        <span className="font-semibold">{details.value}%</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span>إجمالي الإيرادات التي حققها:</span>
+                                                        <span className="font-semibold text-green-600">{details.incomeGenerated.toLocaleString()} د.ع</span>
+                                                    </div>
+                                                    <div className="flex justify-between border-t pt-1">
+                                                        <span>إجمالي العمولات المستحقة:</span>
+                                                        <span className="font-semibold">{details.due.toLocaleString()} د.ع</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span>إجمالي المدفوع له سابقاً:</span>
+                                                        <span className="font-semibold text-amber-600">{details.paid.toLocaleString()} د.ع</span>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <div className="flex justify-between items-center border-t pt-2 font-bold text-red-700 bg-red-50 p-2 rounded mt-1">
+                                                <span>المتبقي المستحق للتصفية:</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span>{details.suggested.toLocaleString()} د.ع</span>
+                                                    {formData.amount !== details.suggested && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setFormData({ ...formData, amount: details.suggested })}
+                                                            className="bg-red-600 text-white text-[10px] px-2 py-0.5 rounded hover:bg-red-700 transition-colors"
+                                                        >
+                                                            اعتماد المبلغ
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })()
+                            )}
                         </div>
                     )}
 
@@ -564,22 +802,20 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                     )}
 
 
-                    {/* --- EXPENSE SPECIFIC: Recorded By (Above Description) --- */}
-                    {type === 'expense' && (
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">الموظف المسؤول عن الصرف (المسجل)</label>
-                            <select
-                                className="w-full border rounded-lg p-2.5 text-right bg-white"
-                                value={formData.recordedById}
-                                onChange={e => setFormData({ ...formData, recordedById: e.target.value })}
-                            >
-                                <option value="">اختر الموظف...</option>
-                                {staff.map(s => (
-                                    <option key={s.id} value={s.id}>{s.name} ({s.position})</option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
+                    {/* --- TOTAL AMOUNT INPUT (Moved to bottom) --- */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">المبلغ الإجمالي (د.ع)</label>
+                        <input
+                            type="number"
+                            value={formData.amount}
+                            onChange={e => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
+                            className={`w-full border rounded-lg p-2.5 text-right font-bold text-gray-900 focus:ring-2 ${
+                                type === 'income' ? 'focus:ring-green-500' : 'focus:ring-red-500'
+                            } ${lockFields.includes('amount') ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''}`}
+                            placeholder="0.00"
+                            disabled={lockFields.includes('amount')}
+                        />
+                    </div>
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">البيان / التفاصيل</label>

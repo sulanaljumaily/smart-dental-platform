@@ -164,7 +164,7 @@ export const usePatientTreatments = (patientId: string | undefined) => {
                     estimated_cost: plan.cost,
                     diagnosis: plan.notes, // Mapping notes to diagnosis/description
                     treatment_description: plan.notes,
-                    assigned_doctor: (user as any).user_metadata?.full_name || user.email || 'Unknown',
+                    assigned_doctor: plan.doctor || (user as any).user_metadata?.full_name || user.email || 'Unknown',
                     created_by: user.id
                 })
                 .select()

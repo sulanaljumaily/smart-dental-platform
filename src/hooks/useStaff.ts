@@ -14,6 +14,7 @@ export interface StaffMember {
     role_title?: string;
     position: 'doctor' | 'assistant' | 'nurse' | 'receptionist' | 'admin' | 'technician';
     salary: number;
+    salary_type?: 'monthly' | 'percentage' | 'daily';
     status: 'active' | 'on_leave' | 'suspended' | 'terminated' | 'pending';
     hireDate: string;
     address: string;
@@ -141,6 +142,7 @@ export const useStaff = (clinicId?: string) => {
                     role_title: s.role_title,
                     position: (s.role_title as any) || s.position || 'doctor',
                     salary: s.salary,
+                    salary_type: s.salary_type || 'monthly',
                     status: s.status || (s.is_active ? 'active' : 'suspended'),
                     hireDate: s.join_date,
                     username: s.username,
@@ -189,6 +191,7 @@ export const useStaff = (clinicId?: string) => {
                     department: '-',
                     position: inv.role as any,
                     salary: 0,
+                    salary_type: 'monthly',
                     status: 'pending' as const,
                     hireDate: inv.created_at,
                     address: '',
@@ -229,6 +232,7 @@ export const useStaff = (clinicId?: string) => {
                     role_title: member.role_title || member.position, // Enhanced mapping
                     department: member.department,
                     salary: member.salary,
+                    salary_type: member.salary_type || 'monthly',
                     phone: member.phone,
                     email: member.email,
                     join_date: member.hireDate,
@@ -272,7 +276,8 @@ export const useStaff = (clinicId?: string) => {
             // if (updates.role_title) dbUpdates.role_title = updates.role_title;
             // else if (updates.position) dbUpdates.role_title = updates.position;
             if (updates.department) dbUpdates.department = updates.department;
-            if (updates.salary) dbUpdates.salary = updates.salary;
+            if (updates.salary !== undefined) dbUpdates.salary = updates.salary;
+            if (updates.salary_type) dbUpdates.salary_type = updates.salary_type;
             if (updates.phone) dbUpdates.phone = updates.phone;
             if (updates.email) dbUpdates.email = updates.email;
             if (updates.status) {

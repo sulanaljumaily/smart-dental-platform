@@ -544,14 +544,32 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
                                         />
                                     </div>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">الراتب الشهري</label>
-                                    <input
-                                        type="number"
-                                        value={formData.salary}
-                                        onChange={e => setFormData({ ...formData, salary: Number(e.target.value) })}
-                                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">نوع الراتب</label>
+                                        <select
+                                            value={formData.salary_type || 'monthly'}
+                                            onChange={e => setFormData({ ...formData, salary_type: e.target.value as any })}
+                                            className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        >
+                                            <option value="monthly">راتب شهري</option>
+                                            <option value="percentage">نسبة مئوية (%)</option>
+                                            <option value="daily">أجر يومي</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            {formData.salary_type === 'percentage' && 'النسبة المئوية (%)'}
+                                            {formData.salary_type === 'daily' && 'الأجر اليومي (د.ع)'}
+                                            {(!formData.salary_type || formData.salary_type === 'monthly') && 'الراتب الشهري (د.ع)'}
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={formData.salary}
+                                            onChange={e => setFormData({ ...formData, salary: Number(e.target.value) })}
+                                            className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
                                 </div>
 
                             </div>
