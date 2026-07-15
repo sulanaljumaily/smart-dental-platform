@@ -61,7 +61,7 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
             if (error) throw error;
 
             const mappedPatients: PatientData[] = (data || []).map((p: any) => ({
-                id: p.id,
+                id: p.id?.toString(),
                 clinicId: p.clinic_id?.toString(),
                 name: p.full_name || p.name,
                 age: p.age || 0,

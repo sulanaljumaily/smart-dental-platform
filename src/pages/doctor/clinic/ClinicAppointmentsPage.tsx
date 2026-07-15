@@ -116,7 +116,7 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
   const { user } = useAuth();
   const [selectedAptForReminder, setSelectedAptForReminder] = useState<Appointment | null>(null);
   const [selectedAptForDetails, setSelectedAptForDetails] = useState<Appointment | null>(null);
-  const [reminderMethod, setReminderMethod] = useState<'platform' | 'whatsapp_web' | 'twilio_sms' | 'whatsapp_api'>('platform');
+  const [reminderMethod, setReminderMethod] = useState<'platform' | 'whatsapp_web' | 'twilio_sms' | 'whatsapp_api' | 'phone_call'>('platform');
   const [reminderMessage, setReminderMessage] = useState('');
   const [sendingReminder, setSendingReminder] = useState(false);
 
@@ -389,6 +389,29 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
 
     setSendingReminder(true);
     try {
+      if (reminderMethod === 'phone_call') {
+        const cleanPhone = phone!.trim();
+        window.location.href = `tel:${cleanPhone}`;
+        
+        const currentCalls = selectedAptForReminder.metadata?.calls || [];
+        const updatedCalls = [
+          ...currentCalls,
+          { calledAt: new Date().toISOString(), callerId: user?.id, result: 'connected' }
+        ];
+        
+        await updateAppointment({
+          ...selectedAptForReminder,
+          metadata: {
+            ...selectedAptForReminder.metadata,
+            calls: updatedCalls
+          }
+        });
+        
+        toast.success('تم فتح الاتصال الهاتفي بالمراجع وتوثيق محاولة الاتصال بنجاح');
+        setSelectedAptForReminder(null);
+        return;
+      }
+
       if (reminderMethod === 'platform') {
         if (!recipientUserId) {
           toast.error('المريض غير مرتبط بحساب منصة');
@@ -2292,100 +2315,139 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                       </div>
                     </button>
                   )}
+
+                  {/* Phone Call */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReminderMethod('phone_call');
+                      setReminderMessage('اتصال هاتفي مباشر لمتابعة وتأكيد الموعد');
+                    }}
+                    className={`p-3.5 rounded-xl border-2 text-right transition-all flex flex-col justify-between h-24 ${
+                      reminderMethod === 'phone_call' 
+                        ? 'border-indigo-600 bg-indigo-50/40 text-indigo-900 shadow-sm' 
+                        : 'border-gray-200 hover:border-gray-300 text-gray-700 bg-white'
+                    }`}
+                  >
+                    <Phone className={`w-5 h-5 ${reminderMethod === 'phone_call' ? 'text-indigo-600' : 'text-gray-400'}`} />
+                    <div>
+                      <span className="block font-bold text-xs">اتصال هاتفي مباشر</span>
+                      <span className="text-[10px] opacity-75">إجراء مكالمة هاتفية وتسجيلها</span>
+                    </div>
+                  </button>
                 </div>
               </div>
 
               {/* Message Template / Textarea */}
-              <div className="space-y-2">
-                <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
-                  <label className="block text-sm font-bold text-gray-700">نص رسالة التذكير</label>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const pName = patients.find(p => p.id === selectedAptForReminder.patientId)?.name || 'test';
-                        const dateStr = selectedAptForReminder.date;
-                        const timeStr = (() => {
-                          const [h, m] = selectedAptForReminder.time.split(':');
-                          let hours = parseInt(h, 10);
-                          const ampm = hours >= 12 ? 'مساءً' : 'صباحاً';
-                          hours = hours % 12;
-                          hours = hours ? hours : 12;
-                          return `${hours.toString().padStart(2, '0')}:${m} ${ampm}`;
-                        })();
-                        const typeStr = getTypeLabel(selectedAptForReminder.type);
-                        setReminderMessage(
-                          `مرحباً ${pName}، نود تذكيرك بموعدك القادم في عيادتنا:\n` +
-                          `🗓️ التاريخ: ${dateStr}\n` +
-                          `⏰ الوقت: ${timeStr}\n` +
-                          `🦷 نوع الزيارة: ${typeStr}\n\n` +
-                          `يسعدنا حضورك في الموعد المحدد. في حال رغبتك بالتأجيل أو الإلغاء يرجى إعلامنا مسبقاً.`
-                        );
-                      }}
-                      className="px-2.5 py-1 text-[11px] font-black border border-gray-200 rounded-lg bg-white hover:bg-gray-50 text-gray-600 transition-all cursor-pointer"
-                    >
-                      📄 قالب تفصيلي طويل
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const timeStr = (() => {
-                          const [h, m] = selectedAptForReminder.time.split(':');
-                          let hours = parseInt(h, 10);
-                          const ampm = hours >= 12 ? 'م' : 'ص';
-                          hours = hours % 12;
-                          hours = hours ? hours : 12;
-                          return `${hours}:${m} ${ampm}`;
-                        })();
-                        const dayStr = (() => {
-                          if (!selectedAptForReminder?.date) return '';
-                          const parts = selectedAptForReminder.date.split('-');
-                          return parts.length === 3 ? parseInt(parts[2], 10).toString() : '';
-                        })();
-                        setReminderMessage(`تذكير: موعدك يوم ${dayStr} الساعة ${timeStr}`);
-                      }}
-                      className="px-2.5 py-1 text-[11px] font-black border border-emerald-200 rounded-lg bg-emerald-50 hover:bg-emerald-100/80 text-emerald-700 transition-all cursor-pointer"
-                    >
-                      ⚡ قالب قصير (شريحة واحدة)
-                    </button>
+              {reminderMethod === 'phone_call' ? (() => {
+                const patientObj = patients.find(p => p.id === selectedAptForReminder.patientId);
+                const phone = selectedAptForReminder.patientPhone || patientObj?.phone || 'غير مسجل';
+                return (
+                  <div className="p-4 rounded-xl border border-indigo-150 bg-indigo-50/30 text-indigo-900 flex items-start gap-3 animate-in fade-in duration-300">
+                    <Phone className="w-5 h-5 mt-0.5 text-indigo-600 animate-bounce" />
+                    <div className="text-right flex-1">
+                      <h4 className="font-bold text-sm">إجراء اتصال هاتفي بالمراجع</h4>
+                      <p className="text-xs mt-1 leading-relaxed text-gray-600">
+                        سيقوم النظام بتوجيهك للاتصال بالرقم المسجل: <span className="font-mono font-bold text-indigo-800" dir="ltr">{phone}</span>.
+                      </p>
+                      <p className="text-[10px] text-gray-400 mt-3 border-t border-gray-100 pt-2">
+                        💡 ملاحظة: عند الضغط على زر الاتصال بالأسفل، سيتم توثيق محاولة الاتصال هذه تلقائياً في سجل متابعة الموعد الحالي للتدقيق والمتابعة الطبية.
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <textarea
-                  value={reminderMessage}
-                  onChange={(e) => setReminderMessage(e.target.value)}
-                  rows={5}
-                  className="w-full border border-gray-200 rounded-xl p-3.5 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none resize-none leading-relaxed font-bold text-gray-700"
-                  placeholder="نص التذكير..."
-                />
-                
-                {/* Dynamic character counter & segment limits */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 mt-1 text-[11px] font-bold">
-                  <div className="flex items-center gap-1.5 text-gray-500">
-                    <span>عدد الأحرف:</span>
-                    <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-800">{reminderMessage.length}</span>
+                );
+              })() : (
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                    <label className="block text-sm font-bold text-gray-700">نص رسالة التذكير</label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const pName = patients.find(p => p.id === selectedAptForReminder.patientId)?.name || 'test';
+                          const dateStr = selectedAptForReminder.date;
+                          const timeStr = (() => {
+                            const [h, m] = selectedAptForReminder.time.split(':');
+                            let hours = parseInt(h, 10);
+                            const ampm = hours >= 12 ? 'مساءً' : 'صباحاً';
+                            hours = hours % 12;
+                            hours = hours ? hours : 12;
+                            return `${hours.toString().padStart(2, '0')}:${m} ${ampm}`;
+                          })();
+                          const typeStr = getTypeLabel(selectedAptForReminder.type);
+                          setReminderMessage(
+                            `مرحباً ${pName}، نود تذكيرك بموعدك القادم في عيادتنا:\n` +
+                            `🗓️ التاريخ: ${dateStr}\n` +
+                            `⏰ الوقت: ${timeStr}\n` +
+                            `🦷 نوع الزيارة: ${typeStr}\n\n` +
+                            `يسعدنا حضورك في الموعد المحدد. في حال رغبتك بالتأجيل أو الإلغاء يرجى إعلامنا مسبقاً.`
+                          );
+                        }}
+                        className="px-2.5 py-1 text-[11px] font-black border border-gray-200 rounded-lg bg-white hover:bg-gray-50 text-gray-600 transition-all cursor-pointer"
+                      >
+                        📄 قالب تفصيلي طويل
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const timeStr = (() => {
+                            const [h, m] = selectedAptForReminder.time.split(':');
+                            let hours = parseInt(h, 10);
+                            const ampm = hours >= 12 ? 'م' : 'ص';
+                            hours = hours % 12;
+                            hours = hours ? hours : 12;
+                            return `${hours}:${m} ${ampm}`;
+                          })();
+                          const dayStr = (() => {
+                            if (!selectedAptForReminder?.date) return '';
+                            const parts = selectedAptForReminder.date.split('-');
+                            return parts.length === 3 ? parseInt(parts[2], 10).toString() : '';
+                          })();
+                          setReminderMessage(`تذكير: موعدك يوم ${dayStr} الساعة ${timeStr}`);
+                        }}
+                        className="px-2.5 py-1 text-[11px] font-black border border-emerald-200 rounded-lg bg-emerald-50 hover:bg-emerald-100/80 text-emerald-700 transition-all cursor-pointer"
+                      >
+                        ⚡ قالب قصير (شريحة واحدة)
+                      </button>
+                    </div>
                   </div>
-                  {(() => {
-                    const isArabic = /[\u0600-\u06FF]/.test(reminderMessage);
-                    const limit = isArabic ? 70 : 160;
-                    const segments = Math.ceil(reminderMessage.length / limit) || 1;
-                    const isSingleSegment = segments === 1;
+                  <textarea
+                    value={reminderMessage}
+                    onChange={(e) => setReminderMessage(e.target.value)}
+                    rows={5}
+                    className="w-full border border-gray-200 rounded-xl p-3.5 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none resize-none leading-relaxed font-bold text-gray-700"
+                    placeholder="نص التذكير..."
+                  />
+                  
+                  {/* Dynamic character counter & segment limits */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 mt-1 text-[11px] font-bold">
+                    <div className="flex items-center gap-1.5 text-gray-500">
+                      <span>عدد الأحرف:</span>
+                      <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-800">{reminderMessage.length}</span>
+                    </div>
+                    {(() => {
+                      const isArabic = /[\u0600-\u06FF]/.test(reminderMessage);
+                      const limit = isArabic ? 70 : 160;
+                      const segments = Math.ceil(reminderMessage.length / limit) || 1;
+                      const isSingleSegment = segments === 1;
 
-                    if (isSingleSegment) {
-                      return (
-                        <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 flex items-center gap-1 shrink-0 self-start sm:self-auto">
-                          <span>شريحة واحدة (الحد الأقصى {limit} حرف للغة العربية) - مضمونة الوصول ✅</span>
-                        </span>
-                      );
-                    } else {
-                      return (
-                        <span className="text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-100 flex items-center gap-1 shrink-0 self-start sm:self-auto animate-pulse">
-                          <span>متعدد الشرائح ({segments} شرائح) - قد تفشل في حساب Twilio التجريبي المجاني ⚠️</span>
-                        </span>
-                      );
-                    }
-                  })()}
+                      if (isSingleSegment) {
+                        return (
+                          <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 flex items-center gap-1 shrink-0 self-start sm:self-auto">
+                            <span>شريحة واحدة (الحد الأقصى {limit} حرف للغة العربية) - مضمونة الوصول ✅</span>
+                          </span>
+                        );
+                      } else {
+                        return (
+                          <span className="text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-100 flex items-center gap-1 shrink-0 self-start sm:self-auto animate-pulse">
+                            <span>متعدد الشرائح ({segments} شرائح) - قد تفشل في حساب Twilio التجريبي المجاني ⚠️</span>
+                          </span>
+                        );
+                      }
+                    })()}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Footer */}
@@ -2400,7 +2462,7 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
               <button
                 type="button"
                 onClick={handleSendReminder}
-                disabled={sendingReminder || !reminderMessage.trim()}
+                disabled={sendingReminder || (reminderMethod !== 'phone_call' && !reminderMessage.trim())}
                 className={`px-6 py-2.5 text-white rounded-xl font-bold text-sm shadow-md flex items-center gap-2 transition-all ${
                   sendingReminder ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 active:scale-98'
                 }`}
@@ -2408,12 +2470,21 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                 {sendingReminder ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    جاري الإرسال...
+                    {reminderMethod === 'phone_call' ? 'جاري توثيق الاتصال...' : 'جاري الإرسال...'}
                   </>
                 ) : (
                   <>
-                    <Send className="w-4 h-4" />
-                    إرسال التذكير الآن
+                    {reminderMethod === 'phone_call' ? (
+                      <>
+                        <Phone className="w-4 h-4" />
+                        اتصال وتوثيق المكالمة
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4" />
+                        إرسال التذكير الآن
+                      </>
+                    )}
                   </>
                 )}
               </button>

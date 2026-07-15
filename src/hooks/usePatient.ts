@@ -28,7 +28,7 @@ export const usePatient = (patientId: string | undefined) => {
             if (data) {
                 // Map snake_case to camelCase
                 const mappedPatient: Patient = {
-                    id: data.id,
+                    id: data.id?.toString(),
                     name: data.full_name || data.name || 'Unknown',
                     age: data.age,
                     phone: data.phone || '',
