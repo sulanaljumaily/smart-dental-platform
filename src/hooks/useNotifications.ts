@@ -74,19 +74,9 @@ export const useNotifications = () => {
         if (payload.eventType === 'INSERT') {
             const newNotif = mapDbNotification(payload.new);
             setNotifications(prev => [newNotif, ...prev]);
-            
-            // Check if notification is related to updating/editing a financial transaction
-            const isFinanceUpdate = 
-                (newNotif.title?.includes('تعديل') && 
-                    (newNotif.title?.includes('معاملة') || newNotif.title?.includes('إيراد') || newNotif.title?.includes('مصروف') || newNotif.title?.includes('مالية'))) ||
-                (newNotif.description?.includes('تعديل') && 
-                    (newNotif.description?.includes('معاملة') || newNotif.description?.includes('إيراد') || newNotif.description?.includes('مصروف') || newNotif.description?.includes('مالية')));
-
-            if (!isFinanceUpdate) {
-                toast(newNotif.title, {
-                    description: newNotif.description,
-                });
-            }
+            toast(newNotif.title, {
+                description: newNotif.description,
+            });
         } else if (payload.eventType === 'UPDATE') {
             setNotifications(prev => prev.map(n =>
                 n.id === payload.new.id ? mapDbNotification(payload.new) : n

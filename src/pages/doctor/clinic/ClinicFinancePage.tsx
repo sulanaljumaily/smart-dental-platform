@@ -51,6 +51,7 @@ import { useStaff } from '../../../hooks/useStaff';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Modal } from '../../../components/common/Modal';
+import { toast } from 'sonner';
 
 interface TransactionDetailsModalProps {
   isOpen: boolean;
@@ -1213,14 +1214,14 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
                     supplier: 'راء مباشر',
                     expiryDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString() // Default 1 year expiry
                   });
-                  alert('تمت إضافة المادة إلى المخزون بنجاح');
+                  toast.success('تمت إضافة المادة إلى المخزون بنجاح');
                 }
               }
 
               // Lab Order Auto-Update
               if (data.category === 'lab' && data.labRequestId) {
                 await updateOrderStatus(data.labRequestId, 'completed', { paymentStatus: 'paid' });
-                alert('تم تحديث حالة طلب المختبر إلى مكتمل ومدفوع');
+                toast.success('تم تحديث حالة طلب المختبر إلى مكتمل ومدفوع');
               }
 
               // 3. Asset Creation (New)
@@ -1237,17 +1238,17 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
                   description: data.description || 'Added via Expenses',
                   clinicId: clinicId || '0'
                 });
-                alert('تم إضافة الأصل الثابت إلى سجل الأصول بنجاح');
+                toast.success('تم إضافة الأصل الثابت إلى سجل الأصول بنجاح');
               }
 
-              alert('تم حفظ المعاملة بنجاح');
+              toast.success('تم حفظ المعاملة بنجاح');
             }
             setShowModal(false);
             setPreselectedPatientId(undefined);
             setSelectedTransaction(null);
           } catch (e) {
             console.error(e);
-            alert('حدث خطأ أثناء الحفظ');
+            toast.error('حدث خطأ أثناء الحفظ');
           }
         }}
       />
