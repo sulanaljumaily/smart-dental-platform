@@ -272,10 +272,14 @@ button {
   max-width: 340px !important;
   height: auto !important;
   min-height: 0 !important;
-  margin-inline: auto !important; /* Centering fix */
   
-  /* Entry animation (fades and slides up smoothly) */
-  animation: toast-slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  /* Centering fixes for absolutely-positioned toasts inside centered fixed wrapper */
+  left: 0 !important;
+  right: 0 !important;
+  margin-inline: auto !important;
+  
+  /* Entry animation (fades and slides up smoothly - no forwards to allow stacking updates to transform) */
+  animation: toast-slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 [data-sonner-toast][data-expanded="true"] {
@@ -341,17 +345,20 @@ button {
 
 /* Exit/removal animation */
 [data-sonner-toast][data-removed="true"] {
-  /* Use a dummy wait animation to force Sonner to wait for the entire 0.7s duration */
-  animation: dummy-wait 0.7s forwards, toast-slide-out 0.3s cubic-bezier(0.36, 0, 0.66, -0.56) 0.4s forwards !important;
+  transition: none !important;
+  /* Use 'both' fill-mode to apply the 0% keyframe during the delay, preventing jumps */
+  animation: dummy-wait 0.7s forwards, toast-slide-out 0.3s cubic-bezier(0.36, 0, 0.66, -0.56) 0.4s both !important;
   border-radius: 100px !important;
 }
 
 [data-sonner-toast][data-removed="true"] [data-icon] {
-  animation: circle-shrink 0.2s cubic-bezier(0.36, 0, 0.66, -0.56) 0.2s forwards !important;
+  transition: none !important;
+  animation: circle-shrink 0.2s cubic-bezier(0.36, 0, 0.66, -0.56) 0.2s both !important;
 }
 
 [data-sonner-toast][data-removed="true"] [data-content] {
-  animation: text-collapse 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  transition: none !important;
+  animation: text-collapse 0.2s cubic-bezier(0.16, 1, 0.3, 1) both !important;
 }
 
 /* Keyframes */
