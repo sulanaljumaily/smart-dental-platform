@@ -1085,94 +1085,6 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
             </div>
 
             <div className="p-6 space-y-6 overflow-y-auto flex-1">
-              {/* Patient Edit Form */}
-              <div className="p-5 rounded-2xl border border-gray-150 bg-white shadow-sm space-y-4">
-                <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
-                  <User className="w-4.5 h-4.5 text-blue-600" />
-                  <h5 className="font-bold text-sm text-gray-900">تعديل المعلومات العامة للمراجع</h5>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">الاسم الكامل</label>
-                    <input
-                      type="text"
-                      value={editPatientData.name}
-                      onChange={e => setEditPatientData({ ...editPatientData, name: e.target.value })}
-                      className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">رقم الهاتف</label>
-                    <input
-                      type="text"
-                      value={editPatientData.phone}
-                      onChange={e => setEditPatientData({ ...editPatientData, phone: e.target.value })}
-                      className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
-                      dir="ltr"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">العمر</label>
-                    <input
-                      type="number"
-                      value={editPatientData.age}
-                      onChange={e => setEditPatientData({ ...editPatientData, age: e.target.value })}
-                      className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">الجنس</label>
-                    <select
-                      value={editPatientData.gender}
-                      onChange={e => setEditPatientData({ ...editPatientData, gender: e.target.value as any })}
-                      className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
-                    >
-                      <option value="male">ذكر</option>
-                      <option value="female">أنثى</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">العنوان</label>
-                    <input
-                      type="text"
-                      value={editPatientData.address}
-                      onChange={e => setEditPatientData({ ...editPatientData, address: e.target.value })}
-                      className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">حالة الملف</label>
-                    <select
-                      value={editPatientData.status}
-                      onChange={e => setEditPatientData({ ...editPatientData, status: e.target.value as any })}
-                      className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
-                    >
-                      <option value="active">نشط</option>
-                      <option value="inactive">غير نشط</option>
-                      <option value="emergency">طوارئ</option>
-                    </select>
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-bold text-gray-700 mb-1">البريد الإلكتروني</label>
-                    <input
-                      type="email"
-                      value={editPatientData.email}
-                      onChange={e => setEditPatientData({ ...editPatientData, email: e.target.value })}
-                      className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-bold text-gray-700 mb-1">ملاحظات عامة</label>
-                    <textarea
-                      value={editPatientData.notes}
-                      onChange={e => setEditPatientData({ ...editPatientData, notes: e.target.value })}
-                      className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
-                      rows={2}
-                    />
-                  </div>
-                </div>
-              </div>
-
               {/* Settings Action Blocks */}
               <div className="space-y-4">
                 {/* Portal Account Status & Action Block */}
@@ -1377,6 +1289,94 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
                       ))}
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* Patient Edit Form */}
+              <div className="p-5 rounded-2xl border border-gray-150 bg-white shadow-sm space-y-4">
+                <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
+                  <User className="w-4.5 h-4.5 text-blue-600" />
+                  <h5 className="font-bold text-sm text-gray-900">تعديل المعلومات العامة للمراجع</h5>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">الاسم الكامل</label>
+                    <input
+                      type="text"
+                      value={editPatientData.name}
+                      onChange={e => setEditPatientData({ ...editPatientData, name: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">رقم الهاتف</label>
+                    <input
+                      type="text"
+                      value={editPatientData.phone}
+                      onChange={e => setEditPatientData({ ...editPatientData, phone: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
+                      dir="ltr"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">العمر</label>
+                    <input
+                      type="number"
+                      value={editPatientData.age}
+                      onChange={e => setEditPatientData({ ...editPatientData, age: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">الجنس</label>
+                    <select
+                      value={editPatientData.gender}
+                      onChange={e => setEditPatientData({ ...editPatientData, gender: e.target.value as any })}
+                      className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
+                    >
+                      <option value="male">ذكر</option>
+                      <option value="female">أنثى</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">العنوان</label>
+                    <input
+                      type="text"
+                      value={editPatientData.address}
+                      onChange={e => setEditPatientData({ ...editPatientData, address: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">حالة الملف</label>
+                    <select
+                      value={editPatientData.status}
+                      onChange={e => setEditPatientData({ ...editPatientData, status: e.target.value as any })}
+                      className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
+                    >
+                      <option value="active">نشط</option>
+                      <option value="inactive">غير نشط</option>
+                      <option value="emergency">طوارئ</option>
+                    </select>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-gray-700 mb-1">البريد الإلكتروني</label>
+                    <input
+                      type="email"
+                      value={editPatientData.email}
+                      onChange={e => setEditPatientData({ ...editPatientData, email: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-gray-700 mb-1">ملاحظات عامة</label>
+                    <textarea
+                      value={editPatientData.notes}
+                      onChange={e => setEditPatientData({ ...editPatientData, notes: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
+                      rows={2}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
