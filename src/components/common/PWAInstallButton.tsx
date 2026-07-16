@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Download, Smartphone, X, Share } from 'lucide-react';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 
@@ -6,12 +7,45 @@ interface PWAInstallButtonProps {
   variant?: 'floating' | 'banner' | 'button';
 }
 
+function shouldShowPWAInstall(pathname: string, search: string): boolean {
+  const cleanPath = pathname.replace(/\/$/, '').toLowerCase(); // remove trailing slash
+
+  // 1. Doctor Center: ONLY show in /doctor (overview)
+  if (cleanPath.startsWith('/doctor')) {
+    return cleanPath === '/doctor';
+  }
+
+  // 2. Supplier Center: ONLY show in /supplier (overview)
+  if (cleanPath.startsWith('/supplier')) {
+    if (cleanPath !== '/supplier') return false;
+    const params = new URLSearchParams(search);
+    const tab = params.get('tab');
+    return !tab || tab === 'overview';
+  }
+
+  // 3. Patient Center: ONLY show in /patient (overview)
+  if (cleanPath.startsWith('/patient')) {
+    return cleanPath === '/patient';
+  }
+
+  // 4. Lab Center & Admin Center: NEVER show
+  if (cleanPath.startsWith('/laboratory') || cleanPath.startsWith('/admin')) {
+    return false;
+  }
+
+  // 5. Public / general pages: ALWAYS show
+  return true;
+}
+
 export function PWAInstallButton({ variant = 'floating' }: PWAInstallButtonProps) {
+  const location = useLocation();
   const { isInstallable, isInstalled, isIOS, installApp } = usePWAInstall();
   const [showIOSHint, setShowIOSHint] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
-  if (isInstalled || dismissed || !isInstallable) return null;
+  const showPWA = shouldShowPWAInstall(location.pathname, location.search);
+
+  if (!showPWA || isInstalled || dismissed || !isInstallable) return null;
 
   const handleClick = () => {
     if (isIOS) {
