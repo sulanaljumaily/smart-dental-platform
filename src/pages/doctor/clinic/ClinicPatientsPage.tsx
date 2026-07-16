@@ -390,13 +390,13 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
 
   const handleCreatePatient = async () => {
     if (!newPatient.name || !newPatient.phone) {
-      alert('يرجى إدخال الاسم ورقم الهاتف');
+      toast.error('يرجى إدخال الاسم ورقم الهاتف');
       return;
     }
 
     const limitCheck = checkLimit('patients');
     if (!limitCheck.allowed) {
-      alert(limitCheck.message);
+      toast.error(limitCheck.message);
       return;
     }
     try {
@@ -405,7 +405,7 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
       if (createPortalAccount) {
         if (phoneCheckStatus.exists && phoneCheckStatus.profileId) {
           patientUserId = phoneCheckStatus.profileId;
-          alert(`هذا الرقم مسجل بالمنصة بالفعل. تم ربط المريض تلقائياً بحسابه المسجل باسم "${phoneCheckStatus.profileName}".`);
+          toast.info(`هذا الرقم مسجل بالمنصة بالفعل. تم ربط المريض تلقائياً بحسابه المسجل باسم "${phoneCheckStatus.profileName}".`);
         } else {
           setIsCreatingAccount(true);
           // Invoke Edge Function to create auth.users account and send SMS
@@ -421,15 +421,15 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
 
           if (edgeError) {
             console.error('Edge function error:', edgeError);
-            alert('تعذر إنشاء حساب البوابة. سيتم حفظ المريض محلياً فقط.');
+            toast.warning('تعذر إنشاء حساب البوابة. سيتم حفظ المريض محلياً فقط.');
           } else if (edgeData?.error === 'patient_exists') {
-            alert('هذا المراجع لديه حساب بوابة بالفعل، يرجى ربط الملف لاحقاً.');
+            toast.warning('هذا المراجع لديه حساب بوابة بالفعل، يرجى ربط الملف لاحقاً.');
           } else if (edgeData?.userId) {
             patientUserId = edgeData.userId;
             if (edgeData.smsStatus === 'sent' || edgeData.whatsappStatus === 'sent') {
-              alert('تم إنشاء حساب البوابة وإرسال بيانات الدخول عبر SMS و WhatsApp بنجاح!');
+              toast.success('تم إنشاء حساب البوابة وإرسال بيانات الدخول عبر SMS و WhatsApp بنجاح!');
             } else {
-              alert('تم إنشاء حساب البوابة، لكن إرسال الرسائل (SMS / WhatsApp) يتطلب تهيئة متغيرات بيئة Twilio.');
+              toast.warning('تم إنشاء حساب البوابة، لكن إرسال الرسائل (SMS / WhatsApp) يتطلب تهيئة متغيرات بيئة Twilio.');
             }
           }
         }
@@ -450,10 +450,10 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
       setShowModal(false);
       setNewPatient({ name: '', phone: '', age: '', gender: 'male', email: '', address: '', notes: '' });
       setCreatePortalAccount(false);
-      alert('تم إضافة المريض بنجاح');
+      toast.success('تم إضافة المريض بنجاح');
     } catch (e) {
       setIsCreatingAccount(false);
-      alert('حدث خطأ');
+      toast.error('حدث خطأ');
     }
   };
 
@@ -463,7 +463,7 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
         await deletePatient(id);
         // alert('تم حذف المريض بنجاح'); // Optional: Feedback is usually immediate via UI update
       } catch (e) {
-        alert('حدث خطأ أثناء الحذف');
+        toast.error('حدث خطأ أثناء الحذف');
       }
     }
   };

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from 'sonner';
 import {
   ShoppingCart,
   Search,
@@ -81,7 +82,7 @@ export const ClinicInventoryPage: React.FC<ClinicInventoryPageProps> = ({ clinic
 
   const handleSave = async () => {
     if (!formData.name) {
-      alert('يرجى إدخال اسم العنصر');
+      toast.error('يرجى إدخال اسم العنصر');
       return;
     }
 
@@ -100,14 +101,14 @@ export const ClinicInventoryPage: React.FC<ClinicInventoryPageProps> = ({ clinic
     try {
       if (isEditing && editingId) {
         await updateItem(editingId, payload);
-        alert('تم تحديث العنصر بنجاح');
+        toast.success('تم تحديث العنصر بنجاح');
       } else {
         await addItem(payload);
-        alert('تم إضافة العنصر بنجاح');
+        toast.success('تم إضافة العنصر بنجاح');
       }
       setShowModal(false);
     } catch (e) {
-      alert('حدث خطأ');
+      toast.error('حدث خطأ');
     }
   };
 

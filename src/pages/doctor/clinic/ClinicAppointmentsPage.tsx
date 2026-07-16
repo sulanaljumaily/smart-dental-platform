@@ -588,12 +588,12 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
   const handleConfirmRequest = async (request: OnlineRequest) => {
     // Direct confirm as requested (reverting modal logic)
     if (!request.patientId) {
-      alert('يجب إنشاء ملف للمريض أولاً!');
+      toast.error('يجب إنشاء ملف للمريض أولاً!');
       return;
     }
     const success = await confirmRequest(request.id);
     if (success) {
-      alert(`تم تأكيد الحجز للمريض ${request.patientName} بنجاح!`);
+      toast.success(`تم تأكيد الحجز للمريض ${request.patientName} بنجاح!`);
       // refreshRequests(); // Handled by hook usually, or add if needed
     }
   };
@@ -1869,7 +1869,7 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                     onClick={() => {
                       if (!req.hasFile) {
                         // If no file, require creation first
-                        alert('يجب إنشاء ملف للمريض أولاً قبل تأكيد الحجز.');
+                        toast.error('يجب إنشاء ملف للمريض أولاً قبل تأكيد الحجز.');
                         handleCreatePatientFile(req);
                       } else {
                         handleConfirmRequest(req);
@@ -2010,7 +2010,7 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                   refreshRequests();
                 } catch (error) {
                   console.error(error);
-                  alert("حدث خطأ أثناء إنشاء الملف");
+                  toast.error("حدث خطأ أثناء إنشاء الملف");
                 } finally {
                   setIsSavingPatient(false);
                 }

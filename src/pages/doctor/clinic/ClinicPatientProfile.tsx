@@ -830,13 +830,13 @@ export const ClinicPatientProfile = () => {
           doctorId: docId,
           recordedById: currentStaffId
         });
-        alert(`تم إكمال الجلسة وتسجيل دفعة بقيمة ${cost.toLocaleString()} د.ع`);
+        toast.success(`تم إكمال الجلسة وتسجيل دفعة بقيمة ${cost.toLocaleString()} د.ع`);
       } catch (e) {
         console.error("Failed to add transaction", e);
-        alert("تم إكمال الجلسة ولكن فشل تسجيل الدفعة المالية");
+        toast.error("تم إكمال الجلسة ولكن فشل تسجيل الدفعة المالية");
       }
     } else {
-      alert("تم إكمال الجلسة بنجاح");
+      toast.success("تم إكمال الجلسة بنجاح");
     }
   };
 
@@ -853,7 +853,7 @@ export const ClinicPatientProfile = () => {
         size: '1.2 MB'
       };
       setFiles(prev => [newReport, ...prev]);
-      alert("تم اكتمال التحليل الذكي وتم حفظ التقرير في الأرشيف بنجاح");
+      toast.success("تم اكتمال التحليل الذكي وتم حفظ التقرير في الأرشيف بنجاح");
     }, 2500);
   };
 
@@ -2659,11 +2659,11 @@ export const ClinicPatientProfile = () => {
             url: data.url
           };
           setFiles(prev => [newFile, ...prev]);
-          alert('تم حفظ الصورة والتشخيص في الأرشيف (قسم الصور)');
+          toast.success('تم حفظ الصورة والتشخيص في الأرشيف (قسم الصور)');
         }
       } catch (err) {
         console.error('Archive Save Error:', err);
-        alert('فشل الحفظ في الأرشيف');
+        toast.error('فشل الحفظ في الأرشيف');
       }
     } else {
       // ... existing chat save logic ...
@@ -4095,7 +4095,7 @@ const VoiceExamDictatorModalContent: React.FC<{ patientName?: string }> = ({ pat
   const toggleRecording = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert("متصفحك لا يدعم التعرف على الصوت الرقمي");
+      toast.error("متصفحك لا يدعم التعرف على الصوت الرقمي");
       return;
     }
 

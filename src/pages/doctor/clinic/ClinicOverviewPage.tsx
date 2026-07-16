@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import {
   Users,
   Calendar,
@@ -77,13 +78,13 @@ export const ClinicOverviewPage: React.FC<ClinicOverviewPageProps> = ({ clinicId
   const handleCreatePatient = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!newPatient.name || !newPatient.phone) {
-      alert('يرجى إدخال الاسم ورقم الهاتف');
+      toast.error('يرجى إدخال الاسم ورقم الهاتف');
       return;
     }
 
     const limitCheck = checkLimit('patients');
     if (!limitCheck.allowed) {
-      alert(limitCheck.message);
+      toast.error(limitCheck.message);
       return;
     }
     try {
@@ -101,10 +102,10 @@ export const ClinicOverviewPage: React.FC<ClinicOverviewPageProps> = ({ clinicId
         });
         setShowAddPatientModal(false);
         setNewPatient({ name: '', phone: '', age: '', gender: 'male', email: '', address: '', notes: '' });
-        alert('تم إضافة المريض بنجاح');
+        toast.success('تم إضافة المريض بنجاح');
       }
     } catch (e) {
-      alert('حدث خطأ');
+      toast.error('حدث خطأ');
     }
   };
 

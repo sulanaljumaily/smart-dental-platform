@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from 'sonner';
 import { Card } from '../../../../../components/common/Card';
 import { Button } from '../../../../../components/common/Button';
 import { Monitor, Plus, Calendar, AlertCircle, Edit2, Trash2, Box } from 'lucide-react';
@@ -49,6 +50,7 @@ export const AssetsDevices: React.FC<AssetsDevicesProps> = ({ clinicId }) => {
                 warrantyExpiry: newAsset.warrantyExpiry || ''
             });
             setShowModal(false);
+            toast.success('تم إضافة الأصل بنجاح');
             setNewAsset({
                 name: '',
                 category: 'equipment',
@@ -58,7 +60,7 @@ export const AssetsDevices: React.FC<AssetsDevicesProps> = ({ clinicId }) => {
             });
         } catch (e) {
             console.error(e);
-            alert('حدث خطأ أثناء الحفظ');
+            toast.error('حدث خطأ أثناء الحفظ');
         }
     };
 

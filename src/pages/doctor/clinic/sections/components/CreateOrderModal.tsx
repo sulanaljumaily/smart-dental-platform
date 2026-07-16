@@ -211,9 +211,7 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({ isOpen, onCl
             }, 1000);
         } catch (error: any) {
             console.error(error);
-            // DEBUG ALERT: Force error visibility
-            alert(`Failed to create order: ${error.message || JSON.stringify(error)}`);
-            toast.error('حدث خطأ أثناء إنشاء الطلب');
+            toast.error(`Failed to create order: ${error.message || JSON.stringify(error)}`);
         } finally {
             setLoading(false);
         }
