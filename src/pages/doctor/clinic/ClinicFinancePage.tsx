@@ -1190,7 +1190,7 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
           try {
             if (selectedTransaction) {
               await updateTransaction(selectedTransaction.id, data);
-              alert('تم تعديل المعاملة بنجاح');
+              toast.success('تم تعديل المعاملة بنجاح');
             } else {
               await addTransaction(data);
 

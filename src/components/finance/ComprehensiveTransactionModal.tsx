@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, Activity, User, Building, FileText, Search, CreditCard, Box } from 'lucide-react';
+import { toast } from 'sonner';
 import { useStaff } from '../../hooks/useStaff';
 import { usePatients } from '../../hooks/usePatients';
 import { useInventory } from '../../hooks/useInventory';
@@ -230,7 +231,7 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
 
     const handleSubmit = async () => {
         if (!formData.amount || !formData.category) {
-            alert('يرجى تعبئة المبلغ والتصنيف');
+            toast.error('يرجى تعبئة المبلغ والتصنيف');
             return;
         }
 
