@@ -176,10 +176,14 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
     const updatePatient = async (id: string, updates: any) => {
         try {
             const dbUpdates: any = {};
-            if (updates.name) dbUpdates.full_name = updates.name;
-            if (updates.phone) dbUpdates.phone = updates.phone;
-            if (updates.status) dbUpdates.status = updates.status;
-            // Add other fields mapping as needed
+            if (updates.name !== undefined) dbUpdates.full_name = updates.name;
+            if (updates.phone !== undefined) dbUpdates.phone = updates.phone;
+            if (updates.status !== undefined) dbUpdates.status = updates.status;
+            if (updates.age !== undefined) dbUpdates.age = Number(updates.age);
+            if (updates.gender !== undefined) dbUpdates.gender = updates.gender;
+            if (updates.email !== undefined) dbUpdates.email = updates.email;
+            if (updates.address !== undefined) dbUpdates.address = updates.address;
+            if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
 
             const { error } = await supabase.from('patients').update(dbUpdates).eq('id', id);
             if (error) throw error;
@@ -188,6 +192,7 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
             fetchPatients();
         } catch (err) {
             console.error('Error updating patient:', err);
+            throw err;
         }
     };
 

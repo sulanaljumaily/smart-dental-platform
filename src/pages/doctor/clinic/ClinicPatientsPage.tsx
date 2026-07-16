@@ -27,7 +27,7 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
   const { checkLimit } = useSubscriptionLimits();
 
   // Supabase Integration
-  const { patients, loading, createPatient, deletePatient } = usePatients(clinicId);
+  const { patients, loading, createPatient, deletePatient, updatePatient } = usePatients(clinicId);
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
@@ -104,6 +104,65 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
   const [isActivatingPortalForSettings, setIsActivatingPortalForSettings] = useState(false);
   const [patientSettingsPhoneExists, setPatientSettingsPhoneExists] = useState<boolean | null>(null);
   const [checkingSettingsPhone, setCheckingSettingsPhone] = useState(false);
+
+  // Edit Patient Info States
+  const [editPatientData, setEditPatientData] = useState<{
+    name: string;
+    phone: string;
+    age: string;
+    gender: 'male' | 'female';
+    email: string;
+    address: string;
+    notes: string;
+    status: 'active' | 'inactive' | 'emergency';
+  } | null>(null);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+  useEffect(() => {
+    if (selectedPatientForSettings) {
+      setEditPatientData({
+        name: selectedPatientForSettings.name || '',
+        phone: selectedPatientForSettings.phone || '',
+        age: selectedPatientForSettings.age?.toString() || '',
+        gender: selectedPatientForSettings.gender || 'male',
+        email: selectedPatientForSettings.email || '',
+        address: selectedPatientForSettings.address || '',
+        notes: selectedPatientForSettings.notes || '',
+        status: selectedPatientForSettings.status || 'active'
+      });
+    } else {
+      setEditPatientData(null);
+    }
+  }, [selectedPatientForSettings]);
+
+  const handleUpdatePatientSettings = async () => {
+    if (!selectedPatientForSettings || !editPatientData) return;
+    if (!editPatientData.name || !editPatientData.phone) {
+      toast.error('يرجى إدخال الاسم ورقم الهاتف');
+      return;
+    }
+
+    setIsSavingSettings(true);
+    try {
+      await updatePatient(selectedPatientForSettings.id, {
+        name: editPatientData.name,
+        phone: editPatientData.phone,
+        age: parseInt(editPatientData.age) || 0,
+        gender: editPatientData.gender,
+        email: editPatientData.email,
+        address: editPatientData.address,
+        notes: editPatientData.notes,
+        status: editPatientData.status
+      });
+      toast.success('تم حفظ تعديلات بيانات المراجع بنجاح');
+      setSelectedPatientForSettings(null);
+    } catch (e: any) {
+      console.error(e);
+      toast.error('حدث خطأ أثناء حفظ التعديلات: ' + (e.message || ''));
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
 
   // Appointment Reminder Drawer States
   const [selectedAptForReminder, setSelectedAptForReminder] = useState<any | null>(null);
@@ -1009,9 +1068,9 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
       )}
 
       {/* Patient Settings Modal */}
-      {selectedPatientForSettings && (
+      {selectedPatientForSettings && editPatientData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-300 border border-gray-100">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300 border border-gray-100">
             <div className="px-6 py-5 border-b border-gray-150 flex justify-between items-center bg-gradient-to-r from-blue-50 to-indigo-50">
               <div className="flex items-center gap-2.5">
                 <Settings className="w-5 h-5 text-gray-750 animate-pulse" />
@@ -1025,25 +1084,93 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
               </button>
             </div>
 
-            <div className="p-6 space-y-6">
-              {/* Patient Quick Info Card */}
-              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl text-white flex items-center justify-center text-lg font-bold shadow-md">
-                    {selectedPatientForSettings.name.charAt(0)}
+            <div className="p-6 space-y-6 overflow-y-auto flex-1">
+              {/* Patient Edit Form */}
+              <div className="p-5 rounded-2xl border border-gray-150 bg-white shadow-sm space-y-4">
+                <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
+                  <User className="w-4.5 h-4.5 text-blue-600" />
+                  <h5 className="font-bold text-sm text-gray-900">تعديل المعلومات العامة للمراجع</h5>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">الاسم الكامل</label>
+                    <input
+                      type="text"
+                      value={editPatientData.name}
+                      onChange={e => setEditPatientData({ ...editPatientData, name: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
+                    />
                   </div>
                   <div>
-                    <h4 className="font-bold text-gray-900">{selectedPatientForSettings.name}</h4>
-                    <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-                      <span>{selectedPatientForSettings.age} سنة</span>
-                      <span>•</span>
-                      <span dir="ltr" className="font-mono">{selectedPatientForSettings.phone}</span>
-                    </div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">رقم الهاتف</label>
+                    <input
+                      type="text"
+                      value={editPatientData.phone}
+                      onChange={e => setEditPatientData({ ...editPatientData, phone: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
+                      dir="ltr"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">العمر</label>
+                    <input
+                      type="number"
+                      value={editPatientData.age}
+                      onChange={e => setEditPatientData({ ...editPatientData, age: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">الجنس</label>
+                    <select
+                      value={editPatientData.gender}
+                      onChange={e => setEditPatientData({ ...editPatientData, gender: e.target.value as any })}
+                      className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
+                    >
+                      <option value="male">ذكر</option>
+                      <option value="female">أنثى</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">العنوان</label>
+                    <input
+                      type="text"
+                      value={editPatientData.address}
+                      onChange={e => setEditPatientData({ ...editPatientData, address: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">حالة الملف</label>
+                    <select
+                      value={editPatientData.status}
+                      onChange={e => setEditPatientData({ ...editPatientData, status: e.target.value as any })}
+                      className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
+                    >
+                      <option value="active">نشط</option>
+                      <option value="inactive">غير نشط</option>
+                      <option value="emergency">طوارئ</option>
+                    </select>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-gray-700 mb-1">البريد الإلكتروني</label>
+                    <input
+                      type="email"
+                      value={editPatientData.email}
+                      onChange={e => setEditPatientData({ ...editPatientData, email: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-gray-700 mb-1">ملاحظات عامة</label>
+                    <textarea
+                      value={editPatientData.notes}
+                      onChange={e => setEditPatientData({ ...editPatientData, notes: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
+                      rows={2}
+                    />
                   </div>
                 </div>
-                <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${getStatusColor(selectedPatientForSettings.status)}`}>
-                  {getStatusLabel(selectedPatientForSettings.status)}
-                </span>
               </div>
 
               {/* Settings Action Blocks */}
@@ -1254,12 +1381,27 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
               </div>
             </div>
 
-            <div className="p-6 border-t border-gray-100 bg-gray-50 rounded-b-3xl flex justify-end">
+            <div className="p-6 border-t border-gray-100 bg-gray-50 rounded-b-3xl flex justify-end gap-3">
               <button
                 onClick={() => setSelectedPatientForSettings(null)}
                 className="px-6 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl text-xs font-bold transition-colors"
+                disabled={isSavingSettings}
               >
-                إغلاق الإعدادات
+                إلغاء
+              </button>
+              <button
+                onClick={handleUpdatePatientSettings}
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-2 shadow-lg shadow-blue-150"
+                disabled={isSavingSettings}
+              >
+                {isSavingSettings ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    جاري الحفظ...
+                  </>
+                ) : (
+                  'حفظ التعديلات'
+                )}
               </button>
             </div>
           </div>
