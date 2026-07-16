@@ -253,8 +253,13 @@ export const useFinance = (clinicId?: string, patientId?: string, staffId?: stri
 
             // Relational updates
             if (updates.patientId !== undefined) dbUpdates.patient_id = updates.patientId || null;
-            if (updates.doctorId !== undefined) dbUpdates.doctor_id = updates.doctorId || null;
-            if (updates.recordedById !== undefined) dbUpdates.recorded_by = updates.recordedById || null;
+            if (updates.doctorId !== undefined || updates.staffId !== undefined) {
+                const docVal = updates.doctorId || updates.staffId;
+                dbUpdates.staff_record_id = docVal ? Number(docVal) : null;
+            }
+            if (updates.recordedById !== undefined) {
+                dbUpdates.recorded_by_staff_id = updates.recordedById ? Number(updates.recordedById) : null;
+            }
             if (updates.treatmentId !== undefined) dbUpdates.treatment_id = updates.treatmentId || null;
 
             const { error } = await supabase

@@ -101,12 +101,6 @@ export const ClinicDashboard: React.FC = () => {
     return null;
   }
 
-  /* 
-   * Updated Menu Items based on user request:
-   * - Finance added (Owner Only)
-   * - Inventory removed (moved to Assets)
-   * - Assets renamed to Assets & Services
-   */
   const isOwner = user?.role === 'doctor';
 
   const menuItems = [
@@ -131,6 +125,15 @@ export const ClinicDashboard: React.FC = () => {
       gradient: 'from-emerald-500 to-emerald-600',
       description: 'ملفات المرضى والسجلات'
     },
+    ...(isOwner ? [
+      {
+        id: 'finance',
+        icon: DollarSign,
+        label: 'المالية',
+        gradient: 'from-orange-500 to-orange-600',
+        description: 'الإيرادات والمصروفات'
+      }
+    ] : []),
     {
       id: 'staff',
       icon: User,
@@ -147,20 +150,12 @@ export const ClinicDashboard: React.FC = () => {
     },
     ...(isOwner ? [
       {
-        id: 'finance',
-        icon: DollarSign,
-        label: 'المالية',
-        gradient: 'from-orange-500 to-orange-600',
-        description: 'الإيرادات والمصروفات'
-      },
-      {
         id: 'reports',
         icon: BarChart3,
         label: 'التقارير ',
         gradient: 'from-rose-500 to-rose-600',
         description: 'التقارير المالية والإحصائية'
-      },
-
+      }
     ] : []),
     {
       id: 'lab',

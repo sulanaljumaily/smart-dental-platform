@@ -10,6 +10,29 @@ import { useFinance } from '../../hooks/useFinance';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 
+const getDoctorDisplayName = (doctorVal: string, staffList: any[]) => {
+  if (!doctorVal) return 'غير محدد';
+  const cleanVal = doctorVal.trim().toLowerCase();
+  const doc = staffList.find(s => 
+    s.email?.toLowerCase() === cleanVal || 
+    s.name?.toLowerCase() === cleanVal || 
+    s.id?.toString() === cleanVal ||
+    s.userId?.toLowerCase() === cleanVal ||
+    s.authUserId?.toLowerCase() === cleanVal
+  );
+  if (doc) {
+    const nameWithoutDr = doc.name.replace(/^د\.\s*/, '');
+    return `د. ${nameWithoutDr}`;
+  }
+  if (doctorVal.includes('@')) {
+    const part = doctorVal.split('@')[0];
+    const cleanName = part.split(/[\._]/).map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    return `د. ${cleanName}`;
+  }
+  const cleanDr = doctorVal.replace(/^د\.\s*/, '');
+  return `د. ${cleanDr}`;
+};
+
 interface TransactionModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -131,7 +154,11 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                 if (initialData.patientId) setPatientFilter(initialData.patientId);
             } else if (prefillData) {
                 // New Entry Mode with Pre-filled Defaults (e.g., from Treatment Plan)
-                const currentStaff = staff.find(s => s.userId === user?.id || s.authUserId === user?.id);
+                const currentStaff = staff.find(s => 
+                    s.userId === user?.id || 
+                    s.authUserId === user?.id || 
+                    (s.email && user?.email && s.email.toLowerCase() === user.email.toLowerCase())
+                );
                 setFormData(prev => ({
                     ...prev,
                     patientId: prefillData.patientId || preselectedPatientId || '',
@@ -149,7 +176,11 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                 if (prefillData.patientId) setPatientFilter(prefillData.patientId);
             } else {
                 // Reset for New Entry (Blank)
-                const currentStaff = staff.find(s => s.userId === user?.id || s.authUserId === user?.id);
+                const currentStaff = staff.find(s => 
+                    s.userId === user?.id || 
+                    s.authUserId === user?.id || 
+                    (s.email && user?.email && s.email.toLowerCase() === user.email.toLowerCase())
+                );
                 setFormData(prev => ({
                     ...prev,
                     patientId: preselectedPatientId || '',
@@ -386,7 +417,7 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                                                             treatmentId: plan.id,
                                                             amount: plan.remaining,
                                                             doctorId: doc ? doc.id : prev.doctorId,
-                                                            description: `تسديد دفعة علاج - ${plan.treatment_description || 'خطة علاجية'}`
+                                                            description: `قسط: ${plan.treatment_description || 'خطة علاجية'}`
                                                         }));
                                                     }}
                                                     className={`cursor-pointer p-2.5 rounded-lg border transition-all text-xs flex justify-between items-center ${
@@ -400,7 +431,7 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                                                             {plan.treatment_description || 'خطة علاجية'}
                                                         </span>
                                                         <span className="text-[10px] text-gray-400 block mt-0.5">
-                                                            السن: {(plan.tooth_numbers && plan.tooth_numbers.length > 0) ? plan.tooth_numbers.join(', ') : (plan.tooth_number || 'عام')} • الطبيب: {plan.assigned_doctor || 'غير محدد'}
+                                                            السن: {(plan.tooth_numbers && plan.tooth_numbers.length > 0) ? plan.tooth_numbers.join(', ') : (plan.tooth_number || 'عام')} • الطبيب: {getDoctorDisplayName(plan.assigned_doctor, staff)}
                                                         </span>
                                                     </div>
                                                     <div className="text-left font-semibold">

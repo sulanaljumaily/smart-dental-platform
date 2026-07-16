@@ -369,7 +369,26 @@ function App() {
     <HelmetProvider>
       <LanguageProvider>
         <AuthProvider>
-          <Toaster position="top-center" richColors />
+          <Toaster 
+            position="top-center" 
+            richColors
+            toastOptions={{
+              className: 'rounded-2xl border bg-white/95 backdrop-blur-md p-4 text-right flex items-start gap-3 transition-all duration-300 font-sans shadow-[0_8px_30px_rgb(0,0,0,0.06)]',
+              style: {
+                direction: 'rtl',
+                fontFamily: 'inherit'
+              },
+              classNames: {
+                toast: 'rounded-2xl border bg-white/95 backdrop-blur-md p-4 text-right flex items-start gap-3 transition-all duration-300 font-sans shadow-[0_8px_30px_rgb(0,0,0,0.06)]',
+                title: 'font-bold text-sm text-gray-900',
+                description: 'text-xs text-gray-600 mt-1',
+                success: 'border-emerald-100 bg-emerald-50/90 text-emerald-800 shadow-[0_8px_30px_rgba(16,185,129,0.06)]',
+                error: 'border-rose-100 bg-rose-50/90 text-rose-800 shadow-[0_8px_30px_rgba(244,63,94,0.06)]',
+                warning: 'border-amber-100 bg-amber-50/90 text-amber-800 shadow-[0_8px_30px_rgba(245,158,11,0.06)]',
+                info: 'border-blue-100 bg-blue-50/90 text-blue-800 shadow-[0_8px_30px_rgba(59,130,246,0.06)]'
+              }
+            }}
+          />
           <CompleteRegistrationModal />
           <StoreProvider>
             <CommunityProvider>

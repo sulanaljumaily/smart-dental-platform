@@ -74,9 +74,19 @@ export const useNotifications = () => {
         if (payload.eventType === 'INSERT') {
             const newNotif = mapDbNotification(payload.new);
             setNotifications(prev => [newNotif, ...prev]);
-            toast(newNotif.title, {
-                description: newNotif.description,
-            });
+            
+            // Check if notification is related to updating/editing a financial transaction
+            const isFinanceUpdate = 
+                (newNotif.title?.includes('تعديل') && 
+                    (newNotif.title?.includes('معاملة') || newNotif.title?.includes('إيراد') || newNotif.title?.includes('مصروف') || newNotif.title?.includes('مالية'))) ||
+                (newNotif.description?.includes('تعديل') && 
+                    (newNotif.description?.includes('معاملة') || newNotif.description?.includes('إيراد') || newNotif.description?.includes('مصروف') || newNotif.description?.includes('مالية')));
+
+            if (!isFinanceUpdate) {
+                toast(newNotif.title, {
+                    description: newNotif.description,
+                });
+            }
         } else if (payload.eventType === 'UPDATE') {
             setNotifications(prev => prev.map(n =>
                 n.id === payload.new.id ? mapDbNotification(payload.new) : n
@@ -211,7 +221,11 @@ export const useNotifications = () => {
         title: dbRecord.title,
         description: dbRecord.message,
         link: dbRecord.link,
-        time: new Date(dbRecord.created_at).toLocaleDateString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+        time: new Date(dbRecord.created_at).toLocaleDateString('ar-EG', {
+            hour: '2-digit',
+            minute: '2-digit',
+            numberingSystem: 'latn'
+        }),
         priority: dbRecord.priority || 'normal',
         isRead: dbRecord.is_read,
         createdAt: dbRecord.created_at,

@@ -165,7 +165,15 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({
                                 <span className="bg-red-600/90 text-white px-2.5 py-1 rounded-full text-[10px] font-bold shadow-md">خطأ في التشخيص</span>
                             </div>
                         </div>
-                        <span className="block text-[10px] text-gray-400 mt-2">تاريخ الرفع: {new Date(date).toLocaleString('ar-EG')}</span>
+                        <span className="block text-[10px] text-gray-400 mt-2">تاريخ الرفع: {new Date(date).toLocaleString('ar-EG', {
+                            year: 'numeric',
+                            month: 'numeric',
+                            day: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true,
+                            numberingSystem: 'latn'
+                        })}</span>
                     </div>
 
                     {/* Right Column: Smart Service Panel Simulator & Action */}
@@ -420,7 +428,15 @@ export const AnalysisResultCard: React.FC<AnalysisResultCardProps> = ({
                         <div>
                             <h3 className="font-bold text-gray-900 text-sm">تقرير التشخيص بالذكاء الاصطناعي</h3>
                             <div className="flex items-center gap-2 text-[10px] text-gray-500 font-mono">
-                                <span>{new Date(date).toLocaleString('ar-IQ')}</span>
+                                <span>{new Date(date).toLocaleString('ar-IQ', {
+                                    year: 'numeric',
+                                    month: 'numeric',
+                                    day: 'numeric',
+                                    hour: 'numeric',
+                                    minute: '2-digit',
+                                    hour12: true,
+                                    numberingSystem: 'latn'
+                                })}</span>
                                 <span>•</span>
                                 <span className={`uppercase font-bold ${isMock ? 'text-orange-600' : 'text-green-700'}`}>
                                     {isMock ? 'DEMO' : 'LIVE'}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   TrendingUp,
   TrendingDown,
@@ -47,7 +47,209 @@ import { useLabOrders } from '../../../hooks/useLabOrders';
 import { BentoStatCard } from '../../../components/dashboard/BentoStatCard';
 import { ComprehensiveTransactionModal } from '../../../components/finance/ComprehensiveTransactionModal';
 import { useAssets, Asset } from '../../../hooks/useAssets';
+import { useStaff } from '../../../hooks/useStaff';
 import { supabase } from '../../../lib/supabase';
+import { useAuth } from '../../../contexts/AuthContext';
+import { Modal } from '../../../components/common/Modal';
+
+interface TransactionDetailsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  transaction: any;
+  staff: any[];
+  canEdit: boolean;
+  onEdit: () => void;
+  clinicId: string;
+}
+
+export const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = ({
+  isOpen,
+  onClose,
+  transaction,
+  staff,
+  canEdit,
+  onEdit,
+  clinicId
+}) => {
+  const navigate = useNavigate();
+  if (!transaction) return null;
+
+  const recorder = staff.find(s => s.id?.toString() === transaction.recordedByStaffId?.toString());
+  const doctor = staff.find(s => s.id?.toString() === transaction.doctorId?.toString() || s.name === transaction.doctorName);
+  const staffMember = staff.find(s => s.id?.toString() === transaction.staffId?.toString() || s.name === transaction.staffName);
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="تفاصيل المعاملة المالية" size="md">
+      <div className="space-y-4 text-right" dir="rtl">
+        {/* Info Grid */}
+        <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+          <div>
+            <span className="block text-xs text-gray-400">رقم المعاملة</span>
+            <span className="font-mono text-sm font-bold text-gray-900">#{transaction.id.slice(-6)}</span>
+          </div>
+          <div>
+            <span className="block text-xs text-gray-400">النوع</span>
+            <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded ${
+              transaction.type === 'income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+            }`}>
+              {transaction.type === 'income' ? 'إيراد' : 'مصروف'}
+            </span>
+          </div>
+          <div>
+            <span className="block text-xs text-gray-400">التاريخ والوقت</span>
+            <span className="text-sm text-gray-900 font-medium">
+              {transaction.date.split('T')[0]} {transaction.date.split('T')[1]?.slice(0, 5)}
+            </span>
+          </div>
+          <div>
+            <span className="block text-xs text-gray-400">المبلغ</span>
+            <span className={`text-base font-bold ${transaction.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
+              {transaction.amount.toLocaleString()} د.ع
+            </span>
+          </div>
+        </div>
+
+        {/* Categories / Description */}
+        <div className="space-y-3 bg-white p-4 rounded-xl border border-gray-100">
+          <div>
+            <span className="block text-xs text-gray-400">التصنيف</span>
+            <span className="text-sm font-bold text-gray-900">
+              {transaction.category === 'treatment' ? 'علاج أسنان' :
+               transaction.category === 'consultation' ? 'كشفية / استشارة' :
+               transaction.category === 'salary' ? 'رواتب طاقم' :
+               transaction.category === 'rent' ? 'إيجار' :
+               transaction.category === 'materials' ? 'مواد طبية' :
+               transaction.category === 'bills' ? 'فواتير وخدمات' :
+               transaction.category === 'lab' ? 'مختبر أسنان' : 'أخرى'}
+            </span>
+          </div>
+          {transaction.description && (
+            <div>
+              <span className="block text-xs text-gray-400">التفاصيل / الوصف</span>
+              <p className="text-sm text-gray-700 mt-0.5 leading-relaxed">{transaction.description}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Related Persons */}
+        <div className="space-y-3 bg-white p-4 rounded-xl border border-gray-100">
+          {transaction.relatedPerson && (
+            <div className="flex items-center justify-between border-b pb-2 mb-2 last:border-0 last:pb-0 last:mb-0">
+              <div>
+                <span className="block text-xs text-gray-400">المراجع (المريض)</span>
+                <span className="text-sm font-bold text-gray-900">{transaction.relatedPerson}</span>
+              </div>
+              {transaction.patientId && (
+                <button
+                  onClick={() => {
+                    onClose();
+                    navigate(`/doctor/clinic/${clinicId}/patient/${transaction.patientId}`);
+                  }}
+                  className="text-xs px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg font-bold transition-all"
+                >
+                  👁️ دخول ملف المريض
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Doctor Info */}
+          {(transaction.doctorName || transaction.assigned_doctor) && (
+            <div className="flex items-center justify-between border-b pb-2 mb-2 last:border-0 last:pb-0 last:mb-0">
+              <div>
+                <span className="block text-xs text-gray-400">الطبيب المعالج</span>
+                <span className="text-sm font-bold text-gray-900">
+                  {getDoctorDisplayName(transaction.doctorName || transaction.assigned_doctor, staff)}
+                </span>
+              </div>
+              {(doctor?.id || transaction.doctorId) && (
+                <button
+                  onClick={() => {
+                    onClose();
+                    navigate(`/doctor/clinic/${clinicId}?tab=staff`);
+                  }}
+                  className="text-xs px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg font-bold transition-all"
+                >
+                  💼 ملف الطبيب
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Staff Member Info (For expense salaries) */}
+          {(transaction.staffName || staffMember) && (
+            <div className="flex items-center justify-between border-b pb-2 mb-2 last:border-0 last:pb-0 last:mb-0">
+              <div>
+                <span className="block text-xs text-gray-400">الموظف المعني (المصروف له)</span>
+                <span className="text-sm font-bold text-gray-900">{transaction.staffName || staffMember?.name}</span>
+              </div>
+              {(staffMember?.id || transaction.staffId) && (
+                <button
+                  onClick={() => {
+                    onClose();
+                    navigate(`/doctor/clinic/${clinicId}?tab=staff`);
+                  }}
+                  className="text-xs px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg font-bold transition-all"
+                >
+                  💼 ملف الموظف
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Recorder Info */}
+          {transaction.recorderName && (
+            <div>
+              <span className="block text-xs text-gray-400">المستلم / الموظف المسجل</span>
+              <span className="text-sm text-gray-700 font-medium">{transaction.recorderName}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Actions Footer */}
+        <div className="pt-4 border-t flex justify-end gap-2.5">
+          <Button variant="outline" onClick={onClose} size="sm">إغلاق</Button>
+          {canEdit && (
+            <Button
+              variant="primary"
+              onClick={() => {
+                onClose();
+                onEdit();
+              }}
+              size="sm"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              📝 تعديل المعاملة
+            </Button>
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
+const getDoctorDisplayName = (doctorVal: string, staffList: any[]) => {
+  if (!doctorVal) return 'غير محدد';
+  const cleanVal = doctorVal.trim().toLowerCase();
+  const doc = staffList.find(s => 
+    s.email?.toLowerCase() === cleanVal || 
+    s.name?.toLowerCase() === cleanVal || 
+    s.id?.toString() === cleanVal ||
+    s.userId?.toLowerCase() === cleanVal ||
+    s.authUserId?.toLowerCase() === cleanVal
+  );
+  if (doc) {
+    const nameWithoutDr = doc.name.replace(/^د\.\s*/, '');
+    return `د. ${nameWithoutDr}`;
+  }
+  if (doctorVal.includes('@')) {
+    const part = doctorVal.split('@')[0];
+    const cleanName = part.split(/[\._]/).map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    return `د. ${cleanName}`;
+  }
+  const cleanDr = doctorVal.replace(/^د\.\s*/, '');
+  return `د. ${cleanDr}`;
+};
 
 interface DoctorFinancePageProps {
   clinicId?: string;
@@ -57,12 +259,31 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'income' | 'expenses' | 'receivables' | 'settings'>('overview');
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const [isOwner, setIsOwner] = useState(false);
+  useEffect(() => {
+    const checkOwner = async () => {
+      if (!clinicId || !user?.id) return;
+      const { data } = await supabase
+        .from('clinics')
+        .select('owner_id')
+        .eq('id', clinicId)
+        .maybeSingle();
+      if (data && data.owner_id === user.id) {
+        setIsOwner(true);
+      }
+    };
+    checkOwner();
+  }, [clinicId, user?.id]);
 
   // Data Contexts
   const { transactions, stats, addTransaction, updateTransaction, deleteTransaction, refresh } = useFinance(clinicId || '0');
   const { inventory, updateItem, addItem } = useInventory(clinicId || '0');
   const { updateOrderStatus } = useLabOrders({ clinicId: clinicId || '0' });
   const { assets, addAsset } = useAssets(clinicId || '0');
+  const { staff } = useStaff(clinicId || '0');
 
   // Receivables State
   const [receivables, setReceivables] = useState<any[]>([]);
@@ -108,6 +329,17 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
   const [modalType, setModalType] = useState<'income' | 'expense'>('income');
   const [preselectedPatientId, setPreselectedPatientId] = useState<string | undefined>(undefined);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
+  
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedDetailsTransaction, setSelectedDetailsTransaction] = useState<any>(null);
+
+  const currentStaff = staff.find(s => 
+    s.userId === user?.id || 
+    s.authUserId === user?.id || 
+    (s.email && user?.email && s.email.toLowerCase() === user.email.toLowerCase())
+  );
+  
+  const canEditFinancials = isOwner || currentStaff?.permissions?.editFinancials || currentStaff?.permissions?.assistantManager;
 
   const handleEdit = (transaction: any) => {
     // Format data to match what modal expects
@@ -435,12 +667,10 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
           <table className="w-full text-right">
             <thead className="bg-gray-50 text-gray-500 text-sm font-medium border-b">
               <tr>
-                <th className="px-6 py-4 rounded-tr-lg">المعرف</th>
-                <th className="px-6 py-4">التاريخ</th>
-                <th className="px-6 py-4">المريض / المصدر</th>
+                <th className="px-6 py-4 rounded-tr-lg">المعرف / التاريخ</th>
+                <th className="px-6 py-4">المريض</th>
                 <th className="px-6 py-4">التفاصيل</th>
                 <th className="px-6 py-4">المبلغ</th>
-                <th className="px-6 py-4">طريقة الدفع</th>
                 <th className="px-6 py-4">المستلم (الموظف)</th>
                 <th className="px-6 py-4 rounded-tl-lg">إجراءات</th>
               </tr>
@@ -448,7 +678,7 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
             <tbody className="divide-y divide-gray-100">
               {transactions.filter(t => t.type === 'income').length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-12 text-gray-400">
+                  <td colSpan={6} className="text-center py-12 text-gray-400">
                     <div className="flex flex-col items-center gap-2">
                       <Wallet className="w-12 h-12 stroke-1 opacity-20" />
                       <p>لا توجد إيرادات مسجلة حتى الآن</p>
@@ -458,20 +688,24 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
               ) : (
                 transactions.filter(t => t.type === 'income').map(t => (
                   <tr key={t.id} className="hover:bg-gray-50 transition-colors group">
-                    <td className="px-6 py-4 font-mono text-xs text-gray-400">
-                      <span className="bg-gray-100 px-2 py-1 rounded">#{t.id.slice(-6)}</span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      <div className="font-bold text-gray-900">{t.date.split('T')[0]}</div>
-                      <div className="text-xs text-gray-400">{t.date.split('T')[1]?.slice(0, 5)}</div>
+                    <td className="px-6 py-4">
+                      <span className="bg-gray-100 px-2 py-1 rounded font-mono text-xs text-gray-600 inline-block">
+                        #{t.id.slice(-6)}
+                      </span>
+                      <div className="text-xs text-gray-500 mt-1">
+                        <span>{t.date.split('T')[0]}</span>
+                        <span className="text-gray-400 mr-1.5">{t.date.split('T')[1]?.slice(0, 5)}</span>
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       {t.relatedPerson ? (
                         <>
-                          <span className="block font-bold text-gray-900">{t.relatedPerson}</span>
-                          <span className="text-xs text-gray-500">
-                            {t.category === 'other' ? (t.description || 'إيراد آخر') : 'ملف المريض'}
-                          </span>
+                          <span className="block font-semibold text-sm text-gray-900">{t.relatedPerson}</span>
+                          {t.doctorName && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 block w-fit mt-1">
+                              د. {t.doctorName.replace(/^د\.\s*/, '')}
+                            </span>
+                          )}
                         </>
                       ) : (
                         t.category === 'other' ? (
@@ -488,11 +722,6 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100">
                             {t.category === 'treatment' ? 'علاج' : t.category === 'consultation' ? 'كشفية' : t.category}
                           </span>
-                          {t.doctorName && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
-                              د. {t.doctorName}
-                            </span>
-                          )}
                         </div>
                       </div>
                     </td>
@@ -500,15 +729,7 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
                       +{t.amount.toLocaleString()}
                       <span className="text-xs text-gray-400 mr-1 font-normal">د.ع</span>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border ${t.paymentMethod === 'cash'
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                        : t.paymentMethod === 'card' ? 'bg-purple-50 text-purple-700 border-purple-100' : 'bg-gray-100 text-gray-600'
-                        }`}>
-                        <CreditCard className="w-3 h-3" />
-                        {t.paymentMethod === 'cash' ? 'نقدي' : t.paymentMethod === 'card' ? 'بطاقة' : 'آجل'}
-                      </span>
-                    </td>
+                    {/* Removed Payment Method column */}
                     <td className="px-6 py-4">
                       {t.recorderName ? (
                         <div className="flex items-center gap-1.5">
@@ -527,9 +748,12 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
                       ) : (
                         <div className="flex items-center gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
-                            onClick={() => handleEdit(t)}
+                            onClick={() => {
+                              setSelectedDetailsTransaction(t);
+                              setShowDetailsModal(true);
+                            }}
                             className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="عرض وتعديل"
+                            title="عرض التفاصيل"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
@@ -650,9 +874,12 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
-                          onClick={() => handleEdit(t)}
+                          onClick={() => {
+                            setSelectedDetailsTransaction(t);
+                            setShowDetailsModal(true);
+                          }}
                           className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="عرض وتعديل"
+                          title="عرض التفاصيل"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
@@ -771,8 +998,10 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
               onChange={e => setDoctorFilter(e.target.value)}
             >
               <option value="">كل الأطباء المعالجين</option>
-              {uniqueDoctors.map((doc: any) => (
-                <option key={doc} value={doc}>{doc}</option>
+              {uniqueDoctors.map((docVal: any) => (
+                <option key={docVal} value={docVal}>
+                  {getDoctorDisplayName(docVal, staff)}
+                </option>
               ))}
             </select>
           </div>
@@ -816,7 +1045,7 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
                     <tr key={r.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="font-bold text-gray-900">{r.patientName}</div>
-                        <div className="text-xs text-gray-400 mt-0.5">الطبيب: {r.assigned_doctor || 'غير محدد'}</div>
+                        <div className="text-xs text-gray-400 mt-0.5">الطبيب: {getDoctorDisplayName(r.assigned_doctor, staff)}</div>
                       </td>
                       <td className="px-6 py-4">
                         <span className="inline-block px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-xs font-semibold">
@@ -860,7 +1089,7 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
                               category: 'treatment',
                               patientId: r.patient_id,
                               treatmentId: r.id,
-                              description: `تسديد دفعة علاج - ${r.treatment_description || 'خطة علاجية'}`
+                              description: `قسط: ${r.treatment_description || 'خطة علاجية'}`
                             });
                             setShowModal(true);
                           }}
@@ -1021,6 +1250,19 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
             alert('حدث خطأ أثناء الحفظ');
           }
         }}
+      />
+
+      <TransactionDetailsModal
+        isOpen={showDetailsModal}
+        onClose={() => {
+          setShowDetailsModal(false);
+          setSelectedDetailsTransaction(null);
+        }}
+        transaction={selectedDetailsTransaction}
+        staff={staff}
+        canEdit={canEditFinancials}
+        onEdit={() => handleEdit(selectedDetailsTransaction)}
+        clinicId={clinicId || '0'}
       />
     </div>
   );

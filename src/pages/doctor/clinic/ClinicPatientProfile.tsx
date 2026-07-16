@@ -1403,7 +1403,7 @@ export const ClinicPatientProfile = () => {
         type: 'income',
         amount: amount,
         date: new Date().toISOString(),
-        description: `تسديد قسط للخطة العلاجية: ${plan.notes || getTreatmentLabel(plan.type)}`,
+        description: `قسط: ${plan.notes || getTreatmentLabel(plan.type)}`,
         category: 'treatment',
         paymentMethod: 'cash',
         patientId,

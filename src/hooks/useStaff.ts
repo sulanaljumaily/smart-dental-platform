@@ -43,6 +43,7 @@ export interface StaffMember {
         appointments: boolean;
         patients: boolean;
         financials: boolean;
+        editFinancials: boolean;
         settings: boolean;
         reports: boolean;
         activityLog: boolean;
@@ -160,6 +161,7 @@ export const useStaff = (clinicId?: string) => {
                         appointments: false,
                         patients: false,
                         financials: false,
+                        editFinancials: false,
                         settings: false,
                         reports: false,
                         activityLog: false,
@@ -204,7 +206,7 @@ export const useStaff = (clinicId?: string) => {
                     languages: ['العربية'],
                     notes: '',
                     permissions: {
-                        appointments: false, patients: false, financials: false, settings: false, reports: false, activityLog: false, assets: false, staff: false, manageStaff: false, lab: false, assistantManager: false
+                        appointments: false, patients: false, financials: false, editFinancials: false, settings: false, reports: false, activityLog: false, assets: false, staff: false, manageStaff: false, lab: false, assistantManager: false
                     },
                     isLinkedAccount: false,
                     avatar: inv.email ? inviteAvatars[inv.email] : ''
