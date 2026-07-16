@@ -272,6 +272,7 @@ button {
   max-width: 340px !important;
   height: auto !important;
   min-height: 0 !important;
+  margin-inline: auto !important; /* Centering fix */
   
   /* Entry animation (fades and slides up smoothly) */
   animation: toast-slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
@@ -340,7 +341,8 @@ button {
 
 /* Exit/removal animation */
 [data-sonner-toast][data-removed="true"] {
-  animation: toast-scale-out 0.2s cubic-bezier(0.36, 0, 0.66, -0.56) 0.35s forwards !important;
+  /* Use a dummy wait animation to force Sonner to wait for the entire 0.7s duration */
+  animation: dummy-wait 0.7s forwards, toast-slide-out 0.3s cubic-bezier(0.36, 0, 0.66, -0.56) 0.4s forwards !important;
   border-radius: 100px !important;
 }
 
@@ -353,6 +355,10 @@ button {
 }
 
 /* Keyframes */
+@keyframes dummy-wait {
+  to { opacity: 1; }
+}
+
 @keyframes toast-slide-in {
   0% {
     opacity: 0;
@@ -364,14 +370,14 @@ button {
   }
 }
 
-@keyframes toast-scale-out {
+@keyframes toast-slide-out {
   0% {
     opacity: 1;
-    transform: scale(1);
+    transform: translateY(0) scale(1);
   }
   100% {
     opacity: 0;
-    transform: scale(0.8);
+    transform: translateY(20px) scale(0.9);
   }
 }
 
