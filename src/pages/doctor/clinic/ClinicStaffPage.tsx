@@ -74,7 +74,13 @@ export const ClinicStaffPage: React.FC<ClinicStaffPageProps> = ({ clinicId }) =>
     };
     checkOwner();
   }, [clinicId, user?.id]);
-  const currentStaffPermissions = staff.find(s => s.email === user?.email)?.permissions;
+  const currentStaffPermissions = staff.find(s => 
+    s.userId === user?.id || 
+    s.authUserId === user?.id || 
+    (s.email && user?.email && s.email.toLowerCase() === user.email.toLowerCase()) ||
+    (s.name && user?.name && s.name.toLowerCase().trim() === user.name.toLowerCase().trim()) ||
+    (s.name && user?.name && s.name.toLowerCase().replace(/^د\.\s*/, '').trim() === user.name.toLowerCase().replace(/^د\.\s*/, '').trim())
+  )?.permissions;
 
 
   // Mock stats calculation (Client-side for now)

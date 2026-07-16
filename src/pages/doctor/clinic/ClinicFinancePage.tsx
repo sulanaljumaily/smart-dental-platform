@@ -177,26 +177,7 @@ export const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = (
             </div>
           )}
 
-          {/* Staff Member Info (For expense salaries) */}
-          {(transaction.staffName || staffMember) && (
-            <div className="flex items-center justify-between border-b pb-2 mb-2 last:border-0 last:pb-0 last:mb-0">
-              <div>
-                <span className="block text-xs text-gray-400">الموظف المعني (المصروف له)</span>
-                <span className="text-sm font-bold text-gray-900">{transaction.staffName || staffMember?.name}</span>
-              </div>
-              {(staffMember?.id || transaction.staffId) && (
-                <button
-                  onClick={() => {
-                    onClose();
-                    navigate(`/doctor/clinic/${clinicId}?tab=staff`);
-                  }}
-                  className="text-xs px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg font-bold transition-all"
-                >
-                  💼 ملف الموظف
-                </button>
-              )}
-            </div>
-          )}
+
 
           {/* Recorder Info */}
           {transaction.recorderName && (
@@ -337,7 +318,9 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
   const currentStaff = staff.find(s => 
     s.userId === user?.id || 
     s.authUserId === user?.id || 
-    (s.email && user?.email && s.email.toLowerCase() === user.email.toLowerCase())
+    (s.email && user?.email && s.email.toLowerCase() === user.email.toLowerCase()) ||
+    (s.name && user?.name && s.name.toLowerCase().trim() === user.name.toLowerCase().trim()) ||
+    (s.name && user?.name && s.name.toLowerCase().replace(/^د\.\s*/, '').trim() === user.name.toLowerCase().replace(/^د\.\s*/, '').trim())
   );
   
   const canEditFinancials = isOwner || currentStaff?.permissions?.editFinancials || currentStaff?.permissions?.assistantManager;

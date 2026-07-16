@@ -147,6 +147,14 @@ export const useFinance = (clinicId?: string, patientId?: string, staffId?: stri
 
     const syncTreatmentPlanPaidAmount = async (treatmentId: string) => {
         if (!treatmentId) return;
+
+        // Verify it is a valid UUID to prevent database cast errors (e.g., static IDs like 'endo_1')
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(treatmentId);
+        if (!isUuid) {
+            console.log('[useFinance] Skipping treatment plan paid sync for non-UUID treatmentId:', treatmentId);
+            return;
+        }
+
         try {
             // 1. Calculate sum of income transactions for this treatment plan
             const { data: txData, error: txError } = await supabase
@@ -201,7 +209,7 @@ export const useFinance = (clinicId?: string, patientId?: string, staffId?: stri
                 inventory_item_id: t.inventoryItemId || null,
                 lab_request_id: t.labRequestId || null,
                 extra_cost: t.extraCost || 0
-            }).select('*, patient:patients!fk_fin_patients(full_name), staff_record:staff!fk_fin_staff_record(full_name)').single();
+            }).select('*, patient:patients!fk_fin_patients(full_name), staff_record:staff!fk_fin_staff_record(full_name), recorder_staff:staff!fk_fin_recorded_by_staff(full_name)').single();
 
             if (error) throw error;
 
@@ -225,10 +233,10 @@ export const useFinance = (clinicId?: string, patientId?: string, staffId?: stri
                 description: data.description || t.description,
                 category: data.category,
                 paymentMethod: data.payment_method || 'cash',
-                recordedById: data.recorded_by?.toString(),
-                recorderName: data.recorder_profile?.full_name || 'مسؤول النظام',
-                relatedPerson: data.patient?.full_name || (data.type === 'expense' && data.category === 'salary' ? (data.staff_record?.full_name || data.doctor_profile?.full_name) : ''),
-                doctorName: data.doctor_profile?.full_name || data.staff_record?.full_name || '',
+                recordedById: data.recorded_by_staff_id?.toString(),
+                recorderName: data.recorder_staff?.full_name || 'مسؤول النظام',
+                relatedPerson: data.patient?.full_name || (data.type === 'expense' && data.category === 'salary' ? data.staff_record?.full_name : ''),
+                doctorName: data.staff_record?.full_name || '',
                 // Map other potential fields if needed for immediate display
                 patientId: t.patientId,
                 doctorId: t.doctorId

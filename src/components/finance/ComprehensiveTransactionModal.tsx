@@ -158,7 +158,9 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                 const currentStaff = staff.find(s => 
                     s.userId === user?.id || 
                     s.authUserId === user?.id || 
-                    (s.email && user?.email && s.email.toLowerCase() === user.email.toLowerCase())
+                    (s.email && user?.email && s.email.toLowerCase() === user.email.toLowerCase()) ||
+                    (s.name && user?.name && s.name.toLowerCase().trim() === user.name.toLowerCase().trim()) ||
+                    (s.name && user?.name && s.name.toLowerCase().replace(/^د\.\s*/, '').trim() === user.name.toLowerCase().replace(/^د\.\s*/, '').trim())
                 );
                 setFormData(prev => ({
                     ...prev,
@@ -180,7 +182,9 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                 const currentStaff = staff.find(s => 
                     s.userId === user?.id || 
                     s.authUserId === user?.id || 
-                    (s.email && user?.email && s.email.toLowerCase() === user.email.toLowerCase())
+                    (s.email && user?.email && s.email.toLowerCase() === user.email.toLowerCase()) ||
+                    (s.name && user?.name && s.name.toLowerCase().trim() === user.name.toLowerCase().trim()) ||
+                    (s.name && user?.name && s.name.toLowerCase().replace(/^د\.\s*/, '').trim() === user.name.toLowerCase().replace(/^د\.\s*/, '').trim())
                 );
                 setFormData(prev => ({
                     ...prev,
@@ -211,20 +215,19 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
     const handleLabOrderSelect = (orderId: string) => {
         const order = labOrders.find(o => o.id === orderId);
         if (order) {
-            setFormData({
-                ...formData,
+            setFormData(prev => ({
+                ...prev,
                 labRequestId: order.id,
                 labId: order.laboratory_id || '',
                 amount: order.final_amount || 0,
-                // Also auto-fill filters for context if not set, or just visual feedback? 
-                // Let's not force-set filters to avoid confusion, but we could validly deduce them.
-            });
+                description: `دفعات مختبر للطلب #${order.id.slice(-6)}`
+            }));
             // Optional: Auto-set filters to match selected order for clarity
             if (order.laboratory_id) setLabFilter(order.laboratory_id);
             if (order.patient_id) setPatientFilter(order.patient_id);
             if (order.doctor_id) setDoctorFilter(order.doctor_id);
         } else {
-            setFormData({ ...formData, labRequestId: '', labId: '', amount: '' });
+            setFormData(prev => ({ ...prev, labRequestId: '', labId: '', amount: '' }));
         }
     };
 
@@ -235,11 +238,34 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
             return;
         }
 
+        let finalDescription = formData.description;
+        if (!finalDescription || finalDescription.trim() === '') {
+            if (formData.category === 'treatment') {
+                const treatment = treatments.find(t => t.id === formData.treatmentId);
+                finalDescription = treatment ? `علاج: ${treatment.name}` : 'علاج أسنان';
+            } else if (formData.category === 'consultation') {
+                finalDescription = 'كشفية / استشارة';
+            } else if (formData.category === 'salary') {
+                const selectedStaff = staff.find(s => s.id === formData.staffId);
+                finalDescription = selectedStaff ? `راتب: ${selectedStaff.name}` : 'راتب موظف';
+            } else if (formData.category === 'inventory') {
+                finalDescription = formData.itemName ? `شراء مستلزمات: ${formData.itemName}` : 'شراء مستلزمات مخزون';
+            } else if (formData.category === 'lab') {
+                finalDescription = 'دفعات مختبر';
+            } else if (formData.category === 'rent') {
+                finalDescription = 'إيجار العيادة';
+            } else if (formData.category === 'bills') {
+                finalDescription = 'فواتير ومصاريف تشغيلية';
+            } else {
+                finalDescription = type === 'income' ? 'إيراد متنوع' : 'مصروف متنوع';
+            }
+        }
+
         await onSave({
             type: type,
             amount: typeof formData.amount === 'string' ? parseFloat(formData.amount) : formData.amount,
             category: formData.category,
-            description: formData.description,
+            description: finalDescription,
             date: formData.date,
             paymentMethod: formData.paymentMethod,
             clinicId: clinicId,
@@ -291,7 +317,13 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                                 <select
                                     value={formData.category}
                                     onChange={e => {
-                                        setFormData({ ...formData, category: e.target.value, treatmentId: '' });
+                                        const newCat = e.target.value;
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            category: newCat,
+                                            treatmentId: '',
+                                            description: newCat === 'consultation' ? 'كشفية / استشارة' : prev.description
+                                        }));
                                     }}
                                     className="w-full border rounded-lg p-2.5 text-right focus:ring-2 focus:ring-green-500 bg-white"
                                 >
@@ -304,7 +336,15 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                                 <select
                                     value={formData.category}
                                     onChange={e => {
-                                        setFormData({ ...formData, category: e.target.value });
+                                        const newCat = e.target.value;
+                                        let defaultDesc = formData.description;
+                                        if (newCat === 'rent') defaultDesc = 'إيجار العيادة';
+                                        else if (newCat === 'bills') defaultDesc = 'فواتير ومصاريف تشغيلية';
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            category: newCat,
+                                            description: defaultDesc
+                                        }));
                                     }}
                                     className="w-full border rounded-lg p-2.5 text-right focus:ring-2 focus:ring-red-500 bg-white"
                                 >
@@ -373,11 +413,12 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                                             onChange={e => {
                                                 const tId = e.target.value;
                                                 const treatment = treatments.find(t => t.id === tId);
-                                                setFormData({
-                                                    ...formData,
+                                                setFormData(prev => ({
+                                                    ...prev,
                                                     treatmentId: tId,
-                                                    amount: treatment ? treatment.basePrice : 0
-                                                });
+                                                    amount: treatment ? treatment.basePrice : 0,
+                                                    description: treatment ? `علاج: ${treatment.name}` : prev.description
+                                                }));
                                             }}
                                         >
                                             <option value="">اختر العلاج...</option>
@@ -532,7 +573,12 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                                             autoAmount = Math.max(0, (generatedIncome * (percentage / 100)) - totalPaidSalaries);
                                         }
                                     }
-                                    setFormData({ ...formData, staffId: selectedId, amount: autoAmount });
+                                    setFormData(prev => ({
+                                        ...prev,
+                                        staffId: selectedId,
+                                        amount: autoAmount,
+                                        description: selectedStaff ? `راتب: ${selectedStaff.name}` : prev.description
+                                    }));
                                 }}
                             >
                                 <option value="">اختر الموظف...</option>
@@ -688,7 +734,12 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                                     value={formData.inventoryItemId || ''}
                                     onChange={e => {
                                         const item = inventoryItems.find(i => i.id === e.target.value);
-                                        setFormData({ ...formData, inventoryItemId: e.target.value, itemName: item?.name || '' });
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            inventoryItemId: e.target.value,
+                                            itemName: item?.name || '',
+                                            description: item ? `شراء مستلزمات: ${item.name}` : prev.description
+                                        }));
                                     }}
                                 >
                                     <option value="">اختر من المخزون (اختياري)...</option>
@@ -704,7 +755,14 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                                         type="text"
                                         className="w-full border rounded-lg p-2.5 text-right bg-white"
                                         value={formData.itemName}
-                                        onChange={e => setFormData({ ...formData, itemName: e.target.value })}
+                                        onChange={e => {
+                                            const name = e.target.value;
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                itemName: name,
+                                                description: name ? `شراء مستلزمات: ${name}` : prev.description
+                                            }));
+                                        }}
                                         placeholder="اسم المادة..."
                                     />
                                 </div>
