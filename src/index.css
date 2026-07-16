@@ -259,29 +259,28 @@ button {
   -webkit-backdrop-filter: blur(16px) !important;
   border: 1px solid rgba(255, 255, 255, 0.5) !important;
   box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.02) !important;
-  border-radius: 14px !important;
-  padding: 8px 12px !important;
+  border-radius: 100px !important; /* Rounded like a pill initially */
+  padding: 6px 12px !important;
   font-family: 'Cairo', sans-serif !important;
   overflow: hidden !important;
   display: flex !important;
   align-items: center !important;
   gap: 8px !important;
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
-  min-width: 260px !important;
+  min-width: min-content !important;
+  width: max-content !important;
   max-width: 340px !important;
   height: auto !important;
-  min-height: auto !important;
+  min-height: 0 !important;
   
   /* Entry animation (fades and slides up smoothly) */
   animation: toast-slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
 }
 
-/* Hover expansion effect */
-[data-sonner-toast]:hover {
-  transform: translateY(-2px) scale(1.03) !important;
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.12), 0 2px 5px rgba(0, 0, 0, 0.03) !important;
-  background: rgba(255, 255, 255, 0.9) !important;
+[data-sonner-toast][data-expanded="true"] {
+  border-radius: 14px !important; /* Expands to rounded rect */
 }
+
 
 [data-sonner-toast][data-type="success"] {
   border-right: 4px solid #10B981 !important;
@@ -341,22 +340,23 @@ button {
 
 /* Exit/removal animation */
 [data-sonner-toast][data-removed="true"] {
-  animation: toast-slide-out 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0.5s forwards !important;
+  animation: toast-scale-out 0.2s cubic-bezier(0.36, 0, 0.66, -0.56) 0.35s forwards !important;
+  border-radius: 100px !important;
 }
 
 [data-sonner-toast][data-removed="true"] [data-icon] {
-  animation: circle-shrink 0.3s cubic-bezier(0.36, 0, 0.66, -0.56) 0.3s forwards !important;
+  animation: circle-shrink 0.2s cubic-bezier(0.36, 0, 0.66, -0.56) 0.2s forwards !important;
 }
 
 [data-sonner-toast][data-removed="true"] [data-content] {
-  animation: text-collapse 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  animation: text-collapse 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
 }
 
 /* Keyframes */
 @keyframes toast-slide-in {
   0% {
     opacity: 0;
-    transform: translateY(20px) scale(0.95);
+    transform: translateY(20px) scale(0.9);
   }
   100% {
     opacity: 1;
@@ -364,23 +364,23 @@ button {
   }
 }
 
-@keyframes toast-slide-out {
+@keyframes toast-scale-out {
   0% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: scale(1);
   }
   100% {
     opacity: 0;
-    transform: translateY(20px) scale(0.95);
+    transform: scale(0.8);
   }
 }
 
 @keyframes circle-pop {
   0% {
-    transform: scale(0);
+    transform: scale(0) rotate(-45deg);
   }
   100% {
-    transform: scale(1);
+    transform: scale(1) rotate(0);
   }
 }
 
@@ -397,12 +397,10 @@ button {
   0% {
     max-width: 0;
     opacity: 0;
-    transform: translateX(10px);
   }
   100% {
     max-width: 300px;
     opacity: 1;
-    transform: translateX(0);
   }
 }
 
@@ -410,11 +408,9 @@ button {
   0% {
     max-width: 300px;
     opacity: 1;
-    transform: translateX(0);
   }
   100% {
     max-width: 0;
     opacity: 0;
-    transform: translateX(10px);
   }
 }
