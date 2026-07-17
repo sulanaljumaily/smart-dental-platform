@@ -59,8 +59,13 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
         let needsUpdate = false;
         let updatedSessions = [...sessions];
 
+        const normalizeVal = (val: any) => {
+            if (val === undefined || val === null) return '';
+            return String(val).trim();
+        };
+
         // Sync: Access -> Cleaning
-        if (accessSession?.data?.canals_data && cleaningSession && cleaningSession.status === 'pending') {
+        if (accessSession?.data?.canals_data && cleaningSession) {
             const definedCanals = (accessSession.data.canals_data as any[]) || [];
             const currentPrepData = (cleaningSession.data?.canal_prep as any[]) || [];
 
@@ -83,7 +88,7 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
                 if (existingIndex !== -1) {
                     matchedIndices.add(existingIndex);
                     const existing = currentPrepData[existingIndex];
-                    const hasWlChanged = !existing.wl && sourceCanal.wl;
+                    const hasWlChanged = sourceCanal.wl && normalizeVal(existing.wl) !== normalizeVal(sourceCanal.wl);
 
                     if (hasWlChanged) {
                         changed = true;
@@ -93,7 +98,7 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
                         name: sourceCanal.name || '',
                         size: existing.size || '',
                         taper: existing.taper || '04',
-                        wl: existing.wl || sourceCanal.wl || ''
+                        wl: hasWlChanged ? sourceCanal.wl : (existing.wl || sourceCanal.wl || '')
                     });
                 } else {
                     newPrepData.push({
@@ -130,7 +135,7 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
         // Sync: Cleaning -> Filling (Chained: Use updatedSessions to get the latest Cleaning data)
         const updatedCleaningSession = updatedSessions.find(s => s.schemaId === 'endo_cleaning');
 
-        if (updatedCleaningSession?.data?.canal_prep && fillSession && fillSession.status === 'pending') {
+        if (updatedCleaningSession?.data?.canal_prep && fillSession) {
             const prepData = (updatedCleaningSession.data.canal_prep as any[]) || [];
             const currentFillData = (fillSession.data?.obturation_data as any[]) || [];
 
@@ -152,8 +157,8 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
                 if (existingIndex !== -1) {
                     matchedIndices.add(existingIndex);
                     const existing = currentFillData[existingIndex];
-                    const hasConeSizeChanged = !existing.cone_size && sourceCanal.size;
-                    const hasLengthChanged = !existing.length && sourceCanal.wl;
+                    const hasConeSizeChanged = sourceCanal.size && normalizeVal(existing.cone_size) !== normalizeVal(sourceCanal.size);
+                    const hasLengthChanged = sourceCanal.wl && normalizeVal(existing.length) !== normalizeVal(sourceCanal.wl);
 
                     if (hasConeSizeChanged || hasLengthChanged) {
                         changed = true;
@@ -161,8 +166,8 @@ export const TreatmentSessionManager: React.FC<TreatmentSessionManagerProps> = (
 
                     newFillData.push({
                         name: sourceCanal.name || '',
-                        cone_size: existing.cone_size || sourceCanal.size || '',
-                        length: existing.length || sourceCanal.wl || '',
+                        cone_size: hasConeSizeChanged ? sourceCanal.size : (existing.cone_size || sourceCanal.size || ''),
+                        length: hasLengthChanged ? sourceCanal.wl : (existing.length || sourceCanal.wl || ''),
                         tugback: existing.tugback || 'Good'
                     });
                 } else {
