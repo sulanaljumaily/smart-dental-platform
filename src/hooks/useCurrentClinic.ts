@@ -19,11 +19,11 @@ export const useCurrentClinic = () => {
             return;
         }
         fetchClinic();
-    }, [user]);
+    }, [user?.id]);
 
     const fetchClinic = async () => {
         try {
-            setLoading(true);
+            if (!clinic) setLoading(true);
 
             // 1. Check if Owner
             const { data: ownedClinic } = await supabase

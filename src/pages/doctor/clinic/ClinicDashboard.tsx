@@ -45,9 +45,19 @@ export const ClinicDashboard: React.FC = () => {
   const navigate = useNavigate();
   // const { t, language } = useLanguage();
   const [activeTab, setActiveTab] = useState('overview');
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(['overview']));
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const language = 'ar'; // ت временно
+
+  useEffect(() => {
+    setVisitedTabs(prev => {
+      if (prev.has(activeTab)) return prev;
+      const next = new Set(prev);
+      next.add(activeTab);
+      return next;
+    });
+  }, [activeTab]);
 
   // Use the hook to get clinics data
   const { clinics, loading } = useClinics();
@@ -282,8 +292,47 @@ export const ClinicDashboard: React.FC = () => {
       <main className="flex-1 overflow-y-auto pb-20">
         <div className="container mx-auto px-4 py-6">
 
-          {/* Active Content */}
-          {renderActiveSection()}
+          {/* Active Content — Persistent Tabs */}
+          {visitedTabs.has('overview') && (
+            <div className={activeTab === 'overview' ? 'block' : 'hidden'}>
+              <ClinicOverviewPage clinicId={clinic.id} defaultClinic={clinic} onNavigate={setActiveTab} />
+            </div>
+          )}
+          {visitedTabs.has('appointments') && (
+            <div className={activeTab === 'appointments' ? 'block' : 'hidden'}>
+              <ClinicAppointmentsPage clinicId={clinic.id} />
+            </div>
+          )}
+          {visitedTabs.has('patients') && (
+            <div className={activeTab === 'patients' ? 'block' : 'hidden'}>
+              <ClinicPatientsPage clinicId={clinic.id} />
+            </div>
+          )}
+          {visitedTabs.has('staff') && (
+            <div className={activeTab === 'staff' ? 'block' : 'hidden'}>
+              <ClinicStaffPage clinicId={clinic.id} />
+            </div>
+          )}
+          {visitedTabs.has('assets') && (
+            <div className={activeTab === 'assets' ? 'block' : 'hidden'}>
+              <ClinicAssetsPage clinicId={clinic.id} />
+            </div>
+          )}
+          {isOwner && visitedTabs.has('finance') && (
+            <div className={activeTab === 'finance' ? 'block' : 'hidden'}>
+              <ClinicFinancePage clinicId={clinic.id} />
+            </div>
+          )}
+          {isOwner && visitedTabs.has('reports') && (
+            <div className={activeTab === 'reports' ? 'block' : 'hidden'}>
+              <ClinicReportsPage clinicId={clinic.id} />
+            </div>
+          )}
+          {visitedTabs.has('lab') && (
+            <div className={activeTab === 'lab' ? 'block' : 'hidden'}>
+              <ClinicLabPage clinicId={clinic.id} />
+            </div>
+          )}
         </div>
       </main>
 

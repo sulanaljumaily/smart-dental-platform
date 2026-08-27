@@ -22,10 +22,13 @@ export interface PatientData {
     user_id?: string;
 }
 
+const patientsCache = new Map<string, PatientData[]>();
+
 export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
     const { user } = useAuth();
-    const [patients, setPatients] = useState<PatientData[]>([]);
-    const [loading, setLoading] = useState(false);
+    const cacheKey = clinicId || (clinicIds ? clinicIds.join(',') : 'all');
+    const [patients, setPatients] = useState<PatientData[]>(() => patientsCache.get(cacheKey) || []);
+    const [loading, setLoading] = useState(!patientsCache.has(cacheKey));
     const [error, setError] = useState<string | null>(null);
     const mountedRef = useRef(true);
 
@@ -33,10 +36,12 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
         mountedRef.current = true;
         fetchPatients();
         return () => { mountedRef.current = false; };
-    }, [clinicId, clinicIds?.join(','), user]);
+    }, [clinicId, clinicIds?.join(','), user?.id]);
 
     const fetchPatients = async () => {
-        setLoading(true);
+        if (!patientsCache.has(cacheKey)) {
+            setLoading(true);
+        }
         try {
             let query = supabase.from('patients').select('*').is('deleted_at', null);
 
@@ -80,6 +85,7 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
                 user_id: p.user_id
             }));
 
+            patientsCache.set(cacheKey, mappedPatients);
             setPatients(mappedPatients);
             setError(null);
         } catch (err: any) {

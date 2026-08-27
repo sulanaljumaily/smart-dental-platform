@@ -41,7 +41,7 @@ export const useDoctorSubscription = () => {
         if (!user) return;
 
         try {
-            setLoading(true);
+            if (!subscription) setLoading(true);
 
             // Fetch the latest approved subscription
             const { data, error } = await supabase
@@ -118,7 +118,7 @@ export const useDoctorSubscription = () => {
         mountedRef.current = true;
         fetchSubscription();
         return () => { mountedRef.current = false; };
-    }, [user]);
+    }, [user?.id]);
 
     return { subscription, loading, refresh: fetchSubscription };
 };

@@ -13,10 +13,12 @@ export const useClinics = () => {
         mountedRef.current = true;
         if (user) fetchClinics();
         return () => { mountedRef.current = false; };
-    }, [user]);
+    }, [user?.id]);
 
     const fetchClinics = async () => {
-        setLoading(true);
+        if (clinics.length === 0) {
+            setLoading(true);
+        }
         try {
             if (!user) return;
 

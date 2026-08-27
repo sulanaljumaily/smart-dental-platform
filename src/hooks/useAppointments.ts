@@ -2,9 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { Appointment } from '../types/appointments';
 import { supabase } from '../lib/supabase';
 
+const appointmentsCache = new Map<string, Appointment[]>();
+
 export const useAppointments = (clinicId?: string) => {
-    const [appointments, setAppointments] = useState<Appointment[]>([]);
-    const [loading, setLoading] = useState(true);
+    const cacheKey = clinicId || 'all';
+    const [appointments, setAppointments] = useState<Appointment[]>(() => appointmentsCache.get(cacheKey) || []);
+    const [loading, setLoading] = useState(!appointmentsCache.has(cacheKey));
     const mountedRef = useRef(true);
 
     useEffect(() => {
@@ -21,7 +24,9 @@ export const useAppointments = (clinicId?: string) => {
     }, [clinicId]);
 
     const fetchAppointments = async () => {
-        setLoading(true);
+        if (!appointmentsCache.has(cacheKey)) {
+            setLoading(true);
+        }
         try {
             // First try with 'appointment_date' column (actual DB schema)
             let query = supabase
@@ -141,6 +146,7 @@ export const useAppointments = (clinicId?: string) => {
                 };
             });
 
+            appointmentsCache.set(cacheKey, mappedAppointments);
             setAppointments(mappedAppointments);
         } catch (err: any) {
             if (err?.name === 'AbortError' || err?.message?.includes('AbortError')) return;

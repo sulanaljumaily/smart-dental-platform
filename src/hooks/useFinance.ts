@@ -3,10 +3,14 @@ import { supabase } from '../lib/supabase';
 import { Transaction } from '../types';
 import { useAppointments } from './useAppointments';
 
+const financeCache = new Map<string, { transactions: Transaction[]; stats: any }>();
+
 export const useFinance = (clinicId?: string, patientId?: string, staffId?: string) => {
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [stats, setStats] = useState({
+    const cacheKey = `${clinicId || 0}_${patientId || ''}_${staffId || ''}`;
+    const cached = financeCache.get(cacheKey);
+    const [transactions, setTransactions] = useState<Transaction[]>(cached?.transactions || []);
+    const [loading, setLoading] = useState(!cached);
+    const [stats, setStats] = useState(cached?.stats || {
         income: 0,
         expenses: 0,
         net: 0,
@@ -22,7 +26,9 @@ export const useFinance = (clinicId?: string, patientId?: string, staffId?: stri
     }, [clinicId, appointments, patientId, staffId]);
 
     const fetchFinancials = async () => {
-        setLoading(true);
+        if (!financeCache.has(cacheKey)) {
+            setLoading(true);
+        }
         try {
             // 1. Fetch Manual Transactions from Supabase
             console.log('Fetching financials for clinicId:', clinicId, 'patientId:', patientId, 'staffId:', staffId);
@@ -115,12 +121,15 @@ export const useFinance = (clinicId?: string, patientId?: string, staffId?: stri
 
             const growth = prevMonthIncome > 0 ? ((income - prevMonthIncome) / prevMonthIncome) * 100 : 0;
 
-            setStats({
+            const calculatedStats = {
                 income,
                 expenses,
                 net: income - expenses,
                 growth
-            });
+            };
+
+            financeCache.set(cacheKey, { transactions: allTransactions, stats: calculatedStats });
+            setStats(calculatedStats);
 
         } catch (err) {
             console.error('Finance fetch error:', err);

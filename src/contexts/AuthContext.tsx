@@ -23,6 +23,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const mountedRef = useRef(true);
   const fetchingRef = useRef(false); // Prevent concurrent fetchProfile calls
 
+  const userRef = useRef<User | null>(null);
+
+  const updateUserState = useCallback((newUser: User | null) => {
+    if (!newUser) {
+      userRef.current = null;
+      setUser(null);
+      return;
+    }
+
+    const prev = userRef.current;
+    if (
+      prev &&
+      prev.id === newUser.id &&
+      prev.email === newUser.email &&
+      prev.name === newUser.name &&
+      prev.role === newUser.role &&
+      prev.phone === newUser.phone &&
+      prev.avatar === newUser.avatar
+    ) {
+      // Data didn't change: preserve existing object reference to avoid re-rendering dependents
+      return;
+    }
+
+    userRef.current = newUser;
+    setUser(newUser);
+  }, []);
+
   // Build user object from profile DB row
   const buildUserFromProfile = (data: any, email: string): User => ({
     id: data.id,
@@ -74,7 +101,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (!mountedRef.current) return;
 
       if (!error && data) {
-        setUser(buildUserFromProfile(data, email));
+        updateUserState(buildUserFromProfile(data, email));
       } else {
         // Profile query failed or no row → fallback to auth metadata
         if (error && !error.message?.includes('AbortError')) {
@@ -82,19 +109,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
         const { data: { user: authUser } } = await supabase.auth.getUser();
         if (!mountedRef.current) return;
-        setUser(buildUserFromMeta(userId, email, authUser?.user_metadata));
+        updateUserState(buildUserFromMeta(userId, email, authUser?.user_metadata));
       }
     } catch (err: any) {
       if (err?.name === 'AbortError' || err?.message?.includes('AbortError')) return;
       console.error('[Auth] Unexpected error fetching profile:', err);
       if (mountedRef.current) {
-        setUser(buildUserFromMeta(userId, email));
+        updateUserState(buildUserFromMeta(userId, email));
       }
     } finally {
       fetchingRef.current = false;
       if (mountedRef.current) setLoading(false);
     }
-  }, []);
+  }, [updateUserState]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -108,7 +135,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (session?.user) {
           await fetchProfile(session.user.id, session.user.email!);
         } else {
-          setUser(null);
+          updateUserState(null);
           setLoading(false);
         }
       } catch (error: any) {
@@ -124,6 +151,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mountedRef.current) return;
 
+      // Ignore token refresh if user is already loaded and user ID matches
+      if (event === 'TOKEN_REFRESHED' && session?.user && userRef.current?.id === session.user.id) {
+        return;
+      }
+
       if (session?.user) {
         // Small delay to avoid racing with initial getSession
         setTimeout(() => {
@@ -132,7 +164,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           }
         }, 100);
       } else {
-        setUser(null);
+        updateUserState(null);
         setLoading(false);
       }
     });

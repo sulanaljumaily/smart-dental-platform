@@ -156,22 +156,27 @@ export const ClinicReportsPage: React.FC<ClinicReportsPageProps> = ({ clinicId }
           <div className="p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-6">اتجاه الإيرادات الشهرية</h2>
             <div className="space-y-4">
-              {stats.monthlyTrend.map((data: any, index: number) => (
-                <div key={index} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">{data.month}</span>
-                    <span className="text-sm font-medium text-gray-900">
-                      {(data.revenue / 1000).toFixed(1)}k د.ع
-                    </span>
+              {stats.monthlyTrend.map((data: any, index: number) => {
+                const maxRevenue = Math.max(...stats.monthlyTrend.map((d: any) => d.revenue || 0), 1);
+                const rawPercent = (data.revenue / maxRevenue) * 100;
+                const widthPercent = Math.min(100, Math.max(0, isNaN(rawPercent) ? 0 : rawPercent));
+                return (
+                  <div key={index} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">{data.month}</span>
+                      <span className="text-sm font-medium text-gray-900">
+                        {(data.revenue / 1000).toFixed(1)}k د.ع
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="bg-gradient-to-r from-blue-500 to-green-500 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${widthPercent}%` }}
+                      ></div>
+                    </div>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-gradient-to-r from-blue-500 to-green-500 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${(data.revenue / (stats.monthlyRevenue * 1.5 || 1)) * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </Card>
