@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { ArrowRight, AlertCircle, Heart, Zap, Shield, UserCheck, Phone, ChevronDown, ChevronUp, Stethoscope } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
@@ -231,6 +232,15 @@ export const DentalEmergencyPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 text-right" dir="rtl">
+      <Helmet>
+        <title>طوارئ الأسنان والإسعافات الأولية | Dental Platform</title>
+        <meta name="description" content="دليل التعامل الفوري مع طوارئ الأسنان والنزيف والكسور وإرشادات الإسعافات الأولية السريعة." />
+        <link rel="canonical" href="https://dental-platform.com/emergency/dental" />
+        <meta property="og:title" content="طوارئ الأسنان والإسعافات الأولية | Dental Platform" />
+        <meta property="og:description" content="دليل التعامل الفوري مع طوارئ الأسنان والنزيف والكسور وإرشادات الإسعافات الأولية السريعة." />
+        <meta property="og:url" content="https://dental-platform.com/emergency/dental" />
+      </Helmet>
+
       {/* Header - White Theme */}
       <div className="bg-white border-b border-gray-200 py-8 px-4 relative overflow-hidden">
         {/* Simple background pattern */}

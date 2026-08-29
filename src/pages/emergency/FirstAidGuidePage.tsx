@@ -3,6 +3,7 @@ import { ArrowRight, Heart, CheckCircle, ChevronDown, ChevronUp, AlertTriangle, 
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 
 interface FirstAidStep {
   id: number;
@@ -257,6 +258,15 @@ export const FirstAidGuidePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20 font-sans" dir="rtl">
+      <Helmet>
+        <title>دليل الإسعافات الأولية لطوارئ الأسنان | Dental Platform</title>
+        <meta name="description" content="إرشادات وخطوات عملية للتعامل الفوري مع آلام الأسنان الحادة، الكسور، والنزيف المفاجئ." />
+        <link rel="canonical" href="https://dental-platform.com/emergency/first-aid" />
+        <meta property="og:title" content="دليل الإسعافات الأولية لطوارئ الأسنان | Dental Platform" />
+        <meta property="og:description" content="إرشادات وخطوات عملية للتعامل الفوري مع آلام الأسنان الحادة، الكسور، والنزيف المفاجئ." />
+        <meta property="og:url" content="https://dental-platform.com/emergency/first-aid" />
+      </Helmet>
+
       {/* Hero Section */}
       <div className="bg-white border-b border-gray-200">
         <div className="container mx-auto px-4 py-8 md:py-12">

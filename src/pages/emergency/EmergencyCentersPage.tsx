@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { ArrowRight, MapPin, Phone, Clock, Star, Building2, Filter, Search, Heart, Stethoscope, Shield, Award } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
@@ -165,7 +166,16 @@ export const EmergencyCentersPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50" dir="rtl">
+      <Helmet>
+        <title>مراكز طوارئ الأسنان والمستشفيات في العراق | Dental Platform</title>
+        <meta name="description" content="دليل مراكز طوارئ الأسنان والمستشفيات الحكومية والخاصة المتاحة على مدار الساعة في المحافظات العراقية." />
+        <link rel="canonical" href="https://dental-platform.com/emergency/centers" />
+        <meta property="og:title" content="مراكز طوارئ الأسنان والمستشفيات في العراق | Dental Platform" />
+        <meta property="og:description" content="دليل مراكز طوارئ الأسنان والمستشفيات الحكومية والخاصة المتاحة على مدار الساعة في المحافظات العراقية." />
+        <meta property="og:url" content="https://dental-platform.com/emergency/centers" />
+      </Helmet>
+
       {/* Header */}
       {/* Header */}
       <div className="bg-white border-b border-gray-200 py-8 px-4 relative overflow-hidden">
