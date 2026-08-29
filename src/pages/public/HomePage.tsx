@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import {
   ArrowRight,
   CheckCircle,
@@ -22,8 +23,6 @@ export const HomePage: React.FC = () => {
   const { settings } = usePlatform();
   const { clinics } = usePublicClinics();
 
-
-
   const stats = [
     { number: 'عيادات', label: 'عيادات قريبة منك' },
     { number: 'تشخيص', label: 'تشخيص ذكي' },
@@ -33,6 +32,15 @@ export const HomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Helmet>
+        <title>DENTAL PLATFORM - منصة طب الأسنان المتكاملة</title>
+        <meta name="description" content="منصة طب الأسنان المتكاملة — أفضل أطباء وعيادات الأسنان بالقرب منك، نظام إدارة العيادات الذكي، مجتمع طبي، متجر المستلزمات السنية، ومختبرات الأسنان." />
+        <link rel="canonical" href="https://dental-platform.com/" />
+        <meta property="og:title" content="DENTAL PLATFORM - منصة طب الأسنان المتكاملة" />
+        <meta property="og:description" content="أفضل أطباء وعيادات الأسنان، نظام إدارة العيادات الذكي، والمجتمع الطبي المتكامل." />
+        <meta property="og:url" content="https://dental-platform.com/" />
+        <meta property="og:type" content="website" />
+      </Helmet>
       {/* Modern Hero Section - For Patients */}
       <section className="bg-gradient-to-br from-slate-50 via-white to-blue-50 text-gray-900 pt-8 pb-4 md:pt-12 md:pb-8 px-4 relative overflow-hidden">
         {/* Advanced Background Pattern */}

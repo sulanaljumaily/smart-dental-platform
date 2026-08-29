@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCommunity } from '../../../hooks/useCommunity';
+import { useAuth } from '../../../contexts/AuthContext';
+import { toast } from 'sonner';
 import { Calendar, BookOpen, Layers, Video, Box, ExternalLink, Play, Clock, Users, Bookmark, CheckCircle } from 'lucide-react';
 
 export const EducationTab: React.FC = () => {
@@ -121,6 +123,7 @@ export const EducationTab: React.FC = () => {
 const PremiumCourseCard = ({ event, type }: any) => {
     const navigate = useNavigate();
     const { toggleSave, isSaved } = useCommunity();
+    const { isAuthenticated } = useAuth();
     const isFree = event.price === 0;
     const isItemSaved = isSaved(event.id);
 
@@ -161,6 +164,11 @@ const PremiumCourseCard = ({ event, type }: any) => {
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
+                        if (!isAuthenticated) {
+                            toast.error('يجب تسجيل الدخول لحفظ العنصر');
+                            navigate('/login');
+                            return;
+                        }
                         toggleSave(event, type);
                     }}
                     className={`absolute top-4 right-4 p-2 rounded-full backdrop-blur-md transition-colors ${isItemSaved ? 'bg-orange-500 text-white' : 'bg-black/30 text-white hover:bg-black/50'}`}
@@ -180,18 +188,16 @@ const PremiumCourseCard = ({ event, type }: any) => {
                 <h3 className={`text-xl font-bold mb-2 leading-tight transition-colors ${isEnded ? 'text-gray-500' : 'text-gray-900 group-hover:text-indigo-600'}`}>
                     {event.title}
                 </h3>
+                <p className="text-gray-500 text-xs line-clamp-2 mb-4 leading-relaxed">
+                    {event.description}
+                </p>
 
-                <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-50">
-                    <div className="flex items-center gap-2">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ring-2 ring-white ${isEnded ? 'bg-gray-100 text-gray-400' : 'bg-indigo-50 text-indigo-600'}`}>
-                            {event.instructor?.[0] || '?'}
-                        </div>
-                        <span className="text-sm text-gray-600 font-medium">{event.instructor}</span>
+                <div className="flex items-center justify-between text-xs text-gray-400 font-medium pt-3 border-t border-gray-50">
+                    <div className="flex items-center gap-1">
+                        <Users className="w-3.5 h-3.5" />
+                        <span>{event.students || 0} مسجل</span>
                     </div>
-
-                    <button className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${isEnded ? 'bg-gray-100 text-gray-400' : 'bg-gray-50 text-gray-400 group-hover:bg-indigo-600 group-hover:text-white'}`}>
-                        {isEnded ? <CheckCircle className="w-4 h-4 ml-0.5" /> : <Play className="w-4 h-4 ml-0.5 fill-current" />}
-                    </button>
+                    <span>{event.location || 'عبر الإنترنت'}</span>
                 </div>
             </div>
         </div>
@@ -201,6 +207,7 @@ const PremiumCourseCard = ({ event, type }: any) => {
 const PremiumResourceCard = ({ resource }: any) => {
     const navigate = useNavigate();
     const { toggleSave, isSaved } = useCommunity();
+    const { isAuthenticated } = useAuth();
     const isItemSaved = isSaved(resource.id);
 
     return (
@@ -217,7 +224,14 @@ const PremiumResourceCard = ({ resource }: any) => {
                         مصدر علمي
                     </span>
                     <button
-                        onClick={() => toggleSave(resource, 'resource')}
+                        onClick={() => {
+                            if (!isAuthenticated) {
+                                toast.error('يجب تسجيل الدخول لحفظ العنصر');
+                                navigate('/login');
+                                return;
+                            }
+                            toggleSave(resource, 'resource');
+                        }}
                         className={`text-gray-300 hover:text-orange-500 transition-colors ${isItemSaved ? 'text-orange-500' : ''}`}
                     >
                         <Bookmark className={`w-5 h-5 ${isItemSaved ? 'fill-current' : ''}`} />
@@ -253,6 +267,7 @@ const PremiumResourceCard = ({ resource }: any) => {
 const PremiumModelCard = ({ id, title, author, image }: any) => {
     const navigate = useNavigate();
     const { toggleSave, isSaved } = useCommunity();
+    const { isAuthenticated } = useAuth();
     const isItemSaved = isSaved(id);
 
     // Mock model object for saving
@@ -271,6 +286,11 @@ const PremiumModelCard = ({ id, title, author, image }: any) => {
             <button
                 onClick={(e) => {
                     e.stopPropagation();
+                    if (!isAuthenticated) {
+                        toast.error('يجب تسجيل الدخول لحفظ العنصر');
+                        navigate('/login');
+                        return;
+                    }
                     toggleSave(modelObj, 'model');
                 }}
                 className={`absolute top-4 right-4 p-2 rounded-full backdrop-blur-md transition-colors z-20 ${isItemSaved ? 'bg-orange-500 text-white' : 'bg-white/20 text-white hover:bg-white/30'}`}

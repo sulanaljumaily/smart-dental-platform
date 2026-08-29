@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import {
   Package,
   Store,
@@ -33,8 +34,8 @@ export const SupplierWelcomePage: React.FC = () => {
     },
     {
       title: "وسع نطاق مبيعاتك",
-      subtitle: "افتح متجرك الإلكتروني اليوم وابدأ البيع لآلاف الأطباء مباشرة",
-      gradient: "from-slate-900 to-orange-900",
+      subtitle: "استقبل طلبات المواد والمستلزمات من أطباء الأسنان مباشرة",
+      gradient: "from-amber-900 to-orange-900",
       image: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&q=80&w=2070"
     }
   ];
@@ -48,6 +49,14 @@ export const SupplierWelcomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-24" dir="rtl">
+      <Helmet>
+        <title>انضم كمورد مستلزمات أسنان | Dental Platform</title>
+        <meta name="description" content="انضم لأكبر منصة تجارية لمستلزمات ومواد طب الأسنان في العراق — اعرض منتجاتك وتواصل مع آلاف العيادات." />
+        <link rel="canonical" href="https://dental-platform.com/supplier-welcome" />
+        <meta property="og:title" content="انضم كمورد مستلزمات أسنان | Dental Platform" />
+        <meta property="og:description" content="سوق المستلزمات الطبية وأجهزة طب الأسنان المباشر للعيادات." />
+        <meta property="og:url" content="https://dental-platform.com/supplier-welcome" />
+      </Helmet>
       <div className="container mx-auto px-4 py-8 max-w-7xl">
 
         {/* Bento Grid */}

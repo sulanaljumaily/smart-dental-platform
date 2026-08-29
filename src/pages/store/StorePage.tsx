@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Helmet } from 'react-helmet-async';
 import {
   Search, Grid, Sparkles, Store, Star, ArrowRight, ChevronLeft
 } from 'lucide-react';
@@ -89,6 +90,14 @@ export const StorePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-24" dir="rtl">
+      <Helmet>
+        <title>متجر المستلزمات الطبية والأسنان | Dental Platform</title>
+        <meta name="description" content="تسوق مواد ومستلزمات وأجهزة طب الأسنان بأفضل الأسعار من كبرى شركات التجهيز الطبي في العراق." />
+        <link rel="canonical" href="https://dental-platform.com/store" />
+        <meta property="og:title" content="متجر المستلزمات الطبية والأسنان | Dental Platform" />
+        <meta property="og:description" content="تسوق مواد ومستلزمات وأجهزة طب الأسنان." />
+        <meta property="og:url" content="https://dental-platform.com/store" />
+      </Helmet>
 
       <div className="container mx-auto px-4 py-6">
 

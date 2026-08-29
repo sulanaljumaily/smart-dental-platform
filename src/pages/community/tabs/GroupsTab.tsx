@@ -1,10 +1,13 @@
 import React from 'react';
 import { useCommunity } from '../../../hooks/useCommunity';
-import { Users, Plus, ArrowLeft, Search, CheckCircle } from 'lucide-react';
+import { useAuth } from '../../../contexts/AuthContext';
+import { Users, Plus, ArrowLeft, Search, CheckCircle, LogIn } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 const PremiumGroupCard = ({ group, isJoined, onAction }: any) => {
     const navigate = useNavigate();
+    const { isAuthenticated } = useAuth();
     return (
         <div
             onClick={() => navigate(`/community/group/${group.id}`)}
@@ -37,6 +40,11 @@ const PremiumGroupCard = ({ group, isJoined, onAction }: any) => {
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
+                        if (!isAuthenticated) {
+                            toast.error('يجب تسجيل الدخول للانضمام للمجموعات');
+                            navigate('/login');
+                            return;
+                        }
                         onAction(group.id);
                     }}
                     className={`
@@ -50,13 +58,10 @@ const PremiumGroupCard = ({ group, isJoined, onAction }: any) => {
                     {isJoined ? (
                         <>
                             <CheckCircle className="w-3.5 h-3.5" />
-                            مشترك
+                            <span>عضو</span>
                         </>
                     ) : (
-                        <>
-                            <Plus className="w-3.5 h-3.5" />
-                            انضمام
-                        </>
+                        <span>انضمام</span>
                     )}
                 </button>
             </div>
@@ -66,12 +71,18 @@ const PremiumGroupCard = ({ group, isJoined, onAction }: any) => {
 
 export default function GroupsTab() {
     const { groups, joinGroup, leaveGroup, createGroup } = useCommunity();
+    const { isAuthenticated } = useAuth();
     const navigate = useNavigate();
     const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false);
     const [newGroupData, setNewGroupData] = React.useState({ name: '', description: '', category: 'عام', privacy: 'public' as 'public' | 'private' });
 
     const handleCreateGroup = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!isAuthenticated) {
+            toast.error('يجب تسجيل الدخول لإنشاء مجموعة');
+            navigate('/login');
+            return;
+        }
         if (!newGroupData.name) return;
 
         await createGroup(newGroupData.name, newGroupData.description, newGroupData.category, newGroupData.privacy);
@@ -79,14 +90,14 @@ export default function GroupsTab() {
         setNewGroupData({ name: '', description: '', category: 'عام', privacy: 'public' });
     };
 
-    const myGroups = groups.filter(g => g.isJoined);
-    const suggestedGroups = groups.filter(g => !g.isJoined);
+    const myGroups = isAuthenticated ? groups.filter(g => g.isJoined) : [];
+    const suggestedGroups = isAuthenticated ? groups.filter(g => !g.isJoined) : groups;
 
     return (
         <div className="pb-24 space-y-8 px-4 pt-2">
 
             {/* 1. My Groups Section */}
-            {myGroups.length > 0 && (
+            {isAuthenticated && myGroups.length > 0 && (
                 <section>
                     <div className="flex justify-between items-end mb-4 px-1">
                         <h2 className="text-xl font-black text-gray-900">مجموعاتي</h2>
@@ -97,7 +108,6 @@ export default function GroupsTab() {
                             >
                                 <Plus className="w-3 h-3" /> إنشاء مجموعة
                             </button>
-                            <button className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">عرض الكل</button>
                         </div>
                     </div>
 
@@ -112,8 +122,20 @@ export default function GroupsTab() {
             {/* 2. Suggested Groups Section */}
             <section>
                 <div className="flex justify-between items-end mb-4 px-1">
-                    <h2 className="text-xl font-black text-gray-900">مجموعات مقترحة</h2>
-                    <button className="text-xs font-bold text-gray-500">استكشف المزيد</button>
+                    <h2 className="text-xl font-black text-gray-900">المجموعات الطبية</h2>
+                    <button
+                        onClick={() => {
+                            if (!isAuthenticated) {
+                                toast.error('يجب تسجيل الدخول لإنشاء مجموعة');
+                                navigate('/login');
+                                return;
+                            }
+                            setIsCreateModalOpen(true);
+                        }}
+                        className="text-xs font-bold text-white bg-indigo-600 px-3.5 py-1.5 rounded-xl hover:bg-indigo-700 shadow-sm flex items-center gap-1 transition-all"
+                    >
+                        <Plus className="w-3.5 h-3.5" /> إنشاء مجموعة
+                    </button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

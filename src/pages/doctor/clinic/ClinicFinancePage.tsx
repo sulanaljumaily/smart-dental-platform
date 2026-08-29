@@ -61,6 +61,8 @@ interface TransactionDetailsModalProps {
   canEdit: boolean;
   onEdit: () => void;
   clinicId: string;
+  onPrint?: (transaction: any) => void;
+  onOpenPatientAccount?: (patientId: string) => void;
 }
 
 export const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = ({
@@ -70,7 +72,9 @@ export const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = (
   staff,
   canEdit,
   onEdit,
-  clinicId
+  clinicId,
+  onPrint,
+  onOpenPatientAccount
 }) => {
   const navigate = useNavigate();
   if (!transaction) return null;
@@ -140,7 +144,28 @@ export const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = (
                 <span className="block text-xs text-gray-400">المراجع (المريض)</span>
                 <span className="text-sm font-bold text-gray-900">{transaction.relatedPerson}</span>
               </div>
-              {transaction.patientId && (
+              {transaction.patientId && transaction.type === 'income' ? (
+                <div className="flex flex-col gap-1 items-end">
+                  <button
+                    onClick={() => {
+                      onClose();
+                      if (onOpenPatientAccount) onOpenPatientAccount(transaction.patientId);
+                    }}
+                    className="text-xs px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg font-bold transition-all w-full text-center"
+                  >
+                    📊 كشف حساب المراجع
+                  </button>
+                  <button
+                    onClick={() => {
+                      onClose();
+                      navigate(`/doctor/clinic/${clinicId}/patient/${transaction.patientId}`);
+                    }}
+                    className="text-[10px] text-gray-500 hover:text-blue-600 underline"
+                  >
+                    👁️ دخول ملف المريض
+                  </button>
+                </div>
+              ) : transaction.patientId && (
                 <button
                   onClick={() => {
                     onClose();
@@ -191,6 +216,15 @@ export const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = (
         {/* Actions Footer */}
         <div className="pt-4 border-t flex justify-end gap-2.5">
           <Button variant="outline" onClick={onClose} size="sm">إغلاق</Button>
+          {onPrint && (
+            <Button
+              variant="outline"
+              onClick={() => onPrint(transaction)}
+              size="sm"
+            >
+              🖨️ طباعة
+            </Button>
+          )}
           {canEdit && (
             <Button
               variant="primary"

@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { MapPin, Brain, FileText, AlertCircle, MessageSquare, Upload, Phone, CheckCircle, Calendar as CalendarIcon, Navigation, User, Star, Stethoscope, Camera, Zap, ChevronRight, Clock, Heart, Shield, Filter, TrendingUp, Award, Users, Send, RefreshCw } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Card } from '../../components/common/Card';
@@ -30,8 +31,6 @@ export const ServicesPage: React.FC = () => {
   const { location, calculateDistance, loading: geoLoading, error: geoError } = useGeolocation();
   const [mapCenter, setMapCenter] = useState({ lat: 33.3152, lng: 44.3661 }); // Iraq Center
   const [mapZoom, setMapZoom] = useState(6); // Iraq Level Zoom
-
-
 
   // Filter logic
   useEffect(() => {
@@ -70,8 +69,6 @@ export const ServicesPage: React.FC = () => {
       }
     }
   }, []);
-
-
 
   // Filter options
   const governorates = [
@@ -118,6 +115,14 @@ export const ServicesPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Helmet>
+        <title>الخدمات الطبية وعيادات الأسنان | Dental Platform</title>
+        <meta name="description" content="ابحث عن أفضل عيادات وأطباء الأسنان في العراق، خدمات التشخيص الذكي بالذكاء الاصطناعي، والمقالات الطبية المتخصصة." />
+        <link rel="canonical" href="https://dental-platform.com/services" />
+        <meta property="og:title" content="الخدمات الطبية وعيادات الأسنان | Dental Platform" />
+        <meta property="og:description" content="دليل عيادات الأسنان، التشخيص الذكي، وحجز المواعيد." />
+        <meta property="og:url" content="https://dental-platform.com/services" />
+      </Helmet>
       {/* Header */}
       <div className="bg-gradient-to-b from-white via-blue-50/50 to-white pt-6 pb-12 px-4 relative overflow-hidden border-b border-blue-100/50">
         {/* Abstract Background Pattern */}

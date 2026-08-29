@@ -1,20 +1,22 @@
 
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
+import { toast } from 'sonner';
 import { useCommunity } from '../../hooks/useCommunity';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import {
     ArrowRight, Heart, MessageCircle, Share2, Bookmark,
-    MoreVertical, Send, Shield, Edit, Trash2, CheckCircle
+    MoreVertical, Send, Shield, Edit, Trash2, CheckCircle, LogIn
 } from 'lucide-react';
 
 export const PostDetailPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { posts, likePost, addComment, toggleSave, isSaved, reportPost, deletePost } = useCommunity();
-    const { user: currentUser } = useAuth();
+    const { user: currentUser, isAuthenticated } = useAuth();
     const [commentText, setCommentText] = useState('');
 
     const post = posts.find(p => p.id === id);
@@ -35,13 +37,23 @@ export const PostDetailPage: React.FC = () => {
     const postSaved = isSaved(post.id);
 
     const handleComment = () => {
+        if (!isAuthenticated) {
+            toast.error('يجب تسجيل الدخول لإضافة تعليق');
+            navigate('/login');
+            return;
+        }
         if (!commentText.trim()) return;
         addComment(post.id, commentText);
         setCommentText('');
     };
 
     return (
-        <div className="min-h-screen bg-gray-100 p-4 md:p-8 pb-24">
+        <div className="min-h-screen bg-gray-100 p-4 md:p-8 pb-24" dir="rtl">
+            <Helmet>
+                <title>{post.content ? post.content.slice(0, 50) + '...' : 'منشور مجتمعي'} | Dental Platform</title>
+                <meta name="description" content={post.content?.slice(0, 150) || 'نقاشات ومشاركات المجتمع الطبي لأطباء الأسنان.'} />
+                <link rel="canonical" href={`https://dental-platform.com/community/post/${post.id}`} />
+            </Helmet>
             {/* Nav Back */}
             <div className="max-w-3xl mx-auto mb-6 flex items-center">
                 <button
@@ -113,7 +125,13 @@ export const PostDetailPage: React.FC = () => {
                         <div className="flex items-center justify-between pt-4 border-t border-gray-50">
                             <div className="flex gap-2">
                                 <Button
-                                    onClick={() => likePost(post.id)}
+                                    onClick={() => {
+                                        if (!isAuthenticated) {
+                                            toast.error('يجب تسجيل الدخول للإعجاب بالمنشور');
+                                            return;
+                                        }
+                                        likePost(post.id);
+                                    }}
                                     className={`rounded-xl px-4 py-2 flex items-center gap-2 ${post.likedByMe ? 'bg-red-50 text-red-600' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}
                                 >
                                     <Heart className={`w-5 h-5 ${post.likedByMe ? 'fill-current' : ''}`} />
@@ -131,7 +149,13 @@ export const PostDetailPage: React.FC = () => {
                                 <Button
                                     variant="ghost"
                                     className="rounded-xl"
-                                    onClick={() => toggleSave(post, 'post')}
+                                    onClick={() => {
+                                        if (!isAuthenticated) {
+                                            toast.error('يجب تسجيل الدخول لحفظ المنشور');
+                                            return;
+                                        }
+                                        toggleSave(post, 'post');
+                                    }}
                                 >
                                     <Bookmark className={`w-5 h-5 ${postSaved ? 'text-orange-500 fill-current' : 'text-gray-400'}`} />
                                 </Button>
@@ -149,29 +173,46 @@ export const PostDetailPage: React.FC = () => {
                         </span>
                     </h3>
 
-                    {/* Comment Input */}
-                    <div className="flex gap-4 mb-8">
-                        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold flex-shrink-0">
-                            {currentUser?.name?.[0] || 'ME'}
+                    {/* Comment Input / Guest Prompt */}
+                    {isAuthenticated ? (
+                        <div className="flex gap-4 mb-8">
+                            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold flex-shrink-0">
+                                {currentUser?.name?.[0] || 'ME'}
+                            </div>
+                            <div className="flex-1 relative">
+                                <input
+                                    type="text"
+                                    placeholder="اكتب تعليقاً..."
+                                    className="w-full bg-gray-50 border-0 rounded-2xl py-3 px-4 focus:ring-2 focus:ring-indigo-500 transition-all pr-12"
+                                    value={commentText}
+                                    onChange={(e) => setCommentText(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleComment()}
+                                />
+                                <button
+                                    onClick={handleComment}
+                                    disabled={!commentText.trim()}
+                                    className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-indigo-600 text-white rounded-xl shadow-md disabled:opacity-50 disabled:shadow-none hover:bg-indigo-700 transition-all"
+                                >
+                                    <Send className="w-4 h-4" />
+                                </button>
+                            </div>
                         </div>
-                        <div className="flex-1 relative">
-                            <input
-                                type="text"
-                                placeholder="اكتب تعليقاً..."
-                                className="w-full bg-gray-50 border-0 rounded-2xl py-3 px-4 focus:ring-2 focus:ring-indigo-500 transition-all pr-12"
-                                value={commentText}
-                                onChange={(e) => setCommentText(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleComment()}
-                            />
+                    ) : (
+                        <div className="mb-8 p-4 bg-indigo-50/70 rounded-2xl border border-indigo-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-right">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                                    <LogIn className="w-4 h-4" />
+                                </div>
+                                <p className="text-xs text-gray-700 font-semibold">سجل دخولك لتتمكن من إضافة تعليقك والمشاركة في النقاش الطبي.</p>
+                            </div>
                             <button
-                                onClick={handleComment}
-                                disabled={!commentText.trim()}
-                                className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-indigo-600 text-white rounded-xl shadow-md disabled:opacity-50 disabled:shadow-none hover:bg-indigo-700 transition-all"
+                                onClick={() => navigate('/login')}
+                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs shadow-sm transition-all shrink-0 w-full sm:w-auto"
                             >
-                                <Send className="w-4 h-4" />
+                                تسجيل الدخول
                             </button>
                         </div>
-                    </div>
+                    )}
 
                     {/* Comments List */}
                     <div className="space-y-6">

@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Navigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import {
     ArrowRight, MapPin, Phone,
     UserPlus, Edit, CheckCircle, GraduationCap,
     Grid, Calendar, Shield, Users, User, X, MessageCircle, Loader2,
-    Camera, Save, Building2, Briefcase, Stethoscope, Star, UserMinus
+    Camera, Save, Building2, Briefcase, Stethoscope, Star, UserMinus, LogIn
 } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { useCommunity } from '../../hooks/useCommunity';
@@ -22,7 +23,12 @@ export const UserProfilePage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { posts, banUser, likePost, toggleSave, isSaved, reportPost, updatePost, deletePost, users, followUser, unfollowUser, amIFollowing, toggleCloseFriend, isCloseFriend } = useCommunity();
-    const { user: currentUser } = useAuth();
+    const { user: currentUser, isAuthenticated } = useAuth();
+
+    // If accessing 'me' or own profile while not logged in, redirect to login
+    if ((id === 'me' || id === currentUser?.id) && !isAuthenticated) {
+        return <Navigate to="/login" replace />;
+    }
 
     // State
     const [activeTab, setActiveTab] = useState<'posts'>('posts');
@@ -243,9 +249,12 @@ export const UserProfilePage: React.FC = () => {
     const theme = getRoleTheme(displayUser.role || 'user');
 
     return (
-        <div className="min-h-screen bg-gray-100 p-4 md:p-8 pb-24">
+        <div className="min-h-screen bg-gray-100 p-4 md:p-8 pb-24" dir="rtl">
+            <Helmet>
+                <title>{displayUser.full_name ? `${displayUser.full_name} | المجتمع الطبي` : 'الملف الشخصي | Dental Platform'}</title>
+                <meta name="description" content={displayUser.bio || 'الملف الشخصي في المجتمع الطبي لأطباء الأسنان.'} />
+            </Helmet>
 
-            {/* Nav Back */}
             {/* Nav Back & Notifications */}
             <div className="max-w-7xl mx-auto mb-6 flex items-center justify-between">
                 <button
@@ -343,7 +352,14 @@ export const UserProfilePage: React.FC = () => {
                         ) : (
                             <>
                                 <Button
-                                    onClick={() => navigate('/community/messages', { state: { startConversationWith: profileData } })}
+                                    onClick={() => {
+                                        if (!isAuthenticated) {
+                                            toast.error('يجب تسجيل الدخول لمراسلة الطبيب');
+                                            navigate('/login');
+                                            return;
+                                        }
+                                        navigate('/community/messages', { state: { startConversationWith: profileData } });
+                                    }}
                                     className={`flex-1 text-white rounded-xl py-3 shadow-lg ${theme.accent} shadow-blue-200`}
                                 >
                                     <MessageCircle className="w-4 h-4 ml-2" />
@@ -351,6 +367,11 @@ export const UserProfilePage: React.FC = () => {
                                 </Button>
                                 <Button
                                     onClick={() => {
+                                        if (!isAuthenticated) {
+                                            toast.error('يجب تسجيل الدخول لمتابعة الأطباء');
+                                            navigate('/login');
+                                            return;
+                                        }
                                         if (!targetUserId) return;
                                         if (isFollowing) {
                                             unfollowUser(targetUserId);
@@ -523,8 +544,20 @@ export const UserProfilePage: React.FC = () => {
                                 <PremiumPostCard
                                     key={post.id}
                                     post={post}
-                                    onLike={() => likePost(post.id)}
-                                    onSave={() => toggleSave(post, 'post')}
+                                    onLike={() => {
+                                        if (!isAuthenticated) {
+                                            toast.error('يجب تسجيل الدخول للإعجاب بالمنشور');
+                                            return;
+                                        }
+                                        likePost(post.id);
+                                    }}
+                                    onSave={() => {
+                                        if (!isAuthenticated) {
+                                            toast.error('يجب تسجيل الدخول لحفظ المنشور');
+                                            return;
+                                        }
+                                        toggleSave(post, 'post');
+                                    }}
                                     isSaved={isSaved(post.id)}
                                     onProfileClick={() => { }} // Already on profile
                                     onReport={(reason: string) => reportPost(post.id, reason)}

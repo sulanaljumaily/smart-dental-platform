@@ -793,13 +793,20 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     const sendMessage = async (recipientId: string, content: string) => {
-        // Mock sending message logic
+        if (!currentUser?.id) {
+            toast.error('يجب تسجيل الدخول لإرسال الرسائل');
+            return;
+        }
         toast.success('تم إرسال الرسالة');
-        // Trigger Notification
-        sendNotification(recipientId, 'message', 'رسالة جديدة', `أرسل لك شخص ما رسالة`, `/messages`, 'me');
+        sendNotification(recipientId, 'message', 'رسالة جديدة', `أرسل لك شخص ما رسالة`, `/messages`, currentUser.id);
     };
 
     const followUser = async (targetId: string) => {
+        if (!currentUser?.id) {
+            toast.error('يجب تسجيل الدخول لمتابعة الأطباء والزملاء');
+            return;
+        }
+
         // Optimistic Update
         if (!following.includes(targetId)) {
             setFollowing([...following, targetId]);
@@ -844,6 +851,11 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     const toggleCloseFriend = async (targetId: string) => {
+        if (!currentUser?.id) {
+            toast.error('يجب تسجيل الدخول لإضافة الأصدقاء المقربين');
+            return;
+        }
+
         try {
             // Check if already friend
             const isFriend = friends.some(f => f.id === targetId);
@@ -885,6 +897,11 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
 
     const unfollowUser = async (targetId: string) => {
+        if (!currentUser?.id) {
+            toast.error('يجب تسجيل الدخول');
+            return;
+        }
+
         // Optimistic Update
         if (following.includes(targetId)) {
             setFollowing(following.filter(id => id !== targetId));
@@ -911,6 +928,11 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
     const removeFriend = (userId: string) => unfollowUser(userId);
 
     const joinGroup = async (groupId: string) => {
+        if (!currentUser?.id) {
+            toast.error('يجب تسجيل الدخول للانضمام إلى المجموعات');
+            return;
+        }
+
         try {
             // Check privacy
             const group = groups.find(g => g.id === groupId);
@@ -932,8 +954,6 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
             setGroups(groups.map(g => g.id === groupId ? { ...g, isJoined: true, members: (g.members || 0) + 1 } : g));
             toast.success('تم الانضمام للمجموعة');
 
-            // Notify Group Admins (Mock logic: finding implicit admin)
-            // sendNotification(groupAdminId, 'group_request', 'طلب انضمام', ...)
         } catch (e) {
             console.error(e);
             toast.error('فشل الانضمام للمجموعة');
@@ -941,6 +961,11 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     const leaveGroup = async (groupId: string) => {
+        if (!currentUser?.id) {
+            toast.error('يجب تسجيل الدخول');
+            return;
+        }
+
         try {
             const { error } = await supabase.from('group_members').delete().match({ group_id: groupId, user_id: currentUser?.id });
             if (error) throw error;
@@ -954,6 +979,13 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     const registerForEvent = async (eventId: string) => {
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id;
+        if (!userId) {
+            toast.error('يجب تسجيل الدخول للتسجيل في الدورات والندوات');
+            return;
+        }
+
         // Check if already registered
         if (myEnrollments.some(e => e.itemId === eventId)) {
             toast.error('أنت مسجل بالفعل في هذا الحدث');
@@ -961,11 +993,6 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
         }
 
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const userId = session?.user?.id || 'mock-user-id';
-
-            // Determine type (heuristic: assumption based on context usually passed or lookup)
-            // For now, we will assume it's passed or lookup up from events.
             const event = events.find(e => e.id === eventId);
             const type = event?.category === 'ندوة' ? 'webinar' : 'course';
 
@@ -998,14 +1025,21 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     const toggleSave = async (item: any, type: SavedItem['type']) => {
+        const { data: { session } } = await supabase.auth.getSession();
+        const userId = session?.user?.id;
+        if (!userId) {
+            toast.error('يجب تسجيل الدخول لحفظ العناصر في مكتبتك');
+            return;
+        }
+
         // Check local state for quick toggle
         const exists = savedItems.find(s => s.itemId === item.id && s.type === type);
         if (exists) {
-            await supabase.from('saved_items').delete().eq('item_id', item.id).eq('item_type', type);
+            await supabase.from('saved_items').delete().eq('item_id', item.id).eq('item_type', type).eq('user_id', userId);
             setSavedItems(savedItems.filter(s => s.itemId !== item.id));
             toast.success('تم الحذف من المحفوظات');
         } else {
-            const newItemData = { item_id: item.id, item_type: type, user_id: 'me', saved_at: new Date().toISOString() };
+            const newItemData = { item_id: item.id, item_type: type, user_id: userId, saved_at: new Date().toISOString() };
             await supabase.from('saved_items').insert(newItemData);
 
             const newItem: SavedItem = {

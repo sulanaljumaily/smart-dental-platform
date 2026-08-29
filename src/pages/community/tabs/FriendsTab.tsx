@@ -1,12 +1,16 @@
 import React from 'react';
 import { useCommunity } from '../../../hooks/useCommunity';
-import { UserPlus, MessageCircle, Star, UserMinus, CheckCircle } from 'lucide-react';
+import { useAuth } from '../../../contexts/AuthContext';
+import { UserPlus, MessageCircle, Star, UserMinus, CheckCircle, LogIn } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../../components/common/Button';
+import { toast } from 'sonner';
 
 // Compact Card for "People You May Know" (Horizontal List)
 const MiniFriendCard = ({ friend, onClick }: any) => {
     const { followUser, amIFollowing } = useCommunity();
+    const { isAuthenticated } = useAuth();
+    const navigate = useNavigate();
     const isFollowing = amIFollowing(friend.id);
 
     return (
@@ -22,9 +26,6 @@ const MiniFriendCard = ({ friend, onClick }: any) => {
                         <span className="text-xl">{friend.name?.[0] || 'U'}</span>
                     )}
                 </div>
-                {/* Online Indicator (Mock) 
-                <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
-                */}
             </div>
 
             <div className="text-center w-full">
@@ -35,6 +36,11 @@ const MiniFriendCard = ({ friend, onClick }: any) => {
             <button
                 onClick={(e) => {
                     e.stopPropagation();
+                    if (!isAuthenticated) {
+                        toast.error('يجب تسجيل الدخول لمتابعة الأطباء');
+                        navigate('/login');
+                        return;
+                    }
                     followUser(friend.id);
                 }}
                 className={`w-full py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1
@@ -52,6 +58,8 @@ const MiniFriendCard = ({ friend, onClick }: any) => {
 // Standard Card for "Following" List
 const FriendCard = ({ friend, onClick }: any) => {
     const { amIFollowing, followUser, unfollowUser, isCloseFriend, toggleCloseFriend } = useCommunity();
+    const { isAuthenticated } = useAuth();
+    const navigate = useNavigate();
     const isFollowing = amIFollowing(friend.id);
     const isClose = isCloseFriend(friend.id);
 
@@ -78,7 +86,13 @@ const FriendCard = ({ friend, onClick }: any) => {
                 {/* Close Friend Star - Only show if following */}
                 {isFollowing && (
                     <button
-                        onClick={() => toggleCloseFriend(friend.id)}
+                        onClick={() => {
+                            if (!isAuthenticated) {
+                                toast.error('يجب تسجيل الدخول');
+                                return;
+                            }
+                            toggleCloseFriend(friend.id);
+                        }}
                         className={`p-2.5 rounded-xl border-2 transition-colors ${isClose
                             ? 'bg-yellow-50 border-yellow-400 text-yellow-500'
                             : 'bg-white border-gray-100 text-gray-300 hover:text-yellow-400 hover:border-yellow-200'
@@ -92,13 +106,18 @@ const FriendCard = ({ friend, onClick }: any) => {
                 {/* Follow/Unfollow Button */}
                 <Button
                     onClick={() => {
+                        if (!isAuthenticated) {
+                            toast.error('يجب تسجيل الدخول لمتابعة الأطباء');
+                            navigate('/login');
+                            return;
+                        }
                         if (isFollowing) {
                             unfollowUser(friend.id);
                         } else {
                             followUser(friend.id);
                         }
                     }}
-                    variant="primary" // Changed from 'custom' to 'primary'
+                    variant="primary"
                     className={`px-4 rounded-xl transition-all flex items-center gap-2 shadow-sm ${isFollowing
                         ? 'bg-green-600 text-white hover:bg-green-700 shadow-md ring-0 hover:text-white border-transparent'
                         : 'bg-blue-50 text-blue-600 hover:bg-blue-100 shadow-none'
@@ -123,15 +142,14 @@ const FriendCard = ({ friend, onClick }: any) => {
 
 export const FriendsTab: React.FC = () => {
     const { users, amIFollowing, suggestedUsers } = useCommunity();
+    const { isAuthenticated } = useAuth();
     const navigate = useNavigate();
 
     // 1. My Followers/Following (from Context)
-    const followingIds = users.filter(u => amIFollowing(u.id)).map(u => u.id);
+    const followingIds = isAuthenticated ? users.filter(u => amIFollowing(u.id)).map(u => u.id) : [];
     const following = users.filter(u => followingIds.includes(u.id));
 
     // 2. Suggested Users (from Context)
-    // If context suggestions are empty (initial load or no specific suggestions), 
-    // fallback to generic suggestions excluding current following
     const displaySuggestions = (suggestedUsers && suggestedUsers.length > 0)
         ? suggestedUsers
         : users.filter(u => !followingIds.includes(u.id)).slice(0, 10);
@@ -143,7 +161,6 @@ export const FriendsTab: React.FC = () => {
             <section className="space-y-3">
                 <div className="flex items-center justify-between px-4">
                     <h2 className="font-bold text-xl text-gray-900">أشخاص قد تعرفهم</h2>
-                    <button className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-full hover:bg-indigo-100 transition-colors">عرض الكل</button>
                 </div>
 
                 <div className="flex overflow-x-auto pb-4 gap-3 px-4 snap-x scrollbar-hide">
@@ -164,27 +181,47 @@ export const FriendsTab: React.FC = () => {
             <section className="px-4 space-y-4">
                 <div className="flex items-center gap-2">
                     <h2 className="font-bold text-xl text-gray-900">أتابعهم</h2>
-                    <span className="bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full text-xs font-bold">{following.length}</span>
-                </div>
-
-                <div className="flex flex-col gap-3">
-                    {following.map(user => (
-                        <FriendCard
-                            key={user.id}
-                            friend={user}
-                            onClick={() => navigate(`/community/user/${user.id}`)}
-                        />
-                    ))}
-                    {following.length === 0 && (
-                        <div className="text-center py-12 bg-white rounded-[2rem] border border-dashed border-gray-200">
-                            <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                                <UserPlus className="w-6 h-6 text-gray-300" />
-                            </div>
-                            <p className="text-gray-900 font-bold mb-1">لا تتابع أحداً بعد</p>
-                            <p className="text-xs text-gray-500">تابع الأشخاص المقترحين أعلاه لرؤية منشوراتهم</p>
-                        </div>
+                    {isAuthenticated && (
+                        <span className="bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-full text-xs font-bold">{following.length}</span>
                     )}
                 </div>
+
+                {isAuthenticated ? (
+                    <div className="flex flex-col gap-3">
+                        {following.map(user => (
+                            <FriendCard
+                                key={user.id}
+                                friend={user}
+                                onClick={() => navigate(`/community/user/${user.id}`)}
+                            />
+                        ))}
+                        {following.length === 0 && (
+                            <div className="text-center py-12 bg-white rounded-[2rem] border border-dashed border-gray-200">
+                                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                                    <UserPlus className="w-6 h-6 text-gray-300" />
+                                </div>
+                                <p className="text-gray-900 font-bold mb-1">لا تتابع أحداً بعد</p>
+                                <p className="text-xs text-gray-500">تابع الأشخاص المقترحين أعلاه لرؤية منشوراتهم</p>
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 rounded-[2rem] p-6 text-center border border-indigo-100 flex flex-col items-center justify-center">
+                        <div className="w-14 h-14 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-md shadow-indigo-200 mb-3">
+                            <LogIn className="w-7 h-7" />
+                        </div>
+                        <h3 className="text-gray-900 font-bold text-lg mb-1">سجل دخولك لبناء شبكة علاقاتك الطبية</h3>
+                        <p className="text-xs text-gray-600 max-w-md mb-4">
+                            تابع أطباء الأسنان والزملاء لتبادل الخبرات ومتابعة أحدث الحالات السريرية والمناقشات.
+                        </p>
+                        <button
+                            onClick={() => navigate('/login')}
+                            className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm shadow-md shadow-indigo-200 transition-all"
+                        >
+                            تسجيل الدخول الآن
+                        </button>
+                    </div>
+                )}
             </section>
         </div>
     );

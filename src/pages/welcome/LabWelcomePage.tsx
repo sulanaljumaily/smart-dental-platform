@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import {
     Microscope,
     Calendar,
@@ -38,8 +39,8 @@ export const LabWelcomePage: React.FC = () => {
         {
             title: "ارفع كفاءة معملك",
             subtitle: "تواصل مباشر مع أطباء الأسنان وتسليم أسرع للحالات",
-            gradient: "from-emerald-900 to-teal-900",
-            image: "https://images.unsplash.com/photo-1581093458891-2f30b630e5d7?auto=format&fit=crop&q=80&w=2070"
+            gradient: "from-blue-900 to-teal-900",
+            image: "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&q=80&w=2070"
         }
     ];
 
@@ -53,6 +54,14 @@ export const LabWelcomePage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-slate-50 pb-24" dir="rtl">
+            <Helmet>
+                <title>انضم كمختبر أسنان | Dental Platform</title>
+                <meta name="description" content="نظام متطور لمختبرات ومعامل الأسنان — استقبال طلبات التركيبات والزرعات من الأطباء، تتبع مراحل العمل والإنتاج، وإدارة الحسابات." />
+                <link rel="canonical" href="https://dental-platform.com/lab-welcome" />
+                <meta property="og:title" content="انضم كمختبر أسنان | Dental Platform" />
+                <meta property="og:description" content="إدارة طلبات المعمل والربط الرقمي مع عيادات الأسنان." />
+                <meta property="og:url" content="https://dental-platform.com/lab-welcome" />
+            </Helmet>
             <div className="container mx-auto px-4 py-8 max-w-7xl">
 
                 {/* Bento Grid Container */}

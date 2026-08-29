@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     Heart, MessageCircle, Share2, MoreVertical,
     Image as ImageIcon, Link as LinkIcon, Send,
-    Filter, Award, Shield, Users, Bookmark, Star, X, Loader2
+    Filter, Award, Shield, Users, Bookmark, Star, X, Loader2, LogIn
 } from 'lucide-react';
 import { Button } from '../../../components/common/Button';
 
@@ -18,9 +18,9 @@ import { PromotionalCarousel } from '../components/PromotionalCarousel';
 import { supabase } from '../../../lib/supabase';
 import { toast } from 'sonner';
 
-const OverviewTab: React.FC = () => {
+export const OverviewTab: React.FC = () => {
     const { posts, likePost, addPost: createPost, toggleSave, isSaved, reportPost, deletePost, updatePost } = useCommunity();
-    const { user: currentUser } = useAuth();
+    const { user: currentUser, isAuthenticated } = useAuth();
     const [filter, setFilter] = useState<'all' | 'elite' | 'syndicate' | 'friends'>('all');
     const [newPostContent, setNewPostContent] = useState('');
     const [selectedImages, setSelectedImages] = useState<File[]>([]);
@@ -128,66 +128,86 @@ const OverviewTab: React.FC = () => {
             {/* 1. HERO CAROUSEL (Dynamic Bento Widget) */}
             <PromotionalCarousel />
 
-            {/* 2. CREATE POST (Floating aesthetics with image upload) */}
+            {/* 2. CREATE POST / GUEST BANNER */}
             <div className="px-4">
-                <div className="bg-white rounded-[2rem] p-4 shadow-lg shadow-gray-100/50 border border-gray-50">
-                    <div className="flex gap-4 items-center">
-                        <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-xl">
-                            {currentUser?.name?.[0] || 'A'}
+                {isAuthenticated ? (
+                    <div className="bg-white rounded-[2rem] p-4 shadow-lg shadow-gray-100/50 border border-gray-50">
+                        <div className="flex gap-4 items-center">
+                            <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-xl">
+                                {currentUser?.name?.[0] || 'A'}
+                            </div>
+                            <input
+                                type="text"
+                                placeholder="ماذا يدور في ذهنك يا دكتور؟"
+                                className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-gray-400"
+                                value={newPostContent}
+                                onChange={e => setNewPostContent(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handlePost()}
+                            />
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                accept="image/*"
+                                multiple
+                                onChange={handleImageSelect}
+                                className="hidden"
+                            />
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                className="p-2.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                                title="إرفاق صور"
+                            >
+                                <ImageIcon className="w-5 h-5" />
+                            </button>
+                            <button
+                                onClick={handlePost}
+                                disabled={(!newPostContent.trim() && selectedImages.length === 0) || isUploading}
+                                className="p-3 bg-indigo-600 text-white rounded-xl shadow-md shadow-indigo-200 hover:bg-indigo-700 disabled:opacity-50 disabled:shadow-none transition-all"
+                            >
+                                {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 ml-0.5" />}
+                            </button>
                         </div>
-                        <input
-                            type="text"
-                            placeholder="ماذا يدور في ذهنك يا دكتور؟"
-                            className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-gray-400"
-                            value={newPostContent}
-                            onChange={e => setNewPostContent(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handlePost()}
-                        />
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            accept="image/*"
-                            multiple
-                            onChange={handleImageSelect}
-                            className="hidden"
-                        />
+
+                        {/* Image Previews */}
+                        {imagePreviews.length > 0 && (
+                            <div className="mt-3 grid grid-cols-3 gap-2">
+                                {imagePreviews.map((preview, index) => (
+                                    <div key={index} className="relative group">
+                                        <img
+                                            src={preview}
+                                            alt={`Preview ${index}`}
+                                            className="w-full h-24 object-cover rounded-xl border border-gray-100"
+                                        />
+                                        <button
+                                            onClick={() => removeImage(index)}
+                                            className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors opacity-0 group-hover:opacity-100"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <div className="bg-gradient-to-r from-indigo-50 via-white to-purple-50 rounded-[2rem] p-5 shadow-sm border border-indigo-100/70 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-right">
+                        <div className="flex items-center gap-3.5">
+                            <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-200 shrink-0">
+                                <LogIn className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-gray-900 text-base">انضم إلى المجتمع الطبي لأطباء الأسنان</h3>
+                                <p className="text-xs text-gray-500 mt-0.5">سجل دخولك للمشاركة بنشر الحالات السريرية، التعليق، والتفاعل مع الزملاء.</p>
+                            </div>
+                        </div>
                         <button
-                            onClick={() => fileInputRef.current?.click()}
-                            className="p-2.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                            title="إرفاق صور"
+                            onClick={() => navigate('/login')}
+                            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm shadow-md shadow-indigo-200 transition-all shrink-0 w-full sm:w-auto"
                         >
-                            <ImageIcon className="w-5 h-5" />
-                        </button>
-                        <button
-                            onClick={handlePost}
-                            disabled={(!newPostContent.trim() && selectedImages.length === 0) || isUploading}
-                            className="p-3 bg-indigo-600 text-white rounded-xl shadow-md shadow-indigo-200 hover:bg-indigo-700 disabled:opacity-50 disabled:shadow-none transition-all"
-                        >
-                            {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4 ml-0.5" />}
+                            تسجيل الدخول / إنشاء حساب
                         </button>
                     </div>
-
-                    {/* Image Previews */}
-                    {imagePreviews.length > 0 && (
-                        <div className="mt-3 grid grid-cols-3 gap-2">
-                            {imagePreviews.map((preview, index) => (
-                                <div key={index} className="relative group">
-                                    <img
-                                        src={preview}
-                                        alt={`Preview ${index}`}
-                                        className="w-full h-24 object-cover rounded-xl border border-gray-100"
-                                    />
-                                    <button
-                                        onClick={() => removeImage(index)}
-                                        className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors opacity-0 group-hover:opacity-100"
-                                    >
-                                        <X className="w-3 h-3" />
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                )}
             </div>
 
             {/* 3. FILTERS (Pill Design) */}
@@ -255,4 +275,3 @@ const FilterPill = ({ active, onClick, label, icon }: any) => (
     </button>
 );
 
-export { OverviewTab };

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { useLocation, useNavigate, Link, Navigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { Calendar, Clock, User, Phone, CheckCircle, ChevronRight, AlertCircle, MapPin } from 'lucide-react';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
@@ -18,6 +19,11 @@ export const BookingPage: React.FC = () => {
     const searchParams = new URLSearchParams(location.search);
     const clinicId = searchParams.get('clinic');
     const doctorId = searchParams.get('doctor');
+
+    // If accessed directly without a clinic ID, redirect to the clinics/services catalog
+    if (!clinicId) {
+        return <Navigate to="/services" replace />;
+    }
 
     // Form State
     const [step, setStep] = useState(1);
@@ -231,6 +237,10 @@ export const BookingPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 pb-12">
+            <Helmet>
+                <title>{clinicData ? `حجز موعد في ${clinicData.name}` : 'حجز موعد'} | Dental Platform</title>
+                <meta name="robots" content="noindex, nofollow" />
+            </Helmet>
             {/* Clinic Banner & Header */}
             {clinicData && (
                 <div className="bg-white border-b mb-8">

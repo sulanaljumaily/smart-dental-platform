@@ -36,11 +36,13 @@ export const ArticleDetailPage: React.FC = () => {
         <title>{article.title} | Dental Platform</title>
         <meta name="description" content={article.excerpt} />
         <meta name="keywords" content={`طب الأسنان, ${article.category}, مقالات طبية, Dental Platform, العناية بالأسنان`} />
+        <link rel="canonical" href={`https://dental-platform.com/article/${article.id}`} />
         
         {/* Open Graph / Facebook */}
         <meta property="og:type" content="article" />
         <meta property="og:title" content={article.title} />
         <meta property="og:description" content={article.excerpt} />
+        <meta property="og:url" content={`https://dental-platform.com/article/${article.id}`} />
         {article.image && <meta property="og:image" content={article.image} />}
         
         {/* Twitter */}
@@ -48,6 +50,34 @@ export const ArticleDetailPage: React.FC = () => {
         <meta name="twitter:title" content={article.title} />
         <meta name="twitter:description" content={article.excerpt} />
         {article.image && <meta name="twitter:image" content={article.image} />}
+
+        {/* Structured Data (JSON-LD) for Article */}
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "MedicalWebPage",
+            "headline": article.title,
+            "description": article.excerpt,
+            "image": article.image || "https://dental-platform.com/icons/icon-512x512.png",
+            "datePublished": article.date || "2026-01-01",
+            "author": {
+              "@type": "Organization",
+              "name": article.author || "DENTAL PLATFORM"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "DENTAL PLATFORM",
+              "logo": {
+                "@type": "ImageObject",
+                "url": "https://dental-platform.com/icons/icon-512x512.png"
+              }
+            },
+            "mainEntityOfPage": {
+              "@type": "WebPage",
+              "@id": `https://dental-platform.com/article/${article.id}`
+            }
+          })}
+        </script>
       </Helmet>
       
       <div className="min-h-screen bg-white pb-32">

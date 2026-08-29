@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import {
   Building2,
   Calendar,
@@ -56,6 +57,14 @@ export const DoctorWelcomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-24" dir="rtl">
+      <Helmet>
+        <title>انضم كطبيب أسنان | Dental Platform</title>
+        <meta name="description" content="انضم لمنظومة طب الأسنان الذكية — نظام إدارة العيادات، المواعيد الذكية، السجلات الطبية الإلكترونية، والمجتمع الطبي." />
+        <link rel="canonical" href="https://dental-platform.com/doctor-welcome" />
+        <meta property="og:title" content="انضم كطبيب أسنان | Dental Platform" />
+        <meta property="og:description" content="الحل المتكامل لإدارة عيادتك الطبية بذكاء وكفاءة." />
+        <meta property="og:url" content="https://dental-platform.com/doctor-welcome" />
+      </Helmet>
       <div className="container mx-auto px-4 py-8 max-w-7xl">
 
         {/* Bento Grid Container */}

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { Helmet } from 'react-helmet-async';
 import {
   LayoutDashboard, Briefcase, Users, Plus, User, FileText,
   Eye, Bookmark, Menu, X, ChevronDown, Search, TrendingUp,
@@ -594,6 +595,16 @@ export const JobsPage: React.FC<{ hideHeader?: boolean }> = ({ hideHeader }) => 
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans flex flex-col w-full pb-20 md:pb-0" dir="rtl">
+      {!hideHeader && (
+        <Helmet>
+          <title>فرص العمل والتوظيف الطبي | Dental Platform</title>
+          <meta name="description" content="أحدث وظائف طب الأسنان في العراق — وظائف أطباء، مساعدين، فنيي مختبرات ومندوبي مبيعات طبية." />
+          <link rel="canonical" href="https://dental-platform.com/jobs" />
+          <meta property="og:title" content="فرص العمل والتوظيف الطبي | Dental Platform" />
+          <meta property="og:description" content="وظائف طب الأسنان والكوادر الطبية في العراق." />
+          <meta property="og:url" content="https://dental-platform.com/jobs" />
+        </Helmet>
+      )}
       <div className={`sticky top-0 z-50 w-full bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm pt-[calc(env(safe-area-inset-top)*0.75)] transition-all duration-300`}>
         <div className="max-w-7xl mx-auto px-1 sm:px-4">
           <div className="flex flex-col gap-1 sm:gap-2 pb-1 pt-2 sm:pt-3">
