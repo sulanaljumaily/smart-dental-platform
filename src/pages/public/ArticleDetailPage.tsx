@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { ArrowLeft, Share2, Clock, Calendar, Copy, Twitter, Facebook, Linkedin, BookOpen, Quote } from 'lucide-react';
+import { ArrowLeft, Share2, Calendar, Copy, Twitter, Facebook, Linkedin, BookOpen, Quote } from 'lucide-react';
 import { useArticle, useArticles } from '../../hooks/useArticles';
 import { usePublicClinics } from '../../hooks/usePublicClinics';
 import { Card } from '../../components/common/Card';
@@ -101,45 +101,36 @@ export const ArticleDetailPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 max-w-3xl pt-12 md:pt-16">
+      <div className="container mx-auto px-4 max-w-3xl pt-6 md:pt-8">
 
         {/* Article Meta Header */}
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-gray-50 rounded-full text-xs font-medium text-gray-500 mb-6">
-            <span className="w-2 h-2 rounded-full bg-blue-500" />
-            {article.category}
-          </div>
-
-          <h1 className="text-3xl md:text-5xl font-black text-gray-900 leading-tight mb-8">
-            {article.title}
-          </h1>
-
-          <div className="flex items-center justify-center gap-6 text-sm text-gray-400 border-y border-gray-100 py-6">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center gap-2 mb-4">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-bold border border-blue-100/80">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+              {article.category}
+            </span>
+            <div className="flex items-center gap-1.5 text-xs font-medium text-gray-500 bg-gray-50 px-3 py-1 rounded-full border border-gray-100">
+              <Calendar className="w-3.5 h-3.5 text-gray-400" />
               <span>{formatNumericDate(article.date || new Date().toISOString())}</span>
             </div>
-            <span className="w-1 h-1 rounded-full bg-gray-300" />
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              <span>5 دقائق قراءة</span>
-            </div>
           </div>
+
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-gray-900 leading-snug max-w-2xl mx-auto">
+            {article.title}
+          </h1>
         </div>
 
         {/* Featured Image (if exists) */}
         {article.image && (
-          <div className="mb-12 rounded-3xl overflow-hidden shadow-2xl shadow-gray-200">
-            <img src={article.image} alt={article.title} className="w-full h-auto object-cover" />
+          <div className="mb-8 rounded-2xl md:rounded-3xl overflow-hidden shadow-xl shadow-gray-200">
+            <img src={article.image} alt={article.title} className="w-full h-auto object-cover max-h-[420px]" />
           </div>
         )}
 
         {/* Excerpt */}
-        <div className="relative mb-12">
-          <div className="absolute right-0 top-0 text-blue-100 -mr-8 -mt-8">
-            <Quote className="w-24 h-24 opacity-20" />
-          </div>
-          <p className="text-xl md:text-2xl font-bold text-gray-800 leading-relaxed relative z-10">
+        <div className="relative mb-8 bg-blue-50/30 p-5 md:p-6 rounded-2xl border border-blue-100/60">
+          <p className="text-lg md:text-xl font-bold text-gray-800 leading-relaxed">
             {article.excerpt}
           </p>
         </div>

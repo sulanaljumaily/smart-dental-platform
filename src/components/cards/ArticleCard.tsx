@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, User, Clock, ChevronLeft, BookOpen, ArrowUpRight } from 'lucide-react';
+import { Calendar, ChevronLeft, BookOpen, ArrowUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Article } from '../../types';
 import { formatNumericDate } from '../../lib/date';
@@ -31,32 +31,25 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article }) => {
             </div>
           )}
 
-          {/* Category Badge */}
-          <div className="absolute top-4 right-4 z-20">
-            <span className="px-3 py-1 bg-white/95 backdrop-blur-sm text-[10px] font-bold text-gray-800 rounded-full shadow-sm border border-gray-100">
+          {/* Category Badge - Top Right */}
+          <div className="absolute top-3 right-3 z-20">
+            <span className="px-2.5 py-1 bg-white/95 backdrop-blur-sm text-[10px] font-bold text-gray-800 rounded-full shadow-sm border border-gray-100">
               {article.category}
+            </span>
+          </div>
+
+          {/* Date Badge - Top Left */}
+          <div className="absolute top-3 left-3 z-20">
+            <span className="px-2.5 py-1 bg-black/40 backdrop-blur-md text-[10px] font-medium text-white rounded-full shadow-sm flex items-center gap-1">
+              <Calendar className="w-3 h-3 text-white/80" />
+              <span>{formatNumericDate(article.date || new Date().toISOString())}</span>
             </span>
           </div>
         </div>
 
         {/* Content Section */}
         <div className="p-5 flex flex-col flex-1">
-          {/* Meta Info */}
-          <div className="flex items-center gap-3 text-xs text-gray-400 mb-3">
-            <div className="flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5" />
-              <span>{formatNumericDate(article.date || new Date().toISOString())}</span>
-            </div>
-            <>
-              <span className="w-1 h-1 rounded-full bg-gray-300" />
-              <div className="flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5" />
-                <span>5 دقائق</span>
-              </div>
-            </>
-          </div>
-
-          <h3 className="text-lg font-bold text-gray-900 mb-3 line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors">
+          <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors">
             {article.title}
           </h3>
 

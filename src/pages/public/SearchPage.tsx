@@ -431,10 +431,6 @@ export const SearchPage: React.FC = () => {
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTypeColor(result.type)}`}>
                               {getTypeName(result.type)}
                             </span>
-                            <div className="flex items-center gap-1 text-sm text-gray-500">
-                              <Clock className="w-4 h-4" />
-                              <span>{result.readTime}</span>
-                            </div>
                           </div>
                           <h3 className="text-lg font-bold text-gray-900">{result.title}</h3>
                         </div>
