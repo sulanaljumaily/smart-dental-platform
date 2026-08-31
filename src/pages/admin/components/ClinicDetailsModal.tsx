@@ -28,7 +28,7 @@ export const ClinicDetailsModal: React.FC<ClinicDetailsModalProps> = ({
         }
     }, [isOpen, initialClinic]);
 
-    const fetchDetails = async (clinicId: string) => {
+    const fetchDetails = async (clinicId: string | number) => {
         setLoading(true);
         try {
             // Fetch Counts
@@ -37,21 +37,17 @@ export const ClinicDetailsModal: React.FC<ClinicDetailsModalProps> = ({
                 .select('*', { count: 'exact', head: true })
                 .eq('clinic_id', clinicId);
 
-            // Assuming profiles have clinic_id or we query a link table. 
-            // If profiles doesn't have clinic_id, this might return 0. 
-            // We'll try 'profiles' with 'clinic_id'.
             const staffPromise = supabase
-                .from('profiles')
+                .from('clinic_staff')
                 .select('*', { count: 'exact', head: true })
-                .eq('clinic_id', clinicId)
-                .in('role', ['doctor', 'staff', 'nurse']);
+                .eq('clinic_id', clinicId);
 
             // Fetch fresh clinic data for contact info
             const clinicPromise = supabase
                 .from('clinics')
-                .select('*, owner:profiles!owner_id(full_name, phone_number, email)')
+                .select('*, owner:profiles!owner_id(full_name, phone, email)')
                 .eq('id', clinicId)
-                .single();
+                .maybeSingle();
 
             const [patientsRes, staffRes, clinicRes] = await Promise.all([
                 patientsPromise,
@@ -64,9 +60,29 @@ export const ClinicDetailsModal: React.FC<ClinicDetailsModalProps> = ({
                 staff: staffRes.count || 0
             });
 
-            if (clinicRes.data) {
-                setClinic((prev: any) => ({ ...prev, ...clinicRes.data }));
+            let finalClinic = clinicRes?.data || initialClinic;
+
+            // If owner was not joined but owner_id exists, fetch owner profile directly
+            const ownerId = finalClinic?.owner_id || initialClinic?.owner_id;
+            let ownerObj = finalClinic?.owner;
+
+            if (!ownerObj && ownerId) {
+                const { data: ownerProfile } = await supabase
+                    .from('profiles')
+                    .select('id, full_name, phone, email')
+                    .eq('id', ownerId)
+                    .maybeSingle();
+
+                if (ownerProfile) {
+                    ownerObj = ownerProfile;
+                }
             }
+
+            setClinic((prev: any) => ({
+                ...prev,
+                ...finalClinic,
+                owner: ownerObj || prev?.owner
+            }));
 
         } catch (error) {
             console.error('Error fetching clinic details:', error);
@@ -175,20 +191,20 @@ export const ClinicDetailsModal: React.FC<ClinicDetailsModalProps> = ({
                                 <div className="grid grid-cols-2 gap-6">
                                     <div>
                                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">اسم المالك</label>
-                                        <p className="font-semibold text-gray-900 text-lg">{clinic.owner?.full_name || clinic.owner_name || 'غير متوفر'}</p>
+                                        <p className="font-semibold text-gray-900 text-lg">{clinic.owner?.full_name || clinic.ownerName || clinic.owner_name || 'غير متوفر'}</p>
                                     </div>
                                     <div>
                                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">رقم الهاتف</label>
                                         <div className="flex items-center gap-2 text-gray-900 text-lg">
                                             <Phone className="w-4 h-4 text-gray-400" />
-                                            <span dir="ltr">{clinic.owner?.phone_number || clinic.phone || 'غير متوفر'}</span>
+                                            <span dir="ltr">{clinic.owner?.phone || clinic.ownerPhone || clinic.phone || 'غير متوفر'}</span>
                                         </div>
                                     </div>
                                     <div className="col-span-2">
                                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">البريد الإلكتروني للإدارة</label>
                                         <div className="flex items-center gap-2 text-gray-900">
                                             <Mail className="w-4 h-4 text-gray-400" />
-                                            <span>{clinic.email || clinic.owner?.email || 'غير متوفر'}</span>
+                                            <span>{clinic.owner?.email || clinic.email || clinic.ownerEmail || 'غير متوفر'}</span>
                                         </div>
                                     </div>
                                     <div className="col-span-2 border-t border-gray-200 pt-4 mt-2">

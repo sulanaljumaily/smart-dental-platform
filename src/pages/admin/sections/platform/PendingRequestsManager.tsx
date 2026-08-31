@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../../../lib/supabase';
 import { toast } from 'sonner';
+import { formatNumericDate } from '../../../../lib/date';
 
 // Import Modals
 import { OwnerDetailsModal } from '../../../admin/components/OwnerDetailsModal';
@@ -359,7 +360,7 @@ export const PendingRequestsManager = () => {
                                         </td>
                                         <td className="px-6 py-4 text-sm" dir="ltr">{req.phone}</td>
                                         <td className="px-6 py-4 text-sm text-gray-500">
-                                            {new Date(req.created_at).toLocaleDateString('ar-IQ')}
+                                            {formatNumericDate(req.created_at)}
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex gap-2">
@@ -436,7 +437,7 @@ export const PendingRequestsManager = () => {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-sm text-gray-600">
-                                            {new Date(req.requestDate).toLocaleDateString('ar-IQ')}
+                                            {formatNumericDate(req.requestDate)}
                                         </td>
                                         <td className="px-6 py-4">
                                             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-orange-50 text-orange-700">

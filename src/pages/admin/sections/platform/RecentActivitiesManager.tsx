@@ -7,9 +7,9 @@ import {
     ShoppingCart,
     CheckCircle,
     AlertTriangle,
-    FileText,
     Clock
 } from 'lucide-react';
+import { formatNumericDate } from '../../../../lib/date';
 
 export const RecentActivitiesManager = () => {
     const [activities, setActivities] = useState<any[]>([]);
@@ -89,8 +89,8 @@ export const RecentActivitiesManager = () => {
                     {activities.length > 0 ? activities.map((activity) => {
                         const Icon = getIcon(activity.type);
                         const color = getColor(activity.type);
-                        const timeAgo = new Date(activity.created_at).toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' });
-                        const date = new Date(activity.created_at).toLocaleDateString('ar-IQ');
+                        const timeAgo = new Date(activity.created_at).toLocaleTimeString('ar-IQ-u-nu-latn', { hour: '2-digit', minute: '2-digit' });
+                        const date = formatNumericDate(activity.created_at);
 
                         return (
                             <div key={activity.id} className="p-4 hover:bg-gray-50 transition-colors flex items-start gap-4">

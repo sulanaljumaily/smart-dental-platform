@@ -224,7 +224,7 @@ export const JobsSection: React.FC = () => {
           {stats.monthlyTrends.map((month, index) => (
             <div key={index} className="text-center p-4 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl">
               <div className="text-xs text-gray-500 mb-2">
-                {new Date(month.month).toLocaleDateString('ar-IQ', { year: 'numeric', month: 'long' })}
+                {new Date(month.month).toLocaleDateString('ar-IQ-u-nu-latn', { year: 'numeric', month: 'long' })}
               </div>
               <div className="space-y-2">
                 <div className="text-lg font-bold text-purple-600">{month.jobs}</div>

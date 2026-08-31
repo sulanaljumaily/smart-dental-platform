@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AdminTable, Column } from '../../../components/admin/AdminTable';
+import { formatNumericDate } from '../../../lib/date';
 import { AdminModal, FormModal, ConfirmDeleteModal } from '../../../components/admin/AdminModal';
 import { StatsCard } from '../../../components/admin/StatsCard';
 import {
@@ -172,7 +173,7 @@ export const NotificationsSection: React.FC = () => {
     {
       key: 'release_date',
       title: 'تاريخ النشر',
-      render: (value) => <span className="text-sm text-gray-600">{new Date(value).toLocaleDateString('ar-IQ')}</span>
+      render: (value) => <span className="text-sm text-gray-600">{formatNumericDate(value)}</span>
     },
     {
       key: 'actions',

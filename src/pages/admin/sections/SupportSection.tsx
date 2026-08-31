@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AdminTable, Column } from '../../../components/admin/AdminTable';
+import { formatNumericDate } from '../../../lib/date';
 import { AdminModal, FormModal, ConfirmDeleteModal } from '../../../components/admin/AdminModal';
 import { StatsCard } from '../../../components/admin/StatsCard';
 import {
@@ -177,7 +178,7 @@ export const SupportSection: React.FC = () => {
       key: 'created_at',
       title: 'تاريخ الإنشاء',
       sortable: true,
-      render: (value) => new Date(value).toLocaleDateString('ar-EG')
+      render: (value) => formatNumericDate(value)
     },
     {
       key: 'actions',

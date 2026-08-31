@@ -23,6 +23,7 @@ import {
   QrCode
 } from 'lucide-react';
 import { useAdminSubscriptions } from '../../../hooks/useAdminSubscriptions';
+import { formatNumericDate } from '../../../lib/date';
 import { SubscriptionReviewModal } from '../components/SubscriptionReviewModal';
 import { OwnerDetailsModal } from '../components/OwnerDetailsModal';
 import { supabase } from '../../../lib/supabase';
@@ -160,13 +161,13 @@ export const SubscriptionsSection: React.FC = () => {
       key: 'submittedDate',
       title: 'تاريخ الطلب',
       sortable: true,
-      render: (value) => new Date(value).toLocaleDateString('ar-IQ')
+      render: (value) => formatNumericDate(value)
     },
     {
       key: 'endDate',
       title: 'تاريخ الانتهاء',
       sortable: true,
-      render: (value) => value ? new Date(value).toLocaleDateString('ar-IQ') : '-'
+      render: (value) => value ? formatNumericDate(value) : '-'
     }
   ];
 
@@ -1012,7 +1013,7 @@ const CouponsManager: React.FC<{
                             {discount > 0 ? `−${Number(discount).toLocaleString()} د.ع` : '—'}
                           </td>
                           <td className="px-4 py-3 text-gray-500 text-xs" dir="ltr">
-                            {new Date(req.created_at).toLocaleDateString('ar-EG')}
+                            {formatNumericDate(req.created_at)}
                           </td>
                           <td className="px-4 py-3">
                             <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${

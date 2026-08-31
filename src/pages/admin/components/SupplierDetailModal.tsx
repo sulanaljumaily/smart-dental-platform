@@ -11,6 +11,7 @@ import {
     FileText, AlertCircle, CheckCircle, XCircle, Store
 } from 'lucide-react';
 import { formatCurrency } from '../../../lib/utils';
+import { formatNumericDate } from '../../../lib/date';
 
 interface SupplierDetailModalProps {
     supplier: Supplier | any; // Allow any for now to avoid conflicts
@@ -215,10 +216,10 @@ export const SupplierDetailModal: React.FC<SupplierDetailModalProps> = ({
                                 <div className="p-4 border rounded-xl">
                                     <h4 className="font-bold mb-3 flex items-center gap-2 text-gray-900"><ShieldCheck className="w-4 h-4" /> معلومات النظام</h4>
                                     <div className="space-y-2 text-sm">
-                                        <div className="flex justify-between border-b pb-2">
-                                            <span className="text-gray-500">تاريخ الانضمام</span>
-                                            <span className="font-medium">{new Date(supplier.joinDate).toLocaleDateString('ar-IQ')}</span>
-                                        </div>
+                                         <div className="flex justify-between border-b pb-2">
+                                             <span className="text-gray-500">تاريخ الانضمام</span>
+                                             <span className="font-medium">{formatNumericDate(supplier.joinDate)}</span>
+                                         </div>
                                         <div className="flex justify-between border-b pb-2">
                                             <span className="text-gray-500">عدد المنتجات</span>
                                             <span className="font-medium">{supplier.productsCount} منتج</span>
@@ -467,7 +468,7 @@ const SettlementsTab = ({ supplierId, onRefreshStats }: { supplierId: string, on
                         {settlements.map((tx) => (
                             <tr key={tx.id}>
                                 <td className="p-3 font-mono text-gray-500">#{tx.id.substring(0, 8)}</td>
-                                <td className="p-3">{new Date(tx.transaction_date).toLocaleDateString('ar-IQ')}</td>
+                                <td className="p-3">{formatNumericDate(tx.transaction_date)}</td>
                                 <td className="p-3 font-bold text-green-600">{formatCurrency(tx.amount)}</td>
                                 <td className="p-3 text-gray-600">{tx.description}</td>
                                 <td className="p-3 text-center">

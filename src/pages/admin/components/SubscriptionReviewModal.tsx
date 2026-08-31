@@ -10,6 +10,7 @@ import {
     User
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
+import { formatNumericDate } from '../../../lib/date';
 
 interface SubscriptionReviewModalProps {
     request: any;
@@ -138,7 +139,7 @@ export const SubscriptionReviewModal: React.FC<SubscriptionReviewModalProps> = (
                         </div>
                         <div className="p-4 border border-gray-200 rounded-xl bg-white">
                             <span className="text-sm text-gray-500 block mb-1">تاريخ الطلب</span>
-                            <span className="font-medium text-gray-800">{new Date(request.submittedDate).toLocaleDateString('ar-EG')}</span>
+                            <span className="font-medium text-gray-800">{formatNumericDate(request.submittedDate)}</span>
                         </div>
                         <div className="p-4 border rounded-xl bg-white border-gray-200">
                             <span className="text-sm text-gray-500 block mb-1">الخصم المطبق</span>

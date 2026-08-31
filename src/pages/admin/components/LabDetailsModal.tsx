@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency } from '../../../lib/utils';
 import { toast } from 'sonner';
+import { formatNumericDate } from '../../../lib/date';
 
 interface LabDetailsModalProps {
     lab: Laboratory | null;
@@ -192,7 +193,7 @@ export const LabDetailsModal: React.FC<LabDetailsModalProps> = ({
                                     <div className="space-y-2 text-sm">
                                         <div className="flex justify-between border-b border-gray-50 pb-2">
                                             <span className="text-gray-500">تاريخ الانضمام</span>
-                                            <span className="font-medium">{new Date(lab.joinDate).toLocaleDateString('ar-IQ')}</span>
+                                            <span className="font-medium">{formatNumericDate(lab.joinDate)}</span>
                                         </div>
                                         <div className="flex justify-between border-b border-gray-50 pb-2">
                                             <span className="text-gray-500">عدد الطلبات</span>
@@ -436,7 +437,7 @@ export const LabDetailsModal: React.FC<LabDetailsModalProps> = ({
                                                     <td className="p-3 font-mono text-gray-600">{order.id.slice(0, 8)}</td>
                                                     <td className="p-3">{order.patient_name || '—'}</td>
                                                     <td className="p-3">{order.service_name || order.work_type || '—'}</td>
-                                                    <td className="p-3">{new Date(order.created_at).toLocaleDateString('ar-IQ')}</td>
+                                                    <td className="p-3">{formatNumericDate(order.created_at)}</td>
                                                     <td className="p-3">
                                                         <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${statusCfg.color}`}>
                                                             {statusCfg.label}
@@ -516,7 +517,7 @@ const LabSettlementsTab = ({ labId }: { labId: string }) => {
                         {settlements.map((tx) => (
                             <tr key={tx.id}>
                                 <td className="p-3 font-mono text-gray-500">#{tx.id.substring(0, 8)}</td>
-                                <td className="p-3">{new Date(tx.transaction_date).toLocaleDateString('ar-IQ')}</td>
+                                <td className="p-3">{formatNumericDate(tx.transaction_date)}</td>
                                 <td className="p-3 font-bold text-green-600">{formatCurrency(tx.amount)}</td>
                                 <td className="p-3 text-gray-600">{tx.description}</td>
                                 <td className="p-3">

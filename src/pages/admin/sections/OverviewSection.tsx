@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useAdminData } from '../../../hooks/useAdminData';
 import { supabase } from '../../../lib/supabase';
+import { formatNumericDate } from '../../../lib/date';
 
 interface OverviewSectionProps {
   onNavigate: (section: string, subTab?: string) => void;
@@ -99,7 +100,7 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({ onNavigate }) 
     if (diffInSeconds < 60) return 'الآن';
     if (diffInSeconds < 3600) return `منذ ${Math.floor(diffInSeconds / 60)} دقيقة`;
     if (diffInSeconds < 86400) return `منذ ${Math.floor(diffInSeconds / 3600)} ساعة`;
-    return date.toLocaleDateString('ar-IQ');
+    return formatNumericDate(date);
   };
 
   return (

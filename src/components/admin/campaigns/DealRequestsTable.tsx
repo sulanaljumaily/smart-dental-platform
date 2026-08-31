@@ -3,6 +3,7 @@ import { supabase } from '../../../lib/supabase';
 import { CheckCircle, XCircle, Clock, Store, Package, Star, Megaphone, Tag, Heart } from 'lucide-react';
 import { Button } from '../../common/Button';
 import { toast } from 'sonner';
+import { formatNumericDate } from '../../../lib/date';
 
 interface DealRequest {
     id: string;
@@ -388,7 +389,7 @@ export const DealRequestsTable: React.FC<{ storeType?: 'professional' | 'patient
                                                 {request.duration_days} يوم
                                             </td>
                                             <td className="px-6 py-4 text-slate-500 text-sm">
-                                                {new Date(request.created_at).toLocaleDateString('ar-IQ')}
+                                                {formatNumericDate(request.created_at)}
                                             </td>
                                             <td className="px-6 py-4">
                                                 {request.status === 'pending' && (

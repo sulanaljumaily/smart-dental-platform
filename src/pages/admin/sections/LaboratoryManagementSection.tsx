@@ -23,6 +23,7 @@ import {
 import { Card } from '../../../components/common/Card';
 import { BentoStatCard } from '../../../components/dashboard/BentoStatCard';
 import { Button } from '../../../components/common/Button';
+import { formatNumericDate } from '../../../lib/date';
 import { useAdminLabs, Laboratory } from '../../../hooks/useAdminLabs';
 import { AdminModal } from '../../../components/admin/AdminModal';
 import { LabDetailsModal } from '../components/LabDetailsModal';
@@ -108,10 +109,10 @@ const LabOrdersTab = () => {
                     </span>
                   </td>
                   <td className="p-4 font-bold text-gray-900">
-                    {amount > 0 ? amount.toLocaleString('ar-IQ') : <span className="text-gray-400 text-xs">غير محدد</span>}
+                    {amount > 0 ? `${amount.toLocaleString()} د.ع` : <span className="text-gray-400 text-xs">غير محدد</span>}
                   </td>
                   <td className="p-4 text-sm text-gray-400">
-                    {new Date(order.created_at).toLocaleDateString('ar-IQ')}
+                    {formatNumericDate(order.created_at)}
                   </td>
                 </tr>
               );

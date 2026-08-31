@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { ClinicDetailsModal } from './ClinicDetailsModal';
 import { toast } from 'sonner';
+import { formatNumericDate } from '../../../lib/date';
 
 interface OwnerDetailsModalProps {
     ownerId: string;
@@ -276,7 +277,7 @@ export const OwnerDetailsModal: React.FC<OwnerDetailsModalProps> = ({
                                                     <Calendar className="w-5 h-5 text-gray-400" />
                                                     <div>
                                                         <div className="text-xs text-gray-500">تاريخ الانضمام</div>
-                                                        <div className="font-medium">{new Date(ownerData?.created_at || Date.now()).toLocaleDateString('ar-IQ')}</div>
+                                                        <div className="font-medium">{formatNumericDate(ownerData?.created_at || new Date())}</div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -429,7 +430,7 @@ export const OwnerDetailsModal: React.FC<OwnerDetailsModalProps> = ({
                                                                 <div className="text-xs text-gray-500 font-mono mt-0.5">{sub.plan?.price?.monthly?.toLocaleString()} IQD</div>
                                                             </td>
                                                             <td className="px-5 py-4 text-gray-600">
-                                                                {new Date(sub.created_at).toLocaleDateString('ar-IQ')}
+                                                                {formatNumericDate(sub.created_at)}
                                                             </td>
                                                             <td className="px-5 py-4">
                                                                 <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${sub.status === 'approved' ? 'bg-green-100 text-green-700' :

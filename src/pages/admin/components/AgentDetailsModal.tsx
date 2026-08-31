@@ -12,6 +12,7 @@ import {
     Filter
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatNumericDate } from '../../../lib/date';
 
 interface AgentDetailsModalProps {
     agent: any;
@@ -204,7 +205,7 @@ export const AgentDetailsModal: React.FC<AgentDetailsModalProps> = ({
                                                 {tx.amount_paid?.toLocaleString()}
                                             </td>
                                             <td className="px-4 py-3 text-gray-500">
-                                                {new Date(tx.created_at).toLocaleDateString('ar-IQ')}
+                                                {formatNumericDate(tx.created_at)}
                                             </td>
                                             <td className="px-4 py-3">
                                                 <span className={`px-2 py-1 rounded-full text-xs font-bold ${tx.status === 'approved' ? 'bg-green-100 text-green-700' :

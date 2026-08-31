@@ -86,26 +86,26 @@ export const ArticleDetailPage: React.FC = () => {
 
       {/* Navigation & Actions Header */}
       <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100 transition-all">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between max-w-4xl">
+        <div className="container mx-auto px-4 h-12 flex items-center justify-between max-w-4xl">
           <button
             onClick={() => navigate('/services#tab-articles')}
-            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-50 text-gray-600 transition-colors"
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-600 transition-colors"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4" />
           </button>
           <div className="flex items-center gap-2">
-            <button className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-50 text-gray-500 hover:text-blue-600 transition-colors">
+            <button className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 hover:text-blue-600 transition-colors">
               <Share2 className="w-4 h-4" />
             </button>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 max-w-3xl pt-6 md:pt-8">
+      <div className="container mx-auto px-4 max-w-3xl pt-3 md:pt-4">
 
         {/* Article Meta Header */}
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center gap-2 mb-4">
+        <div className="text-center mb-5">
+          <div className="inline-flex items-center justify-center gap-2 mb-3">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-bold border border-blue-100/80">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
               {article.category}
@@ -123,35 +123,34 @@ export const ArticleDetailPage: React.FC = () => {
 
         {/* Featured Image (if exists) */}
         {article.image && (
-          <div className="mb-8 rounded-2xl md:rounded-3xl overflow-hidden shadow-xl shadow-gray-200">
+          <div className="mb-6 rounded-2xl md:rounded-3xl overflow-hidden shadow-xl shadow-gray-200">
             <img src={article.image} alt={article.title} className="w-full h-auto object-cover max-h-[420px]" />
           </div>
         )}
 
         {/* Excerpt */}
-        <div className="relative mb-8 bg-blue-50/30 p-5 md:p-6 rounded-2xl border border-blue-100/60">
-          <p className="text-lg md:text-xl font-bold text-gray-800 leading-relaxed">
+        <div className="relative mb-6 bg-blue-50/30 p-4 md:p-5 rounded-2xl border border-blue-100/60">
+          <p className="text-base md:text-lg font-bold text-gray-800 leading-relaxed">
             {article.excerpt}
           </p>
         </div>
 
         {/* Main Content */}
-        <div className="prose prose-lg prose-blue max-w-none text-gray-600 leading-loose prose-headings:font-bold prose-headings:text-gray-900 mb-20">
+        <div className="prose prose-lg prose-blue max-w-none text-gray-600 leading-loose prose-headings:font-bold prose-headings:text-gray-900 mb-8">
           {article.content.split('\n\n').map((paragraph, index) => (
             <p key={index}>{paragraph}</p>
           ))}
         </div>
 
         {/* Author / Source Box */}
-        <div className="bg-blue-50/50 rounded-3xl p-8 mb-20 flex items-start gap-6 border border-blue-100">
-          <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600 shrink-0">
-            <BookOpen className="w-8 h-8" />
+        <div className="bg-blue-50/50 rounded-2xl p-4 md:p-5 mb-10 flex items-center gap-4 border border-blue-100">
+          <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 shrink-0">
+            <BookOpen className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-gray-900 mb-2">المصدر العلمي</h3>
-            <p className="text-gray-600 leading-relaxed text-sm">
-              تمت مراجعة هذا المقال من قبل فريق من أطباء الأسنان المتخصصين لضمان دقة المعلومات الطبية الواردة فيه.
-              المعلومات المقدمة هي للأغراض التعليمية فقط ولا تغني عن استشارة الطبيب.
+            <h3 className="text-sm font-bold text-gray-900 mb-0.5">المصدر العلمي</h3>
+            <p className="text-gray-600 leading-normal text-xs md:text-sm">
+              تمت مراجعة المحتوى وتدقيقه طبياً من قِبل أطباء أسنان مختصين لضمان صحة ودقة المعلومات.
             </p>
           </div>
         </div>

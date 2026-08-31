@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrandsManager } from '../../../components/admin/store/BrandsManager';
 
 import { AdminTable, Column } from '../../../components/admin/AdminTable';
+import { formatNumericDate } from '../../../lib/date';
 import { AdminModal, FormModal, ConfirmDeleteModal } from '../../../components/admin/AdminModal';
 import { BentoStatCard } from '../../../components/dashboard/BentoStatCard';
 import {
@@ -134,7 +135,7 @@ const StoreOrdersTab = ({ onOpenSupplier }: { onOpenSupplier: (supplier: Supplie
                   </span>
                 </td>
                 <td className="p-6 text-sm text-gray-400">
-                  {new Date(order.created_at).toLocaleDateString('ar-IQ')}
+                  {formatNumericDate(order.created_at)}
                 </td>
                 <td className="p-6 text-center">
                   <button 
@@ -434,7 +435,7 @@ export const StoreSuppliersSection: React.FC = () => {
       key: 'joinDate',
       title: 'تاريخ التقديم',
       sortable: true,
-      render: (value) => new Date(value).toLocaleDateString('ar-IQ')
+      render: (value) => formatNumericDate(value)
     },
     {
       key: 'actions',

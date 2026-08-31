@@ -12,7 +12,8 @@ import {
   ShoppingBag,
   TestTube,
   Settings,
-  Building2
+  Building2,
+  ArrowUpRight
 } from 'lucide-react';
 import { InteractiveMap } from '../../components/public/InteractiveMap';
 import { EducationalArticles } from '../../components/public/EducationalArticles';
@@ -193,6 +194,42 @@ export const HomePage: React.FC = () => {
                 <p className="text-xs text-gray-600 leading-tight">{feature.desc}</p>
               </div>
             ))}
+          </div>
+
+          {/* Instagram Banner */}
+          <div className="max-w-4xl mx-auto mt-3 sm:mt-4">
+            <a
+              href="https://www.instagram.com/dental_platform.iq/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group relative flex items-center justify-between p-3 sm:p-4 rounded-2xl bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-indigo-500/10 hover:from-pink-500/15 hover:via-purple-500/15 hover:to-indigo-500/15 border border-pink-200/70 hover:border-pink-300 transition-all duration-300 shadow-sm hover:shadow-md"
+            >
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white p-2 shadow-sm border border-pink-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <img
+                    src="https://www.svgrepo.com/show/475658/instagram-color.svg"
+                    alt="Instagram"
+                    className="w-full h-full object-contain"
+                    loading="lazy"
+                  />
+                </div>
+                <div className="text-right">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm sm:text-base font-bold text-gray-900 group-hover:text-pink-600 transition-colors">
+                      تابعنا على إنستغرام
+                    </span>
+                    <span className="text-[11px] font-semibold text-pink-600 bg-white/80 px-2 py-0.5 rounded-full border border-pink-200/60" dir="ltr">
+                      @dental_platform.iq
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-pink-600 bg-white group-hover:bg-gradient-to-r group-hover:from-pink-500 group-hover:to-purple-600 group-hover:text-white px-3.5 py-2 rounded-xl border border-pink-200 shadow-sm transition-all duration-300 shrink-0 mr-2">
+                <span>متابعة</span>
+                <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              </div>
+            </a>
           </div>
         </div>
       </section>

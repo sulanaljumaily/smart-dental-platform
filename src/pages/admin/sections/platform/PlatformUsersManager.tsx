@@ -8,6 +8,7 @@ import { SupplierDetailModal } from '../../components/SupplierDetailModal';
 import { LabDetailsModal } from '../../components/LabDetailsModal';
 import { OwnerDetailsModal } from '../../components/OwnerDetailsModal';
 import { toast } from 'sonner';
+import { formatNumericDate } from '../../../../lib/date';
 
 export const PlatformUsersManager: React.FC = () => {
     const { users, loading } = useAdminCommunity();
@@ -189,7 +190,7 @@ export const PlatformUsersManager: React.FC = () => {
         {
             key: 'created_at',
             title: 'تاريخ الانضمام',
-            render: (val: string) => new Date(val).toLocaleDateString('ar-IQ')
+            render: (val: string) => formatNumericDate(val)
         },
         {
             key: 'actions',

@@ -4,6 +4,7 @@ import { supabase } from '../../../lib/supabase';
 import { Button } from '../../common/Button';
 import { AdminTable } from '../AdminTable';
 import { toast } from 'sonner';
+import { formatNumericDate } from '../../../lib/date';
 
 interface BrandDetailsModalProps {
     isOpen: boolean;
@@ -186,7 +187,7 @@ export const BrandDetailsModal: React.FC<BrandDetailsModalProps> = ({
                                         <div>
                                             <label className="block text-sm text-gray-500 mb-1">تاريخ الإنشاء</label>
                                             <p className="text-gray-900 font-medium">
-                                                {new Date(brand?.created_at).toLocaleDateString('ar-IQ', { dateStyle: 'long' })}
+                                                {formatNumericDate(brand?.created_at)}
                                             </p>
                                         </div>
                                         <div>
