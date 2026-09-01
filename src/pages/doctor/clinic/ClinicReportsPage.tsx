@@ -49,6 +49,7 @@ export const ClinicReportsPage: React.FC<ClinicReportsPageProps> = ({ clinicId }
 
   const getPeriodLabel = () => {
     switch (selectedPeriod) {
+      case 'all': return 'كافة البيانات (الكل)';
       case 'week': return 'الأسبوع الحالي';
       case 'quarter': return 'الربع الحالي';
       case 'year': return 'العام الحالي';
@@ -86,7 +87,7 @@ export const ClinicReportsPage: React.FC<ClinicReportsPageProps> = ({ clinicId }
     try {
       const headers = ['المؤشر / البيان', 'القيمة', 'الفترة'];
       const rows: Array<[string, string, string]> = [
-        ['اسم العيادة', currentClinic?.name || 'عيادة الأسنان', getPeriodLabel()],
+        ['اسم العيادة', currentClinic?.name || 'العيادة', getPeriodLabel()],
         ['نوع التقرير', getReportTypeLabel(), getPeriodLabel()],
         ['إجمالي المرضى الفعليين', stats.totalPatients.toString(), 'حتى الآن'],
         ['إجمالي الإيرادات', `${stats.monthlyRevenue.toLocaleString()} د.ع`, getPeriodLabel()],
@@ -136,12 +137,14 @@ export const ClinicReportsPage: React.FC<ClinicReportsPageProps> = ({ clinicId }
     );
   }
 
-  const revenueCardTitle = selectedPeriod === 'week' ? 'الإيرادات الأسبوعية'
+  const revenueCardTitle = selectedPeriod === 'all' ? 'إجمالي الإيرادات (الكل)'
+    : selectedPeriod === 'week' ? 'الإيرادات الأسبوعية'
     : selectedPeriod === 'quarter' ? 'إيرادات الربع'
     : selectedPeriod === 'year' ? 'الإيرادات السنوية'
     : 'الإيرادات الشهرية';
 
-  const expensesCardTitle = selectedPeriod === 'week' ? 'المصروفات الأسبوعية'
+  const expensesCardTitle = selectedPeriod === 'all' ? 'إجمالي المصروفات (الكل)'
+    : selectedPeriod === 'week' ? 'المصروفات الأسبوعية'
     : selectedPeriod === 'quarter' ? 'مصروفات الربع'
     : selectedPeriod === 'year' ? 'المصروفات السنوية'
     : 'المصروفات الشهرية';
@@ -181,8 +184,9 @@ export const ClinicReportsPage: React.FC<ClinicReportsPageProps> = ({ clinicId }
               onChange={(e) => setSelectedPeriod(e.target.value)}
               className="appearance-none w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-semibold bg-gray-50/80 hover:bg-white focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none cursor-pointer transition-all"
             >
-              <option value="week">📅 هذا الأسبوع</option>
+              <option value="all">🌐 الكل (جميع البيانات)</option>
               <option value="month">📅 هذا الشهر</option>
+              <option value="week">📅 هذا الأسبوع</option>
               <option value="quarter">📅 هذا الربع (3 أشهر)</option>
               <option value="year">📅 هذا العام</option>
             </select>

@@ -226,9 +226,12 @@ export const useClinicReports = (clinicId: string, period: string = 'month') => 
             const now = new Date();
 
             // Calculate active period boundaries
-            let periodStart: Date;
-            let periodEnd: Date;
-            if (period === 'week') {
+            let periodStart: Date | null = null;
+            let periodEnd: Date | null = null;
+            if (period === 'all') {
+                periodStart = null;
+                periodEnd = null;
+            } else if (period === 'week') {
                 periodStart = startOfWeek(now, { weekStartsOn: 6 });
                 periodEnd = endOfWeek(now, { weekStartsOn: 6 });
             } else if (period === 'quarter') {
@@ -244,6 +247,11 @@ export const useClinicReports = (clinicId: string, period: string = 'month') => 
 
             const oneYearAgo = startOfMonth(subMonths(now, 11)).toISOString();
 
+            let txQuery = supabase.from('financial_transactions').select('*').eq('clinic_id', clinicId);
+            if (period !== 'all') {
+                txQuery = txQuery.gte('transaction_date', oneYearAgo);
+            }
+
             // Parallel Data Fetching
             const [
                 { data: rawAppointments },
@@ -256,7 +264,7 @@ export const useClinicReports = (clinicId: string, period: string = 'month') => 
                 supabase.from('appointments').select('*').eq('clinic_id', clinicId),
                 supabase.from('patients').select('*', { count: 'exact', head: true }).eq('clinic_id', clinicId).is('deleted_at', null),
                 supabase.from('staff').select('*').eq('clinic_id', clinicId),
-                supabase.from('financial_transactions').select('*').eq('clinic_id', clinicId).gte('transaction_date', oneYearAgo),
+                txQuery,
                 supabase.from('tooth_treatment_plans').select('*').eq('clinic_id', clinicId),
                 supabase.from('patients').select('id, name, full_name, phone').eq('clinic_id', clinicId).is('deleted_at', null)
             ]);
@@ -282,9 +290,10 @@ export const useClinicReports = (clinicId: string, period: string = 'month') => 
 
             // Filter transactions for current period
             const currentPeriodRevenueData = allTransactions.filter(t => {
+                if (period === 'all') return true;
                 if (!t.transaction_date) return false;
                 const d = new Date(t.transaction_date);
-                return d >= periodStart && d <= periodEnd;
+                return periodStart && periodEnd ? (d >= periodStart && d <= periodEnd) : true;
             });
 
             // 1. Revenue & Profit
@@ -327,9 +336,10 @@ export const useClinicReports = (clinicId: string, period: string = 'month') => 
 
             // 3. Appointments & Attendance Stats
             const periodAppointments = mappedAppointments.filter(apt => {
+                if (period === 'all') return true;
                 if (!apt.date) return false;
                 const d = new Date(apt.date);
-                return d >= periodStart && d <= periodEnd;
+                return periodStart && periodEnd ? (d >= periodStart && d <= periodEnd) : true;
             });
             const activeAppointments = periodAppointments.length > 0 ? periodAppointments : mappedAppointments;
             const totalApps = activeAppointments.length;
