@@ -196,6 +196,30 @@ export const useClinicReports = (clinicId: string, period: string = 'month') => 
         'bg-orange-500'
     ];
 
+    const formatStaffRole = (s: any) => {
+        if (s.role_title && s.role_title.trim()) return s.role_title.trim();
+        if (s.department && s.department.trim()) return s.department.trim();
+        
+        const roleKey = (s.position || s.role || '').toLowerCase();
+        const rolesMap: Record<string, string> = {
+            'doctor': 'طبيب أسنان',
+            'dentist': 'طبيب أسنان',
+            'specialist': 'طبيب أخصائي',
+            'surgeon': 'جراح فم وأسنان',
+            'orthodontist': 'أخصائي تقويم',
+            'assistant': 'مساعد طبيب',
+            'nurse': 'تمريض',
+            'receptionist': 'موظف استقبال',
+            'reception': 'موظف استقبال',
+            'accountant': 'محاسب مالي',
+            'admin': 'إداري العيادة',
+            'manager': 'مدير العيادة',
+            'technician': 'فني مختبر / أشعة',
+            'lab': 'فني مختبر'
+        };
+        return rolesMap[roleKey] || (roleKey ? roleKey : 'طبيب أسنان');
+    };
+
     const fetchReports = async () => {
         try {
             setLoading(true);
@@ -368,13 +392,14 @@ export const useClinicReports = (clinicId: string, period: string = 'month') => 
                 const revenueGenerated = docIncomeTxs.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
 
                 // Commission
-                const commissionRate = parseFloat(s.commission_rate) || (s.role === 'doctor' || s.role === 'specialist' ? 30 : 0);
+                const isDoctor = s.position === 'doctor' || s.role === 'doctor' || s.role_title?.includes('طبيب') || s.role_title?.includes('أخصائي');
+                const commissionRate = parseFloat(s.commission_rate) || (isDoctor ? 30 : 0);
                 const commissionAmount = Math.round(revenueGenerated * (commissionRate / 100));
 
                 return {
                     id: staffIdStr,
                     name: staffName || 'طبيب / كادر',
-                    role: s.role === 'doctor' ? 'طبيب أسنان' : s.role === 'specialist' ? 'أخصائي' : s.role === 'assistant' ? 'مساعد طبيب' : 'كادر العيادة',
+                    role: formatStaffRole(s),
                     appointmentsCount: appCount,
                     completedCount: docCompleted,
                     revenueGenerated,
