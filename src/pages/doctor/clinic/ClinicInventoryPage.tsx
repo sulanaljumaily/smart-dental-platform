@@ -189,8 +189,8 @@ export const ClinicInventoryPage: React.FC<ClinicInventoryPageProps> = ({ clinic
   return (
     <div className="space-y-6">
 
-      {/* Stats Cards (Updated logic to count By Specialty if needed, or keep generic) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Stats Cards (2 cols on mobile, 4 cols on desktop) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <BentoStatCard
           title="إجمالي العناصر"
           value={stats.totalItems}
@@ -199,6 +199,7 @@ export const ClinicInventoryPage: React.FC<ClinicInventoryPageProps> = ({ clinic
           trend="neutral"
           trendValue={`قيمة: ${(stats.totalValue / 1000000).toFixed(1)}م`}
           delay={100}
+          compact={true}
         />
         <BentoStatCard
           title="متاح"
@@ -206,6 +207,7 @@ export const ClinicInventoryPage: React.FC<ClinicInventoryPageProps> = ({ clinic
           icon={Box}
           color="green"
           delay={200}
+          compact={true}
         />
         <BentoStatCard
           title="مخزون منخفض"
@@ -215,6 +217,7 @@ export const ClinicInventoryPage: React.FC<ClinicInventoryPageProps> = ({ clinic
           trend={stats.lowStock > 0 ? "down" : "neutral"}
           trendValue={stats.lowStock > 0 ? "تحذير" : "مستقر"}
           delay={300}
+          compact={true}
         />
         <BentoStatCard
           title="نفد المخزون"
@@ -222,51 +225,79 @@ export const ClinicInventoryPage: React.FC<ClinicInventoryPageProps> = ({ clinic
           icon={Box}
           color="red"
           delay={400}
+          compact={true}
         />
       </div>
 
-      {/* Controls */}
-      <Card>
-        <div className="p-6">
-          <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-            <div className="flex flex-col sm:flex-row gap-3 flex-1">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input type="text" placeholder="البحث..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg" />
-              </div>
+      {/* Controls Bar - Mobile & Desktop Optimized */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-xs p-2.5 sm:px-3.5 sm:py-2.5 space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between sm:gap-2.5">
+        {/* Row 1 on Mobile: Search + Add Button */}
+        <div className="flex items-center gap-2 flex-1">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
+            <input
+              type="text"
+              placeholder="البحث في المخزون..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-3 py-1.5 border border-gray-200 rounded-lg text-xs bg-gray-50/70 hover:bg-white focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+            />
+          </div>
 
-              {/* Specialty Filter */}
-              <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="px-4 py-2 border border-gray-200 rounded-lg">
-                <option value="all">جميع التخصصات</option>
-                <option value="Orthodontics">تقويم الأسنان</option>
-                <option value="Cosmetic">تجميل</option>
-                <option value="Restorative">حشوات</option>
-                <option value="Anesthetic">تخدير</option>
-                <option value="Endodontics">علاج عصب</option>
-                <option value="Surgery">جراحة</option>
-                <option value="Consumables">مستهلكات عامة</option>
-              </select>
+          {/* Add Button for Mobile (Top-Right aligned with search) */}
+          <button
+            onClick={openAddModal}
+            className="sm:hidden flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all shadow-xs cursor-pointer active:scale-95 shrink-0"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>عنصر جديد</span>
+          </button>
+        </div>
 
-              <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)} className="px-4 py-2 border border-gray-200 rounded-lg">
-                <option value="all">جميع الحالات</option>
-                <option value="available">متاح</option>
-                <option value="low_stock">مخزون منخفض</option>
-                <option value="out_of_stock">نفد المخزون</option>
-              </select>
-            </div>
+        {/* Row 2 on Mobile (2 equal columns) / Inlined on Desktop */}
+        <div className="grid grid-cols-2 sm:flex items-center gap-2">
+          {/* Specialty Filter */}
+          <div className="relative w-full sm:w-36">
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs font-semibold bg-gray-50/70 hover:bg-white focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none cursor-pointer transition-all truncate"
+            >
+              <option value="all">🏷️ جميع التخصصات</option>
+              <option value="Orthodontics">تقويم الأسنان</option>
+              <option value="Cosmetic">تجميل</option>
+              <option value="Restorative">حشوات</option>
+              <option value="Anesthetic">تخدير</option>
+              <option value="Endodontics">علاج عصب</option>
+              <option value="Surgery">جراحة</option>
+              <option value="Consumables">مستهلكات عامة</option>
+            </select>
+          </div>
 
-            <div className="flex items-center gap-3">
-              <div className="flex bg-gray-100 rounded-lg p-1">
-                <button onClick={() => setViewMode('grid')} className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${viewMode === 'grid' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600'}`}>شبكة</button>
-                <button onClick={() => setViewMode('list')} className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${viewMode === 'list' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600'}`}>قائمة</button>
-              </div>
-              <button onClick={openAddModal} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                <Plus className="w-4 h-4" /> <span className="text-sm font-medium">عنصر جديد</span>
-              </button>
-            </div>
+          {/* Status Filter */}
+          <div className="relative w-full sm:w-32">
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs font-semibold bg-gray-50/70 hover:bg-white focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none cursor-pointer transition-all truncate"
+            >
+              <option value="all">📌 جميع الحالات</option>
+              <option value="available">🟢 متاح</option>
+              <option value="low_stock">🟡 مخزون منخفض</option>
+              <option value="out_of_stock">🔴 نفد المخزون</option>
+            </select>
           </div>
         </div>
-      </Card>
+
+        {/* Add Button for Desktop */}
+        <button
+          onClick={openAddModal}
+          className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all shadow-xs cursor-pointer active:scale-95 whitespace-nowrap shrink-0"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>عنصر جديد</span>
+        </button>
+      </div>
 
       {/* Inventory Grid */}
       <Card>

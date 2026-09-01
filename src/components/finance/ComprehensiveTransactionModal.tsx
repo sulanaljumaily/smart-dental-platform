@@ -74,6 +74,7 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
         patientId: preselectedPatientId || '',
         doctorId: '',
         staffId: '', // For expenses like salary
+        relatedPerson: '', // Beneficiary / Supplier / Staff / Entity
         inventoryItemId: '',
         itemName: '',
         paymentMethod: 'cash',
@@ -129,7 +130,7 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
     useEffect(() => {
         if (isOpen) {
             if (initialData) {
-                // Poppyulate for Edit Mode (Existing Transaction)
+                // Populate for Edit Mode (Existing Transaction)
                 setFormData({
                     amount: initialData.amount,
                     category: initialData.category,
@@ -137,6 +138,7 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                     patientId: initialData.patientId || '',
                     doctorId: initialData.doctorId || '',
                     staffId: initialData.staffId || '',
+                    relatedPerson: initialData.relatedPerson || '',
                     inventoryItemId: initialData.inventoryItemId || '',
                     itemName: '',
                     paymentMethod: initialData.paymentMethod || 'cash',
@@ -170,6 +172,7 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                     amount: prefillData.amount || '',
                     category: prefillData.category || (type === 'income' ? 'treatment' : 'other'),
                     description: prefillData.description || '',
+                    relatedPerson: prefillData.relatedPerson || '',
                     // Reset others
                     staffId: '', inventoryItemId: '', itemName: '',
                     labId: '', labRequestId: '', paymentStatus: 'paid', extraCost: 0, assistantId: '',
@@ -192,6 +195,7 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                     category: type === 'income' ? 'treatment' : 'other',
                     amount: '',
                     description: '',
+                    relatedPerson: '',
                     doctorId: '', staffId: '', inventoryItemId: '', itemName: '',
                     labId: '', labRequestId: '', paymentStatus: 'paid', extraCost: 0, treatmentId: '', assistantId: '',
                     recordedById: currentStaff ? currentStaff.id : ''
@@ -220,6 +224,7 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                 labRequestId: order.id,
                 labId: order.laboratory_id || '',
                 amount: order.final_amount || 0,
+                relatedPerson: order.lab_name || '',
                 description: `دفعات مختبر للطلب #${order.id.slice(-6)}`
             }));
             // Optional: Auto-set filters to match selected order for clarity
@@ -227,7 +232,7 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
             if (order.patient_id) setPatientFilter(order.patient_id);
             if (order.doctor_id) setDoctorFilter(order.doctor_id);
         } else {
-            setFormData(prev => ({ ...prev, labRequestId: '', labId: '', amount: '' }));
+            setFormData(prev => ({ ...prev, labRequestId: '', labId: '', amount: '', relatedPerson: '' }));
         }
     };
 
@@ -261,6 +266,8 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
             }
         }
 
+        const resolvedRelatedPerson = formData.relatedPerson || (formData.category === 'salary' ? staff.find(s => s.id === formData.staffId)?.name : '');
+
         await onSave({
             type: type,
             amount: typeof formData.amount === 'string' ? parseFloat(formData.amount) : formData.amount,
@@ -273,6 +280,7 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
             doctorId: formData.doctorId,
             staffId: formData.staffId, // For salary expense
             recordedById: formData.recordedById, // New Field
+            relatedPerson: resolvedRelatedPerson,
             inventoryItemId: formData.inventoryItemId,
             itemName: formData.itemName,
             quantity: formData.quantity, // Pass quantity to sync with inventory
@@ -576,6 +584,7 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                                     setFormData(prev => ({
                                         ...prev,
                                         staffId: selectedId,
+                                        relatedPerson: selectedStaff ? selectedStaff.name : '',
                                         amount: autoAmount,
                                         description: selectedStaff ? `راتب: ${selectedStaff.name}` : prev.description
                                     }));
@@ -728,6 +737,16 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                     {type === 'expense' && formData.category === 'inventory' && (
                         <div className="bg-red-50/50 p-4 rounded-xl border border-red-100 space-y-3">
                             <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">الجهة المستفيدة / المورد (المحل أو الشركة المجهزة)</label>
+                                <input
+                                    type="text"
+                                    className="w-full border rounded-lg p-2.5 text-right bg-white focus:ring-2 focus:ring-red-500"
+                                    value={formData.relatedPerson}
+                                    onChange={e => setFormData({ ...formData, relatedPerson: e.target.value })}
+                                    placeholder="مثال: شركة الماسة للمستلزمات، مذخر الفرات..."
+                                />
+                            </div>
+                            <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">المادة المشتراة</label>
                                 <select
                                     className="w-full border rounded-lg p-2.5 text-right bg-white"
@@ -780,6 +799,51 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                         </div>
                     )}
 
+                    {type === 'expense' && formData.category === 'rent' && (
+                        <div className="bg-red-50/50 p-4 rounded-xl border border-red-100 space-y-3">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">الجهة المستفيدة (المؤجر / صاحب العقار)</label>
+                                <input
+                                    type="text"
+                                    className="w-full border rounded-lg p-2.5 text-right bg-white focus:ring-2 focus:ring-red-500"
+                                    value={formData.relatedPerson}
+                                    onChange={e => setFormData({ ...formData, relatedPerson: e.target.value })}
+                                    placeholder="مثال: مالك البناية / الحاج أحمد..."
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {type === 'expense' && (formData.category === 'bills' || formData.category === 'electricity' || formData.category === 'كهرباء') && (
+                        <div className="bg-red-50/50 p-4 rounded-xl border border-red-100 space-y-3">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">الجهة المستفيدة (دائرة الكهرباء / صاحب المولد / الجهة الخدمية)</label>
+                                <input
+                                    type="text"
+                                    className="w-full border rounded-lg p-2.5 text-right bg-white focus:ring-2 focus:ring-red-500"
+                                    value={formData.relatedPerson}
+                                    onChange={e => setFormData({ ...formData, relatedPerson: e.target.value })}
+                                    placeholder="مثال: مولدة حي الجامعة، دائرة الكهرباء، شركة الإنترنت..."
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {type === 'expense' && !['salary', 'inventory', 'lab', 'rent', 'bills', 'electricity', 'كهرباء', 'asset_purchase'].includes(formData.category) && (
+                        <div className="bg-red-50/50 p-4 rounded-xl border border-red-100 space-y-3">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">الجهة المستفيدة / المستلم للمبلغ</label>
+                                <input
+                                    type="text"
+                                    className="w-full border rounded-lg p-2.5 text-right bg-white focus:ring-2 focus:ring-red-500"
+                                    value={formData.relatedPerson}
+                                    onChange={e => setFormData({ ...formData, relatedPerson: e.target.value })}
+                                    placeholder="مثال: فني الصيانة، شركة التسويق، المستلم..."
+                                />
+                            </div>
+                        </div>
+                    )}
+
                     {type === 'expense' && formData.category === 'lab' && (
                         <div className="bg-red-50/50 p-4 rounded-xl border border-red-100 space-y-3">
                             <h4 className="font-semibold text-red-800 text-sm flex items-center gap-2 mb-2">
@@ -797,7 +861,7 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                                     >
                                         <option value="">الكل</option>
                                         {adminLabs.map(lab => (
-                                            <option key={lab.id} value={lab.id}>{lab.name}</option>
+                                             <option key={lab.id} value={lab.id}>{lab.name}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -857,6 +921,16 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                             <h4 className="font-semibold text-indigo-800 text-sm flex items-center gap-2 mb-2">
                                 <Box className="w-4 h-4" /> تفاصيل الأصل الثابت
                             </h4>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">الجهة المجهزة / الشركة المستفيدة</label>
+                                <input
+                                    type="text"
+                                    className="w-full border rounded-lg p-2.5 text-right bg-white"
+                                    value={formData.relatedPerson}
+                                    onChange={e => setFormData({ ...formData, relatedPerson: e.target.value })}
+                                    placeholder="مثال: شركة التجهيزات الطبية المتطورة..."
+                                />
+                            </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">اسم الأصل (الجهاز/المعدة)</label>
                                 <input

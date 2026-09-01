@@ -11,6 +11,7 @@ interface BentoStatCardProps {
     onClick?: () => void;
     className?: string;
     delay?: number; // for animation
+    compact?: boolean; // When true, uses compact refined fonts and padding for modals
 }
 
 export const BentoStatCard: React.FC<BentoStatCardProps> = ({
@@ -22,7 +23,8 @@ export const BentoStatCard: React.FC<BentoStatCardProps> = ({
     color = 'blue',
     onClick,
     className = '',
-    delay = 0
+    delay = 0,
+    compact = false
 }) => {
 
     // Color Maps
@@ -135,33 +137,33 @@ export const BentoStatCard: React.FC<BentoStatCardProps> = ({
             onClick={onClick}
             style={{ animationDelay: `${delay}ms` }}
             className={`
-        relative overflow-hidden rounded-[2rem] p-4 sm:p-6 border transition-all duration-300 group
+        relative overflow-hidden ${compact ? 'rounded-2xl p-3.5 sm:p-4' : 'rounded-[2rem] p-4 sm:p-6'} border transition-all duration-300 group
         ${style.bg} ${style.border} ${className}
         ${onClick ? 'cursor-pointer hover:shadow-xl hover:-translate-y-1 hover:border-transparent' : ''}
         animate-in fade-in slide-in-from-bottom-4 fill-mode-backwards
       `}
         >
             {/* Decorative Background Icon */}
-            <Icon className={`absolute -bottom-4 -left-4 w-20 h-20 sm:w-32 sm:h-32 rotate-12 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6 ${style.decorative}`} strokeWidth={1.5} />
+            <Icon className={`absolute -bottom-3 -left-3 ${compact ? 'w-16 h-16 sm:w-20 sm:h-20' : 'w-20 h-20 sm:w-32 sm:h-32'} rotate-12 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6 ${style.decorative}`} strokeWidth={1.5} />
 
             <div className="relative z-10 flex flex-col h-full justify-between">
 
                 {/* Header: Icon & Title */}
-                <div className="flex justify-between items-start mb-4">
-                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shadow-sm ${style.iconBg} ${style.iconColor} group-hover:scale-110 transition-transform duration-300`}>
-                        <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
+                <div className={`flex justify-between items-start ${compact ? 'mb-2.5' : 'mb-4'}`}>
+                    <div className={`${compact ? 'w-8 h-8 sm:w-9 sm:h-9 rounded-xl' : 'w-10 h-10 sm:w-12 sm:h-12 rounded-2xl'} flex items-center justify-center shadow-sm ${style.iconBg} ${style.iconColor} group-hover:scale-110 transition-transform duration-300`}>
+                        <Icon className={compact ? 'w-4 h-4 sm:w-4.5 sm:h-4.5' : 'w-5 h-5 sm:w-6 sm:h-6'} />
                     </div>
 
                     {/* Trend Badge */}
                     {trend && (
-                        <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold backdrop-blur-sm border shadow-sm
+                        <div className={`flex items-center gap-1 ${compact ? 'px-2 py-0.5 text-[11px]' : 'px-2 py-1 text-xs'} font-bold backdrop-blur-sm border shadow-xs rounded-full
                ${trend === 'up' ? 'bg-green-100/80 text-green-700 border-green-200' :
                                 trend === 'down' ? 'bg-red-100/80 text-red-700 border-red-200' :
                                     'bg-slate-100/80 text-slate-700 border-slate-200'}
              `}>
-                            {trend === 'up' && <TrendingUp className="w-3 h-3" />}
-                            {trend === 'down' && <TrendingDown className="w-3 h-3" />}
-                            {trend === 'neutral' && <Minus className="w-3 h-3" />}
+                            {trend === 'up' && <TrendingUp className={compact ? 'w-2.5 h-2.5' : 'w-3 h-3'} />}
+                            {trend === 'down' && <TrendingDown className={compact ? 'w-2.5 h-2.5' : 'w-3 h-3'} />}
+                            {trend === 'neutral' && <Minus className={compact ? 'w-2.5 h-2.5' : 'w-3 h-3'} />}
                             <span dir="ltr">{trendValue}</span>
                         </div>
                     )}
@@ -169,10 +171,10 @@ export const BentoStatCard: React.FC<BentoStatCardProps> = ({
 
                 {/* Content: Value & Title */}
                 <div>
-                    <h3 className={`text-lg sm:text-3xl font-bold mb-1 tracking-tight ${style.text}`}>
+                    <h3 className={`${compact ? 'text-base sm:text-lg md:text-xl font-bold mb-0.5' : 'text-lg sm:text-3xl font-bold mb-1'} tracking-tight ${style.text}`}>
                         {value}
                     </h3>
-                    <p className={`font-medium text-sm ${style.subText}`}>
+                    <p className={`font-semibold ${compact ? 'text-xs' : 'text-sm'} ${style.subText}`}>
                         {title}
                     </p>
                 </div>

@@ -77,7 +77,7 @@ export const useFinance = (clinicId?: string, patientId?: string, staffId?: stri
                     // Use staff_record.full_name for doctor/staff name
                     doctorName: t.staff_record?.full_name || '',
                     recorderName: t.recorder_staff?.full_name || 'مسؤول النظام',
-                    relatedPerson: t.patient?.full_name || (t.type === 'expense' && t.category === 'salary' ? t.staff_record?.full_name : '')
+                    relatedPerson: t.related_person || t.patient?.full_name || (t.type === 'expense' && t.category === 'salary' ? t.staff_record?.full_name : '')
                 }));
             }
 
@@ -207,6 +207,7 @@ export const useFinance = (clinicId?: string, patientId?: string, staffId?: stri
                 payment_method: t.paymentMethod,
                 status: 'completed',
                 patient_id: t.patientId || null,
+                related_person: t.relatedPerson || null,
 
                 // Unified Staff Identity
                 staff_record_id: !isNaN(Number(staffRecordId)) ? staffRecordId : null,
@@ -244,7 +245,7 @@ export const useFinance = (clinicId?: string, patientId?: string, staffId?: stri
                 paymentMethod: data.payment_method || 'cash',
                 recordedById: data.recorded_by_staff_id?.toString(),
                 recorderName: data.recorder_staff?.full_name || 'مسؤول النظام',
-                relatedPerson: data.patient?.full_name || (data.type === 'expense' && data.category === 'salary' ? data.staff_record?.full_name : ''),
+                relatedPerson: t.relatedPerson || data.related_person || data.patient?.full_name || (data.type === 'expense' && data.category === 'salary' ? data.staff_record?.full_name : ''),
                 doctorName: data.staff_record?.full_name || '',
                 // Map other potential fields if needed for immediate display
                 patientId: t.patientId,
@@ -267,6 +268,7 @@ export const useFinance = (clinicId?: string, patientId?: string, staffId?: stri
             if (updates.description) dbUpdates.description = updates.description;
             if (updates.date) dbUpdates.transaction_date = updates.date;
             if (updates.paymentMethod) dbUpdates.payment_method = updates.paymentMethod;
+            if (updates.relatedPerson !== undefined) dbUpdates.related_person = updates.relatedPerson || null;
 
             // Relational updates
             if (updates.patientId !== undefined) dbUpdates.patient_id = updates.patientId || null;

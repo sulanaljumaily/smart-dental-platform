@@ -125,3 +125,31 @@ export function formatActivityDetails(action: string, details: any): string {
   // Fallback if not mapped
   return typeof parsedDetails === 'object' ? JSON.stringify(parsedDetails) : String(parsedDetails);
 }
+
+/**
+ * Maps category keys to readable Arabic names, preserving custom names.
+ */
+export function formatCategoryName(category?: string, type?: 'income' | 'expense' | string): string {
+  if (!category) return type === 'income' ? 'إيراد مالي' : 'مصروف عام';
+  const cat = category.toLowerCase().trim();
+  switch (cat) {
+    case 'treatment': return 'علاج أسنان';
+    case 'consultation': return 'كشفية / استشارة';
+    case 'salary': return 'رواتب وأجور';
+    case 'inventory': return 'مشتريات ومواد ومخزون';
+    case 'materials': return 'مواد ومستلزمات طبية';
+    case 'supplies': return 'مستلزمات طبية';
+    case 'lab': return 'أعمال مختبر ومعمل';
+    case 'rent': return 'إيجار العيادة';
+    case 'bills': return 'فواتير وخدمات';
+    case 'asset_purchase':
+    case 'equipment':
+    case 'assets': return 'شراء أصول ومعدات';
+    case 'maintenance': return 'صيانة وتشغيل';
+    case 'marketing':
+    case 'advertising': return 'إعلانات وتسويق';
+    case 'cleaning': return 'نظافة وضيافة';
+    case 'other': return 'أخرى / متنوع';
+    default: return category; // Preserve custom Arabic category names
+  }
+}

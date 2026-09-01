@@ -110,6 +110,7 @@ import { PatientRecordView } from './pages/patient/PatientRecordView';
 import { PatientMessagesPage } from './pages/patient/PatientMessagesPage';
 import { PatientAddressesPage } from './pages/patient/store/PatientAddressesPage';
 import { PatientStoreSupportPage } from './pages/patient/store/PatientStoreSupportPage';
+import { PublicPatientPortal } from './pages/public/PublicPatientPortal';
 
 // Admin Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -260,6 +261,10 @@ function AppContent() {
         <Route path="/patient/store/support" element={<PatientStoreSupportPage />} />
         <Route path="/patient/record/:id" element={<ProtectedRoute requiredRole="patient"><PatientRecordView /></ProtectedRoute>} />
         <Route path="/patient/messages" element={<ProtectedRoute requiredRole="patient"><PatientMessagesPage /></ProtectedRoute>} />
+
+        {/* Public Patient Portal (No Login Required - Accessible via QR Code) */}
+        <Route path="/patient-portal/:clinicId/:patientId" element={<PublicPatientPortal />} />
+        <Route path="/patient/portal/:clinicId/:patientId" element={<PublicPatientPortal />} />
 
         {/* Doctor Routes (Protected, No Public Header) */}
         <Route path="/doctor" element={

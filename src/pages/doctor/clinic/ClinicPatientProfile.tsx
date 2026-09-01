@@ -12,10 +12,14 @@ import {
   HeartPulse, Syringe, Pill, Star, Beaker, History as HistoryIcon,
   MessageSquare, Upload, RefreshCcw, Info, ArrowRight, AlertTriangle,
   TrendingUp, TrendingDown, CreditCard, Wallet, Receipt, HandCoins,
-  CheckSquare, AlertOctagon, Edit, Clock, Mic, Square
+  CheckSquare, AlertOctagon, Edit, Clock, Mic, Square, QrCode
 } from 'lucide-react';
 
 import { ComprehensiveTransactionModal } from '../../../components/finance/ComprehensiveTransactionModal';
+import { PatientPortalQRModal } from '../../../components/patient/PatientPortalQRModal';
+import { TransactionDetailsModal } from './ClinicFinancePage';
+import { PatientAccountModal } from '../../../components/finance/PatientAccountModal';
+import { printIncomeReceipt, printExpenseVoucher } from '../../../lib/printReceipt';
 import { toast } from 'sonner';
 
 import { Button } from '../../../components/common/Button';
@@ -206,6 +210,10 @@ export const ClinicPatientProfile = () => {
   const [selectedFinancePlanId, setSelectedFinancePlanId] = useState<string | null>(null);
   const [selectedFinanceSessionId, setSelectedFinanceSessionId] = useState<string | null>(null);
   const [financeAmount, setFinanceAmount] = useState<number>(0);
+  const [showPortalQRModal, setShowPortalQRModal] = useState(false);
+  const [selectedTransactionForDetails, setSelectedTransactionForDetails] = useState<any | null>(null);
+  const [showTransactionDetailsModal, setShowTransactionDetailsModal] = useState(false);
+  const [showPatientAccountModal, setShowPatientAccountModal] = useState(false);
 
   // --- HOOKS & DATA ---
   const { user } = useAuth();
@@ -239,6 +247,34 @@ export const ClinicPatientProfile = () => {
     if (!name) return undefined;
     const doc = clinicStaff.find(s => s.name === name || s.name.replace('د. ', '').trim() === name.replace('د. ', '').trim());
     return doc ? doc.id : undefined;
+  };
+
+  const handlePrintTransaction = (tx: any) => {
+    if (!tx) return;
+    if (tx.type === 'expense') {
+      printExpenseVoucher({
+        transaction: tx,
+        clinic: currentClinic,
+        recorderName: tx.recorderName || tx.recorder_staff?.full_name || currentStaffMember?.name
+      });
+    } else {
+      printIncomeReceipt({
+        transaction: tx,
+        clinic: currentClinic,
+        patient: {
+          id: patient?.id || patientId,
+          full_name: patient?.full_name || patient?.name || tx.relatedPerson || '',
+          phone: patient?.phone
+        },
+        doctorName: tx.doctorName || defaultDoctorName,
+        recorderName: tx.recorderName || tx.recorder_staff?.full_name || currentStaffMember?.name
+      });
+    }
+  };
+
+  const handleOpenTransactionDetails = (tx: any) => {
+    setSelectedTransactionForDetails(tx);
+    setShowTransactionDetailsModal(true);
   };
 
   const { uploadFile, loading: fileUploading, error: uploadError } = useStorage();
@@ -1836,27 +1872,50 @@ export const ClinicPatientProfile = () => {
                 <th className="px-6 py-3 text-xs font-medium text-gray-500">النوع</th>
                 <th className="px-6 py-3 text-xs font-medium text-gray-500">الوصف</th>
                 <th className="px-6 py-3 text-xs font-medium text-gray-500">المبلغ</th>
+                <th className="px-6 py-3 text-xs font-medium text-gray-500 text-center">الإجراءات</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {patientTransactions.map(t => (
-                <tr key={t.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 font-mono text-sm text-gray-600">#{t.id.slice(0, 8)}</td>
+                <tr key={t.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4">
+                    <span className="bg-gray-100 px-2 py-1 rounded-md text-xs font-bold text-gray-700 inline-block">
+                      #{t.id.slice(-6)}
+                    </span>
+                  </td>
                   <td className="px-6 py-4 text-sm text-gray-600">{formatDate(t.date)}</td>
                   <td className="px-6 py-4 text-sm">
                     <span className={`px-2 py-1 rounded-full text-xs font-bold ${t.type === 'income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                       {t.type === 'income' ? 'إيراد' : 'مصروف'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">{t.description}</td>
+                  <td className="px-6 py-4 text-sm text-gray-900 font-medium">{t.description}</td>
                   <td className={`px-6 py-4 font-bold ${t.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
                     {t.type === 'income' ? '+' : '-'}{t.amount.toLocaleString()} د.ع
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <button
+                        onClick={() => handlePrintTransaction(t)}
+                        className="p-1.5 text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                        title={t.type === 'income' ? 'طباعة وصل الإيراد' : 'طباعة سند الصرف'}
+                      >
+                        <Printer className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleOpenTransactionDetails(t)}
+                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                        title="عرض التفاصيل"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
               {patientTransactions.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
                     لا توجد سجلات مالية لهذا المريض
                   </td>
                 </tr>
@@ -3623,6 +3682,15 @@ export const ClinicPatientProfile = () => {
                           <span>مرتبط بالمنصة</span>
                         </span>
                       )}
+
+                      <button
+                        onClick={() => setShowPortalQRModal(true)}
+                        className="inline-flex items-center gap-1 bg-gradient-to-r from-indigo-50 to-blue-50 hover:from-indigo-100 hover:to-blue-100 text-indigo-700 px-2.5 py-0.5 rounded-full text-[11px] font-bold border border-indigo-200/80 shadow-xs whitespace-nowrap cursor-pointer transition-all hover:scale-105"
+                        title="بوابة المراجع الإلكترونية ورمز QR"
+                      >
+                        <QrCode className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>بوابة المراجع (QR)</span>
+                      </button>
                     </h1>
                   )}
                 </div>
@@ -4077,6 +4145,49 @@ export const ClinicPatientProfile = () => {
         availableTreatments={clinicTreatments}
         onSave={handleSaveGeneralTreatment}
       />
+
+      {/* Patient Portal QR Modal */}
+      <PatientPortalQRModal
+        isOpen={showPortalQRModal}
+        onClose={() => setShowPortalQRModal(false)}
+        patientId={patientId || '0'}
+        patientName={patient?.name}
+        patientPhone={patient?.phone}
+        clinicId={effectiveClinicId}
+        clinicName={currentClinic?.name}
+      />
+
+      {/* Transaction Details Modal */}
+      {selectedTransactionForDetails && (
+        <TransactionDetailsModal
+          isOpen={showTransactionDetailsModal}
+          onClose={() => {
+            setShowTransactionDetailsModal(false);
+            setSelectedTransactionForDetails(null);
+          }}
+          transaction={selectedTransactionForDetails}
+          staff={clinicStaff}
+          canEdit={false}
+          onEdit={() => {}}
+          clinicId={effectiveClinicId}
+          onPrint={handlePrintTransaction}
+          onOpenPatientAccount={(pid) => {
+            setShowTransactionDetailsModal(false);
+            setShowPatientAccountModal(true);
+          }}
+        />
+      )}
+
+      {/* Patient Account Modal */}
+      {patientId && (
+        <PatientAccountModal
+          isOpen={showPatientAccountModal}
+          onClose={() => setShowPatientAccountModal(false)}
+          patientId={patientId}
+          clinicId={effectiveClinicId}
+          staffList={clinicStaff}
+        />
+      )}
     </div>
   );
 };
