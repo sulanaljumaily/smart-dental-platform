@@ -1145,7 +1145,7 @@ export const printExecutiveReport = ({
         }
 
         *, *::before, *::after {
-          box-sizing: border-box;
+          box-sizing: border-box !important;
           margin: 0;
           padding: 0;
           -webkit-print-color-adjust: exact !important;
@@ -1159,9 +1159,10 @@ export const printExecutiveReport = ({
           text-align: right !important;
           background: #ffffff !important;
           color: #0f172a !important;
-          font-size: 11px;
-          line-height: 1.45;
+          font-size: 10.5px;
+          line-height: 1.4;
           padding: 0;
+          width: 100%;
         }
 
         /* Container */
@@ -1176,11 +1177,13 @@ export const printExecutiveReport = ({
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 12px 14px;
+          padding: 10px 14px;
           background: linear-gradient(135deg, #0f2b5c 0%, #1e3a8a 100%);
-          border-radius: 12px;
+          border-radius: 10px;
           color: #ffffff;
-          margin-bottom: 14px;
+          margin-bottom: 12px;
+          width: 100%;
+          box-sizing: border-box;
           page-break-inside: avoid;
           break-inside: avoid;
         }
@@ -1188,76 +1191,123 @@ export const printExecutiveReport = ({
         .clinic-brand {
           display: flex;
           align-items: center;
-          gap: 12px;
+          gap: 10px;
+          width: 28%;
         }
 
         .clinic-logo {
-          width: 52px;
-          height: 52px;
-          border-radius: 10px;
+          width: 48px;
+          height: 48px;
+          border-radius: 8px;
           object-fit: cover;
           background: #ffffff;
           padding: 2px;
-          border: 2px solid rgba(255, 255, 255, 0.4);
+          border: 1.5px solid rgba(255, 255, 255, 0.4);
+          flex-shrink: 0;
         }
 
         .clinic-logo-placeholder {
-          width: 52px;
-          height: 52px;
-          border-radius: 10px;
+          width: 48px;
+          height: 48px;
+          border-radius: 8px;
           background: rgba(255, 255, 255, 0.15);
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 24px;
+          font-size: 22px;
           border: 1px solid rgba(255, 255, 255, 0.3);
+          flex-shrink: 0;
         }
 
         .clinic-info h1 {
-          font-size: 17px;
+          font-size: 15px;
           font-weight: 900;
           color: #ffffff;
-          letter-spacing: -0.3px;
           line-height: 1.2;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
         .clinic-info p {
-          font-size: 10px;
+          font-size: 9px;
           color: #cbd5e1;
-          margin-top: 3px;
+          margin-top: 2px;
+          line-height: 1.2;
         }
 
-        .report-meta-box {
-          text-align: left;
+        .report-center-box {
           display: flex;
           flex-direction: column;
-          align-items: flex-end;
-          gap: 4px;
-        }
-
-        .report-title-badge {
-          background: #ffffff;
-          color: #1e3a8a;
-          padding: 4px 12px;
-          border-radius: 6px;
-          font-size: 12px;
-          font-weight: 800;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .report-meta-details {
-          font-size: 9.5px;
-          color: #e2e8f0;
-          display: flex;
-          gap: 8px;
           align-items: center;
+          justify-content: center;
+          text-align: center;
+          width: 44%;
         }
 
-        .report-meta-tag {
-          background: rgba(255, 255, 255, 0.15);
+        .report-title-pill {
+          font-size: 14px;
+          font-weight: 900;
+          color: #ffffff;
+          background: rgba(255, 255, 255, 0.2);
+          border: 1px solid rgba(255, 255, 255, 0.4);
+          padding: 4px 14px;
+          border-radius: 8px;
+          letter-spacing: -0.2px;
+          display: inline-block;
+          white-space: nowrap;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.12);
+        }
+
+        .report-sub-details {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 4px;
+          margin-top: 4px;
+          flex-wrap: wrap;
+        }
+
+        .report-meta-chip {
+          font-size: 8px;
+          background: rgba(0, 0, 0, 0.25);
+          color: #e2e8f0;
           padding: 2px 6px;
           border-radius: 4px;
           font-weight: 600;
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          white-space: nowrap;
+        }
+
+        .header-left-side {
+          width: 28%;
+          display: flex;
+          justify-content: flex-end;
+          align-items: center;
+        }
+
+        .official-stamp-badge {
+          background: #ffffff;
+          border-radius: 6px;
+          padding: 4px 10px;
+          text-align: center;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .badge-title {
+          display: block;
+          font-size: 9.5px;
+          font-weight: 800;
+          color: #1e3a8a;
+          line-height: 1.2;
+        }
+
+        .badge-sub {
+          display: block;
+          font-size: 7.5px;
+          font-weight: 600;
+          color: #64748b;
+          margin-top: 1px;
         }
 
         /* KPI Bento Grid */
@@ -1265,7 +1315,9 @@ export const printExecutiveReport = ({
           display: grid;
           grid-template-columns: repeat(4, 1fr);
           gap: 8px;
-          margin-bottom: 14px;
+          margin-bottom: 12px;
+          width: 100%;
+          box-sizing: border-box;
           page-break-inside: avoid;
           break-inside: avoid;
         }
@@ -1273,7 +1325,7 @@ export const printExecutiveReport = ({
         .kpi-card {
           background: #f8fafc;
           border: 1px solid #e2e8f0;
-          border-radius: 10px;
+          border-radius: 8px;
           padding: 8px 10px;
           text-align: center;
           position: relative;
@@ -1297,24 +1349,27 @@ export const printExecutiveReport = ({
         .kpi-card.orange::before { background: #f59e0b; }
 
         .kpi-label {
-          font-size: 9.5px;
+          font-size: 9px;
           font-weight: 700;
           color: #64748b;
-          margin-bottom: 3px;
+          margin-bottom: 2px;
+          white-space: nowrap;
         }
 
         .kpi-value {
-          font-size: 14px;
+          font-size: 13.5px;
           font-weight: 900;
           color: #0f172a;
           line-height: 1.2;
+          white-space: nowrap;
         }
 
         .kpi-sub {
-          font-size: 8.5px;
+          font-size: 8px;
           color: #94a3b8;
           margin-top: 2px;
           font-weight: 600;
+          white-space: nowrap;
         }
 
         .text-green { color: #047857 !important; }
@@ -1326,9 +1381,11 @@ export const printExecutiveReport = ({
         .section-box {
           background: #ffffff;
           border: 1px solid #e2e8f0;
-          border-radius: 10px;
-          padding: 10px 12px;
-          margin-bottom: 12px;
+          border-radius: 8px;
+          padding: 8px 10px;
+          margin-bottom: 10px;
+          width: 100%;
+          box-sizing: border-box;
           page-break-inside: avoid;
           break-inside: avoid;
         }
@@ -1337,34 +1394,37 @@ export const printExecutiveReport = ({
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 8px;
+          margin-bottom: 6px;
           border-bottom: 1px solid #f1f5f9;
-          padding-bottom: 6px;
+          padding-bottom: 5px;
         }
 
         .section-title {
-          font-size: 11.5px;
+          font-size: 11px;
           font-weight: 800;
           color: #1e293b;
           display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 5px;
         }
 
         .section-badge {
-          font-size: 9px;
+          font-size: 8.5px;
           background: #f1f5f9;
           color: #475569;
-          padding: 2px 7px;
+          padding: 2px 6px;
           border-radius: 4px;
           font-weight: 700;
         }
 
-        /* Tables */
+        /* Unified Tables */
         table {
-          width: 100%;
-          border-collapse: collapse;
-          font-size: 9.5px;
+          width: 100% !important;
+          max-width: 100% !important;
+          table-layout: fixed !important;
+          border-collapse: collapse !important;
+          font-size: 9px;
+          box-sizing: border-box !important;
         }
 
         th {
@@ -1372,50 +1432,43 @@ export const printExecutiveReport = ({
           color: #334155;
           font-weight: 800;
           text-align: right;
-          padding: 6px 8px;
+          padding: 5px 6px;
           border: 1px solid #e2e8f0;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
         td {
-          padding: 5px 8px;
+          padding: 4.5px 6px;
           border: 1px solid #e2e8f0;
           color: #1e293b;
           vertical-align: middle;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
         tr:nth-child(even) td {
           background: #fafbfc;
         }
 
-        .text-center { text-align: center; }
-        .text-left { text-align: left; }
-        .font-bold { font-weight: 800; }
-
-        .progress-bar-bg {
-          width: 100%;
-          background: #e2e8f0;
-          height: 5px;
-          border-radius: 10px;
-          overflow: hidden;
-          margin-top: 3px;
-        }
-
-        .progress-bar-fill {
-          height: 100%;
-          border-radius: 10px;
-        }
+        .text-center { text-align: center !important; }
+        .text-left { text-align: left !important; }
+        .font-bold { font-weight: 800 !important; }
 
         /* 3-Tier Debt Aging */
         .aging-cards-grid {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
           gap: 8px;
-          margin-bottom: 8px;
+          margin-bottom: 6px;
+          width: 100%;
+          box-sizing: border-box;
         }
 
         .aging-card {
-          border-radius: 8px;
-          padding: 8px 10px;
+          border-radius: 6px;
+          padding: 6px 8px;
           border: 1px solid transparent;
         }
 
@@ -1435,7 +1488,7 @@ export const printExecutiveReport = ({
         }
 
         .aging-card-title {
-          font-size: 9.5px;
+          font-size: 9px;
           font-weight: 800;
           margin-bottom: 2px;
           display: flex;
@@ -1443,74 +1496,77 @@ export const printExecutiveReport = ({
         }
 
         .aging-card-val {
-          font-size: 13px;
+          font-size: 12px;
           font-weight: 900;
         }
 
         /* Footer & Signatures */
         .report-footer {
-          margin-top: 14px;
-          padding-top: 10px;
-          border-top: 2px solid #e2e8f0;
+          margin-top: 12px;
+          padding-top: 8px;
+          border-top: 1.5px solid #e2e8f0;
           display: flex;
           justify-content: space-between;
           align-items: center;
           page-break-inside: avoid;
           break-inside: avoid;
+          width: 100%;
+          box-sizing: border-box;
         }
 
         .stamp-box {
-          width: 120px;
-          height: 55px;
-          border: 2px dashed #93c5fd;
-          border-radius: 8px;
+          width: 110px;
+          height: 50px;
+          border: 1.5px dashed #93c5fd;
+          border-radius: 6px;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
           background: #f8fafc;
           color: #1d4ed8;
-          font-size: 8.5px;
+          font-size: 8px;
           font-weight: 800;
           text-align: center;
-          line-height: 1.3;
+          line-height: 1.25;
         }
 
         .signatures-area {
           display: flex;
-          gap: 30px;
+          gap: 25px;
         }
 
         .signature-item {
           text-align: center;
-          width: 120px;
+          width: 115px;
         }
 
         .signature-line {
           border-bottom: 1px solid #64748b;
-          height: 30px;
-          margin-bottom: 4px;
+          height: 25px;
+          margin-bottom: 3px;
         }
 
         .signature-role {
-          font-size: 9px;
+          font-size: 8.5px;
           font-weight: 700;
           color: #475569;
         }
 
         .bottom-watermark {
           text-align: center;
-          font-size: 8px;
+          font-size: 7.5px;
           color: #94a3b8;
-          margin-top: 8px;
+          margin-top: 6px;
         }
       </style>
     </head>
     <body>
       <div class="report-page">
         
-        <!-- Header -->
+        <!-- Centered Header -->
         <div class="report-header">
+          <!-- Right: Clinic Brand -->
           <div class="clinic-brand">
             ${clinicLogoUrl 
               ? `<img src="${clinicLogoUrl}" class="clinic-logo" />` 
@@ -1518,16 +1574,26 @@ export const printExecutiveReport = ({
             }
             <div class="clinic-info">
               <h1>${clinic?.name || 'عيادة الأسنان التخصصية'}</h1>
-              <p>${clinic?.address ? `${clinic.address} • ` : ''}${clinic?.phone ? `هاتف: ${clinic.phone}` : 'نظام سمارت دينتل لإدارة العيادات'}</p>
+              <p>${clinic?.phone ? `هاتف: ${clinic.phone}` : 'نظام سمارت دينتل'}</p>
+              ${clinic?.address ? `<p>${clinic.address}</p>` : ''}
             </div>
           </div>
 
-          <div class="report-meta-box">
-            <div class="report-title-badge">${reportTypeLabel}</div>
-            <div class="report-meta-details">
-              <span class="report-meta-tag">📅 ${periodLabel}</span>
-              <span class="report-meta-tag">⏰ ${dateStr} - ${timeStr}</span>
-              <span class="report-meta-tag"># ${reportRefId}</span>
+          <!-- Center: Report Name & Details -->
+          <div class="report-center-box">
+            <div class="report-title-pill">${reportTypeLabel}</div>
+            <div class="report-sub-details">
+              <span class="report-meta-chip">📅 ${periodLabel}</span>
+              <span class="report-meta-chip">⏰ ${dateStr} (${timeStr})</span>
+              <span class="report-meta-chip"># ${reportRefId}</span>
+            </div>
+          </div>
+
+          <!-- Left: Official Document Badge -->
+          <div class="header-left-side">
+            <div class="official-stamp-badge">
+              <span class="badge-title">وثيقة إدارية رسمية</span>
+              <span class="badge-sub">معتمد من إدارة المركز</span>
             </div>
           </div>
         </div>
@@ -1652,6 +1718,15 @@ export const printExecutiveReport = ({
               <span class="section-badge">${stats.staffStats.length} أطباء وموظفين</span>
             </div>
             <table>
+              <colgroup>
+                <col style="width: 22%;">
+                <col style="width: 16%;">
+                <col style="width: 13%;">
+                <col style="width: 11%;">
+                <col style="width: 14%;">
+                <col style="width: 10%;">
+                <col style="width: 14%;">
+              </colgroup>
               <thead>
                 <tr>
                   <th>الطبيب / الموظف</th>
@@ -1670,7 +1745,7 @@ export const printExecutiveReport = ({
                     <td>${s.role}</td>
                     <td class="text-center font-bold">${s.completedCount} <span style="color: #94a3b8; font-weight: normal;">/ ${s.appointmentsCount}</span></td>
                     <td class="text-center">
-                      <span style="background: #ecfdf5; color: #047857; padding: 2px 6px; border-radius: 4px; font-weight: 800;">
+                      <span style="background: #ecfdf5; color: #047857; padding: 1.5px 5px; border-radius: 4px; font-weight: 800; font-size: 8.5px;">
                         ${s.completionRate}%
                       </span>
                     </td>
@@ -1692,6 +1767,13 @@ export const printExecutiveReport = ({
               <span class="section-badge">تحليل الجدوى والخدمات</span>
             </div>
             <table>
+              <colgroup>
+                <col style="width: 34%;">
+                <col style="width: 16%;">
+                <col style="width: 14%;">
+                <col style="width: 18%;">
+                <col style="width: 18%;">
+              </colgroup>
               <thead>
                 <tr>
                   <th>اسم الإجراء / العلاج</th>
@@ -1754,6 +1836,15 @@ export const printExecutiveReport = ({
 
             ${selectedType === 'debts' && stats.debtStats.debtorsList?.length > 0 ? `
               <table style="margin-top: 6px;">
+                <colgroup>
+                  <col style="width: 20%;">
+                  <col style="width: 20%;">
+                  <col style="width: 14%;">
+                  <col style="width: 14%;">
+                  <col style="width: 14%;">
+                  <col style="width: 9%;">
+                  <col style="width: 9%;">
+                </colgroup>
                 <thead>
                   <tr>
                     <th>المراجع</th>
@@ -1775,7 +1866,7 @@ export const printExecutiveReport = ({
                       <td class="text-left text-red font-bold">${(d.remaining || 0).toLocaleString()} د.ع</td>
                       <td class="text-center font-bold">${d.daysOld} يوم</td>
                       <td class="text-center">
-                        <span style="padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 8.5px; ${
+                        <span style="padding: 1.5px 5px; border-radius: 4px; font-weight: 700; font-size: 8px; ${
                           d.ageCategory === '0-30' ? 'background: #ecfdf5; color: #047857;' :
                           d.ageCategory === '31-60' ? 'background: #eff6ff; color: #1d4ed8;' : 'background: #fef2f2; color: #b91c1c;'
                         }">
@@ -1798,6 +1889,13 @@ export const printExecutiveReport = ({
               <span class="section-badge">إجمالي المواعيد: ${stats.appointmentStats.total || 0}</span>
             </div>
             <table>
+              <colgroup>
+                <col style="width: 20%;">
+                <col style="width: 20%;">
+                <col style="width: 20%;">
+                <col style="width: 20%;">
+                <col style="width: 20%;">
+              </colgroup>
               <thead>
                 <tr>
                   <th class="text-center">المواعيد المكتملة (حضور)</th>
@@ -1825,7 +1923,7 @@ export const printExecutiveReport = ({
           <div class="stamp-box">
             <span>معتمد رسمياً</span>
             <span>ختم الإدارة الطبية</span>
-            <span style="font-size: 7.5px; color: #64748b; margin-top: 2px;">${clinic?.name || 'العيادة'}</span>
+            <span style="font-size: 7px; color: #64748b; margin-top: 1px;">${clinic?.name || 'العيادة'}</span>
           </div>
 
           <div class="signatures-area">
