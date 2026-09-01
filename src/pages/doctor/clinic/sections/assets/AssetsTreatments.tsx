@@ -7,11 +7,16 @@ import { formatCurrency } from '../../../../../lib/utils';
 import { useTreatments } from '../../../../../hooks/useTreatments';
 import { useAuth } from '../../../../../contexts/AuthContext';
 
-export const AssetsTreatments: React.FC = () => {
-    const { user } = useAuth();
-    const { clinicId } = useParams<{ clinicId: string }>();
+interface AssetsTreatmentsProps {
+    clinicId?: string;
+}
 
-    // Use real hook with clinic ID from URL params
+export const AssetsTreatments: React.FC<AssetsTreatmentsProps> = ({ clinicId: propClinicId }) => {
+    const { user } = useAuth();
+    const { clinicId: routeClinicId } = useParams<{ clinicId: string }>();
+    const clinicId = propClinicId || routeClinicId;
+
+    // Use real hook with clinic ID from URL params or props
     const { treatments, loading, addTreatment, updateTreatment, deleteTreatment } = useTreatments(clinicId);
 
     // Force re-render (less needed with real hook state but kept for safety if needed)
@@ -132,7 +137,7 @@ export const AssetsTreatments: React.FC = () => {
                             scope: 'general'
                         });
                         setShowModal(true);
-                    }} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                    }} className="bg-blue-600 hover:bg-blue-700 text-white">
                         <Plus className="w-5 h-5 ml-2" />
                         إضافة علاج جديد
                     </Button>
@@ -194,21 +199,29 @@ export const AssetsTreatments: React.FC = () => {
                                             </span>
                                         </td>
                                         <td className="py-4">
-                                            <div
-                                                onClick={async () => {
+                                            <button
+                                                type="button"
+                                                role="switch"
+                                                aria-checked={t.isActive}
+                                                onClick={async (e) => {
+                                                    e.stopPropagation();
                                                     try {
                                                         await updateTreatment(t.id, { isActive: !t.isActive });
                                                     } catch (error) {
                                                         console.error("Failed to toggle active status", error);
                                                     }
                                                 }}
-                                                className={`relative inline-flex h-6 w-11 items-center rounded-full cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${t.isActive ? 'bg-emerald-500' : 'bg-gray-200'}`}
+                                                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                                                    t.isActive ? 'bg-blue-600' : 'bg-gray-200'
+                                                }`}
                                             >
                                                 <span
-                                                    className={`${t.isActive ? 'translate-x-1' : 'translate-x-6'
-                                                        } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                                                    aria-hidden="true"
+                                                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                                                        t.isActive ? 'ltr:translate-x-5 rtl:-translate-x-5' : 'translate-x-0'
+                                                    }`}
                                                 />
-                                            </div>
+                                            </button>
                                         </td>
                                         <td className="py-4 text-left">
                                             <div className="flex gap-2 justify-end">

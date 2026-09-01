@@ -23,7 +23,7 @@ export const AssetsOverview: React.FC<AssetsOverviewProps> = ({ clinicId }) => {
     if (isLoading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-                <div className="w-12 h-12 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin"></div>
+                <div className="w-12 h-12 rounded-full border-4 border-blue-500/20 border-t-blue-500 animate-spin"></div>
                 <p className="text-gray-500 font-medium text-sm animate-pulse">جاري تحميل بيانات لوحة معلومات الأصول...</p>
             </div>
         );
@@ -86,7 +86,7 @@ export const AssetsOverview: React.FC<AssetsOverviewProps> = ({ clinicId }) => {
                     title="عائد الخدمات (السنوي)"
                     value={formatCurrency(serviceRevenue)}
                     icon={TrendingUp}
-                    color="green"
+                    color="blue"
                     trend={revenueTrendDirection}
                     trendValue={revenueTrendValue}
                     delay={200}
@@ -119,12 +119,12 @@ export const AssetsOverview: React.FC<AssetsOverviewProps> = ({ clinicId }) => {
                             {treatmentsToDisplay.map((treatment, idx) => (
                                 <div key={treatment.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                                     <div className="flex items-center gap-2">
-                                        <span className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold flex items-center justify-center">
+                                        <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-800 text-xs font-bold flex items-center justify-center">
                                             {idx + 1}
                                         </span>
                                         <span className="font-medium text-gray-800">{treatment.name}</span>
                                     </div>
-                                    <span className="font-bold text-emerald-600">
+                                    <span className="font-bold text-blue-600">
                                         {formatCurrency(treatment.totalRevenue)}
                                     </span>
                                 </div>
@@ -142,8 +142,8 @@ export const AssetsOverview: React.FC<AssetsOverviewProps> = ({ clinicId }) => {
                                 <span>لم يتم تسجيل أي مواد في المخزون بعد. يمكنك إضافتها من تبويبة "المخزون".</span>
                             </div>
                         ) : lowStockItems.length === 0 ? (
-                            <div className="flex items-center gap-3 p-4 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100">
-                                <CheckCircle className="w-5 h-5 text-emerald-500" />
+                            <div className="flex items-center gap-3 p-4 bg-blue-50 text-blue-700 rounded-xl border border-blue-100">
+                                <CheckCircle className="w-5 h-5 text-blue-500" />
                                 <span>حالة المخزون ممتازة، لا توجد مواد تحت حد الأمان حالياً.</span>
                             </div>
                         ) : (

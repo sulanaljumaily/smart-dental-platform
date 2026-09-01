@@ -21,7 +21,7 @@ export const ClinicAssetsPage: React.FC<ClinicAssetsPageProps> = ({ clinicId = '
             case 'overview':
                 return <AssetsOverview clinicId={clinicId} />;
             case 'treatments':
-                return <AssetsTreatments />;
+                return <AssetsTreatments clinicId={clinicId} />;
             case 'inventory':
                 return <ClinicInventoryPage clinicId={clinicId} />;
             case 'devices':
@@ -48,7 +48,7 @@ export const ClinicAssetsPage: React.FC<ClinicAssetsPageProps> = ({ clinicId = '
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
                                 className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${activeTab === tab.id
-                                    ? 'border-emerald-600 text-emerald-600 bg-emerald-50/50'
+                                    ? 'border-blue-600 text-blue-600 bg-blue-50/50'
                                     : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50'
                                     }`}
                             >

@@ -92,6 +92,9 @@ export const useTreatments = (clinicId?: string) => {
 
     const updateTreatment = async (id: string, updates: Partial<TreatmentService>) => {
         try {
+            // Optimistic update for instant UI feedback
+            setTreatments(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+
             const dbUpdates: any = {};
             if (updates.name) dbUpdates.name = updates.name;
             if (updates.basePrice !== undefined) dbUpdates.base_price = updates.basePrice;
@@ -103,8 +106,11 @@ export const useTreatments = (clinicId?: string) => {
             if (updates.scope !== undefined) dbUpdates.scope = updates.scope;
 
             const { error } = await supabase.from('treatments').update(dbUpdates).eq('id', id);
-            if (error) throw error;
-            fetchTreatments();
+            if (error) {
+                console.error('Error updating treatment in DB:', error);
+                fetchTreatments(); // revert
+                throw error;
+            }
         } catch (err) {
             console.error('Error updating treatment:', err);
         }
