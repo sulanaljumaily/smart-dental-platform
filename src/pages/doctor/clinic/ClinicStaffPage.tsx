@@ -237,7 +237,7 @@ export const ClinicStaffPage: React.FC<ClinicStaffPageProps> = ({ clinicId }) =>
           title="المساعدين"
           value={stats.assistants}
           icon={UserCheck}
-          color="emerald"
+          color="purple"
           delay={300}
         />
         <BentoStatCard

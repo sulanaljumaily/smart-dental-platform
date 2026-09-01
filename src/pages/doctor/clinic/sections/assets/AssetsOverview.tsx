@@ -86,7 +86,7 @@ export const AssetsOverview: React.FC<AssetsOverviewProps> = ({ clinicId }) => {
                     title="عائد الخدمات (السنوي)"
                     value={formatCurrency(serviceRevenue)}
                     icon={TrendingUp}
-                    color="blue"
+                    color="green"
                     trend={revenueTrendDirection}
                     trendValue={revenueTrendValue}
                     delay={200}
