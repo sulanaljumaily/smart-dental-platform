@@ -24,7 +24,7 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
   const [selectedPayment, setSelectedPayment] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
-  const { checkLimit } = useSubscriptionLimits();
+  const { checkLimit } = useSubscriptionLimits(clinicId);
 
   // Supabase Integration
   const { patients, loading, createPatient, deletePatient, updatePatient } = usePatients(clinicId);
@@ -702,7 +702,14 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
 
             {/* Add Button */}
             <button
-              onClick={() => setShowModal(true)}
+              onClick={() => {
+                const limitCheck = checkLimit('patients');
+                if (!limitCheck.allowed) {
+                  toast.error(limitCheck.message);
+                  return;
+                }
+                setShowModal(true);
+              }}
               className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-200 transition-all font-medium"
             >
               <Plus className="w-5 h-5" />

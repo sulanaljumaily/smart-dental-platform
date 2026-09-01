@@ -14,14 +14,14 @@ export const useSubscriptionLimits = (currentClinicId?: string) => {
     });
     const [loadingCounts, setLoadingCounts] = useState(true);
 
-    const limits = subscription?.plan?.limits || { max_clinics: 1, max_patients: 10, max_services: 5, max_ai: 0 };
+    const limits = subscription?.plan?.limits || { max_clinics: 1, max_patients: 2, max_services: 2, max_ai: 0 };
     const features = subscription?.plan?.gatedFeatures || { map: false, booking: false, featured: false, articles: false };
 
     useEffect(() => {
         if (user) {
             fetchCounts();
         }
-    }, [user, currentClinicId]);
+    }, [user, currentClinicId, subscription]);
 
     const fetchCounts = async () => {
         if (!user) return;
@@ -33,37 +33,57 @@ export const useSubscriptionLimits = (currentClinicId?: string) => {
                 .select('*', { count: 'exact', head: true })
                 .eq('owner_id', user.id);
 
-            // 2. Patients Count (Per Clinic or Global if no clinicId specified)
+            // 2. Patients Count
             let patientsCount = 0;
-
             if (currentClinicId) {
-                // Per-clinic count
                 const { count } = await supabase
                     .from('patients')
                     .select('*', { count: 'exact', head: true })
                     .eq('clinic_id', currentClinicId);
                 patientsCount = count || 0;
             } else {
-                // Logic: If no clinic ID, maybe we shouldn't sum them? 
-                // User said "limits calculated for account owner... e.g. 10 per clinic".
-                // So if checking global, we might not have a specific number vs limit.
-                // But typically this hook is used inside a clinic context.
-                // If used globally (dashboard), showing "total" might be confusing vs "limit per clinic".
-                // For now, if no ID, we effectively track 0 or maybe specific global logic?
-                // Let's default to 0 if no clinic context for patient/ai checks, 
-                // as those checks should happen IN a clinic.
-                patientsCount = 0;
+                // If no specific clinic is selected, get count for the doctor's primary/first clinic
+                const { data: firstClinic } = await supabase
+                    .from('clinics')
+                    .select('id')
+                    .eq('owner_id', user.id)
+                    .limit(1)
+                    .maybeSingle();
+
+                if (firstClinic) {
+                    const { count } = await supabase
+                        .from('patients')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('clinic_id', firstClinic.id);
+                    patientsCount = count || 0;
+                }
             }
 
-            // 3. AI Usage (Per Clinic)
-            // Mocking for now, but would follow same pattern:
-            const aiUsage = 0;
+            // 3. Services Count
+            let servicesCount = 0;
+            if (currentClinicId) {
+                const { data: clinicData } = await supabase
+                    .from('clinics')
+                    .select('services')
+                    .eq('id', currentClinicId)
+                    .maybeSingle();
+                servicesCount = Array.isArray(clinicData?.services) ? clinicData.services.length : 0;
+            }
+
+            // 4. AI Usage Count (Daily across doctor's account)
+            const startOfDay = new Date();
+            startOfDay.setHours(0, 0, 0, 0);
+
+            const { count: aiCount } = await supabase
+                .from('ai_analyses')
+                .select('*', { count: 'exact', head: true })
+                .gte('created_at', startOfDay.toISOString());
 
             setCounts({
                 clinics: clinicsCount || 0,
                 patients: patientsCount,
-                services: 0,
-                aiUsedToday: aiUsage
+                services: servicesCount,
+                aiUsedToday: aiCount || 0
             });
 
         } catch (err) {
@@ -73,13 +93,11 @@ export const useSubscriptionLimits = (currentClinicId?: string) => {
         }
     };
 
-    const checkLimit = (type: 'clinics' | 'patients' | 'services' | 'ai'): { allowed: boolean, message?: string } => {
-        if (!subscription) return { allowed: true };
-
+    const checkLimit = (type: 'clinics' | 'patients' | 'services' | 'ai', currentOverrideCount?: number): { allowed: boolean, message?: string } => {
         const labels = {
             clinics: 'العيادات',
             patients: 'المرضى',
-            services: 'الخدمات',
+            services: 'الخدمات الطبية',
             ai: 'طلبات الذكاء الاصطناعي'
         };
 
@@ -87,37 +105,47 @@ export const useSubscriptionLimits = (currentClinicId?: string) => {
             clinics: 'حسابك',
             patients: 'هذه العيادة',
             services: 'هذه العيادة',
-            ai: 'هذه العيادة'
+            ai: 'اليوم'
         };
 
         let limit = 0;
-        let current = 0;
+        let current = currentOverrideCount !== undefined ? currentOverrideCount : 0;
 
         switch (type) {
             case 'clinics':
                 limit = limits.max_clinics;
-                current = counts.clinics;
+                if (currentOverrideCount === undefined) current = counts.clinics;
                 break;
             case 'patients':
                 limit = limits.max_patients;
-                current = counts.patients;
+                if (currentOverrideCount === undefined) current = counts.patients;
                 break;
             case 'services':
                 limit = limits.max_services;
-                current = counts.services; // Pending real count
+                if (currentOverrideCount === undefined) current = counts.services;
                 break;
             case 'ai':
                 limit = limits.max_ai;
-                current = counts.aiUsedToday;
+                if (currentOverrideCount === undefined) current = counts.aiUsedToday;
                 break;
         }
 
         if (limit === -1) return { allowed: true };
 
-        if (current >= limit) {
+        if (type === 'ai' && limit === 0) {
             return {
                 allowed: false,
-                message: `لقد وصلت إلى الحد الأقصى المسموح به (${limit}) من ${labels[type]} في ${contextLabels[type]}. يرجى ترقية باقتك لإضافة المزيد.`
+                message: subscription?.isExpired
+                    ? 'لقد انتهت صلاحية باقتك السابقة وتم إيقاف ميزة الذكاء الاصطناعي. يرجى تجديد أو ترقية باقتك للاستفادة من الميزة.'
+                    : 'ميزة التحليل بالذكاء الاصطناعي غير متاحة في الباقة المجانية. يرجى ترقية باقتك للاستفادة من الميزة.'
+            };
+        }
+
+        if (current >= limit) {
+            const planNote = subscription?.isExpired ? ' (تم الرجوع لحدود الباقة الأساسية لانتهاء الاشتراك)' : '';
+            return {
+                allowed: false,
+                message: `لقد وصلت إلى الحد الأقصى المسموح به (${limit}) من ${labels[type]} في ${contextLabels[type]}${planNote}. يرجى ترقية باقتك لإضافة المزيد.`
             };
         }
 
@@ -125,6 +153,10 @@ export const useSubscriptionLimits = (currentClinicId?: string) => {
     };
 
     const hasFeature = (feature: keyof typeof features): boolean => {
+        if (subscription?.isExpired) {
+            // When expired, feature is only available if the free plan explicitly grants it
+            return !!features[feature];
+        }
         return !!features[feature];
     };
 
@@ -136,6 +168,8 @@ export const useSubscriptionLimits = (currentClinicId?: string) => {
         checkLimit,
         hasFeature,
         planName: subscription?.plan?.name,
+        isExpired: subscription?.isExpired || false,
+        isActive: subscription?.isActive || false,
         refreshCounts: fetchCounts
     };
 };

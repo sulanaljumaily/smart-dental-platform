@@ -189,9 +189,13 @@ export const DoctorClinicsPage: React.FC = () => {
         location: (tempSettings.latitude && tempSettings.longitude) ? { lat: tempSettings.latitude, lng: tempSettings.longitude } : undefined,
         governorate: tempSettings.governorate,
         address: tempSettings.address,
-        isFeatured: tempSettings.isFeatured,
-        isDigitalBookingEnabled: tempSettings.isDigitalBookingEnabled,
-        settings: tempSettings.settings
+        isFeatured: hasFeature('featured') ? tempSettings.isFeatured : false,
+        isDigitalBookingEnabled: hasFeature('booking') ? tempSettings.isDigitalBookingEnabled : false,
+        settings: {
+          ...tempSettings.settings,
+          showOnMap: hasFeature('map') ? (tempSettings.settings?.showOnMap || false) : false,
+          articleSuggestions: hasFeature('articles') ? (tempSettings.settings?.articleSuggestions || false) : false
+        }
       });
       // Show success state
       setIsSaved(true);
@@ -264,6 +268,17 @@ export const DoctorClinicsPage: React.FC = () => {
 
     if (!newClinic.name) {
       toast.error('يرجى إدخال اسم العيادة');
+      return;
+    }
+
+    const limitCheck = checkLimit('clinics');
+    if (!limitCheck.allowed) {
+      toast.error(limitCheck.message);
+      setUpgradeFeature({
+        title: 'وصلت الحد الأقصى للعيادات',
+        description: 'ترقية باقتك لإضافة عدد أكبر من العيادات وإدارة فروع متعددة.'
+      });
+      setShowUpgradeModal(true);
       return;
     }
 

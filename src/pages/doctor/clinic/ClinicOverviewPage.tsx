@@ -59,7 +59,7 @@ export const ClinicOverviewPage: React.FC<ClinicOverviewPageProps> = ({ clinicId
     name: '', phone: '', age: '', gender: 'male', email: '', address: '', notes: ''
   });
 
-  const { checkLimit } = useSubscriptionLimits();
+  const { checkLimit } = useSubscriptionLimits(clinicId);
 
   // Auto-collapse buttons after 3 seconds
   useEffect(() => {

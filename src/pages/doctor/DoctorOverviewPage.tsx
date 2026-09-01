@@ -48,9 +48,11 @@ import { useTransactions } from '../../hooks/useTransactions';
 import { usePatients } from '../../hooks/usePatients';
 import { useDemoClinicData } from '../../hooks/useDemoClinicData';
 import { useDoctorSubscription } from '../../hooks/useDoctorSubscription';
+import { useSubscriptionLimits } from '../../hooks/useSubscriptionLimits';
 import { useLabOrders } from '../../hooks/useLabOrders';
 import { useStoreOrders } from '../../hooks/useStoreOrders';
 import { Package } from 'lucide-react';
+import { toast } from 'sonner';
 
 const formatTime12h = (time: string) => {
     if (!time) return '';
@@ -126,6 +128,7 @@ export const DoctorOverviewPage: React.FC = () => {
 
 
     const targetClinicIdForAction = selectedClinicId !== 'all' ? selectedClinicId : (clinics.length === 1 ? clinics[0].id : null);
+    const { checkLimit } = useSubscriptionLimits(targetClinicIdForAction?.toString() || (clinics[0]?.id ? String(clinics[0].id) : undefined));
 
     const handleActionClick = (type: 'patient' | 'appointment') => {
         if (hasNoClinics) {
@@ -139,16 +142,31 @@ export const DoctorOverviewPage: React.FC = () => {
             setTimeout(() => setClinicSelectorHighlight(false), 2000);
             return;
         }
-        if (type === 'patient') setShowAddPatientModal(true);
-        else setShowAddAppointmentModal(true);
+        if (type === 'patient') {
+            const limitCheck = checkLimit('patients');
+            if (!limitCheck.allowed) {
+                toast.error(limitCheck.message);
+                return;
+            }
+            setShowAddPatientModal(true);
+        } else {
+            setShowAddAppointmentModal(true);
+        }
     };
 
     const handleCreatePatient = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
         if (!newPatient.name || !newPatient.phone) {
-            alert('يرجى إدخال الاسم ورقم الهاتف');
+            toast.error('يرجى إدخال الاسم ورقم الهاتف');
             return;
         }
+
+        const limitCheck = checkLimit('patients');
+        if (!limitCheck.allowed) {
+            toast.error(limitCheck.message);
+            return;
+        }
+
         try {
             if (createPatient) {
                 await createPatient({
@@ -160,10 +178,10 @@ export const DoctorOverviewPage: React.FC = () => {
                 });
                 setShowAddPatientModal(false);
                 setNewPatient({ name: '', phone: '', age: '', gender: 'male', email: '', address: '', notes: '' });
-                alert('تم إضافة المريض بنجاح');
+                toast.success('تم إضافة المريض بنجاح');
             }
         } catch (e) {
-            alert('حدث خطأ أثناء الإضافة');
+            toast.error('حدث خطأ أثناء الإضافة');
         }
     };
 
@@ -393,14 +411,17 @@ export const DoctorOverviewPage: React.FC = () => {
     const { subscription, loading: subLoading } = useDoctorSubscription();
 
     const subscriptionInfo = subscription ? {
-        currentPlan: subscription.plan.name,
+        currentPlan: subscription.originalPlanName && subscription.isExpired
+            ? `${subscription.originalPlanName}`
+            : subscription.plan.name,
         status: subscription.status === 'approved' ? 'نشطة' :
-            subscription.status === 'pending' ? 'قيد المراجعة' : 'منتهية',
-        expiryDate: subscription.endDate,
+            subscription.status === 'pending' ? 'قيد المراجعة' :
+            subscription.status === 'expired' ? 'منتهية الصلاحية' : 'الباقة الأساسية',
+        expiryDate: subscription.status === 'expired' ? `انتهت في ${subscription.endDate}` : subscription.endDate,
         features: subscription.plan.features.slice(0, 3) // Show first 3 features
     } : {
-        currentPlan: 'الباقة المجانية',
-        status: 'نشطة',
+        currentPlan: 'الباقة الأساسية',
+        status: 'الباقة الأساسية',
         expiryDate: 'مدى الحياة',
         features: ['إدارة عيادة واحدة', 'عدد محدود من المرضى']
     };

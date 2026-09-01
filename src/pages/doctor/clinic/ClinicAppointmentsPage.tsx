@@ -47,6 +47,7 @@ import { usePatients } from '../../../hooks/usePatients';
 import { useOnlineRequests, OnlineRequest } from '../../../hooks/useOnlineRequests';
 import { getStaffByClinic } from '../../../data/mock/clinicStaff';
 import { useStaff } from '../../../hooks/useStaff';
+import { useSubscriptionLimits } from '../../../hooks/useSubscriptionLimits';
 import { useAuth } from '../../../contexts/AuthContext';
 
 
@@ -70,6 +71,7 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
   const [isSavingPatient, setIsSavingPatient] = useState(false);
   const [doctors, setDoctors] = useState<{ id: string, name: string }[]>([]);
 
+  const { checkLimit } = useSubscriptionLimits(clinicId);
   const { patients, createPatient } = usePatients(clinicId);
   const {
     appointments,
@@ -1969,6 +1971,13 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                 const newPhone = formData.get('phone') as string;
 
                 try {
+                  const limitCheck = checkLimit('patients');
+                  if (!limitCheck.allowed) {
+                    toast.error(limitCheck.message);
+                    setIsSavingPatient(false);
+                    return;
+                  }
+
                   // 1. Create Patient
                   let newPatient;
                   try {

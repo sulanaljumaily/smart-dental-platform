@@ -32,67 +32,129 @@ export const useAIAnalysis = (patientId?: string, clinicId?: number) => {
     const fetchCredits = async () => {
         if (!user) return;
         try {
-            // Validate if user is owner or staff to find clinic_id
-            let targetClinicId = clinicId;
-
-            if (!targetClinicId) {
-                // Check Owner
-                const { data: ownedClinic } = await supabase.from('clinics').select('id').eq('owner_id', user.id).single();
-                if (ownedClinic) {
-                    targetClinicId = ownedClinic.id;
-                } else {
-                    // Check Staff
-                    const { data: staffMember } = await supabase.from('staff').select('clinic_id').eq('auth_user_id', user.id).single();
-                    if (staffMember) targetClinicId = staffMember.clinic_id;
-                }
-            }
-
-            if (!targetClinicId) {
-                setCredits('غير معرف');
-                return;
-            }
-
-            // Get Subscription limits
-            const { data: clinic } = await supabase.from('clinics').select('owner_id').eq('id', targetClinicId).single();
-            if (!clinic) return;
-
-            const { data: sub } = await supabase
-                .from('user_subscriptions')
-                .select('subscription_plans(limits)')
-                .eq('user_id', clinic.owner_id)
-                .in('status', ['active', 'trialing'])
-                .single();
-
-            let maxAi = 0;
-            const plan = Array.isArray(sub?.subscription_plans) ? sub.subscription_plans[0] : sub?.subscription_plans;
-
-            if (plan?.limits) {
-                const limits = typeof plan.limits === 'string' ? JSON.parse(plan.limits) : plan.limits;
-                maxAi = (limits as any).max_ai ?? 0;
-            }
-
-            if (maxAi === -1) {
+            const limitInfo = await getClinicAiLimitInfo(clinicId);
+            if (limitInfo.maxAi === -1) {
                 setCredits('غير محدود');
-                return;
+            } else if (limitInfo.maxAi === 0) {
+                setCredits(limitInfo.isExpired ? 'منتهي (0)' : 'غير مفعل (0)');
+            } else {
+                const remaining = Math.max(0, limitInfo.maxAi - limitInfo.used);
+                setCredits(`${remaining} / ${limitInfo.maxAi}`);
             }
-
-            // Count usage (Daily)
-            const startOfDay = new Date();
-            startOfDay.setHours(0, 0, 0, 0);
-
-            const { count } = await supabase
-                .from('ai_usage_logs')
-                .select('*', { count: 'exact', head: true })
-                .eq('clinic_id', targetClinicId)
-                .gte('created_at', startOfDay.toISOString());
-
-            const used = count || 0;
-            setCredits(`${maxAi - used} / ${maxAi}`);
-
         } catch (e) {
             console.error('Failed to fetch credits', e);
             setCredits('غير متاح');
         }
+    };
+
+    const getClinicAiLimitInfo = async (targetClinicId?: number) => {
+        let ownerId = user?.id;
+        let resolvedTargetId = targetClinicId;
+
+        if (resolvedTargetId) {
+            const { data: cl } = await supabase.from('clinics').select('owner_id').eq('id', resolvedTargetId).maybeSingle();
+            if (cl?.owner_id) ownerId = cl.owner_id;
+        } else if (user?.id) {
+            const { data: cl } = await supabase.from('clinics').select('id, owner_id').eq('owner_id', user.id).limit(1).maybeSingle();
+            if (cl) {
+                resolvedTargetId = cl.id;
+                ownerId = cl.owner_id;
+            } else {
+                const { data: st } = await supabase.from('staff').select('clinic_id').eq('auth_user_id', user.id).limit(1).maybeSingle();
+                if (st?.clinic_id) {
+                    resolvedTargetId = st.clinic_id;
+                    const { data: cl2 } = await supabase.from('clinics').select('owner_id').eq('id', st.clinic_id).maybeSingle();
+                    if (cl2?.owner_id) ownerId = cl2.owner_id;
+                }
+            }
+        }
+
+        if (!ownerId) {
+            return { maxAi: 0, used: 0, isExpired: false, allowed: false, message: 'تعذر التحقق من اشتراك العيادة' };
+        }
+
+        // Fetch latest approved subscription for this owner
+        const { data: subReq } = await supabase
+            .from('subscription_requests')
+            .select('*, plan:subscription_plans(*)')
+            .or(`doctor_id.eq.${ownerId},user_id.eq.${ownerId}`)
+            .eq('status', 'approved')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        let isExpired = true;
+        let maxAi = 0;
+
+        if (subReq) {
+            const billingPeriod = subReq.payment_details?.billing_period || subReq.plan?.duration || 'monthly';
+            const approvalDate = new Date(subReq.updated_at || subReq.created_at);
+            const endDate = new Date(approvalDate);
+            if (billingPeriod === 'yearly') endDate.setFullYear(endDate.getFullYear() + 1);
+            else if (billingPeriod === 'semi_annual') endDate.setMonth(endDate.getMonth() + 6);
+            else endDate.setMonth(endDate.getMonth() + 1);
+
+            isExpired = new Date() > endDate;
+            if (!isExpired) {
+                const limits = subReq.plan?.limits;
+                const parsedLimits = typeof limits === 'string' ? JSON.parse(limits) : limits;
+                maxAi = parsedLimits?.max_ai ?? 0;
+            }
+        }
+
+        if (isExpired) {
+            // Fetch free plan limits
+            const { data: freePlan } = await supabase
+                .from('subscription_plans')
+                .select('limits')
+                .or('slug.eq.basic-plan,name.ilike.%الأساسية%,name.ilike.%المجانية%')
+                .eq('is_active', true)
+                .limit(1)
+                .maybeSingle();
+
+            const freeLimits = freePlan?.limits;
+            const parsedFreeLimits = typeof freeLimits === 'string' ? JSON.parse(freeLimits) : freeLimits;
+            maxAi = parsedFreeLimits?.max_ai ?? 0;
+        }
+
+        // Count today's analyses
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+
+        const { count } = await supabase
+            .from('ai_analyses')
+            .select('*', { count: 'exact', head: true })
+            .gte('created_at', startOfDay.toISOString());
+
+        const used = count || 0;
+
+        if (maxAi === -1) {
+            return { maxAi: -1, used, isExpired, allowed: true };
+        }
+
+        if (maxAi === 0) {
+            return {
+                maxAi: 0,
+                used,
+                isExpired,
+                allowed: false,
+                message: isExpired
+                    ? 'لقد انتهت صلاحية باقتك السابقة وتم تعطيل ميزة الذكاء الاصطناعي. يرجى تجديد أو ترقية باقتك للاستفادة منها.'
+                    : 'ميزة التحليل بالذكاء الاصطناعي غير متاحة في الباقة المجانية. يرجى ترقية باقتك للاستفادة منها.'
+            };
+        }
+
+        if (used >= maxAi) {
+            return {
+                maxAi,
+                used,
+                isExpired,
+                allowed: false,
+                message: `لقد استهلكت رصيدك اليومي الكامل (${maxAi} طلب/يوم) من تحليلات الذكاء الاصطناعي. يرجى ترقية باقتك لزيادة الحد.`
+            };
+        }
+
+        return { maxAi, used, isExpired, allowed: true };
     };
 
     const fetchHistory = async () => {
@@ -198,6 +260,14 @@ export const useAIAnalysis = (patientId?: string, clinicId?: number) => {
 
     const analyzeImage = async (file: File, overridePatientId?: number, contextOverride?: string) => {
         if (!user) return;
+
+        // Check AI usage limit first
+        const limitInfo = await getClinicAiLimitInfo(clinicId);
+        if (!limitInfo.allowed) {
+            toast.error(limitInfo.message || 'غير مسموح باستخدام الذكاء الاصطناعي في باقتك الحالية.');
+            return;
+        }
+
         setUploading(true);
         try {
             // 1. Convert image to base64 for AI analysis
