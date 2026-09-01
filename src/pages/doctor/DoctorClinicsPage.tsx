@@ -16,7 +16,6 @@ import { useStaff } from '../../hooks/useStaff';
 
 import { useSubscriptionLimits } from '../../hooks/useSubscriptionLimits'; // Added import
 import { useAuth } from '../../contexts/AuthContext';
-import { useDoctorContext } from '../../contexts/DoctorContext';
 import { ClinicLocationPicker } from '../../components/common/ClinicLocationPicker';
 import { useStorage } from '../../hooks/useStorage';
 import { UpgradeModal } from '../../components/subscription/UpgradeModal';
@@ -29,7 +28,6 @@ export const DoctorClinicsPage: React.FC = () => {
   const { user } = useAuth(); // Added user hook
   // Removed duplicate hook call from here, moving it down to use selectedClinic state
   const isSystemStaff = user?.role === 'staff'; // System-level staff flag
-  const { selectedClinicId } = useDoctorContext(); // Get global filter
 
   const [selectedClinic, setSelectedClinic] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -446,12 +444,7 @@ export const DoctorClinicsPage: React.FC = () => {
         })}
 
         {/* Real Clinics */}
-        {clinics
-          .filter(c => {
-            if (selectedClinicId === 'all') return true;
-            return c.id === selectedClinicId;
-          })
-          .map((clinic) => {
+        {clinics.map((clinic) => {
             const isClinicStaff = clinic.owner_id !== user?.id; // Determine per-clinic specific role
             const userStaffRecord = staff.find(
               s => String(s.clinicId) === String(clinic.id) && s.email === user?.email
