@@ -1172,12 +1172,14 @@ export const printExecutiveReport = ({
           margin: 0 auto;
         }
 
-        /* Header */
-        .report-header {
+        /* Centered Executive Header */
+        .report-header-centered {
           display: flex;
-          justify-content: space-between;
+          flex-direction: column;
           align-items: center;
-          padding: 10px 14px;
+          justify-content: center;
+          text-align: center;
+          padding: 12px 16px;
           background: linear-gradient(135deg, #0f2b5c 0%, #1e3a8a 100%);
           border-radius: 10px;
           color: #ffffff;
@@ -1186,128 +1188,82 @@ export const printExecutiveReport = ({
           box-sizing: border-box;
           page-break-inside: avoid;
           break-inside: avoid;
+          gap: 6px;
         }
 
-        .clinic-brand {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          width: 28%;
-        }
-
-        .clinic-logo {
-          width: 48px;
-          height: 48px;
-          border-radius: 8px;
-          object-fit: cover;
-          background: #ffffff;
-          padding: 2px;
-          border: 1.5px solid rgba(255, 255, 255, 0.4);
-          flex-shrink: 0;
-        }
-
-        .clinic-logo-placeholder {
-          width: 48px;
-          height: 48px;
-          border-radius: 8px;
-          background: rgba(255, 255, 255, 0.15);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 22px;
-          border: 1px solid rgba(255, 255, 255, 0.3);
-          flex-shrink: 0;
-        }
-
-        .clinic-info h1 {
-          font-size: 15px;
-          font-weight: 900;
-          color: #ffffff;
-          line-height: 1.2;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        .clinic-info p {
-          font-size: 9px;
-          color: #cbd5e1;
-          margin-top: 2px;
-          line-height: 1.2;
-        }
-
-        .report-center-box {
+        .header-brand-block {
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          text-align: center;
-          width: 44%;
+          gap: 4px;
         }
 
-        .report-title-pill {
-          font-size: 14px;
+        .clinic-logo-img {
+          width: 48px;
+          height: 48px;
+          border-radius: 10px;
+          object-fit: cover;
+          background: #ffffff;
+          padding: 2px;
+          border: 2px solid rgba(255, 255, 255, 0.4);
+          box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+        }
+
+        .clinic-name-title {
+          font-size: 17px;
           font-weight: 900;
           color: #ffffff;
+          line-height: 1.2;
+          letter-spacing: -0.2px;
+        }
+
+        .clinic-sub-info {
+          font-size: 9px;
+          color: #cbd5e1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+        }
+
+        .report-title-divider {
+          width: 80%;
+          height: 1px;
           background: rgba(255, 255, 255, 0.2);
-          border: 1px solid rgba(255, 255, 255, 0.4);
-          padding: 4px 14px;
+          margin: 1px 0;
+        }
+
+        .report-name-pill {
+          font-size: 14px;
+          font-weight: 900;
+          color: #1e3a8a;
+          background: #ffffff;
+          padding: 4px 20px;
           border-radius: 8px;
           letter-spacing: -0.2px;
           display: inline-block;
           white-space: nowrap;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.12);
+          box-shadow: 0 2px 6px rgba(0,0,0,0.18);
         }
 
-        .report-sub-details {
+        .report-meta-row {
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 4px;
-          margin-top: 4px;
+          gap: 6px;
           flex-wrap: wrap;
         }
 
         .report-meta-chip {
-          font-size: 8px;
+          font-size: 8.5px;
           background: rgba(0, 0, 0, 0.25);
           color: #e2e8f0;
-          padding: 2px 6px;
+          padding: 2px 8px;
           border-radius: 4px;
           font-weight: 600;
           border: 1px solid rgba(255, 255, 255, 0.15);
           white-space: nowrap;
-        }
-
-        .header-left-side {
-          width: 28%;
-          display: flex;
-          justify-content: flex-end;
-          align-items: center;
-        }
-
-        .official-stamp-badge {
-          background: #ffffff;
-          border-radius: 6px;
-          padding: 4px 10px;
-          text-align: center;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-
-        .badge-title {
-          display: block;
-          font-size: 9.5px;
-          font-weight: 800;
-          color: #1e3a8a;
-          line-height: 1.2;
-        }
-
-        .badge-sub {
-          display: block;
-          font-size: 7.5px;
-          font-weight: 600;
-          color: #64748b;
-          margin-top: 1px;
         }
 
         /* KPI Bento Grid */
@@ -1564,37 +1520,32 @@ export const printExecutiveReport = ({
     <body>
       <div class="report-page">
         
-        <!-- Centered Header -->
-        <div class="report-header">
-          <!-- Right: Clinic Brand -->
-          <div class="clinic-brand">
+        <!-- Fully Centered Executive Header -->
+        <div class="report-header-centered">
+          <!-- 1. Logo & Clinic Name -->
+          <div class="header-brand-block">
             ${clinicLogoUrl 
-              ? `<img src="${clinicLogoUrl}" class="clinic-logo" />` 
-              : `<div class="clinic-logo-placeholder">🦷</div>`
+              ? `<img src="${clinicLogoUrl}" class="clinic-logo-img" />` 
+              : ''
             }
-            <div class="clinic-info">
-              <h1>${clinic?.name || 'عيادة الأسنان التخصصية'}</h1>
-              <p>${clinic?.phone ? `هاتف: ${clinic.phone}` : 'نظام سمارت دينتل'}</p>
-              ${clinic?.address ? `<p>${clinic.address}</p>` : ''}
-            </div>
+            ${clinic?.name ? `<div class="clinic-name-title">${clinic.name}</div>` : ''}
+            ${(clinic?.address || clinic?.phone) ? `
+              <div class="clinic-sub-info">
+                ${clinic?.phone ? `<span>📞 ${clinic.phone}</span>` : ''}
+                ${(clinic?.phone && clinic?.address) ? `<span> • </span>` : ''}
+                ${clinic?.address ? `<span>📍 ${clinic.address}</span>` : ''}
+              </div>
+            ` : ''}
           </div>
 
-          <!-- Center: Report Name & Details -->
-          <div class="report-center-box">
-            <div class="report-title-pill">${reportTypeLabel}</div>
-            <div class="report-sub-details">
-              <span class="report-meta-chip">📅 ${periodLabel}</span>
-              <span class="report-meta-chip">⏰ ${dateStr} (${timeStr})</span>
-              <span class="report-meta-chip"># ${reportRefId}</span>
-            </div>
-          </div>
+          <div class="report-title-divider"></div>
 
-          <!-- Left: Official Document Badge -->
-          <div class="header-left-side">
-            <div class="official-stamp-badge">
-              <span class="badge-title">وثيقة إدارية رسمية</span>
-              <span class="badge-sub">معتمد من إدارة المركز</span>
-            </div>
+          <!-- 2. Report Name & Sub Details Centered -->
+          <div class="report-name-pill">${reportTypeLabel}</div>
+          <div class="report-meta-row">
+            <span class="report-meta-chip">📅 الفترة: ${periodLabel}</span>
+            <span class="report-meta-chip">⏰ تاريخ التقرير: ${dateStr} (${timeStr})</span>
+            <span class="report-meta-chip"># ${reportRefId}</span>
           </div>
         </div>
 
@@ -1940,7 +1891,7 @@ export const printExecutiveReport = ({
         </div>
 
         <div class="bottom-watermark">
-          تم إنشاء هذا التقرير آلياً عبر منصة سمارت دينتل لإدارة العيادات والمراكز الطبية التخصصية • وثيقة إدارية رسمية معتمدة
+          وثيقة إدارية رسمية معتمدة ${clinic?.name ? `• ${clinic.name}` : ''}
         </div>
 
       </div>
