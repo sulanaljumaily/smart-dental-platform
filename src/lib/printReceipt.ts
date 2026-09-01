@@ -1111,6 +1111,7 @@ export interface PrintExecutiveReportParams {
   clinic: any;
   stats: any;
   periodLabel: string;
+  reportType?: string;
   reportTypeLabel: string;
 }
 
@@ -1118,264 +1119,513 @@ export const printExecutiveReport = ({
   clinic,
   stats,
   periodLabel,
+  reportType = 'all',
   reportTypeLabel
 }: PrintExecutiveReportParams) => {
-  const clinicLogoUrl = clinic?.logo_url || clinic?.image_url || clinic?.image || '';
+  const clinicLogoUrl = clinic?.logo_url || clinic?.image_url || clinic?.image || clinic?.logo || '';
   const now = new Date();
   const dateStr = now.toLocaleDateString('ar-IQ', { year: 'numeric', month: 'long', day: 'numeric' });
+  const timeStr = now.toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' });
+  const reportSerial = `REP-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+  const totalStaffRevenue = (stats.staffStats || []).reduce((sum: number, s: any) => sum + (s.revenueGenerated || 0), 0);
+  const totalStaffCommissions = (stats.staffStats || []).reduce((sum: number, s: any) => sum + (s.commissionAmount || 0), 0);
+  const totalStaffSessions = (stats.staffStats || []).reduce((sum: number, s: any) => sum + (s.completedCount || 0), 0);
+  const totalStaffAppointments = (stats.staffStats || []).reduce((sum: number, s: any) => sum + (s.appointmentsCount || 0), 0);
+
+  const totalProceduresCount = (stats.procedureStats || []).reduce((sum: number, p: any) => sum + (p.count || 0), 0);
+  const totalProceduresRevenue = (stats.procedureStats || []).reduce((sum: number, p: any) => sum + (p.totalRevenue || 0), 0);
 
   const html = `
     <!DOCTYPE html>
     <html dir="rtl" lang="ar">
     <head>
       <meta charset="UTF-8">
-      <title>التقرير الإداري والتنفيذي - ${clinic?.name || 'عيادة الأسنان'}</title>
+      <title>${reportTypeLabel} - ${clinic?.name || 'عيادة الأسنان'}</title>
       <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap');
+        
         @page {
           size: A4 portrait;
-          margin: 12mm 12mm 12mm 12mm;
+          margin: 10mm 12mm 10mm 12mm;
         }
+
         * {
           box-sizing: border-box;
           margin: 0;
           padding: 0;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
         }
+
         body {
-          font-family: 'Cairo', sans-serif !important;
+          font-family: 'Cairo', 'Tajawal', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
           direction: rtl !important;
           text-align: right !important;
           background: #ffffff !important;
-          color: #1e293b !important;
-          font-size: 11px;
-          line-height: 1.4;
+          color: #0f172a !important;
+          font-size: 10.5px;
+          line-height: 1.45;
+          padding: 2px 4px;
         }
-        .report-header {
+
+        /* Header */
+        .doc-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          border-bottom: 2px solid #2563eb;
+          border-bottom: 2.5px solid #1e3a8a;
           padding-bottom: 12px;
-          margin-bottom: 16px;
+          margin-bottom: 14px;
         }
-        .clinic-brand {
+
+        .brand-section {
           display: flex;
           align-items: center;
           gap: 12px;
         }
-        .clinic-logo {
-          width: 55px;
-          height: 55px;
+
+        .clinic-logo-img {
+          width: 58px;
+          height: 58px;
           border-radius: 12px;
           object-fit: cover;
-          border: 1px solid #e2e8f0;
-        }
-        .clinic-title h1 {
-          font-size: 18px;
-          font-weight: 800;
-          color: #0f172a;
-        }
-        .clinic-title p {
-          font-size: 10px;
-          color: #64748b;
-        }
-        .report-meta {
-          text-align: left;
-        }
-        .report-badge {
-          background: #eff6ff;
-          color: #1d4ed8;
-          border: 1px solid #bfdbfe;
-          padding: 4px 10px;
-          border-radius: 8px;
-          font-weight: 700;
-          font-size: 11px;
-          display: inline-block;
-          margin-bottom: 4px;
-        }
-        .report-date {
-          font-size: 10px;
-          color: #64748b;
+          border: 1.5px solid #cbd5e1;
+          background: #ffffff;
         }
 
-        .kpi-grid {
+        .clinic-logo-fallback {
+          width: 58px;
+          height: 58px;
+          border-radius: 12px;
+          background: #eff6ff;
+          border: 1.5px solid #bfdbfe;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 26px;
+        }
+
+        .clinic-names h1 {
+          font-size: 18px;
+          font-weight: 900;
+          color: #0f172a;
+          letter-spacing: -0.2px;
+          margin-bottom: 2px;
+        }
+
+        .clinic-names p {
+          font-size: 10px;
+          color: #64748b;
+          font-weight: 500;
+        }
+
+        .meta-box {
+          text-align: left;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
+          gap: 3px;
+        }
+
+        .badge-report-type {
+          background: #1e3a8a;
+          color: #ffffff;
+          padding: 4px 12px;
+          border-radius: 6px;
+          font-size: 11px;
+          font-weight: 800;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .meta-details {
+          font-size: 9px;
+          color: #475569;
+          display: flex;
+          flex-direction: column;
+          gap: 1.5px;
+          text-align: left;
+        }
+
+        /* KPI Summary Cards Grid */
+        .kpis-container {
           display: grid;
           grid-template-columns: repeat(4, 1fr);
-          gap: 10px;
-          margin-bottom: 18px;
+          gap: 8px;
+          margin-bottom: 14px;
+          page-break-inside: avoid;
         }
+
         .kpi-card {
           background: #f8fafc;
           border: 1px solid #e2e8f0;
-          border-radius: 10px;
-          padding: 10px;
-          text-align: center;
-        }
-        .kpi-card.highlight {
-          background: #f0fdf4;
-          border-color: #bbf7d0;
-        }
-        .kpi-card.expense {
-          background: #fef2f2;
-          border-color: #fecaca;
-        }
-        .kpi-title {
-          font-size: 10px;
-          color: #64748b;
-          margin-bottom: 4px;
-          font-weight: 600;
-        }
-        .kpi-value {
-          font-size: 13px;
-          font-weight: 800;
-          color: #0f172a;
-        }
-        .kpi-card.highlight .kpi-value {
-          color: #15803d;
-        }
-        .kpi-card.expense .kpi-value {
-          color: #b91c1c;
+          border-radius: 8px;
+          padding: 8px 10px;
+          text-align: right;
+          position: relative;
+          overflow: hidden;
         }
 
-        .section-box {
-          margin-bottom: 16px;
+        .kpi-card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          right: 0;
+          width: 3.5px;
+          height: 100%;
+          background: #3b82f6;
+        }
+
+        .kpi-card.green::before { background: #10b981; }
+        .kpi-card.red::before { background: #ef4444; }
+        .kpi-card.purple::before { background: #8b5cf6; }
+        .kpi-card.orange::before { background: #f59e0b; }
+
+        .kpi-label {
+          font-size: 9.5px;
+          color: #64748b;
+          font-weight: 700;
+          margin-bottom: 3px;
+        }
+
+        .kpi-num {
+          font-size: 13.5px;
+          font-weight: 900;
+          color: #0f172a;
+        }
+
+        .kpi-sub {
+          font-size: 8.5px;
+          color: #94a3b8;
+          margin-top: 1px;
+        }
+
+        /* Section Box */
+        .section-wrapper {
+          margin-bottom: 14px;
           page-break-inside: avoid;
         }
+
+        .section-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          border-bottom: 1.5px solid #e2e8f0;
+          padding-bottom: 4px;
+          margin-bottom: 8px;
+        }
+
         .section-title {
-          font-size: 12px;
+          font-size: 11.5px;
           font-weight: 800;
           color: #1e293b;
-          border-right: 4px solid #2563eb;
-          padding-right: 8px;
-          margin-bottom: 8px;
           display: flex;
           align-items: center;
           gap: 6px;
         }
 
-        table {
+        .section-tag {
+          font-size: 9px;
+          color: #64748b;
+          background: #f1f5f9;
+          padding: 2px 8px;
+          border-radius: 4px;
+          font-weight: 600;
+        }
+
+        /* Tables */
+        .report-table {
           width: 100%;
           border-collapse: collapse;
-          font-size: 10px;
-          margin-bottom: 8px;
+          font-size: 9.5px;
         }
-        th {
-          background: #f1f5f9;
-          color: #334155;
+
+        .report-table th {
+          background: #1e293b;
+          color: #ffffff;
           font-weight: 700;
-          text-align: right;
           padding: 6px 8px;
-          border: 1px solid #cbd5e1;
+          text-align: right;
+          border: 1px solid #1e293b;
+          font-size: 9px;
         }
-        td {
-          padding: 5px 8px;
+
+        .report-table td {
+          padding: 5.5px 8px;
           border: 1px solid #e2e8f0;
           color: #334155;
+          vertical-align: middle;
         }
-        tr:nth-child(even) td {
+
+        .report-table tr:nth-child(even) td {
           background: #f8fafc;
         }
-        .text-center { text-align: center; }
-        .text-left { text-align: left; }
-        .font-bold { font-weight: 700; }
-        .text-emerald { color: #059669; }
-        .text-rose { color: #e11d48; }
-        .text-blue { color: #2563eb; }
 
+        .report-table tfoot td {
+          background: #f1f5f9;
+          font-weight: 800;
+          color: #0f172a;
+          border-top: 2px solid #cbd5e1;
+        }
+
+        .text-center { text-align: center !important; }
+        .text-left { text-align: left !important; }
+        .text-right { text-align: right !important; }
+        .font-bold { font-weight: 700 !important; }
+        .font-extrabold { font-weight: 900 !important; }
+        .text-green { color: #047857 !important; }
+        .text-blue { color: #1d4ed8 !important; }
+        .text-red { color: #b91c1c !important; }
+        .text-purple { color: #6d28d9 !important; }
+
+        /* Debts breakdown cards */
         .debts-summary-grid {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
           gap: 8px;
-          margin-bottom: 8px;
-        }
-        .debt-pill {
-          padding: 6px 10px;
-          border-radius: 8px;
-          background: #f8fafc;
-          border: 1px solid #e2e8f0;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-        .debt-pill.urgent {
-          background: #fff1f2;
-          border-color: #fecdd3;
-          color: #be123c;
+          margin-bottom: 10px;
         }
 
+        .debt-card {
+          padding: 8px 10px;
+          border-radius: 8px;
+          border: 1px solid #e2e8f0;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .debt-card.green { background: #f0fdf4; border-color: #bbf7d0; }
+        .debt-card.blue { background: #eff6ff; border-color: #bfdbfe; }
+        .debt-card.red { background: #fef2f2; border-color: #fecaca; }
+
+        .debt-card-title {
+          font-size: 9.5px;
+          font-weight: 700;
+          display: flex;
+          justify-content: space-between;
+        }
+
+        .debt-card-amount {
+          font-size: 13px;
+          font-weight: 900;
+        }
+
+        /* Progress Mini Bar */
+        .bar-container {
+          width: 100%;
+          height: 5px;
+          background: #e2e8f0;
+          border-radius: 3px;
+          overflow: hidden;
+          margin-top: 3px;
+        }
+
+        .bar-fill {
+          height: 100%;
+          background: #2563eb;
+          border-radius: 3px;
+        }
+
+        /* Signatures & Footer */
         .report-footer {
-          margin-top: 24px;
-          border-top: 1px dashed #cbd5e1;
-          padding-top: 14px;
+          margin-top: 18px;
+          border-top: 1.5px dashed #cbd5e1;
+          padding-top: 12px;
           display: flex;
           justify-content: space-between;
           align-items: flex-end;
           page-break-inside: avoid;
         }
-        .sig-block {
+
+        .sig-box {
           text-align: center;
-          width: 140px;
+          width: 150px;
         }
-        .sig-line {
-          border-bottom: 1px solid #94a3b8;
+
+        .sig-line-area {
           height: 35px;
+          border-bottom: 1px solid #94a3b8;
           margin-bottom: 4px;
         }
-        .sig-label {
+
+        .sig-label-text {
           font-size: 9px;
-          color: #64748b;
+          color: #475569;
+          font-weight: 700;
+        }
+
+        .stamp-circle {
+          width: 65px;
+          height: 65px;
+          border: 1.5px dashed #94a3b8;
+          border-radius: 50%;
+          margin: 0 auto 4px auto;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 8.5px;
+          color: #94a3b8;
           font-weight: 700;
         }
       </style>
     </head>
     <body>
-      <div class="report-header">
-        <div class="clinic-brand">
-          ${clinicLogoUrl ? `<img src="${clinicLogoUrl}" class="clinic-logo" />` : ''}
-          <div class="clinic-title">
+
+      <!-- 1. Header Section -->
+      <div class="doc-header">
+        <div class="brand-section">
+          ${clinicLogoUrl 
+            ? `<img src="${clinicLogoUrl}" class="clinic-logo-img" alt="Logo" />` 
+            : `<div class="clinic-logo-fallback">🦷</div>`
+          }
+          <div class="clinic-names">
             <h1>${clinic?.name || 'عيادة الأسنان التخصصية'}</h1>
-            <p>${clinic?.address || ''} ${clinic?.phone ? `| هاتف: ${clinic.phone}` : ''}</p>
+            <p>${clinic?.address ? `${clinic.address} • ` : ''}${clinic?.phone ? `هاتف: ${clinic.phone}` : 'المنظومة الذكية لإدارة العيادات'}</p>
           </div>
         </div>
-        <div class="report-meta">
-          <div class="report-badge">📊 ${reportTypeLabel}</div>
-          <div class="report-date">الفترة: ${periodLabel} | التاريخ: ${dateStr}</div>
+
+        <div class="meta-box">
+          <div class="badge-report-type">📊 ${reportTypeLabel}</div>
+          <div class="meta-details">
+            <span><strong>رقم التقرير:</strong> ${reportSerial}</span>
+            <span><strong>الفترة:</strong> ${periodLabel}</span>
+            <span><strong>تاريخ الإصدار:</strong> ${dateStr} - ${timeStr}</span>
+          </div>
         </div>
       </div>
 
-      <div class="kpi-grid">
-        <div class="kpi-card highlight">
-          <div class="kpi-title">إجمالي الإيرادات</div>
-          <div class="kpi-value">${(stats.monthlyRevenue || 0).toLocaleString()} د.ع</div>
-        </div>
-        <div class="kpi-card expense">
-          <div class="kpi-title">إجمالي المصروفات</div>
-          <div class="kpi-value">${(stats.monthlyExpenses || 0).toLocaleString()} د.ع</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-title">صافي الأرباح (هامش: ${stats.profitMargin}%)</div>
-          <div class="kpi-value ${(stats.monthlyRevenue - stats.monthlyExpenses) >= 0 ? 'text-emerald' : 'text-rose'}">
-            ${(stats.monthlyRevenue - stats.monthlyExpenses).toLocaleString()} د.ع
+      <!-- 2. Dynamic KPI Highlight Cards Based on Report Type -->
+      <div class="kpis-container">
+        ${reportType === 'staff' ? `
+          <div class="kpi-card green">
+            <div class="kpi-label">إجمالي إنتاجية الكادر</div>
+            <div class="kpi-num text-green">${totalStaffRevenue.toLocaleString()} د.ع</div>
+            <div class="kpi-sub">${periodLabel}</div>
           </div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-title">المرضى النشطون | متوسط القيمة</div>
-          <div class="kpi-value">${stats.totalPatients} مراجع (${(stats.avgPatientValue || 0).toLocaleString()} د.ع)</div>
-        </div>
+          <div class="kpi-card blue">
+            <div class="kpi-label">الكادر الطبي النشط</div>
+            <div class="kpi-num text-blue">${stats.staffStats?.length || 0} أطباء وموظفين</div>
+            <div class="kpi-sub">على رأس العمل</div>
+          </div>
+          <div class="kpi-card purple">
+            <div class="kpi-label">الجلسات المنجزة</div>
+            <div class="kpi-num text-purple">${totalStaffSessions} جلسة</div>
+            <div class="kpi-sub">من إجمالي ${totalStaffAppointments} موعد</div>
+          </div>
+          <div class="kpi-card orange">
+            <div class="kpi-label">إجمالي العمولات المستحقة</div>
+            <div class="kpi-num">${totalStaffCommissions.toLocaleString()} د.ع</div>
+            <div class="kpi-sub">مستحقات الأطباء</div>
+          </div>
+        ` : reportType === 'procedures' ? `
+          <div class="kpi-card blue">
+            <div class="kpi-label">إجمالي الإجراءات المنفذة</div>
+            <div class="kpi-num text-blue">${totalProceduresCount} حالة</div>
+            <div class="kpi-sub">${periodLabel}</div>
+          </div>
+          <div class="kpi-card purple">
+            <div class="kpi-label">الإجراء الأكثر طلباً</div>
+            <div class="kpi-num text-purple">${stats.procedureStats?.[0]?.name || 'حشوات تجميلية'}</div>
+            <div class="kpi-sub">المرتبة الأولى</div>
+          </div>
+          <div class="kpi-card green">
+            <div class="kpi-label">إجمالي إيراد الإجراءات</div>
+            <div class="kpi-num text-green">${totalProceduresRevenue.toLocaleString()} د.ع</div>
+            <div class="kpi-sub">قيمة الخدمات</div>
+          </div>
+          <div class="kpi-card orange">
+            <div class="kpi-label">متوسط سعر الجلسة</div>
+            <div class="kpi-num">${(totalProceduresCount > 0 ? Math.round(totalProceduresRevenue / totalProceduresCount) : 0).toLocaleString()} د.ع</div>
+            <div class="kpi-sub">لكل مريض</div>
+          </div>
+        ` : reportType === 'debts' ? `
+          <div class="kpi-card red">
+            <div class="kpi-label">إجمالي الديون المعلقة</div>
+            <div class="kpi-num text-red">${(stats.debtStats?.totalOutstanding || 0).toLocaleString()} د.ع</div>
+            <div class="kpi-sub">مستحقات غير محصلة</div>
+          </div>
+          <div class="kpi-card green">
+            <div class="kpi-label">إجمالي المبالغ المحصلة</div>
+            <div class="kpi-num text-green">${(stats.debtStats?.totalCollected || 0).toLocaleString()} د.ع</div>
+            <div class="kpi-sub">مدفوعات مستلمة</div>
+          </div>
+          <div class="kpi-card purple">
+            <div class="kpi-label">معدل التحصيل المالي</div>
+            <div class="kpi-num text-purple">${stats.debtStats?.collectionRate || 0}%</div>
+            <div class="kpi-sub">من إجمالي المستحق</div>
+          </div>
+          <div class="kpi-card orange">
+            <div class="kpi-label">المراجعين المدينين</div>
+            <div class="kpi-num">${stats.debtStats?.totalDebtorsCount || 0} مراجع</div>
+            <div class="kpi-sub">مطلوب متابعتهم</div>
+          </div>
+        ` : reportType === 'appointments' ? `
+          <div class="kpi-card blue">
+            <div class="kpi-label">إجمالي المواعيد</div>
+            <div class="kpi-num text-blue">${stats.appointmentStats?.total || 0} موعد</div>
+            <div class="kpi-sub">${periodLabel}</div>
+          </div>
+          <div class="kpi-card green">
+            <div class="kpi-label">نسبة الحضور المكتملة</div>
+            <div class="kpi-num text-green">${stats.appointmentStats?.attendanceRate || 0}%</div>
+            <div class="kpi-sub">${stats.appointmentStats?.completed || 0} موعد مكتمل</div>
+          </div>
+          <div class="kpi-card red">
+            <div class="kpi-label">نسبة الغياب (No-Show)</div>
+            <div class="kpi-num text-red">${stats.appointmentStats?.noShowRate || 0}%</div>
+            <div class="kpi-sub">${stats.appointmentStats?.noShow || 0} غياب بدون إشعار</div>
+          </div>
+          <div class="kpi-card orange">
+            <div class="kpi-label">نسبة الإلغاء</div>
+            <div class="kpi-num">${stats.appointmentStats?.cancellationRate || 0}%</div>
+            <div class="kpi-sub">${stats.appointmentStats?.cancelled || 0} موعد ملغي</div>
+          </div>
+        ` : `
+          <div class="kpi-card green">
+            <div class="kpi-label">إجمالي الإيرادات</div>
+            <div class="kpi-num text-green">${(stats.monthlyRevenue || 0).toLocaleString()} د.ع</div>
+            <div class="kpi-sub">${periodLabel}</div>
+          </div>
+          <div class="kpi-card red">
+            <div class="kpi-label">إجمالي المصروفات</div>
+            <div class="kpi-num text-red">${(stats.monthlyExpenses || 0).toLocaleString()} د.ع</div>
+            <div class="kpi-sub">${periodLabel}</div>
+          </div>
+          <div class="kpi-card purple">
+            <div class="kpi-label">صافي الأرباح (هامش: ${stats.profitMargin}%)</div>
+            <div class="kpi-num ${(stats.monthlyRevenue - stats.monthlyExpenses) >= 0 ? 'text-green' : 'text-red'}">
+              ${(stats.monthlyRevenue - stats.monthlyExpenses).toLocaleString()} د.ع
+            </div>
+            <div class="kpi-sub">${(stats.monthlyRevenue - stats.monthlyExpenses) >= 0 ? 'ربح تشغيلي صافي' : 'عجز مالي'}</div>
+          </div>
+          <div class="kpi-card blue">
+            <div class="kpi-label">المرضى النشطون | متوسط القيمة</div>
+            <div class="kpi-num text-blue">${stats.totalPatients} مراجع</div>
+            <div class="kpi-sub">متوسط: ${(stats.avgPatientValue || 0).toLocaleString()} د.ع / مراجع</div>
+          </div>
+        `}
       </div>
 
-      ${stats.staffStats && stats.staffStats.length > 0 ? `
-        <div class="section-box">
-          <div class="section-title">👨‍⚕️ إنتاجية الأطباء والكادر الطبي</div>
-          <table>
+      <!-- 3. DOCTOR & STAFF SECTION (If 'staff' or 'all') -->
+      ${(reportType === 'staff' || reportType === 'all') && stats.staffStats && stats.staffStats.length > 0 ? `
+        <div class="section-wrapper">
+          <div class="section-head">
+            <div class="section-title">👨‍⚕️ إنتاجية الأطباء والكادر الطبي وتوزيع العمولات</div>
+            <span class="section-tag">${stats.staffStats.length} أطباء وموظفين</span>
+          </div>
+
+          <table class="report-table">
             <thead>
               <tr>
-                <th>الطبيب / الكادر</th>
-                <th>التخصص / الدور</th>
-                <th class="text-center">المواعيد المنجزة</th>
-                <th class="text-center">نسبة الإنجاز</th>
-                <th class="text-left">الإيراد المحقق</th>
-                <th class="text-left">العمولة المستحقة</th>
+                <th style="width: 25%;">الطبيب / الموظف</th>
+                <th style="width: 20%;">المسمى والتخصص</th>
+                <th class="text-center" style="width: 14%;">الجلسات المنجزة</th>
+                <th class="text-center" style="width: 11%;">نسبة الإنجاز</th>
+                <th class="text-left" style="width: 15%;">الإيراد المحقق</th>
+                <th class="text-left" style="width: 15%;">العمولة المستحقة</th>
               </tr>
             </thead>
             <tbody>
@@ -1383,105 +1633,200 @@ export const printExecutiveReport = ({
                 <tr>
                   <td class="font-bold">${s.name}</td>
                   <td>${s.role}</td>
-                  <td class="text-center">${s.completedCount} / ${s.appointmentsCount}</td>
-                  <td class="text-center">${s.completionRate}%</td>
-                  <td class="text-left font-bold text-emerald">${s.revenueGenerated.toLocaleString()} د.ع</td>
-                  <td class="text-left font-bold text-blue">${s.commissionAmount.toLocaleString()} د.ع (${s.commissionRate}%)</td>
+                  <td class="text-center font-bold">
+                    <span class="text-green">${s.completedCount}</span> / <span style="color:#64748b;">${s.appointmentsCount}</span>
+                  </td>
+                  <td class="text-center font-bold">${s.completionRate}%</td>
+                  <td class="text-left font-bold text-green">${s.revenueGenerated.toLocaleString()} د.ع</td>
+                  <td class="text-left font-bold text-blue">${s.commissionAmount.toLocaleString()} د.ع <span style="font-size:8px; color:#64748b;">(${s.commissionRate}%)</span></td>
                 </tr>
               `).join('')}
             </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2" class="font-bold">المجموع الإجمالي للإنتاجية</td>
+                <td class="text-center font-bold">${totalStaffSessions} / ${totalStaffAppointments}</td>
+                <td class="text-center font-bold">${totalStaffAppointments > 0 ? Math.round((totalStaffSessions / totalStaffAppointments) * 100) : 100}%</td>
+                <td class="text-left font-bold text-green">${totalStaffRevenue.toLocaleString()} د.ع</td>
+                <td class="text-left font-bold text-blue">${totalStaffCommissions.toLocaleString()} د.ع</td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       ` : ''}
 
-      ${stats.procedureStats && stats.procedureStats.length > 0 ? `
-        <div class="section-box">
-          <div class="section-title">🦷 العلاجات الأكثر طلباً ومساهمة بالإيرادات</div>
-          <table>
+      <!-- 4. PROCEDURES BREAKDOWN SECTION (If 'procedures' or 'all') -->
+      ${(reportType === 'procedures' || reportType === 'all') && stats.procedureStats && stats.procedureStats.length > 0 ? `
+        <div class="section-wrapper">
+          <div class="section-head">
+            <div class="section-title">🦷 تحليل العلاجات والإجراءات الأكثر طلباً وربحية</div>
+            <span class="section-tag">${stats.procedureStats.length} نوع إجراء</span>
+          </div>
+
+          <table class="report-table">
             <thead>
               <tr>
-                <th>اسم الإجراء / العلاج</th>
-                <th class="text-center">عدد الحالات</th>
-                <th class="text-center">الحصة من الإجمالي</th>
-                <th class="text-left">متوسط السعر</th>
-                <th class="text-left">إجمالي الإيرادات</th>
+                <th style="width: 5%;" class="text-center">#</th>
+                <th style="width: 35%;">اسم الإجراء / الخدمة العلاجية</th>
+                <th class="text-center" style="width: 14%;">عدد الحالات</th>
+                <th class="text-center" style="width: 16%;">الحصة من الإجمالي</th>
+                <th class="text-left" style="width: 15%;">متوسط السعر</th>
+                <th class="text-left" style="width: 15%;">إجمالي الإيرادات</th>
               </tr>
             </thead>
             <tbody>
-              ${stats.procedureStats.slice(0, 6).map((p: any) => `
+              ${(reportType === 'procedures' ? stats.procedureStats : stats.procedureStats.slice(0, 5)).map((p: any, idx: number) => `
                 <tr>
+                  <td class="text-center font-bold" style="color:#64748b;">${idx + 1}</td>
                   <td class="font-bold">${p.name}</td>
-                  <td class="text-center">${p.count} حالة</td>
-                  <td class="text-center font-bold">${p.percentage}%</td>
+                  <td class="text-center font-bold">${p.count} حالة</td>
+                  <td class="text-center font-bold">
+                    ${p.percentage}%
+                    <div class="bar-container">
+                      <div class="bar-fill" style="width: ${p.percentage}%;"></div>
+                    </div>
+                  </td>
                   <td class="text-left">${p.avgCost.toLocaleString()} د.ع</td>
-                  <td class="text-left font-bold text-emerald">${p.totalRevenue.toLocaleString()} د.ع</td>
+                  <td class="text-left font-bold text-green">${p.totalRevenue.toLocaleString()} د.ع</td>
                 </tr>
               `).join('')}
             </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2" class="font-bold">المجموع الكلي للإجراءات</td>
+                <td class="text-center font-bold">${totalProceduresCount} حالة</td>
+                <td class="text-center font-bold">100%</td>
+                <td class="text-left font-bold">${(totalProceduresCount > 0 ? Math.round(totalProceduresRevenue / totalProceduresCount) : 0).toLocaleString()} د.ع</td>
+                <td class="text-left font-bold text-green">${totalProceduresRevenue.toLocaleString()} د.ع</td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       ` : ''}
 
-      ${stats.debtStats ? `
-        <div class="section-box">
-          <div class="section-title">💳 تحليل أعمار الديون والمستحقات (معدل التحصيل: ${stats.debtStats.collectionRate}%)</div>
+      <!-- 5. AGING RECEIVABLES & DEBTS SECTION (If 'debts' or 'all') -->
+      ${(reportType === 'debts' || reportType === 'all') && stats.debtStats ? `
+        <div class="section-wrapper">
+          <div class="section-head">
+            <div class="section-title">💳 تقرير أعمار الديون والمستحقات المالية (معدل التحصيل: ${stats.debtStats.collectionRate}%)</div>
+            <span class="section-tag">${stats.debtStats.totalDebtorsCount} مراجع مدين</span>
+          </div>
+
           <div class="debts-summary-grid">
-            <div class="debt-pill">
-              <span>ديون حديثة (0 - 30 يوماً):</span>
-              <strong class="text-emerald">${stats.debtStats.aging0to30.amount.toLocaleString()} د.ع (${stats.debtStats.aging0to30.count})</strong>
+            <div class="debt-card green">
+              <div class="debt-card-title text-green">
+                <span>🟢 ديون حديثة (0 - 30 يوماً)</span>
+                <span>${stats.debtStats.aging0to30.count} مراجع</span>
+              </div>
+              <div class="debt-card-amount text-green">${stats.debtStats.aging0to30.amount.toLocaleString()} د.ع</div>
             </div>
-            <div class="debt-pill">
-              <span>ديون متوسطة (31 - 60 يوماً):</span>
-              <strong class="text-blue">${stats.debtStats.aging31to60.amount.toLocaleString()} د.ع (${stats.debtStats.aging31to60.count})</strong>
+
+            <div class="debt-card blue">
+              <div class="debt-card-title text-blue">
+                <span>🔵 ديون متوسطة (31 - 60 يوماً)</span>
+                <span>${stats.debtStats.aging31to60.count} مراجع</span>
+              </div>
+              <div class="debt-card-amount text-blue">${stats.debtStats.aging31to60.amount.toLocaleString()} د.ع</div>
             </div>
-            <div class="debt-pill urgent">
-              <span>ديون متأخرة (+60 يوماً):</span>
-              <strong>${stats.debtStats.aging60plus.amount.toLocaleString()} د.ع (${stats.debtStats.aging60plus.count})</strong>
+
+            <div class="debt-card red">
+              <div class="debt-card-title text-red">
+                <span>🔴 ديون متأخرة (+60 يوماً)</span>
+                <span>${stats.debtStats.aging60plus.count} مراجع</span>
+              </div>
+              <div class="debt-card-amount text-red">${stats.debtStats.aging60plus.amount.toLocaleString()} د.ع</div>
             </div>
           </div>
+
+          ${reportType === 'debts' && stats.debtStats.debtorsList && stats.debtStats.debtorsList.length > 0 ? `
+            <table class="report-table">
+              <thead>
+                <tr>
+                  <th style="width: 25%;">اسم المراجع</th>
+                  <th style="width: 23%;">العلاج / الخطة</th>
+                  <th class="text-left" style="width: 13%;">التكلفة الكلية</th>
+                  <th class="text-left" style="width: 13%;">المدفوع</th>
+                  <th class="text-left" style="width: 14%;">المتبقي المطلوب</th>
+                  <th class="text-center" style="width: 12%;">أيام التأخير</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${stats.debtStats.debtorsList.slice(0, 12).map((d: any) => `
+                  <tr>
+                    <td class="font-bold">${d.patientName}</td>
+                    <td>${d.treatmentDescription}</td>
+                    <td class="text-left">${d.totalCost.toLocaleString()} د.ع</td>
+                    <td class="text-left font-bold text-green">${d.paid.toLocaleString()} د.ع</td>
+                    <td class="text-left font-bold text-red">${d.remaining.toLocaleString()} د.ع</td>
+                    <td class="text-center font-bold ${d.daysOld > 60 ? 'text-red' : d.daysOld > 30 ? 'text-blue' : 'text-green'}">
+                      ${d.daysOld} يوم (${d.ageCategory === '0-30' ? 'حديثة' : d.ageCategory === '31-60' ? 'متوسطة' : 'متأخرة'})
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="2" class="font-bold">إجمالي المطالبات المعلقة</td>
+                  <td class="text-left font-bold">${stats.debtStats.debtorsList.reduce((s: number, d: any) => s + d.totalCost, 0).toLocaleString()} د.ع</td>
+                  <td class="text-left font-bold text-green">${stats.debtStats.totalCollected.toLocaleString()} د.ع</td>
+                  <td class="text-left font-bold text-red">${stats.debtStats.totalOutstanding.toLocaleString()} د.ع</td>
+                  <td class="text-center font-bold">${stats.debtStats.collectionRate}% محصل</td>
+                </tr>
+              </tfoot>
+            </table>
+          ` : ''}
         </div>
       ` : ''}
 
-      ${stats.appointmentStats ? `
-        <div class="section-box">
-          <div class="section-title">📅 كفاءة المواعيد ونسبة الحضور والالتزام</div>
-          <table>
+      <!-- 6. APPOINTMENTS EFFICIENCY SECTION (If 'appointments' or 'all') -->
+      ${(reportType === 'appointments' || reportType === 'all') && stats.appointmentStats ? `
+        <div class="section-wrapper">
+          <div class="section-head">
+            <div class="section-title">📅 كفاءة المواعيد ونسبة الحضور والالتزام (${periodLabel})</div>
+            <span class="section-tag">نسبة الحضور: ${stats.appointmentStats.attendanceRate}%</span>
+          </div>
+
+          <table class="report-table">
             <thead>
               <tr>
                 <th class="text-center">إجمالي المواعيد</th>
-                <th class="text-center">المكتملة (حضور)</th>
-                <th class="text-center">نسبة الحضور</th>
-                <th class="text-center">الملغاة</th>
-                <th class="text-center">لم يحضر (No-Show)</th>
+                <th class="text-center">المكتملة (تم الحضور)</th>
+                <th class="text-center">المواعيد القادمة والمؤكدة</th>
+                <th class="text-center">المواعيد الملغاة</th>
+                <th class="text-center">الغياب بدون إشعار (No-Show)</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td class="text-center font-bold">${stats.appointmentStats.total}</td>
-                <td class="text-center font-bold text-emerald">${stats.appointmentStats.completed}</td>
-                <td class="text-center font-bold text-emerald">${stats.appointmentStats.attendanceRate}%</td>
-                <td class="text-center text-rose">${stats.appointmentStats.cancelled} (${stats.appointmentStats.cancellationRate}%)</td>
-                <td class="text-center font-bold text-rose">${stats.appointmentStats.noShow} (${stats.appointmentStats.noShowRate}%)</td>
+                <td class="text-center font-extrabold">${stats.appointmentStats.total} موعد</td>
+                <td class="text-center font-extrabold text-green">${stats.appointmentStats.completed} (${stats.appointmentStats.attendanceRate}%)</td>
+                <td class="text-center font-bold text-blue">${stats.appointmentStats.confirmed} موعد</td>
+                <td class="text-center font-bold" style="color:#d97706;">${stats.appointmentStats.cancelled} (${stats.appointmentStats.cancellationRate}%)</td>
+                <td class="text-center font-extrabold text-red">${stats.appointmentStats.noShow} (${stats.appointmentStats.noShowRate}%)</td>
               </tr>
             </tbody>
           </table>
         </div>
       ` : ''}
 
+      <!-- 7. Signatures & Official Stamp Endorsement -->
       <div class="report-footer">
-        <div class="sig-block">
-          <div class="sig-line"></div>
-          <span class="sig-label">المسؤول المالي / المحاسب</span>
+        <div class="sig-box">
+          <div class="sig-line-area"></div>
+          <span class="sig-label-text">المسؤول المالي / المحاسب</span>
         </div>
-        <div class="sig-block">
-          <div class="sig-line"></div>
-          <span class="sig-label">المدير الطبي / إدارة العيادة</span>
+
+        <div class="sig-box">
+          <div class="stamp-circle">ختم العيادة</div>
+          <span class="sig-label-text">الاعتماد الرسمي</span>
         </div>
-        <div class="sig-block">
-          <div class="sig-line"></div>
-          <span class="sig-label">ختم واعتماد العيادة الرسمي</span>
+
+        <div class="sig-box">
+          <div class="sig-line-area"></div>
+          <span class="sig-label-text">المدير الطبي / إدارة العيادة</span>
         </div>
       </div>
+
     </body>
     </html>
   `;
