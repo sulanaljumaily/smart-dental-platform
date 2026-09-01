@@ -263,7 +263,7 @@ export const ClinicPatientProfile = () => {
         clinic: currentClinic,
         patient: {
           id: patient?.id || patientId,
-          full_name: patient?.full_name || patient?.name || tx.relatedPerson || '',
+          full_name: patient?.name || (patient as any)?.full_name || tx.relatedPerson || '',
           phone: patient?.phone
         },
         doctorName: tx.doctorName || defaultDoctorName,

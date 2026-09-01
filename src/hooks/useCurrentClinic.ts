@@ -6,6 +6,12 @@ export interface CurrentClinic {
     id: string; // Returns stringified ID (e.g., "1")
     name: string;
     role: 'owner' | 'admin' | 'doctor' | 'staff';
+    logo_url?: string;
+    image_url?: string;
+    image?: string;
+    logo?: string;
+    phone?: string;
+    address?: string;
 }
 
 export const useCurrentClinic = () => {
@@ -28,7 +34,7 @@ export const useCurrentClinic = () => {
             // 1. Check if Owner
             const { data: ownedClinic } = await supabase
                 .from('clinics')
-                .select('id, name')
+                .select('id, name, logo_url, phone, address')
                 .eq('owner_id', user!.id)
                 .single();
 
@@ -36,7 +42,10 @@ export const useCurrentClinic = () => {
                 setClinic({
                     id: ownedClinic.id.toString(),
                     name: ownedClinic.name,
-                    role: 'owner'
+                    role: 'owner',
+                    logo_url: ownedClinic.logo_url,
+                    phone: ownedClinic.phone,
+                    address: ownedClinic.address
                 });
                 return;
             }
@@ -44,15 +53,19 @@ export const useCurrentClinic = () => {
             // 2. Check if Member
             const { data: memberParams } = await supabase
                 .from('clinic_members')
-                .select('clinic_id, role, clinic:clinics(name)')
+                .select('clinic_id, role, clinic:clinics(name, logo_url, phone, address)')
                 .eq('user_id', user!.id)
                 .single();
 
             if (memberParams && (memberParams as any).clinic) {
+                const c = (memberParams as any).clinic;
                 setClinic({
                     id: memberParams.clinic_id.toString(),
-                    name: (memberParams as any).clinic.name,
-                    role: memberParams.role as any
+                    name: c.name,
+                    role: memberParams.role as any,
+                    logo_url: c.logo_url,
+                    phone: c.phone,
+                    address: c.address
                 });
                 return;
             }
