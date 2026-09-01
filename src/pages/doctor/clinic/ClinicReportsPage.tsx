@@ -72,8 +72,8 @@ export const ClinicReportsPage: React.FC<ClinicReportsPageProps> = ({ clinicId }
         clinic: currentClinic,
         stats,
         periodLabel: getPeriodLabel(),
-        reportType: selectedType,
-        reportTypeLabel: getReportTypeLabel()
+        reportTypeLabel: getReportTypeLabel(),
+        selectedType: selectedType
       });
       toast.success('تم تجهيز التقرير التنفيذي للطباعة / الحفظ كـ PDF');
     } catch (err) {
