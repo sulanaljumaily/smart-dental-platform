@@ -50,6 +50,22 @@ import { useStaff } from '../../../hooks/useStaff';
 import { useSubscriptionLimits } from '../../../hooks/useSubscriptionLimits';
 import { useAuth } from '../../../contexts/AuthContext';
 
+const formatTime12h = (time24?: string, fullWord: boolean = false): string => {
+  if (!time24) return '';
+  const trimmed = time24.trim();
+  if (trimmed.includes('م') || trimmed.includes('ص') || trimmed.toLowerCase().includes('am') || trimmed.toLowerCase().includes('pm')) {
+    return trimmed;
+  }
+  const parts = trimmed.split(':');
+  if (parts.length < 2) return trimmed;
+  let hours = parseInt(parts[0], 10);
+  const minutes = parts[1];
+  if (isNaN(hours)) return trimmed;
+  const ampm = hours >= 12 ? (fullWord ? 'مساءً' : 'م') : (fullWord ? 'صباحاً' : 'ص');
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  return `${hours.toString().padStart(2, '0')}:${minutes} ${ampm}`;
+};
 
 interface ClinicAppointmentsPageProps {
   clinicId: string;
@@ -229,17 +245,7 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
   useEffect(() => {
     if (selectedAptForReminder) {
       const pName = getPatientName(selectedAptForReminder.patientId, selectedAptForReminder.patientName);
-      const formatTime12h = (time24: string) => {
-        if (!time24) return '';
-        const [h, m] = time24.split(':');
-        let hours = parseInt(h, 10);
-        const ampm = hours >= 12 ? 'مساءً' : 'صباحاً';
-        hours = hours % 12;
-        hours = hours ? hours : 12;
-        return `${hours.toString().padStart(2, '0')}:${m} ${ampm}`;
-      };
-
-      const timeStr = formatTime12h(selectedAptForReminder.time);
+      const timeStr = formatTime12h(selectedAptForReminder.time, true);
       const dateStr = selectedAptForReminder.date;
       const typeStr = getTypeLabel(selectedAptForReminder.type);
       
@@ -944,7 +950,14 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
           {filteredAppointments.length > 0 ? (
             <div className="grid grid-cols-1 gap-4">
               {filteredAppointments.map((apt) => (
-                <div key={apt.id} className="group bg-white p-4 md:p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-4 relative overflow-hidden">
+                <div
+                  key={apt.id}
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest('button, a, input, select, textarea')) return;
+                    setSelectedAptForDetails(apt);
+                  }}
+                  className="group bg-white p-4 md:p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-4 relative overflow-hidden cursor-pointer"
+                >
 
                   {/* Status Indicator Strip */}
                   <div className={`absolute right-0 top-0 bottom-0 w-1.5 ${getStatusColor(apt.status).replace('text-', 'bg-').split(' ')[0]}`} />
@@ -960,8 +973,8 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                           return `${hours.toString().padStart(2, '0')}:${m}`;
                         })()}
                       </span>
-                      <span className="text-[10px] font-medium opacity-70">
-                        {parseInt(apt.time.split(':')[0]) >= 12 ? 'مساءً' : 'صباحاً'}
+                      <span className="text-[10px] font-bold opacity-75">
+                        {parseInt(apt.time.split(':')[0]) >= 12 ? 'م' : 'ص'}
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">
@@ -1128,7 +1141,14 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
           {filteredAppointments.length > 0 ? (
             <div className="grid grid-cols-1 gap-4">
               {filteredAppointments.map((apt) => (
-                <div key={apt.id} className="bg-gray-50 hover:bg-white p-4 rounded-xl border border-gray-200/60 hover:border-gray-300 transition-all flex flex-col md:flex-row items-center justify-between gap-4">
+                <div
+                  key={apt.id}
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest('button, a, input, select, textarea')) return;
+                    setSelectedAptForDetails(apt);
+                  }}
+                  className="bg-gray-50 hover:bg-white p-4 rounded-xl border border-gray-200/60 hover:border-gray-300 transition-all flex flex-col md:flex-row items-center justify-between gap-4 cursor-pointer"
+                >
                   <div className="flex items-center gap-4 w-full md:w-auto">
                     <div className="flex flex-col items-center justify-center min-w-[60px] h-14 bg-white rounded-lg border border-gray-200 text-gray-600">
                       <span className="text-sm font-bold">{new Date(apt.date).getDate()}</span>
@@ -1137,7 +1157,7 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                     <div>
                       <h4 className="font-bold text-gray-800">{getPatientName(apt.patientId, apt.patientName)}</h4>
                       <div className="text-xs text-gray-500 flex gap-2 mt-1">
-                        <span>{apt.time}</span>
+                        <span>{formatTime12h(apt.time)}</span>
                         <span>•</span>
                         <span>{apt.type}</span>
                       </div>
@@ -1539,7 +1559,7 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                                 {msg.metadata && (
                                   <div className="bg-white/80 rounded-xl p-2.5 border border-blue-50/50 text-xs grid grid-cols-2 gap-2 text-gray-600 font-bold">
                                     <div>🗓️ {msg.metadata.date}</div>
-                                    <div>⏰ {msg.metadata.time}</div>
+                                    <div>⏰ {formatTime12h(msg.metadata.time)}</div>
                                     <div className="col-span-2">🦷 {getTypeLabel(msg.metadata.type)}</div>
                                   </div>
                                 )}
@@ -1565,7 +1585,7 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                                 {msg.metadata && (msg.metadata.date || msg.metadata.time) && (
                                   <div className="bg-white/80 rounded-xl p-2.5 border border-emerald-50 text-xs flex gap-4 text-gray-600 font-bold">
                                     {msg.metadata.date && <span>🗓️ {msg.metadata.date}</span>}
-                                    {msg.metadata.time && <span>⏰ {msg.metadata.time}</span>}
+                                    {msg.metadata.time && <span>⏰ {formatTime12h(msg.metadata.time)}</span>}
                                   </div>
                                 )}
                                 <div className="text-[10px] text-gray-400 mt-2 text-left">
@@ -1853,14 +1873,7 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                   </div>
                   <div className="text-left">
                     <p className="font-bold text-gray-900 text-sm">
-                      {(() => {
-                        const [h, m] = req.time.split(':');
-                        let hours = parseInt(h, 10);
-                        const ampm = hours >= 12 ? 'مساءً' : 'صباحاً';
-                        hours = hours % 12;
-                        hours = hours ? hours : 12;
-                        return `${hours.toString().padStart(2, '0')}:${m} ${ampm}`;
-                      })()}
+                      {formatTime12h(req.time)}
                     </p>
                     <p className="text-xs text-gray-500">{req.date}</p>
                   </div>
@@ -2853,7 +2866,7 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-150 space-y-1">
                   <span className="text-[10px] text-gray-400 font-bold block">تاريخ ووقت الموعد:</span>
                   <span className="text-sm font-bold text-gray-800">
-                    {selectedAptForDetails.date} · {selectedAptForDetails.time}
+                    {selectedAptForDetails.date} · {formatTime12h(selectedAptForDetails.time)}
                   </span>
                 </div>
               </div>
