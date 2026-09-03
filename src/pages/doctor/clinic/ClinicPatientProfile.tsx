@@ -1523,10 +1523,8 @@ export const ClinicPatientProfile = () => {
       .filter(p => p.status !== 'cancelled')
       .reduce((sum, p) => sum + (p.cost || 0), 0);
 
-    // Total Outstanding = Sum of remaining balances on all non-cancelled plans
-    const totalOutstanding = planPayments
-      .filter(p => p.status !== 'cancelled')
-      .reduce((sum, p) => sum + Math.max(0, p.remaining), 0);
+    // Total Outstanding = Sum of remaining balances on all non-cancelled plans (mathematically consistent)
+    const totalOutstanding = Math.max(0, totalCost - totalRevenue);
 
     return (
       <div className="animate-in fade-in space-y-8">

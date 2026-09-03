@@ -98,7 +98,7 @@ export const IncomeSection: React.FC<IncomeSectionProps> = ({
         }
         setLoadingReceivables(false);
       });
-  }, [clinicId]);
+  }, [clinicId, transactions]);
 
   // Fetch Patients Financial Summary
   useEffect(() => {
