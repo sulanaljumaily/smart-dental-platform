@@ -76,7 +76,7 @@ export const AssetsDevices: React.FC<AssetsDevicesProps> = ({ clinicId }) => {
         <Card>
             <div className="p-6">
                 <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-lg font-bold text-gray-900">الأصول الثابتة (أجهزة / أثاث)</h3>
+                    <h3 className="text-lg font-bold text-gray-900">الأصول الثابتة</h3>
                     <Button onClick={() => setShowModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
                         <Plus className="w-4 h-4 ml-2" />
                         إضافة أصل جديد

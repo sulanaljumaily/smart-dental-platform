@@ -51,7 +51,7 @@ export const ClinicAssetsPage: React.FC<ClinicAssetsPageProps> = ({ clinicId: pr
                             { id: 'overview', label: 'نظرة عامة', icon: LayoutDashboard },
                             { id: 'treatments', label: 'العلاجات', icon: Stethoscope },
                             { id: 'inventory', label: 'المخزون', icon: Package },
-                            { id: 'devices', label: 'الأصول الثابتة (أجهزة / أثاث)', icon: Monitor },
+                            { id: 'devices', label: 'الأصول الثابتة', icon: Monitor },
                             { id: 'settings', label: 'إدارة وصندوق المخزن', icon: Wallet }
                         ].map(tab => (
                             <button
