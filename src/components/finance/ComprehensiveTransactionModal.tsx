@@ -743,58 +743,18 @@ export const ComprehensiveTransactionModal: React.FC<TransactionModalProps> = ({
                                     className="w-full border rounded-lg p-2.5 text-right bg-white focus:ring-2 focus:ring-red-500"
                                     value={formData.relatedPerson}
                                     onChange={e => setFormData({ ...formData, relatedPerson: e.target.value })}
-                                    placeholder="مثال: شركة الماسة للمستلزمات، مذخر الفرات..."
+                                    placeholder="مثال: شركة الماسة للمستلزمات، مذخر الفرات، أو عهدة المخزن..."
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">المادة المشتراة</label>
-                                <select
-                                    className="w-full border rounded-lg p-2.5 text-right bg-white"
-                                    value={formData.inventoryItemId || ''}
-                                    onChange={e => {
-                                        const item = inventoryItems.find(i => i.id === e.target.value);
-                                        setFormData(prev => ({
-                                            ...prev,
-                                            inventoryItemId: e.target.value,
-                                            itemName: item?.name || '',
-                                            description: item ? `شراء مستلزمات: ${item.name}` : prev.description
-                                        }));
-                                    }}
-                                >
-                                    <option value="">اختر من المخزون (اختياري)...</option>
-                                    {inventoryItems.map(item => (
-                                        <option key={item.id} value={item.id}>{item.name} ({item.quantity} {item.unit})</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="flex gap-4">
-                                <div className="flex-1">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">أو اسم المادة (شراء جديد)</label>
-                                    <input
-                                        type="text"
-                                        className="w-full border rounded-lg p-2.5 text-right bg-white"
-                                        value={formData.itemName}
-                                        onChange={e => {
-                                            const name = e.target.value;
-                                            setFormData(prev => ({
-                                                ...prev,
-                                                itemName: name,
-                                                description: name ? `شراء مستلزمات: ${name}` : prev.description
-                                            }));
-                                        }}
-                                        placeholder="اسم المادة..."
-                                    />
-                                </div>
-                                <div className="w-1/3">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">الكمية (للمخزون)</label>
-                                    <input
-                                        type="number"
-                                        className="w-full border rounded-lg p-2.5 text-right bg-white"
-                                        value={formData.quantity || ''}
-                                        onChange={e => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
-                                        placeholder="0"
-                                    />
-                                </div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">بيان الصرف / ملاحظات السند</label>
+                                <input
+                                    type="text"
+                                    className="w-full border rounded-lg p-2.5 text-right bg-white focus:ring-2 focus:ring-red-500"
+                                    value={formData.description}
+                                    onChange={e => setFormData({ ...formData, description: e.target.value })}
+                                    placeholder="مثال: مشتريات مستلزمات دورية، دفعة عهدة نقدية للمخزن..."
+                                />
                             </div>
                         </div>
                     )}

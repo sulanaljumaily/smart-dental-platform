@@ -25,7 +25,8 @@ import {
   ArrowDownRight,
   Building2,
   User,
-  PackageMinus
+  PackageMinus,
+  AlertCircle
 } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 import { Card } from '../../../components/common/Card';
@@ -34,6 +35,7 @@ import { useInventory, InventoryItem } from '../../../hooks/useInventory';
 import { useFinance } from '../../../hooks/useFinance';
 import { useInventoryMovements } from '../../../hooks/useInventoryMovements';
 import { DispenseItemModal } from '../../../components/inventory/DispenseItemModal';
+import { AddPurchaseModal } from '../../../components/inventory/AddPurchaseModal';
 import { formatCurrency } from '../../../lib/utils';
 
 interface ClinicInventoryPageProps {
@@ -62,7 +64,8 @@ export const ClinicInventoryPage: React.FC<ClinicInventoryPageProps> = ({ clinic
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Dispense Modal State
+  // Purchase & Dispense Modal States
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [dispenseItem, setDispenseItem] = useState<InventoryItem | null>(null);
   const [showDispenseModal, setShowDispenseModal] = useState(false);
 
@@ -106,34 +109,38 @@ export const ClinicInventoryPage: React.FC<ClinicInventoryPageProps> = ({ clinic
   };
 
   const handleSave = async () => {
-    if (!formData.name) {
+    if (!formData.name.trim()) {
       toast.error('يرجى إدخال اسم العنصر');
       return;
     }
 
+    const qty = isEditing ? (parseInt(formData.quantity) || 0) : 0;
+    const minStk = parseInt(formData.minStock) || 10;
+    const price = isEditing ? (parseFloat(formData.unitPrice) || 0) : 0;
+
     const payload = {
-      name: formData.name,
+      name: formData.name.trim(),
       category: formData.specialty, // Specialty -> Category
       brand: formData.type,         // Type -> Brand
-      quantity: parseInt(formData.quantity),
-      minStock: parseInt(formData.minStock),
-      unitPrice: parseFloat(formData.unitPrice),
-      unit: formData.unit,
-      supplier: '', // Cleared as requested to be replaced
-      status: calculateCondition(parseInt(formData.quantity), parseInt(formData.minStock)) as any
+      quantity: qty,
+      minStock: minStk,
+      unitPrice: price,
+      unit: formData.unit || 'قطعة',
+      supplier: '',
+      status: calculateCondition(qty, minStk) as any
     };
 
     try {
       if (isEditing && editingId) {
         await updateItem(editingId, payload);
-        toast.success('تم تحديث العنصر بنجاح');
+        toast.success('تم تحديث بيانات العنصر بنجاح');
       } else {
         await addItem(payload);
-        toast.success('تم إضافة العنصر بنجاح');
+        toast.success('تمت إضافة الصنف للمخزون برصيد (0) بنجاح');
       }
       setShowModal(false);
     } catch (e) {
-      toast.error('حدث خطأ');
+      toast.error('حدث خطأ أثناء حفظ العنصر');
     }
   };
 
@@ -416,14 +423,25 @@ export const ClinicInventoryPage: React.FC<ClinicInventoryPageProps> = ({ clinic
                 />
               </div>
 
-              {/* Add Button for Mobile */}
-              <button
-                onClick={openAddModal}
-                className="sm:hidden flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all shadow-xs cursor-pointer active:scale-95 shrink-0"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>عنصر جديد</span>
-              </button>
+              {/* Add Buttons for Mobile */}
+              <div className="sm:hidden flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowPurchaseModal(true)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-all shadow-xs cursor-pointer active:scale-95"
+                >
+                  <ShoppingCart className="w-3.5 h-3.5" />
+                  <span>مشتريات</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={openAddModal}
+                  className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all shadow-xs cursor-pointer active:scale-95"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>عنصر</span>
+                </button>
+              </div>
             </div>
 
             {/* Row 2 on Mobile / Inlined on Desktop */}
@@ -461,14 +479,25 @@ export const ClinicInventoryPage: React.FC<ClinicInventoryPageProps> = ({ clinic
               </div>
             </div>
 
-            {/* Add Button for Desktop */}
-            <button
-              onClick={openAddModal}
-              className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all shadow-xs cursor-pointer active:scale-95 whitespace-nowrap shrink-0"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>عنصر جديد</span>
-            </button>
+            {/* Actions for Desktop */}
+            <div className="hidden sm:flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowPurchaseModal(true)}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-all shadow-xs cursor-pointer active:scale-95 whitespace-nowrap"
+              >
+                <ShoppingCart className="w-3.5 h-3.5" />
+                <span>إضافة مشتريات</span>
+              </button>
+              <button
+                type="button"
+                onClick={openAddModal}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all shadow-xs cursor-pointer active:scale-95 whitespace-nowrap"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>عنصر جديد</span>
+              </button>
+            </div>
           </div>
 
           {/* Inventory Grid */}
@@ -797,34 +826,52 @@ export const ClinicInventoryPage: React.FC<ClinicInventoryPageProps> = ({ clinic
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">الكمية</label>
-                <input type="number" value={formData.quantity} onChange={e => setFormData({ ...formData, quantity: e.target.value })} className="w-full border rounded-lg p-2.5 text-right" />
-              </div>
+              {!isEditing ? (
+                <div className="md:col-span-2 bg-blue-50/70 p-3 rounded-xl border border-blue-100 flex items-center gap-2 text-xs text-blue-800">
+                  <AlertCircle className="w-4 h-4 text-blue-600 shrink-0" />
+                  <span>
+                    التعريف الأولي: سيتم حفظ المادة برصيد <strong>(0)</strong> وبدون سعر. يمكنك إضافة الكميات وتوثيق التكاليف فورياً عبر زر <strong>"إضافة مشتريات"</strong>.
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">الكمية الحالية</label>
+                    <input type="number" value={formData.quantity} onChange={e => setFormData({ ...formData, quantity: e.target.value })} className="w-full border rounded-lg p-2.5 text-right" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">السعر التقديري (د.ع)</label>
+                    <input type="number" value={formData.unitPrice} onChange={e => setFormData({ ...formData, unitPrice: e.target.value })} className="w-full border rounded-lg p-2.5 text-right" />
+                  </div>
+                </>
+              )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">الحد الأدنى</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">حد الأمان (الحد الأدنى)</label>
                 <input type="number" value={formData.minStock} onChange={e => setFormData({ ...formData, minStock: e.target.value })} className="w-full border rounded-lg p-2.5 text-right" />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">السعر (د.ع)</label>
-                <input type="number" value={formData.unitPrice} onChange={e => setFormData({ ...formData, unitPrice: e.target.value })} className="w-full border rounded-lg p-2.5 text-right" />
-              </div>
-
-              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">الوحدة</label>
-                <input type="text" value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value })} className="w-full border rounded-lg p-2.5" placeholder="علبة / قطعة" />
+                <input type="text" value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value })} className="w-full border rounded-lg p-2.5" placeholder="علبة / قطعة / كرتون" />
               </div>
             </div>
 
             <div className="p-4 bg-gray-50 border-t flex justify-end gap-3">
-              <button onClick={() => setShowModal(false)} className="px-5 py-2 text-gray-600 hover:bg-gray-200 rounded-lg">إلغاء</button>
-              <button onClick={handleSave} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg">{isEditing ? 'حفظ التغييرات' : 'إضافة العنصر'}</button>
+              <button onClick={() => setShowModal(false)} className="px-5 py-2 text-gray-600 hover:bg-gray-200 rounded-lg cursor-pointer">إلغاء</button>
+              <button onClick={handleSave} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg cursor-pointer font-bold">{isEditing ? 'حفظ التغييرات' : 'إضافة العنصر للمخزون'}</button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Add Purchase Modal */}
+      <AddPurchaseModal
+        isOpen={showPurchaseModal}
+        onClose={() => setShowPurchaseModal(false)}
+        clinicId={clinicId}
+      />
     </div>
   );
 };

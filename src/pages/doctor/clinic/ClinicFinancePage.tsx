@@ -25,6 +25,7 @@ import {
   Receipt,
   FileText,
   CheckCircle,
+  AlertCircle,
   Printer
 } from 'lucide-react';
 import {
@@ -52,6 +53,7 @@ import { PatientAccountModal } from '../../../components/finance/PatientAccountM
 import { IncomeSection } from './sections/finance/IncomeSection';
 import { useAssets, Asset } from '../../../hooks/useAssets';
 import { useStaff } from '../../../hooks/useStaff';
+import { useWarehousePurchases } from '../../../hooks/useWarehousePurchases';
 import { useCurrentClinic } from '../../../hooks/useCurrentClinic';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -391,6 +393,11 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
   const { updateOrderStatus } = useLabOrders({ clinicId: clinicId || '0' });
   const { assets, addAsset } = useAssets(clinicId || '0');
   const { staff } = useStaff(clinicId || '0');
+  const { 
+    pendingSettlementRequest, 
+    markSettlementResolved, 
+    cancelSettlementRequest 
+  } = useWarehousePurchases(clinicId);
 
   // URL Params for linking from Patient File
   const location = useLocation();
@@ -400,6 +407,7 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
   const [modalType, setModalType] = useState<'income' | 'expense'>('income');
   const [preselectedPatientId, setPreselectedPatientId] = useState<string | undefined>(undefined);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
+  const [activeSettlingRequestId, setActiveSettlingRequestId] = useState<string | null>(null);
   
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedDetailsTransaction, setSelectedDetailsTransaction] = useState<any>(null);
@@ -407,6 +415,74 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
   // Patient Account Statement Modal State
   const [showPatientAccountModal, setShowPatientAccountModal] = useState(false);
   const [selectedPatientAccountId, setSelectedPatientAccountId] = useState<string | null>(null);
+
+  const handleApproveSettlement = (request: any) => {
+    setActiveSettlingRequestId(request.id);
+    setSelectedTransaction({
+      type: 'expense',
+      category: 'inventory',
+      amount: request.requestedAmount,
+      description: `تسوية عهدة المخزن وتصفير العجز (${request.reason || 'مشتريات مخزون'})`,
+      relatedPerson: request.requestedByName || 'أمين المخزن',
+      date: new Date().toISOString().split('T')[0],
+      sourceType: 'inventory'
+    });
+    setModalType('expense');
+    setShowModal(true);
+  };
+
+  const renderSettlementAlertBanner = () => {
+    if (!pendingSettlementRequest || pendingSettlementRequest.status !== 'pending') return null;
+
+    return (
+      <div className="bg-gradient-to-r from-amber-500/10 via-amber-50 to-orange-50 border-2 border-amber-300/80 rounded-2xl p-4 sm:p-5 shadow-sm animate-in fade-in slide-in-from-top-2">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-amber-500/20">
+              <AlertCircle className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-extrabold text-amber-950 text-sm sm:text-base">
+                  تنبيه محاسبي: طلب تسوية عهدة وتصفير عجز للمخزن
+                </h3>
+                <span className="bg-amber-200 text-amber-900 text-[11px] px-2 py-0.5 rounded-full font-bold">
+                  بانتظار الاعتماد
+                </span>
+              </div>
+              <p className="text-xs text-amber-900/90 mt-1 leading-relaxed">
+                يطلب أمين المخزن (<span className="font-bold">{pendingSettlementRequest.requestedByName || 'المسؤول'}</span>) اعتماد تسوية نقدية بمبلغ{' '}
+                <span className="font-extrabold text-amber-950 text-sm">{pendingSettlementRequest.requestedAmount.toLocaleString()} د.ع</span>{' '}
+                لتغطية فواتير مشتريات المخزون والأصول. الضغط على موافقة يفتح سند الصرف جاهزاً للاعتماد.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+            <Button
+              onClick={() => handleApproveSettlement(pendingSettlementRequest)}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 px-4 py-2"
+            >
+              <CheckCircle className="w-4 h-4 ml-1.5" />
+              موافقة وتسوية العهدة الآن
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (window.confirm('هل أنت متأكد من رفض/إلغاء طلب تسوية العهدة هذا؟')) {
+                  cancelSettlementRequest(pendingSettlementRequest.id);
+                  toast.info('تم إلغاء طلب التسوية');
+                }
+              }}
+              className="border-amber-300 text-amber-900 hover:bg-amber-100 text-xs"
+            >
+              إلغاء
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const currentStaff = staff.find(s => 
     s.userId === user?.id || 
@@ -605,6 +681,9 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
 
   const renderOverview = () => (
     <div className="space-y-6 animate-in fade-in duration-700">
+      {/* Pending Settlement Alert Banner (if any) */}
+      {renderSettlementAlertBanner()}
+
       {/* 1. Bento KPI Section - Driven by Selected Period */}
       <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <BentoStatCard
@@ -927,6 +1006,9 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
 
   const renderExpensesTab = () => (
     <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+      {/* Pending Settlement Alert Banner (if any) */}
+      {renderSettlementAlertBanner()}
+
       <Card>
         <div className="p-4 sm:p-6 border-b border-gray-100 flex items-center justify-between gap-3">
           <div className="min-w-0">
@@ -1173,6 +1255,7 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
         onClose={() => {
           setShowModal(false);
           setSelectedTransaction(null);
+          setActiveSettlingRequestId(null);
         }}
         type={modalType}
         clinicId={clinicId}
@@ -1184,9 +1267,19 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
               await updateTransaction(selectedTransaction.id, data);
               toast.success('تم تعديل المعاملة بنجاح');
             } else {
-              await addTransaction(data);
+              const createdTx = await addTransaction(data);
 
-              // Inventory Sync Logic
+              // Settlement Resolution Logic
+              if (activeSettlingRequestId) {
+                await markSettlementResolved(activeSettlingRequestId, createdTx?.id || 'settled');
+                setActiveSettlingRequestId(null);
+                toast.success('تمت تسوية عهدة المخزن وتصفير العجز بنجاح');
+              } else if (pendingSettlementRequest && pendingSettlementRequest.status === 'pending' && data.category === 'inventory') {
+                await markSettlementResolved(pendingSettlementRequest.id, createdTx?.id || 'settled');
+                toast.success('تمت تسوية طلب عهدة المخزن بنجاح');
+              }
+
+              // Inventory Sync Logic (Legacy fallback if provided)
               if (data.category === 'inventory' && data.quantity && data.quantity > 0) {
                 if (data.inventoryItemId) {
                   const item = inventory.find(i => i.id === data.inventoryItemId);
@@ -1236,6 +1329,7 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
             setShowModal(false);
             setPreselectedPatientId(undefined);
             setSelectedTransaction(null);
+            setActiveSettlingRequestId(null);
           } catch (e) {
             console.error(e);
             toast.error('حدث خطأ أثناء الحفظ');

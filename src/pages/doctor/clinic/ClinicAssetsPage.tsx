@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { LayoutDashboard, Stethoscope, Package, Monitor, ClipboardList, Wallet } from 'lucide-react';
+import { LayoutDashboard, Stethoscope, Package, Monitor, ClipboardList, Wallet, ShoppingCart } from 'lucide-react';
 import { Card } from '../../../components/common/Card';
+import { AddPurchaseModal } from '../../../components/inventory/AddPurchaseModal';
 
 // Import sub-sections
 import { AssetsOverview } from './sections/assets/AssetsOverview';
@@ -20,6 +21,7 @@ export const ClinicAssetsPage: React.FC<ClinicAssetsPageProps> = ({ clinicId: pr
     const clinicId = propClinicId?.toString() || routeClinicId || '19';
 
     const [activeTab, setActiveTab] = useState('overview');
+    const [showPurchaseModal, setShowPurchaseModal] = useState(false);
 
     const renderActiveTab = () => {
         switch (activeTab) {
@@ -43,8 +45,8 @@ export const ClinicAssetsPage: React.FC<ClinicAssetsPageProps> = ({ clinicId: pr
 
             {/* Navigation Tabs */}
             <Card>
-                <div className="border-b border-gray-100">
-                    <div className="flex overflow-x-auto scrollbar-hide px-2">
+                <div className="border-b border-gray-100 flex items-center justify-between px-2 sm:px-4">
+                    <div className="flex overflow-x-auto scrollbar-hide">
                         {[
                             { id: 'overview', label: 'نظرة عامة', icon: LayoutDashboard },
                             { id: 'treatments', label: 'العلاجات', icon: Stethoscope },
@@ -65,6 +67,14 @@ export const ClinicAssetsPage: React.FC<ClinicAssetsPageProps> = ({ clinicId: pr
                             </button>
                         ))}
                     </div>
+
+                    <button
+                        onClick={() => setShowPurchaseModal(true)}
+                        className="hidden sm:flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl shadow-sm transition-all shrink-0 my-1"
+                    >
+                        <ShoppingCart className="w-3.5 h-3.5" />
+                        <span>إضافة مشتريات</span>
+                    </button>
                 </div>
             </Card>
 
@@ -72,6 +82,13 @@ export const ClinicAssetsPage: React.FC<ClinicAssetsPageProps> = ({ clinicId: pr
             <div className="transition-all duration-300">
                 {renderActiveTab()}
             </div>
+
+            {/* Add Purchase Modal */}
+            <AddPurchaseModal
+                isOpen={showPurchaseModal}
+                onClose={() => setShowPurchaseModal(false)}
+                clinicId={clinicId}
+            />
         </div>
     );
 };

@@ -1,12 +1,13 @@
 import React from 'react';
 import { Card } from '../../../../../components/common/Card';
 import { BentoStatCard } from '../../../../../components/dashboard/BentoStatCard';
-import { Briefcase, TrendingUp, PieChart, AlertCircle, CheckCircle } from 'lucide-react';
+import { Briefcase, ShoppingCart, Wallet, ArrowDownRight, AlertCircle, CheckCircle } from 'lucide-react';
 import { formatCurrency } from '../../../../../lib/utils';
 import { useAssets } from '../../../../../hooks/useAssets';
 import { useFinance } from '../../../../../hooks/useFinance';
 import { useInventory } from '../../../../../hooks/useInventory';
 import { useTreatments } from '../../../../../hooks/useTreatments';
+import { useWarehousePurchases } from '../../../../../hooks/useWarehousePurchases';
 
 export interface AssetsOverviewProps {
     clinicId?: string;
@@ -14,9 +15,10 @@ export interface AssetsOverviewProps {
 
 export const AssetsOverview: React.FC<AssetsOverviewProps> = ({ clinicId }) => {
     const { assets, loading: loadingAssets } = useAssets(clinicId);
-    const { stats: financeStats, loading: loadingFinance } = useFinance(clinicId);
+    const { transactions, loading: loadingFinance } = useFinance(clinicId);
     const { inventory, loading: loadingInventory } = useInventory(clinicId);
     const { treatments, loading: loadingTreatments } = useTreatments(clinicId);
+    const { purchases, totalPurchasesAmount } = useWarehousePurchases(clinicId);
 
     const isLoading = loadingAssets || loadingFinance || loadingInventory || loadingTreatments;
 
@@ -34,27 +36,22 @@ export const AssetsOverview: React.FC<AssetsOverviewProps> = ({ clinicId }) => {
     const fixedAssets = assets.filter(a => deviceCategories.includes(a.category) && (a.status === 'active' || a.status === 'maintenance'));
     const totalFixedAssetsCost = fixedAssets.reduce((sum, a) => sum + (a.purchaseCost || 0), 0);
 
-    // 2. Service Revenue (عائد الخدمات السنوي)
-    const serviceRevenue = financeStats.income || 0;
-    const growth = financeStats.growth || 0;
-    const revenueTrendDirection = growth >= 0 ? 'up' : 'down';
-    const revenueTrendValue = `${Math.abs(growth).toFixed(1)}%`;
+    // 2. Inventory Stock Value (قيمة بضاعة المخزون)
+    const stockValue = inventory.reduce((sum, i) => sum + (Number(i.quantity) * Number(i.unitPrice)), 0);
+    const totalAssetsValuation = totalFixedAssetsCost + stockValue;
 
-    // 3. Average Profit Margin (متوسط هامش الربح)
-    const income = financeStats.income || 0;
-    const expenses = financeStats.expenses || 0;
-    const profitMargin = income > 0 ? ((income - expenses) / income) * 100 : 65.2; // Fallback to 65.2% if no income yet
-    const displayMargin = `${profitMargin.toFixed(1)}%`;
+    // 3. Finance Funding Inflows (المحول من قسم المالية لعهدة المخزن)
+    const financeInflows = transactions
+        .filter(t => t.type === 'expense' && (t.category === 'inventory' || t.category === 'materials' || t.category === 'supplies' || t.category === 'asset_purchase' || t.sourceType === 'inventory'))
+        .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
-    // 4. Out of Service Assets (الأصول المتعطلة)
-    const outOfServiceAssets = assets.filter(a => deviceCategories.includes(a.category) && a.status !== 'active');
-    const inactiveCount = outOfServiceAssets.length;
-    const trendText = inactiveCount === 0 ? 'لا توجد أصول متعطلة' :
-                      inactiveCount === 1 ? 'حالة واحدة' :
-                      inactiveCount === 2 ? 'حالتان' :
-                      `${inactiveCount} أجهزة`;
+    // 4. Actual Purchases (إجمالي المشتريات الفعلية للمخزون والأصول)
+    const actualPurchases = totalPurchasesAmount > 0 ? totalPurchasesAmount : stockValue;
 
-    // 5. Top Revenue Services (أعلى الخدمات إيراداً)
+    // 5. Net Custody Balance (صافي رصيد العهدة)
+    const custodyBalance = financeInflows - actualPurchases;
+
+    // 6. Top Revenue Services (أعلى الخدمات إيراداً)
     const sortedTreatments = [...treatments].sort((a, b) => {
         if (b.totalRevenue !== a.totalRevenue) {
             return b.totalRevenue - a.totalRevenue;
@@ -69,44 +66,46 @@ export const AssetsOverview: React.FC<AssetsOverviewProps> = ({ clinicId }) => {
     ];
     const treatmentsToDisplay = topTreatments.length > 0 ? topTreatments : fallbackTreatments;
 
-    // 6. Inventory Alerts (تنبيهات المخزون)
+    // 7. Inventory Alerts (تنبيهات المخزون)
     const lowStockItems = inventory.filter(item => item.quantity <= item.minStock);
 
     return (
         <div className="space-y-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
                 <BentoStatCard
-                    title="قيمة الأصول الثابتة"
-                    value={formatCurrency(totalFixedAssetsCost)}
+                    title="إجمالي قيمة الأصول"
+                    value={formatCurrency(totalAssetsValuation)}
                     icon={Briefcase}
                     color="blue"
+                    trend="neutral"
+                    trendValue={`مخزون + ${fixedAssets.length} أصل`}
                     delay={100}
                 />
                 <BentoStatCard
-                    title="عائد الخدمات (السنوي)"
-                    value={formatCurrency(serviceRevenue)}
-                    icon={TrendingUp}
-                    color="green"
-                    trend={revenueTrendDirection}
-                    trendValue={revenueTrendValue}
+                    title="المحول من المالية (العهدة)"
+                    value={formatCurrency(financeInflows)}
+                    icon={ArrowDownRight}
+                    color="emerald"
+                    trend="up"
+                    trendValue="تمويل المخزن"
                     delay={200}
                 />
                 <BentoStatCard
-                    title="متوسط هامش الربح"
-                    value={displayMargin}
-                    icon={PieChart}
+                    title="قيمة المشتريات"
+                    value={formatCurrency(actualPurchases)}
+                    icon={ShoppingCart}
                     color="purple"
-                    trend="up"
-                    trendValue="4.1%"
+                    trend="neutral"
+                    trendValue={purchases.length > 0 ? `${purchases.length} فاتورة مسجلة` : `${inventory.length} صنف مسجل`}
                     delay={300}
                 />
                 <BentoStatCard
-                    title="الأصول المتعطلة"
-                    value={inactiveCount.toString()}
-                    icon={AlertCircle}
-                    color="red"
-                    trend={inactiveCount > 0 ? 'up' : 'down'}
-                    trendValue={trendText}
+                    title={custodyBalance >= 0 ? 'فائض عهدة المخزن' : 'عجز العهدة (مطلوب)'}
+                    value={formatCurrency(Math.abs(custodyBalance))}
+                    icon={Wallet}
+                    color={custodyBalance >= 0 ? 'blue' : 'red'}
+                    trend={custodyBalance >= 0 ? 'up' : 'down'}
+                    trendValue={custodyBalance >= 0 ? 'رصيد متاح للشراء' : 'طلب تسوية من المالية'}
                     delay={400}
                 />
             </div>
