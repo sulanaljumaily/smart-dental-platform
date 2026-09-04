@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Stethoscope, Package, Monitor, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, Stethoscope, Package, Monitor, ClipboardList, Settings } from 'lucide-react';
 import { Card } from '../../../components/common/Card';
 
 // Import sub-sections
@@ -8,6 +8,7 @@ import { AssetsTreatments } from './sections/assets/AssetsTreatments';
 // Swapped to main page component which has Supabase integration
 import { ClinicInventoryPage } from './ClinicInventoryPage';
 import { AssetsDevices } from './sections/assets/AssetsDevices';
+import { AssetsSettings } from './sections/assets/AssetsSettings';
 
 interface ClinicAssetsPageProps {
     clinicId?: string;
@@ -26,6 +27,8 @@ export const ClinicAssetsPage: React.FC<ClinicAssetsPageProps> = ({ clinicId = '
                 return <ClinicInventoryPage clinicId={clinicId} />;
             case 'devices':
                 return <AssetsDevices clinicId={clinicId} />;
+            case 'settings':
+                return <AssetsSettings clinicId={clinicId} />;
             default:
                 return <AssetsOverview clinicId={clinicId} />;
         }
@@ -42,7 +45,8 @@ export const ClinicAssetsPage: React.FC<ClinicAssetsPageProps> = ({ clinicId = '
                             { id: 'overview', label: 'نظرة عامة', icon: LayoutDashboard },
                             { id: 'treatments', label: 'العلاجات', icon: Stethoscope },
                             { id: 'inventory', label: 'المخزون', icon: Package },
-                            { id: 'devices', label: 'الأصول الثابتة (أجهزة / أثاث)', icon: Monitor }
+                            { id: 'devices', label: 'الأصول الثابتة (أجهزة / أثاث)', icon: Monitor },
+                            { id: 'settings', label: 'الإعدادات', icon: Settings }
                         ].map(tab => (
                             <button
                                 key={tab.id}

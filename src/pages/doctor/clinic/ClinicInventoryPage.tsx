@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import {
   ShoppingCart,
@@ -17,11 +17,23 @@ import {
   Star,
   Minus,
   Edit,
-  Trash2
+  Trash2,
+  Wallet,
+  Layers,
+  History,
+  ArrowUpRight,
+  ArrowDownRight,
+  Building2,
+  User,
+  PackageMinus
 } from 'lucide-react';
 import { Card } from '../../../components/common/Card';
 import { BentoStatCard } from '../../../components/dashboard/BentoStatCard';
-import { useInventory } from '../../../hooks/useInventory';
+import { useInventory, InventoryItem } from '../../../hooks/useInventory';
+import { useFinance } from '../../../hooks/useFinance';
+import { useInventoryMovements } from '../../../hooks/useInventoryMovements';
+import { DispenseItemModal } from '../../../components/inventory/DispenseItemModal';
+import { formatCurrency } from '../../../lib/utils';
 
 interface ClinicInventoryPageProps {
   clinicId: string;
@@ -32,14 +44,22 @@ export const ClinicInventoryPage: React.FC<ClinicInventoryPageProps> = ({ clinic
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [activeSubTab, setActiveSubTab] = useState<'items' | 'movements'>('items');
+  const [selectedPeriod, setSelectedPeriod] = useState<'month' | 'year' | 'all'>('month');
 
   // Supabase Integration
-  const { inventory, loading, addItem, updateItem } = useInventory(clinicId);
+  const { inventory, loading, addItem, updateItem, deleteItem } = useInventory(clinicId);
+  const { transactions } = useFinance(clinicId);
+  const { movements, loading: movementsLoading, logMovement } = useInventoryMovements(clinicId);
 
   // --- Modal State ---
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Dispense Modal State
+  const [dispenseItem, setDispenseItem] = useState<InventoryItem | null>(null);
+  const [showDispenseModal, setShowDispenseModal] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -128,25 +148,76 @@ export const ClinicInventoryPage: React.FC<ClinicInventoryPageProps> = ({ clinic
   };
 
   const getSpecialtyIcon = (spec: string) => {
-    // Reuse existing icons based on loose matching or default
     return <Package className="w-5 h-5 text-blue-600" />;
   };
+
+  // Period Filtering Logic & Financial Custody Calculation
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonthStr = `${currentYear}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+  const periodStats = useMemo(() => {
+    // 1. Finance expenses for inventory
+    const inventoryExpenses = transactions.filter(t => {
+      if (t.type !== 'expense') return false;
+      const isInv = t.category === 'inventory' || t.sourceType === 'inventory';
+      if (!isInv) return false;
+
+      if (selectedPeriod === 'month') {
+        return t.date && t.date.startsWith(currentMonthStr);
+      } else if (selectedPeriod === 'year') {
+        return t.date && t.date.startsWith(String(currentYear));
+      }
+      return true; // 'all'
+    });
+
+    const totalFinanceExpenses = inventoryExpenses.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+    // All-time inventory expenses from finance for custody calculation
+    const allTimeFinanceExpenses = transactions
+      .filter(t => t.type === 'expense' && (t.category === 'inventory' || t.sourceType === 'inventory'))
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+    // 2. Dispensed movements
+    const periodMovements = movements.filter(m => {
+      if (m.movementType !== 'out') return false;
+      if (selectedPeriod === 'month') {
+        return m.createdAt && m.createdAt.startsWith(currentMonthStr);
+      } else if (selectedPeriod === 'year') {
+        return m.createdAt && m.createdAt.startsWith(String(currentYear));
+      }
+      return true;
+    });
+
+    const totalDispensedValue = periodMovements.reduce((sum, m) => sum + (Number(m.totalCost) || 0), 0);
+    const totalDispensedQty = periodMovements.reduce((sum, m) => sum + (Number(m.quantity) || 0), 0);
+
+    // 3. Current Stock Valuation
+    const totalStockValue = inventory.reduce((sum, i) => sum + (Number(i.quantity) * Number(i.unitPrice)), 0);
+
+    // 4. Custody Balance:
+    // Funds from Finance into Warehouse Custody minus Total Stock Valuation
+    const custodyBalance = allTimeFinanceExpenses - totalStockValue;
+
+    return {
+      periodFinanceExpenses: totalFinanceExpenses,
+      totalDispensedValue,
+      totalDispensedQty,
+      totalStockValue,
+      custodyBalance,
+      allTimeFinanceExpenses
+    };
+  }, [transactions, movements, inventory, selectedPeriod, currentMonthStr, currentYear]);
 
   // Derived State (replaces mock helpers)
   const lowStockItems = inventory.filter(i => i.quantity <= i.minStock);
 
   const stats = {
     totalItems: inventory.length,
-    totalValue: inventory.reduce((sum, i) => sum + (i.quantity * i.unitPrice), 0),
+    totalValue: periodStats.totalStockValue,
     available: inventory.filter(i => (i.status === 'available' || i.quantity > 0)).length,
     lowStock: lowStockItems.length,
     outOfStock: inventory.filter(i => i.quantity === 0).length,
-    totalPurchaseOrders: 0,
-    equipment: inventory.filter(i => i.category === 'Equipment' || i.brand === 'Equipment').length,
-    consumables: inventory.filter(i => i.category === 'Consumables' || i.brand === 'Consumables').length,
-    medicines: inventory.filter(i => i.category === 'Medicines' || i.brand === 'Medicines').length,
-    instruments: inventory.filter(i => i.category === 'Instruments' || i.brand === 'Instruments').length,
-    supplies: inventory.filter(i => i.category === 'Supplies' || i.brand === 'Supplies').length,
   };
 
   const getStatusColor = (status: string) => {
@@ -173,8 +244,6 @@ export const ClinicInventoryPage: React.FC<ClinicInventoryPageProps> = ({ clinic
     }
   };
 
-  // ... (Existing Filters) ...
-  // Update filters to use the new "Specialty" (which is in category)
   const filteredInventory = inventory.filter(item => {
     const matchesSearch = searchTerm === '' ||
       item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -186,198 +255,484 @@ export const ClinicInventoryPage: React.FC<ClinicInventoryPageProps> = ({ clinic
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
+  const filteredMovements = movements.filter(m => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      m.itemName?.toLowerCase().includes(term) ||
+      m.recipientName?.toLowerCase().includes(term) ||
+      m.departmentName?.toLowerCase().includes(term) ||
+      m.reason?.toLowerCase().includes(term)
+    );
+  });
+
+  const periodLabel = selectedPeriod === 'month' ? 'هذا الشهر' : selectedPeriod === 'year' ? 'السنة الحالية' : 'كافة الفترات';
+
   return (
     <div className="space-y-6">
 
-      {/* Stats Cards (2 cols on mobile, 4 cols on desktop) */}
+      {/* Period Filter Header Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 sm:px-5 rounded-2xl border border-gray-100 shadow-xs">
+        <div className="flex items-center gap-2">
+          <Wallet className="w-5 h-5 text-blue-600" />
+          <span className="font-bold text-sm text-gray-900">المؤشرات المالية والمخزون:</span>
+          <span className="text-xs text-gray-500">({periodLabel})</span>
+        </div>
+        <div className="flex items-center gap-1.5 bg-gray-100/80 p-1 rounded-xl">
+          {[
+            { id: 'month', label: '📅 الشهر الحالي' },
+            { id: 'year', label: '📆 السنة الحالية' },
+            { id: 'all', label: '🌐 الكل' }
+          ].map(p => (
+            <button
+              key={p.id}
+              onClick={() => setSelectedPeriod(p.id as any)}
+              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+                selectedPeriod === p.id
+                  ? 'bg-white text-blue-600 shadow-xs'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Stats Cards (Financial Custody & Stock Overview) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {/* 1. Finance Inflow to Inventory */}
         <BentoStatCard
-          title="إجمالي العناصر"
-          value={stats.totalItems}
-          icon={Package}
+          title="صرفيات المخزون (المالية)"
+          value={formatCurrency(periodStats.periodFinanceExpenses)}
+          icon={Wallet}
           color="blue"
-          trend="neutral"
-          trendValue={`قيمة: ${(stats.totalValue / 1000000).toFixed(1)}م`}
+          trend="up"
+          trendValue={periodLabel}
           delay={100}
           compact={true}
         />
+
+        {/* 2. Warehouse Custody Balance (Surplus or Deficit / Negative) */}
         <BentoStatCard
-          title="متاح"
-          value={stats.available}
-          icon={Box}
-          color="green"
+          title={periodStats.custodyBalance >= 0 ? "فائض عهدة المخزن" : "المخزن يطلب العيادة"}
+          value={formatCurrency(Math.abs(periodStats.custodyBalance))}
+          icon={periodStats.custodyBalance >= 0 ? ArrowUpRight : ArrowDownRight}
+          color={periodStats.custodyBalance >= 0 ? "green" : "red"}
+          trend={periodStats.custodyBalance >= 0 ? "up" : "down"}
+          trendValue={periodStats.custodyBalance >= 0 ? "فائض سيولة (+)" : "عجز / شراء آجل (-)"}
           delay={200}
           compact={true}
         />
+
+        {/* 3. Dispensed Materials Value */}
         <BentoStatCard
-          title="مخزون منخفض"
-          value={stats.lowStock}
-          icon={AlertTriangle}
-          color="orange"
-          trend={stats.lowStock > 0 ? "down" : "neutral"}
-          trendValue={stats.lowStock > 0 ? "تحذير" : "مستقر"}
+          title="قيمة المواد المصروفة"
+          value={formatCurrency(periodStats.totalDispensedValue)}
+          icon={PackageMinus}
+          color="purple"
+          trend="neutral"
+          trendValue={`صُرف ${periodStats.totalDispensedQty} وحدة`}
           delay={300}
           compact={true}
         />
+
+        {/* 4. Stock Items & Valuation */}
         <BentoStatCard
-          title="نفد المخزون"
-          value={stats.outOfStock}
-          icon={Box}
-          color="red"
+          title="إجمالي مواد المخزون"
+          value={stats.totalItems.toString()}
+          icon={Package}
+          color="blue"
+          trend={stats.lowStock > 0 ? "down" : "neutral"}
+          trendValue={`قيمة: ${(stats.totalValue / 1000000).toFixed(1)}م`}
           delay={400}
           compact={true}
         />
       </div>
 
-      {/* Controls Bar - Mobile & Desktop Optimized */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-xs p-2.5 sm:px-3.5 sm:py-2.5 space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between sm:gap-2.5">
-        {/* Row 1 on Mobile: Search + Add Button */}
-        <div className="flex items-center gap-2 flex-1">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
-            <input
-              type="text"
-              placeholder="البحث في المخزون..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 border border-gray-200 rounded-lg text-xs bg-gray-50/70 hover:bg-white focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition-all"
-            />
-          </div>
-
-          {/* Add Button for Mobile (Top-Right aligned with search) */}
-          <button
-            onClick={openAddModal}
-            className="sm:hidden flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all shadow-xs cursor-pointer active:scale-95 shrink-0"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>عنصر جديد</span>
-          </button>
-        </div>
-
-        {/* Row 2 on Mobile (2 equal columns) / Inlined on Desktop */}
-        <div className="grid grid-cols-2 sm:flex items-center gap-2">
-          {/* Specialty Filter */}
-          <div className="relative w-full sm:w-36">
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs font-semibold bg-gray-50/70 hover:bg-white focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none cursor-pointer transition-all truncate"
-            >
-              <option value="all">🏷️ جميع التخصصات</option>
-              <option value="Orthodontics">تقويم الأسنان</option>
-              <option value="Cosmetic">تجميل</option>
-              <option value="Restorative">حشوات</option>
-              <option value="Anesthetic">تخدير</option>
-              <option value="Endodontics">علاج عصب</option>
-              <option value="Surgery">جراحة</option>
-              <option value="Consumables">مستهلكات عامة</option>
-            </select>
-          </div>
-
-          {/* Status Filter */}
-          <div className="relative w-full sm:w-32">
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs font-semibold bg-gray-50/70 hover:bg-white focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none cursor-pointer transition-all truncate"
-            >
-              <option value="all">📌 جميع الحالات</option>
-              <option value="available">🟢 متاح</option>
-              <option value="low_stock">🟡 مخزون منخفض</option>
-              <option value="out_of_stock">🔴 نفد المخزون</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Add Button for Desktop */}
+      {/* Sub-Tabs: Items vs Movements Log */}
+      <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
         <button
-          onClick={openAddModal}
-          className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all shadow-xs cursor-pointer active:scale-95 whitespace-nowrap shrink-0"
+          onClick={() => setActiveSubTab('items')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+            activeSubTab === 'items'
+              ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+              : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+          }`}
         >
-          <Plus className="w-3.5 h-3.5" />
-          <span>عنصر جديد</span>
+          <Box className="w-4 h-4" />
+          <span>المواد والأرصدة الحالية ({inventory.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('movements')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+            activeSubTab === 'movements'
+              ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+              : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+          }`}
+        >
+          <History className="w-4 h-4" />
+          <span>سجل حركات وصرفيات المواد ({movements.length})</span>
         </button>
       </div>
 
-      {/* Inventory Grid */}
-      <Card>
-        <div className="p-6">
-          {/* ... Header ... */}
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-gray-900">المخزون ({filteredInventory.length})</h2>
+      {activeSubTab === 'items' ? (
+        <>
+          {/* Controls Bar - Mobile & Desktop Optimized */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-xs p-2.5 sm:px-3.5 sm:py-2.5 space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between sm:gap-2.5">
+            {/* Row 1 on Mobile: Search + Add Button */}
+            <div className="flex items-center gap-2 flex-1">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
+                <input
+                  type="text"
+                  placeholder="البحث في المواد..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 border border-gray-200 rounded-lg text-xs bg-gray-50/70 hover:bg-white focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                />
+              </div>
+
+              {/* Add Button for Mobile */}
+              <button
+                onClick={openAddModal}
+                className="sm:hidden flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all shadow-xs cursor-pointer active:scale-95 shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>عنصر جديد</span>
+              </button>
+            </div>
+
+            {/* Row 2 on Mobile / Inlined on Desktop */}
+            <div className="grid grid-cols-2 sm:flex items-center gap-2">
+              {/* Specialty Filter */}
+              <div className="relative w-full sm:w-36">
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs font-semibold bg-gray-50/70 hover:bg-white focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none cursor-pointer transition-all truncate"
+                >
+                  <option value="all">🏷️ جميع التخصصات</option>
+                  <option value="Orthodontics">تقويم الأسنان</option>
+                  <option value="Cosmetic">تجميل</option>
+                  <option value="Restorative">حشوات</option>
+                  <option value="Anesthetic">تخدير</option>
+                  <option value="Endodontics">علاج عصب</option>
+                  <option value="Surgery">جراحة</option>
+                  <option value="Consumables">مستهلكات عامة</option>
+                </select>
+              </div>
+
+              {/* Status Filter */}
+              <div className="relative w-full sm:w-32">
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs font-semibold bg-gray-50/70 hover:bg-white focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none cursor-pointer transition-all truncate"
+                >
+                  <option value="all">📌 جميع الحالات</option>
+                  <option value="available">🟢 متاح</option>
+                  <option value="low_stock">🟡 مخزون منخفض</option>
+                  <option value="out_of_stock">🔴 نفد المخزون</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Add Button for Desktop */}
+            <button
+              onClick={openAddModal}
+              className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all shadow-xs cursor-pointer active:scale-95 whitespace-nowrap shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>عنصر جديد</span>
+            </button>
           </div>
 
-          {filteredInventory.length === 0 ? (
-            <div className="text-center py-12"><p className="text-gray-500">لا توجد عناصر</p></div>
-          ) : viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredInventory.map((item) => (
-                <div key={item.id} className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all p-4 flex flex-col gap-4 group">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-                        {getSpecialtyIcon(item.category)}
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-gray-900 line-clamp-1">{item.name}</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full font-medium">{getSpecialtyLabel(item.category)}</span>
-                          <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{item.brand || 'عام'}</span>
+          {/* Inventory Grid */}
+          <Card>
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900">المخزون ({filteredInventory.length})</h2>
+              </div>
+
+              {loading ? (
+                <div className="text-center py-12 text-sm text-gray-500">جاري تحميل بيانات المخزون...</div>
+              ) : filteredInventory.length === 0 ? (
+                <div className="text-center py-12"><p className="text-gray-500">لا توجد عناصر مطابقة</p></div>
+              ) : viewMode === 'grid' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredInventory.map((item) => (
+                    <div key={item.id} className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all p-4 flex flex-col gap-4 group">
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                            {getSpecialtyIcon(item.category)}
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-gray-900 line-clamp-1">{item.name}</h3>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full font-medium">{getSpecialtyLabel(item.category)}</span>
+                              <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{item.brand || 'عام'}</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
 
-                  {/* Stock Bar */}
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-xs font-semibold text-gray-700">الكمية: {item.quantity} {item.unit}</span>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${getStatusColor(item.status)}`}>{getStatusLabel(item.status)}</span>
-                    </div>
-                    <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden mb-3">
-                      <div className={`h-full rounded-full transition-all duration-300 ${item.quantity <= item.minStock ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${Math.min(100, (item.quantity / (item.minStock * 3 || 1)) * 100)}%` }} />
-                    </div>
+                      {/* Stock Bar & Quantity Controls */}
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-xs font-semibold text-gray-700">الكمية: {item.quantity} {item.unit}</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full ${getStatusColor(item.status)}`}>{getStatusLabel(item.status)}</span>
+                        </div>
+                        <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden mb-3">
+                          <div className={`h-full rounded-full transition-all duration-300 ${item.quantity <= item.minStock ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${Math.min(100, (item.quantity / (item.minStock * 3 || 1)) * 100)}%` }} />
+                        </div>
 
-                    <div className="flex items-center justify-between gap-2">
-                      <button onClick={() => updateItem(item.id, { quantity: Math.max(0, item.quantity - 1) })} disabled={item.quantity <= 0} className="w-8 h-8 flex items-center justify-center rounded-md bg-white border border-gray-200 hover:bg-red-50 text-gray-600 hover:text-red-600 transition-colors"><Minus className="w-4 h-4" /></button>
-                      <span className="font-bold text-gray-800">{item.quantity}</span>
-                      <button onClick={() => updateItem(item.id, { quantity: item.quantity + 1 })} className="w-8 h-8 flex items-center justify-center rounded-md bg-white border border-gray-200 hover:bg-green-50 text-gray-600 hover:text-green-600 transition-colors"><Plus className="w-4 h-4" /></button>
-                    </div>
-                  </div>
+                        <div className="flex items-center justify-between gap-2">
+                          {/* Minus button opens the Dispense Modal */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDispenseItem(item);
+                              setShowDispenseModal(true);
+                            }}
+                            disabled={item.quantity <= 0}
+                            title="صرف مادة وتوثيق المستلم والقسم"
+                            className="flex-1 py-1.5 flex items-center justify-center gap-1 rounded-md bg-white border border-gray-200 hover:bg-blue-50 text-gray-700 hover:text-blue-600 transition-colors text-xs font-bold"
+                          >
+                            <PackageMinus className="w-3.5 h-3.5 text-blue-600" />
+                            <span>صرف مادة (-)</span>
+                          </button>
 
-                  <div className="flex items-center gap-2 mt-auto pt-2 border-t">
-                    <button
-                      onClick={() => openEditModal(item)}
-                      className="flex-1 py-1.5 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center justify-center gap-1"
-                    >
-                      <Edit className="w-3 h-3" /> تعديل التفاصيل
-                    </button>
-                    <button
-                      onClick={() => { if (confirm('حذف؟')) inventory.splice(inventory.indexOf(item), 1); /* Mock delete for UI, real logic handled in hook */ }}
-                      className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                          <span className="font-extrabold text-gray-900 px-2">{item.quantity}</span>
+
+                          {/* Quick Add button */}
+                          <button
+                            type="button"
+                            onClick={() => updateItem(item.id, { quantity: item.quantity + 1 })}
+                            title="زيادة الكمية (+1)"
+                            className="w-8 h-8 flex items-center justify-center rounded-md bg-white border border-gray-200 hover:bg-green-50 text-gray-600 hover:text-green-600 transition-colors"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 mt-auto pt-2 border-t">
+                        <button
+                          onClick={() => openEditModal(item)}
+                          className="flex-1 py-1.5 text-xs text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center justify-center gap-1 font-semibold"
+                        >
+                          <Edit className="w-3 h-3" /> تعديل التفاصيل
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (window.confirm(`هل أنت متأكد من حذف المادة "${item.name}"؟`)) {
+                              await deleteItem(item.id);
+                              toast.success('تم حذف المادة بنجاح');
+                            }
+                          }}
+                          className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          title="حذف المادة"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          ) : (
-            // List View (Simplified)
-            <div className="space-y-2">
-              {filteredInventory.map(item => (
-                <div key={item.id} className="p-4 border rounded-lg flex justify-between items-center">
-                  <div>
-                    <div className="font-bold">{item.name}</div>
-                    <div className="text-xs text-gray-500">{getSpecialtyLabel(item.category)} - {item.brand}</div>
-                  </div>
-                  <button onClick={() => openEditModal(item)} className="text-blue-600 text-sm">تعديل</button>
+              ) : (
+                // List View
+                <div className="space-y-2">
+                  {filteredInventory.map(item => (
+                    <div key={item.id} className="p-4 border rounded-lg flex justify-between items-center">
+                      <div>
+                        <div className="font-bold">{item.name}</div>
+                        <div className="text-xs text-gray-500">{getSpecialtyLabel(item.category)} - {item.brand}</div>
+                        <div className="text-xs text-blue-600 font-semibold mt-1">
+                          الرصيد: {item.quantity} {item.unit} | السعر: {formatCurrency(item.unitPrice)}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            setDispenseItem(item);
+                            setShowDispenseModal(true);
+                          }}
+                          className="px-3 py-1.5 text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg flex items-center gap-1"
+                        >
+                          <PackageMinus className="w-3.5 h-3.5" /> صرف
+                        </button>
+                        <button onClick={() => openEditModal(item)} className="text-blue-600 text-xs font-bold px-2 py-1">تعديل</button>
+                        <button
+                          onClick={async () => {
+                            if (window.confirm(`هل أنت متأكد من حذف المادة "${item.name}"؟`)) {
+                              await deleteItem(item.id);
+                              toast.success('تم حذف المادة بنجاح');
+                            }
+                          }}
+                          className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          )}
-        </div>
-      </Card>
+          </Card>
+        </>
+      ) : (
+        /* Movements & Disbursements Log Tab */
+        <Card>
+          <div className="p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <History className="w-5 h-5 text-blue-600" />
+                  <span>سجل حركات وصرفيات المخزون ({filteredMovements.length})</span>
+                </h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  توثيق عمليات الصرف، المستلم، القسم، وقيمة كل حركة استهلاك
+                </p>
+              </div>
+
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
+                <input
+                  type="text"
+                  placeholder="بحث في سجل الصرفيات..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 border border-gray-200 rounded-lg text-xs bg-gray-50/70 hover:bg-white focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            {movementsLoading ? (
+              <div className="text-center py-12 text-sm text-gray-500">جاري تحميل سجل الحركات...</div>
+            ) : filteredMovements.length === 0 ? (
+              <div className="text-center py-12 text-gray-400">
+                <History className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                <p className="text-sm">لم يتم تسجيل أي حركات صرف بعد.</p>
+                <p className="text-xs text-gray-400 mt-1">عند صرف مادة من قائمة المخزون سيتم توثيقها هنا فوراً.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-right text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-100 text-gray-500 font-semibold">
+                      <th className="pb-3 px-3">التاريخ والوقت</th>
+                      <th className="pb-3 px-3">المادة</th>
+                      <th className="pb-3 px-3">النوع</th>
+                      <th className="pb-3 px-3">الكمية</th>
+                      <th className="pb-3 px-3">تكلفة الوحدة</th>
+                      <th className="pb-3 px-3">القيمة الإجمالية</th>
+                      <th className="pb-3 px-3">القسم / العيادة</th>
+                      <th className="pb-3 px-3">المستلم</th>
+                      <th className="pb-3 px-3">مسؤول الصرف</th>
+                      <th className="pb-3 px-3">السبب / الملاحظات</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {filteredMovements.map((mov) => (
+                      <tr key={mov.id} className="hover:bg-gray-50/60 transition-colors">
+                        <td className="py-3 px-3 text-gray-600 font-medium whitespace-nowrap">
+                          {mov.createdAt ? new Date(mov.createdAt).toLocaleDateString('ar-EG', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          }) : '-'}
+                        </td>
+                        <td className="py-3 px-3 font-bold text-gray-900">{mov.itemName}</td>
+                        <td className="py-3 px-3">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            mov.movementType === 'out'
+                              ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                              : 'bg-green-50 text-green-700 border border-green-200'
+                          }`}>
+                            {mov.movementType === 'out' ? 'صرف استهلاك' : 'توريد شراء'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 font-extrabold text-blue-700">{mov.quantity}</td>
+                        <td className="py-3 px-3 text-gray-600">{formatCurrency(mov.unitCost)}</td>
+                        <td className="py-3 px-3 font-bold text-gray-900">{formatCurrency(mov.totalCost)}</td>
+                        <td className="py-3 px-3">
+                          {mov.departmentName ? (
+                            <span className="flex items-center gap-1 text-gray-800 font-medium">
+                              <Building2 className="w-3 h-3 text-gray-400" />
+                              {mov.departmentName}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3">
+                          {mov.recipientName ? (
+                            <span className="flex items-center gap-1 text-gray-800 font-medium">
+                              <User className="w-3 h-3 text-gray-400" />
+                              {mov.recipientName}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3 text-gray-500">{mov.recorderName || 'المسؤول'}</td>
+                        <td className="py-3 px-3 text-gray-500 max-w-xs truncate">
+                          {mov.reason ? (
+                            <span className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded text-[10px] ml-1">
+                              {mov.reason}
+                            </span>
+                          ) : null}
+                          {mov.notes || ''}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {/* Dispense Modal */}
+      <DispenseItemModal
+        isOpen={showDispenseModal}
+        onClose={() => {
+          setShowDispenseModal(false);
+          setDispenseItem(null);
+        }}
+        item={dispenseItem}
+        clinicId={clinicId}
+        onConfirm={async (data) => {
+          if (!dispenseItem) return;
+          const newQty = Math.max(0, dispenseItem.quantity - data.quantity);
+          await updateItem(dispenseItem.id, { quantity: newQty });
+          await logMovement({
+            clinicId,
+            itemId: dispenseItem.id,
+            itemName: dispenseItem.name,
+            movementType: 'out',
+            quantity: data.quantity,
+            unitCost: data.unitCost,
+            totalCost: data.totalCost,
+            departmentId: data.departmentId,
+            departmentName: data.departmentName,
+            recipientId: data.recipientId,
+            recipientName: data.recipientName,
+            recordedById: data.recordedById,
+            recorderName: data.recorderName,
+            reason: data.reason,
+            notes: data.notes
+          });
+          toast.success(`تم صرف ${data.quantity} من "${dispenseItem.name}" بنجاح وتوثيق الحركة`);
+        }}
+      />
 
       {/* Unified Add/Edit Modal */}
       {showModal && (
