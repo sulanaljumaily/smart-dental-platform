@@ -21,8 +21,38 @@ export const ArticleDetailPage: React.FC = () => {
     window.scrollTo(0, 0);
   }, [id]);
 
-  if (loading) return null; // Use a skeleton screen in real app
-  if (error || !article) return null; // Or 404 page
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (error || !article) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4 text-center">
+        <Helmet>
+          <title>المقالة غير متوفرة | Dental Platform</title>
+          <meta name="robots" content="noindex, follow" />
+        </Helmet>
+        <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
+          <BookOpen className="w-8 h-8" />
+        </div>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">عذراً، المقالة غير متوفرة</h1>
+        <p className="text-gray-600 max-w-md mb-6">
+          قد تكون هذه المقالة قد تم نقلها أو حذفها أثناء تحديث وتدقيق المحتوى الطبي للمنصة.
+        </p>
+        <Link
+          to="/services"
+          className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          تصفح المقالات والخدمات المتاحة
+        </Link>
+      </div>
+    );
+  }
 
   const relatedArticles = articles
     .filter(a => a.category === article.category && a.id !== article.id)

@@ -33,10 +33,23 @@ async function generateSitemap() {
     // Add Home page
     xml += `  <url>\n    <loc>${BASE_URL}/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>\n`;
 
-    // Add generic static pages
-    const staticPages = ['/services', '/community', '/store', '/jobs', '/booking'];
+    // Add generic public pages (excluding disallowed routes like /booking, /patient, /doctor, /admin)
+    const staticPages = [
+      { path: '/services', priority: '0.9', changefreq: 'daily' },
+      { path: '/community', priority: '0.9', changefreq: 'daily' },
+      { path: '/store', priority: '0.8', changefreq: 'daily' },
+      { path: '/jobs', priority: '0.8', changefreq: 'daily' },
+      { path: '/doctor-welcome', priority: '0.8', changefreq: 'weekly' },
+      { path: '/supplier-welcome', priority: '0.8', changefreq: 'weekly' },
+      { path: '/lab-welcome', priority: '0.8', changefreq: 'weekly' },
+      { path: '/emergency/dental', priority: '0.9', changefreq: 'weekly' },
+      { path: '/emergency/first-aid', priority: '0.9', changefreq: 'weekly' },
+      { path: '/emergency/centers', priority: '0.9', changefreq: 'weekly' },
+      { path: '/privacy-policy', priority: '0.5', changefreq: 'monthly' },
+      { path: '/terms-of-service', priority: '0.5', changefreq: 'monthly' }
+    ];
     for (const page of staticPages) {
-      xml += `  <url>\n    <loc>${BASE_URL}${page}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+      xml += `  <url>\n    <loc>${BASE_URL}${page.path}</loc>\n    <changefreq>${page.changefreq}</changefreq>\n    <priority>${page.priority}</priority>\n  </url>\n`;
     }
 
     // Add Dynamic Articles
@@ -55,6 +68,13 @@ async function generateSitemap() {
     const publicPath = path.join(__dirname, '../public', 'sitemap.xml');
     fs.writeFileSync(publicPath, xml);
     console.log(`Successfully generated sitemap.xml at ${publicPath} with ${articles.length} articles.`);
+
+    const distDir = path.join(__dirname, '../dist');
+    if (fs.existsSync(distDir)) {
+      const distPath = path.join(distDir, 'sitemap.xml');
+      fs.writeFileSync(distPath, xml);
+      console.log(`Successfully synced sitemap.xml to ${distPath}`);
+    }
   } catch (err) {
     console.error("Failed to generate sitemap", err);
   }
