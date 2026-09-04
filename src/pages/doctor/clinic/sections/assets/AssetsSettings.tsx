@@ -8,8 +8,6 @@ import {
     Trash2, 
     Check, 
     X, 
-    Sliders, 
-    ShieldCheck, 
     Wallet, 
     Info, 
     CheckCircle2,
@@ -76,7 +74,7 @@ export const AssetsSettings: React.FC<AssetsSettingsProps> = ({ clinicId }) => {
     } = useWarehousePurchases(clinicId);
 
     // Active Tab inside Settings & Treasury
-    const [activeSection, setActiveSection] = useState<'treasury' | 'departments' | 'policies'>('treasury');
+    const [activeSection, setActiveSection] = useState<'treasury' | 'departments'>('treasury');
 
     // Purchase Modal & Treasury Ledger Tab
     const [showPurchaseModal, setShowPurchaseModal] = useState(false);
@@ -275,7 +273,7 @@ export const AssetsSettings: React.FC<AssetsSettingsProps> = ({ clinicId }) => {
                             <Wallet className="w-6 h-6 text-white" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold">إدارة وصندوق المخزن المالي</h2>
+                            <h2 className="text-xl font-bold">صندوق المخزن</h2>
                             <p className="text-blue-100 text-xs sm:text-sm mt-0.5">
                                 متابعة تحويلات قسم المالية، رصيد عهدة المخزن، وكشف حساب المشتريات والأقسام
                             </p>
@@ -285,7 +283,7 @@ export const AssetsSettings: React.FC<AssetsSettingsProps> = ({ clinicId }) => {
                     <div className="flex items-center gap-2">
                         <Button
                             onClick={() => setShowPurchaseModal(true)}
-                            className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20"
+                            className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 cursor-pointer"
                         >
                             <ShoppingCart className="w-4 h-4 ml-1.5" />
                             إضافة مشتريات جديدة
@@ -296,9 +294,8 @@ export const AssetsSettings: React.FC<AssetsSettingsProps> = ({ clinicId }) => {
                 {/* Sub Navigation Tabs */}
                 <div className="flex items-center gap-2 mt-6 pt-4 border-t border-white/15 overflow-x-auto scrollbar-hide">
                     {[
-                        { id: 'treasury', label: '🏦 الصندوق المالي للعهدة', count: treasuryMetrics.transfersCount },
-                        { id: 'departments', label: '🏢 أقسام وعيادات المركز', count: departments.length },
-                        { id: 'policies', label: '📋 سياسات العهدة والتنبيهات' }
+                        { id: 'treasury', label: '🏦 الصندوق المالي', count: treasuryMetrics.transfersCount },
+                        { id: 'departments', label: '🏢 أقسام المركز', count: departments.length }
                     ].map(tab => (
                         <button
                             key={tab.id}
@@ -937,7 +934,7 @@ export const AssetsSettings: React.FC<AssetsSettingsProps> = ({ clinicId }) => {
                 </div>
             )}
 
-            {/* SECTION 2: CLINIC DEPARTMENTS MANAGEMENT (إدارة أقسام وعيادات المركز) */}
+            {/* SECTION 2: CLINIC DEPARTMENTS MANAGEMENT (إدارة أقسام المركز) */}
             {activeSection === 'departments' && (
                 <div className="space-y-6 animate-in fade-in duration-200">
                     <Card>
@@ -946,7 +943,7 @@ export const AssetsSettings: React.FC<AssetsSettingsProps> = ({ clinicId }) => {
                                 <div>
                                     <div className="flex items-center gap-2">
                                         <Building2 className="w-5 h-5 text-blue-600" />
-                                        <h3 className="text-lg font-bold text-gray-900">أقسام وعيادات المركز</h3>
+                                        <h3 className="text-lg font-bold text-gray-900">أقسام المركز</h3>
                                     </div>
                                     <p className="text-xs text-gray-500 mt-1">
                                         الأقسام المعرفة هنا تظهر تلقائياً في نافذة صرف المواد وتوزيع الاستهلاك اليومي
@@ -1120,54 +1117,6 @@ export const AssetsSettings: React.FC<AssetsSettingsProps> = ({ clinicId }) => {
                                     </div>
                                 )}
                             </div>
-                        </div>
-                    </Card>
-                </div>
-            )}
-
-            {/* SECTION 3: POLICIES & AUDIT */}
-            {activeSection === 'policies' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in duration-200">
-                    <Card>
-                        <div className="p-6 space-y-4">
-                            <div className="flex items-center gap-2.5 text-blue-700">
-                                <Wallet className="w-5 h-5" />
-                                <h4 className="font-bold text-sm">ضوابط وحسابات عهدة المخزن</h4>
-                            </div>
-                            <p className="text-xs text-gray-600 leading-relaxed">
-                                صندوق عهدة المخزن المالي يمثل حلقة الوصل المحاسبية بين الإدارة المالية وأمين المخزن:
-                            </p>
-                            <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-100 space-y-2 text-xs">
-                                <div className="flex items-center gap-2 text-gray-800 font-semibold">
-                                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                                    <span>المبالغ المحولة من المالية:</span>
-                                </div>
-                                <p className="text-gray-500 text-[11px] mr-6">
-                                    كل مبلغ يصرف من قسم المالية بنوع "مشتريات مخزون" يقيد كسيولة واردة للصندوق.
-                                </p>
-                                <div className="flex items-center gap-2 text-gray-800 font-semibold pt-1">
-                                    <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
-                                    <span>العجز / المخزن يطلب العيادة:</span>
-                                </div>
-                                <p className="text-gray-500 text-[11px] mr-6">
-                                    إذا تم شراء مواد بالآجل أو دفع مبالغ تزيد عن السيولة المحولة، يظهر الرصيد بالسالب مع إشعار لإجراء تسوية مالية.
-                                </p>
-                            </div>
-                        </div>
-                    </Card>
-
-                    <Card>
-                        <div className="p-6 space-y-3">
-                            <div className="flex items-center gap-2 text-gray-800">
-                                <ShieldCheck className="w-5 h-5 text-indigo-600" />
-                                <h4 className="font-bold text-sm">سياسة صرف واستهلاك المواد</h4>
-                            </div>
-                            <ul className="text-xs text-gray-600 space-y-2 list-disc list-inside">
-                                <li>عند إنقاص كمية أي مادة تفتح نافذة توثيق الصرف تلقائياً.</li>
-                                <li>يتم احتساب القيمة المالية للصرفية فورياً (<span className="font-semibold text-gray-800">الكمية × سعر الوحدة</span>).</li>
-                                <li>تحديد المستلم والقسم اختياري لتسهيل الصرف السريع.</li>
-                                <li>إذا كانت العيادة تحتوي على قسم واحد، يتم اختياره آلياً دون الحاجة للتدخل اليدوي.</li>
-                            </ul>
                         </div>
                     </Card>
                 </div>
