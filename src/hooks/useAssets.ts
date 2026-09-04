@@ -65,6 +65,57 @@ export const useAssets = (clinicId?: string) => {
         };
     };
 
+    const getLocalStorageKey = () => `clinic_assets_${clinicId || 'default'}`;
+
+    const processAssetsList = (items: any[]): Asset[] => {
+        let totalValue = 0;
+        let totalCost = 0;
+        let totalDepreciation = 0;
+
+        const mappedAssets: Asset[] = (items || []).map((a: any) => {
+            const baseAsset: Asset = {
+                id: a.id?.toString() || `asset-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                clinicId: (a.clinic_id || a.clinicId || clinicId || '0').toString(),
+                name: a.name || 'أصل بدون اسم',
+                description: a.description || '',
+                category: a.category || 'equipment',
+                purchaseDate: a.purchase_date || a.purchaseDate || new Date().toISOString(),
+                purchaseCost: parseFloat(a.purchase_cost ?? a.purchaseCost ?? 0),
+                currency: a.currency || 'IQD',
+                usefulLifeYears: Number(a.useful_life_years ?? a.usefulLifeYears ?? 5),
+                salvageValue: parseFloat(a.salvage_value ?? a.salvageValue ?? 0),
+                status: a.status || 'active',
+                location: a.location || '',
+                serialNumber: a.serial_number || a.serialNumber || '',
+                supplier: a.supplier || '',
+                warrantyExpiry: a.warranty_expiry || a.warrantyExpiry || ''
+            };
+
+            const dep = calculateDepreciation(baseAsset);
+
+            if (baseAsset.status === 'active' || baseAsset.status === 'maintenance') {
+                totalValue += dep.currentValue;
+                totalCost += baseAsset.purchaseCost;
+                totalDepreciation += dep.accumulatedDepreciation;
+            }
+
+            return {
+                ...baseAsset,
+                ...dep
+            };
+        });
+
+        setAssets(mappedAssets);
+        setStats({
+            totalValue,
+            totalCost,
+            totalDepreciation,
+            assetCount: mappedAssets.length
+        });
+
+        return mappedAssets;
+    };
+
     const fetchAssets = async () => {
         setLoading(true);
         try {
@@ -74,65 +125,78 @@ export const useAssets = (clinicId?: string) => {
                 .eq('clinic_id', clinicId || 0)
                 .order('purchase_date', { ascending: false });
 
-            if (error) throw error;
-
-            let totalValue = 0;
-            let totalCost = 0;
-            let totalDepreciation = 0;
-
-            const mappedAssets: Asset[] = (data || []).map((a: any) => {
-                const baseAsset: Asset = {
-                    id: a.id,
-                    clinicId: a.clinic_id.toString(),
-                    name: a.name,
-                    description: a.description,
-                    category: a.category,
-                    purchaseDate: a.purchase_date,
-                    purchaseCost: parseFloat(a.purchase_cost),
-                    currency: a.currency,
-                    usefulLifeYears: a.useful_life_years,
-                    salvageValue: parseFloat(a.salvage_value || 0),
-                    status: a.status,
-                    location: a.location,
-                    serialNumber: a.serial_number,
-                    supplier: a.supplier,
-                    warrantyExpiry: a.warranty_expiry
-                };
-
-                const dep = calculateDepreciation(baseAsset);
-
-                // Aggregate Stats
-                if (baseAsset.status === 'active' || baseAsset.status === 'maintenance') {
-                    totalValue += dep.currentValue;
-                    totalCost += baseAsset.purchaseCost;
-                    totalDepreciation += dep.accumulatedDepreciation;
+            if (error) {
+                // If table doesn't exist in Supabase (PGRST205), switch gracefully to localStorage
+                if (error.code === 'PGRST205' || error.message?.includes('schema cache')) {
+                    console.warn('[useAssets] Supabase table "assets" does not exist yet. Using localStorage fallback.');
+                } else {
+                    console.warn('[useAssets] Error querying Supabase, falling back to localStorage:', error.message);
                 }
+                loadFromLocalStorage();
+                return;
+            }
 
-                return {
-                    ...baseAsset,
-                    ...dep
-                };
-            });
-
-            setAssets(mappedAssets);
-            setStats({
-                totalValue,
-                totalCost,
-                totalDepreciation,
-                assetCount: mappedAssets.length
-            });
-
-        } catch (err) {
-            console.error('Error fetching assets:', err);
+            if (data) {
+                processAssetsList(data);
+                try {
+                    localStorage.setItem(getLocalStorageKey(), JSON.stringify(data));
+                } catch {
+                    // Ignore quota errors
+                }
+            }
+        } catch (err: any) {
+            console.warn('[useAssets] Unexpected error, using localStorage fallback:', err?.message || err);
+            loadFromLocalStorage();
         } finally {
             setLoading(false);
         }
     };
 
-    const addAsset = async (asset: Omit<Asset, 'id' | 'currentValue' | 'accumulatedDepreciation' | 'dailyDepreciation'>) => {
+    const loadFromLocalStorage = () => {
         try {
-            // Snake Case for DB
-            const dbAsset = {
+            const raw = localStorage.getItem(getLocalStorageKey());
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) {
+                    processAssetsList(parsed);
+                    return;
+                }
+            }
+        } catch {
+            // Ignore parse errors
+        }
+        processAssetsList([]);
+    };
+
+    const addAsset = async (asset: Omit<Asset, 'id' | 'currentValue' | 'accumulatedDepreciation' | 'dailyDepreciation'>) => {
+        const localId = `asset-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+        const baseItem: any = {
+            id: localId,
+            clinic_id: clinicId || 0,
+            clinicId: clinicId || '0',
+            name: asset.name,
+            description: asset.description || '',
+            category: asset.category,
+            purchase_date: asset.purchaseDate,
+            purchaseDate: asset.purchaseDate,
+            purchase_cost: asset.purchaseCost,
+            purchaseCost: asset.purchaseCost,
+            useful_life_years: asset.usefulLifeYears,
+            usefulLifeYears: asset.usefulLifeYears,
+            salvage_value: asset.salvageValue,
+            salvageValue: asset.salvageValue,
+            status: asset.status,
+            location: asset.location || '',
+            serial_number: asset.serialNumber || '',
+            serialNumber: asset.serialNumber || '',
+            supplier: asset.supplier || '',
+            warranty_expiry: asset.warrantyExpiry || '',
+            warrantyExpiry: asset.warrantyExpiry || ''
+        };
+
+        try {
+            // 1. Try Supabase
+            const { data, error } = await supabase.from('assets').insert({
                 clinic_id: clinicId || 0,
                 name: asset.name,
                 description: asset.description,
@@ -146,29 +210,52 @@ export const useAssets = (clinicId?: string) => {
                 serial_number: asset.serialNumber,
                 supplier: asset.supplier,
                 warranty_expiry: asset.warrantyExpiry
-            };
+            }).select().single();
 
-            const { data, error } = await supabase.from('assets').insert(dbAsset).select().single();
-            if (error) throw error;
-
-            fetchAssets();
-            return data;
-        } catch (err) {
-            console.error('Error adding asset:', err);
-            throw err;
+            if (!error && data) {
+                fetchAssets();
+                return data;
+            }
+        } catch (dbErr) {
+            console.warn('[useAssets] Supabase insert skipped (table missing or error), saving locally:', dbErr);
         }
+
+        // 2. Fallback to localStorage
+        try {
+            const raw = localStorage.getItem(getLocalStorageKey());
+            const currentList: any[] = raw ? JSON.parse(raw) : [];
+            const updatedList = [baseItem, ...currentList];
+            localStorage.setItem(getLocalStorageKey(), JSON.stringify(updatedList));
+            processAssetsList(updatedList);
+        } catch (e) {
+            console.error('[useAssets] Failed saving to localStorage:', e);
+        }
+
+        return baseItem;
     };
 
     const deleteAsset = async (id: string) => {
         try {
-            const { error } = await supabase.from('assets').delete().eq('id', id);
-            if (error) throw error;
-            setAssets(prev => prev.filter(a => a.id !== id));
+            await supabase.from('assets').delete().eq('id', id);
         } catch (err) {
-            console.error('Error deleting asset:', err);
-            throw err;
+            console.warn('[useAssets] Supabase delete skipped:', err);
         }
-    }
+
+        try {
+            const raw = localStorage.getItem(getLocalStorageKey());
+            if (raw) {
+                const currentList: any[] = JSON.parse(raw);
+                const updatedList = currentList.filter(a => a.id !== id && a.id?.toString() !== id);
+                localStorage.setItem(getLocalStorageKey(), JSON.stringify(updatedList));
+                processAssetsList(updatedList);
+                return;
+            }
+        } catch {
+            // Ignore
+        }
+
+        setAssets(prev => prev.filter(a => a.id !== id));
+    };
 
     return {
         assets,
