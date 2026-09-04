@@ -29,6 +29,7 @@ import { useClinicDepartments, ClinicDepartment } from '../../../../../hooks/use
 import { useFinance } from '../../../../../hooks/useFinance';
 import { useInventory } from '../../../../../hooks/useInventory';
 import { useInventoryMovements } from '../../../../../hooks/useInventoryMovements';
+import { useStaff } from '../../../../../hooks/useStaff';
 import { useAuth } from '../../../../../contexts/AuthContext';
 import { formatCurrency } from '../../../../../lib/utils';
 
@@ -38,6 +39,14 @@ interface AssetsSettingsProps {
 
 export const AssetsSettings: React.FC<AssetsSettingsProps> = ({ clinicId }) => {
     const { user } = useAuth();
+    const { staff } = useStaff(clinicId || '0');
+
+    const currentStaff = staff.find(s => 
+        s.userId === user?.id || 
+        s.authUserId === user?.id || 
+        (s.email && user?.email && s.email.toLowerCase() === user.email.toLowerCase()) ||
+        (s.name && user?.name && s.name.toLowerCase().trim() === user.name.toLowerCase().trim())
+    );
 
     // Data Hooks
     const { 
@@ -120,7 +129,7 @@ export const AssetsSettings: React.FC<AssetsSettingsProps> = ({ clinicId }) => {
                 description: depositNotes.trim() || 'تغذية عهدة المخزن النقدية',
                 date: depositDate || new Date().toISOString().split('T')[0],
                 paymentMethod: paymentMethod,
-                recordedById: user?.id
+                recordedById: currentStaff?.id ? currentStaff.id.toString() : user?.id
             });
 
             toast.success(`تم تحويل ${formatCurrency(amt)} إلى صندوق المخزن المالي بنجاح`);
