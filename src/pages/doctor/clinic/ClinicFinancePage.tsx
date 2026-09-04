@@ -316,6 +316,11 @@ interface DoctorFinancePageProps {
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
+const MONTH_NAMES = [
+  'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+];
+
 export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'income' | 'expenses' | 'settings'>('overview');
   const navigate = useNavigate();
@@ -325,6 +330,28 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
   const currentDate = new Date();
   const currentMonthStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
   const [selectedPeriod, setSelectedPeriod] = useState<string>(currentMonthStr);
+
+  // Overview transactions filter: 'all' | 'income' | 'expense'
+  const [overviewTxFilter, setOverviewTxFilter] = useState<'all' | 'income' | 'expense'>('all');
+
+  const getPeriodLabel = (period: string) => {
+    if (period === 'all') return '(الكل)';
+    if (period.startsWith('year-')) {
+      const yearVal = period.replace('year-', '');
+      return `(سنة ${yearVal})`;
+    }
+    if (period === currentMonthStr) {
+      return '(الشهر الحالي)';
+    }
+    const parts = period.split('-');
+    if (parts.length === 2) {
+      const y = parts[0];
+      const m = parseInt(parts[1], 10) - 1;
+      const monthName = MONTH_NAMES[m] || parts[1];
+      return `(شهر ${monthName} ${y})`;
+    }
+    return `(${period})`;
+  };
 
   const [isOwner, setIsOwner] = useState(false);
   const [clinicInfo, setClinicInfo] = useState<any>(null);
@@ -489,12 +516,21 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
     return t.date.startsWith(selectedPeriod);
   });
 
-  const periodIncome = filteredPeriodTransactions
-    .filter(t => t.type === 'income')
+  const periodIncomeTransactions = filteredPeriodTransactions.filter(t => t.type === 'income');
+  const periodExpenseTransactions = filteredPeriodTransactions.filter(t => t.type === 'expense');
+  const allClinicExpenses = transactions.filter(t => t.type === 'expense');
+
+  let displayedTransactions = filteredPeriodTransactions;
+  if (overviewTxFilter === 'income') {
+    displayedTransactions = periodIncomeTransactions;
+  } else if (overviewTxFilter === 'expense') {
+    displayedTransactions = periodExpenseTransactions;
+  }
+
+  const periodIncome = periodIncomeTransactions
     .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
-  const periodExpenses = filteredPeriodTransactions
-    .filter(t => t.type === 'expense')
+  const periodExpenses = periodExpenseTransactions
     .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
   const periodNet = periodIncome - periodExpenses;
@@ -715,22 +751,118 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
 
       {/* 4. Recent Transactions List (Clickable Rows) */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-          <div>
-            <h3 className="font-bold text-lg text-gray-900">أحدث المعاملات للفترة</h3>
-            <p className="text-sm text-gray-500">انقر على أي معاملة لعرض تفاصيلها وطباعتها أو فتح كشف الحساب</p>
+        <div className="p-4 sm:p-6 border-b border-gray-100 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <h3 className="font-bold text-lg text-gray-900 flex items-center gap-2">
+              <span>أحدث المعاملات للفترة</span>
+              <span className="text-blue-600 font-semibold text-sm bg-blue-50 border border-blue-100 px-2.5 py-0.5 rounded-full">
+                {getPeriodLabel(selectedPeriod)}
+              </span>
+            </h3>
+
+            {/* Quick Type Filter: All / Income / Expenses */}
+            <div className="flex items-center gap-1 bg-gray-100/90 p-1 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setOverviewTxFilter('all')}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  overviewTxFilter === 'all'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                الكل ({filteredPeriodTransactions.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setOverviewTxFilter('income')}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                  overviewTxFilter === 'income'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-emerald-700 hover:bg-emerald-50'
+                }`}
+              >
+                <span>إيرادات</span>
+                <span className="text-[10px] opacity-90">({periodIncomeTransactions.length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setOverviewTxFilter('expense')}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                  overviewTxFilter === 'expense'
+                    ? 'bg-rose-600 text-white shadow-sm'
+                    : 'text-rose-700 hover:bg-rose-50'
+                }`}
+              >
+                <span>مصروفات</span>
+                <span className="text-[10px] opacity-90">({periodExpenseTransactions.length})</span>
+              </button>
+            </div>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setActiveTab('income')} className="text-gray-600 hover:text-blue-600 border-gray-200 cursor-pointer">
-            عرض السجل الكامل
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (overviewTxFilter === 'expense') {
+                setActiveTab('expenses');
+              } else {
+                setActiveTab('income');
+              }
+            }}
+            className="text-gray-600 hover:text-blue-600 border-gray-200 cursor-pointer self-start sm:self-auto"
+          >
+            {overviewTxFilter === 'expense' ? 'سجل المصروفات الكامل' : 'عرض السجل الكامل'}
           </Button>
         </div>
-        <div className="divide-y divide-gray-50 max-h-96 overflow-y-auto custom-scrollbar">
-          {filteredPeriodTransactions.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">
-              لا توجد معاملات مسجلة في هذه الفترة
-            </div>
+
+        <div className="divide-y divide-gray-50 max-h-[420px] overflow-y-auto custom-scrollbar">
+          {displayedTransactions.length === 0 ? (
+            overviewTxFilter === 'expense' ? (
+              <div className="text-center py-10 px-4 bg-rose-50/20 rounded-xl my-4 mx-4 border border-dashed border-rose-200/60">
+                <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-500 flex items-center justify-center mx-auto mb-3">
+                  <TrendingDown className="w-6 h-6" />
+                </div>
+                <p className="font-bold text-gray-800 mb-1">
+                  لا توجد مصروفات مسجلة في {getPeriodLabel(selectedPeriod)}
+                </p>
+                {allClinicExpenses.length > 0 ? (
+                  <div className="mt-3">
+                    <p className="text-xs text-gray-500 mb-3">
+                      توجد ({allClinicExpenses.length}) عملية صرف مسجلة بالعيادة في فترات وأشهر أخرى.
+                    </p>
+                    <div className="flex flex-wrap items-center justify-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedPeriod('all');
+                          setOverviewTxFilter('expense');
+                        }}
+                        className="text-xs border-blue-200 text-blue-700 hover:bg-blue-50 cursor-pointer"
+                      >
+                        عرض كافة مصروفات العيادة ({allClinicExpenses.length})
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => setActiveTab('expenses')}
+                        className="text-xs bg-rose-600 hover:bg-rose-700 text-white cursor-pointer"
+                      >
+                        فتح سجل المصروفات المتكامل
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 mt-1">لم يتم تسجيل أي مصروفات حتى الآن في العيادة</p>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-400">
+                لا توجد معاملات مسجلة في هذه الفترة {getPeriodLabel(selectedPeriod)}
+              </div>
+            )
           ) : (
-            filteredPeriodTransactions.slice(0, 10).map(t => (
+            displayedTransactions.slice(0, 20).map(t => (
               <div
                 key={t.id}
                 onClick={() => {
@@ -746,7 +878,7 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
                   </div>
                   <div>
                     <p className="font-bold text-gray-900 mb-0.5 group-hover:text-indigo-600 transition-colors">
-                      {t.description || 'معاملة مالية'}
+                      {t.description || (t.type === 'income' ? 'إيراد مالي' : 'مصروف مالي')}
                     </p>
                     <p className="text-xs text-gray-500 flex items-center gap-2">
                       <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">{formatCategoryName(t.category, t.type)}</span>
@@ -777,6 +909,18 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
             ))
           )}
         </div>
+        {displayedTransactions.length > 20 && (
+          <div className="p-3 bg-gray-50 text-center border-t border-gray-100 text-xs text-gray-500">
+            يتم عرض أحدث 20 معاملة من أصل {displayedTransactions.length}.{' '}
+            <button
+              type="button"
+              onClick={() => setActiveTab(overviewTxFilter === 'expense' ? 'expenses' : 'income')}
+              className="text-blue-600 hover:underline font-bold mr-1 cursor-pointer"
+            >
+              عرض السجل الكامل
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
