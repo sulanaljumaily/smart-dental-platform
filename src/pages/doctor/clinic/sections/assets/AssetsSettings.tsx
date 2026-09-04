@@ -34,6 +34,7 @@ import { useAssets } from '../../../../../hooks/useAssets';
 import { useStaff } from '../../../../../hooks/useStaff';
 import { useAuth } from '../../../../../contexts/AuthContext';
 import { AddPurchaseModal } from '../../../../../components/inventory/AddPurchaseModal';
+import { BentoStatCard } from '../../../../../components/dashboard/BentoStatCard';
 import { formatCurrency } from '../../../../../lib/utils';
 
 interface AssetsSettingsProps {
@@ -265,87 +266,117 @@ export const AssetsSettings: React.FC<AssetsSettingsProps> = ({ clinicId }) => {
 
     return (
         <div className="space-y-6">
-            {/* Header Banner */}
-            <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-slate-800 rounded-2xl p-6 text-white shadow-xl">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-center gap-3.5">
-                        <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
-                            <Wallet className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-bold">صندوق المخزن</h2>
-                            <p className="text-blue-100 text-xs sm:text-sm mt-0.5">
-                                متابعة تحويلات قسم المالية، رصيد عهدة المخزن، وكشف حساب المشتريات والأقسام
-                            </p>
-                        </div>
-                    </div>
+            {/* Top Summary Stat Cards in BentoStatCard style */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+                {/* 1. Warehouse Balance (رصيد المخزن) */}
+                <BentoStatCard
+                    title="رصيد المخزن"
+                    value={formatCurrency(Math.abs(treasuryMetrics.custodyBalance))}
+                    icon={Wallet}
+                    color={treasuryMetrics.custodyBalance >= 0 ? 'emerald' : 'red'}
+                    trend={treasuryMetrics.custodyBalance >= 0 ? 'up' : 'down'}
+                    trendValue={treasuryMetrics.custodyBalance >= 0 ? 'رصيد متاح للشراء' : 'عجز مطلوب تسويته'}
+                    delay={100}
+                />
 
-                    <div className="flex items-center gap-2">
-                        <Button
-                            onClick={() => setShowPurchaseModal(true)}
-                            className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold shadow-md shadow-emerald-500/20 cursor-pointer"
-                        >
-                            <ShoppingCart className="w-4 h-4 ml-1.5" />
-                            إضافة مشتريات جديدة
-                        </Button>
-                    </div>
-                </div>
+                {/* 2. Inflows from Finance (المحول من المالية) */}
+                <BentoStatCard
+                    title="المحـوّل من المالية (العهدة)"
+                    value={formatCurrency(treasuryMetrics.totalInflows)}
+                    icon={ArrowDownRight}
+                    color="blue"
+                    trend="up"
+                    trendValue={treasuryMetrics.transfersCount > 0 ? `${treasuryMetrics.transfersCount} سند صرف` : "تمويل المخزن"}
+                    delay={200}
+                />
 
-                {/* Sub Navigation Tabs */}
-                <div className="flex items-center gap-2 mt-6 pt-4 border-t border-white/15 overflow-x-auto scrollbar-hide">
-                    {[
-                        { id: 'treasury', label: '🏦 الصندوق المالي', count: treasuryMetrics.transfersCount },
-                        { id: 'departments', label: '🏢 أقسام المركز', count: departments.length }
-                    ].map(tab => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveSection(tab.id as any)}
-                            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-                                activeSection === tab.id
-                                    ? 'bg-white text-blue-900 shadow-md font-extrabold'
-                                    : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white'
-                            }`}
-                        >
-                            <span>{tab.label}</span>
-                            {tab.count !== undefined && (
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                                    activeSection === tab.id ? 'bg-blue-100 text-blue-900' : 'bg-white/20 text-white'
-                                }`}>
-                                    {tab.count}
-                                </span>
-                            )}
-                        </button>
-                    ))}
-                </div>
+                {/* 3. Actual Purchases (إجمالي المشتريات) */}
+                <BentoStatCard
+                    title="إجمالي المشتريات"
+                    value={formatCurrency(treasuryMetrics.totalPurchases)}
+                    icon={ShoppingCart}
+                    color="purple"
+                    trend="neutral"
+                    trendValue={purchases.length > 0 ? `${purchases.length} فاتورة مسجلة` : `${inventory.length} صنف مسجل`}
+                    delay={300}
+                />
+
+                {/* 4. Dispensed Materials (المواد المصروفة للعيادات) */}
+                <BentoStatCard
+                    title="المواد المصروفة للعيادات"
+                    value={formatCurrency(treasuryMetrics.totalDispensedValue)}
+                    icon={ArrowUpRight}
+                    color="cyan"
+                    trend="neutral"
+                    trendValue="استهلاك موثق بالعيادات"
+                    delay={400}
+                />
+            </div>
+
+            {/* Section Tabs Bar (Compact matching appointments design) */}
+            <div className="flex bg-gray-50 rounded-xl p-1.5 border border-gray-100 w-fit">
+                <button
+                    onClick={() => setActiveSection('treasury')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                        activeSection === 'treasury'
+                            ? 'bg-white text-blue-600 shadow-sm font-bold'
+                            : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                    <Wallet className="w-4 h-4" />
+                    <span>الصندوق المالي</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                        activeSection === 'treasury' ? 'bg-blue-100 text-blue-800' : 'bg-gray-200 text-gray-600'
+                    }`}>
+                        {treasuryMetrics.transfersCount}
+                    </span>
+                </button>
+
+                <button
+                    onClick={() => setActiveSection('departments')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                        activeSection === 'departments'
+                            ? 'bg-white text-blue-600 shadow-sm font-bold'
+                            : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                    <Building2 className="w-4 h-4" />
+                    <span>أقسام المركز</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                        activeSection === 'departments' ? 'bg-blue-100 text-blue-800' : 'bg-gray-200 text-gray-600'
+                    }`}>
+                        {departments.length}
+                    </span>
+                </button>
             </div>
 
             {/* SECTION 1: WAREHOUSE TREASURY (الصندوق المالي لعهدة المخزن) */}
             {activeSection === 'treasury' && (
                 <div className="space-y-6 animate-in fade-in duration-200">
-                    {/* Status Alert Banner (Deficit vs Surplus vs Pending Settlement) */}
-                    {treasuryMetrics.custodyBalance < 0 ? (
+                    {/* Status Alert Banner (Deficit / Pending Settlement only - hidden on surplus or zero) */}
+                    {treasuryMetrics.custodyBalance < 0 && (
                         pendingSettlementRequest && pendingSettlementRequest.status === 'pending' ? (
-                            <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 shadow-xs">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                    <div className="flex items-start gap-3.5">
-                                        <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-amber-500/20">
-                                            <History className="w-5 h-5 animate-spin" />
+                            <div className="bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 shadow-xs">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                                            <History className="w-4 h-4 animate-spin" />
                                         </div>
                                         <div>
                                             <div className="flex items-center gap-2">
-                                                <h3 className="font-extrabold text-amber-950 text-base">
+                                                <h3 className="font-bold text-amber-950 text-sm">
                                                     طلب تسوية العهدة مرسل إلى قسم المالية
                                                 </h3>
-                                                <span className="bg-amber-200 text-amber-900 text-xs px-2.5 py-0.5 rounded-full font-bold">
-                                                    قيد انتظار اعتماد المحاسب
+                                                <span className="bg-amber-200 text-amber-900 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                                                    قيد اعتماد المحاسب
                                                 </span>
                                             </div>
-                                            <p className="text-xs text-amber-900/80 mt-1 leading-relaxed">
-                                                تم إرسال طلب لتصفير وتسوية العجز بمبلغ <span className="font-extrabold text-amber-950">{formatCurrency(pendingSettlementRequest.requestedAmount)}</span> بتاريخ {new Date(pendingSettlementRequest.requestedAt).toLocaleDateString('ar-EG')}. سيتم تصفير العجز وتغذية العهدة فور اعتماد المحاسب لسند الصرف في شاشة المالية.
+                                            <p className="text-xs text-amber-900/80 mt-0.5 leading-normal">
+                                                بانتظار اعتماد سند صرف بمبلغ <span className="font-bold text-amber-950">{formatCurrency(pendingSettlementRequest.requestedAmount)}</span> لتصفير العجز وتغذية العهدة.
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2 shrink-0">
+                                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                                         <Button
                                             variant="outline"
                                             size="sm"
@@ -355,7 +386,7 @@ export const AssetsSettings: React.FC<AssetsSettingsProps> = ({ clinicId }) => {
                                                     toast.info('تم إلغاء طلب التسوية');
                                                 }
                                             }}
-                                            className="border-amber-300 text-amber-900 hover:bg-amber-100 text-xs font-semibold"
+                                            className="border-amber-300 text-amber-900 hover:bg-amber-100 text-xs font-semibold py-1 px-3 h-auto"
                                         >
                                             إلغاء الطلب
                                         </Button>
@@ -363,138 +394,39 @@ export const AssetsSettings: React.FC<AssetsSettingsProps> = ({ clinicId }) => {
                                 </div>
                             </div>
                         ) : (
-                            <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-5 shadow-xs">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                    <div className="flex items-start gap-3.5">
-                                        <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-red-500/20">
-                                            <AlertCircle className="w-5 h-5" />
+                            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 shadow-xs">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-lg bg-red-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                                            <AlertCircle className="w-4 h-4" />
                                         </div>
                                         <div>
                                             <div className="flex items-center gap-2">
-                                                <h3 className="font-extrabold text-red-900 text-base">
-                                                    المخزن يطلب العيادة (عجز في العهدة النقدية)
+                                                <h3 className="font-bold text-red-900 text-sm">
+                                                    المخزن يطلب العيادة (عجز)
                                                 </h3>
-                                                <span className="bg-red-200/80 text-red-800 text-xs px-2.5 py-0.5 rounded-full font-bold">
+                                                <span className="bg-red-200/80 text-red-800 text-[10px] px-2 py-0.5 rounded-full font-bold">
                                                     مطلوب تسوية من المالية
                                                 </span>
                                             </div>
-                                            <p className="text-xs text-red-700 mt-1 leading-relaxed">
-                                                إجمالي المشتريات الفعلية المسجلة بلغت <span className="font-bold">{formatCurrency(treasuryMetrics.totalPurchases)}</span>، بينما المبالغ المحولة من المالية هي <span className="font-bold">{formatCurrency(treasuryMetrics.totalInflows)}</span>. 
-                                                المخزن يطلب العيادة مبلغ <span className="font-extrabold text-sm">{formatCurrency(Math.abs(treasuryMetrics.custodyBalance))}</span> لتغطية الفارق وتصفير العهدة.
+                                            <p className="text-xs text-red-700 mt-0.5 leading-normal">
+                                                المشتريات الفعلية (<span className="font-bold">{formatCurrency(treasuryMetrics.totalPurchases)}</span>) تفوق المحول (<span className="font-bold">{formatCurrency(treasuryMetrics.totalInflows)}</span>). مطلوب تسوية مبلغ <span className="font-extrabold text-red-950">{formatCurrency(Math.abs(treasuryMetrics.custodyBalance))}</span> لتصفير العهدة.
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2 shrink-0">
+                                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                                         <Button
                                             onClick={handleSendSettlementRequest}
-                                            className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md px-4 py-2"
+                                            className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-xs px-3.5 py-1.5 h-auto rounded-lg"
                                         >
                                             <RefreshCw className="w-3.5 h-3.5 ml-1.5" />
-                                            طلب تسوية عهدة من المالية
+                                            طلب تسوية
                                         </Button>
                                     </div>
                                 </div>
                             </div>
                         )
-                    ) : (
-                        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 shadow-xs">
-                            <div className="flex items-start gap-3.5">
-                                <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-500/20">
-                                    <CheckCircle2 className="w-5 h-5" />
-                                </div>
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <h3 className="font-extrabold text-emerald-900 text-base">
-                                            فائض سيولة نقدية في عهدة المخزن
-                                        </h3>
-                                        <span className="bg-emerald-200/80 text-emerald-800 text-xs px-2.5 py-0.5 rounded-full font-bold">
-                                            رصيد متاح للشراء
-                                        </span>
-                                    </div>
-                                    <p className="text-xs text-emerald-700 mt-1 leading-relaxed">
-                                        المبالغ المحولة من المالية تفوق المشتريات المسجلة. يتوفر في عهدة المخزن رصيد فائض قدره <span className="font-bold">{formatCurrency(treasuryMetrics.custodyBalance)}</span> جاهز للاستخدام في مشتريات قادمة.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
                     )}
-
-                    {/* Treasury 4 Cards Breakdown */}
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                        {/* Inflows */}
-                        <Card className="p-4 bg-gradient-to-br from-blue-50 to-white border-blue-100">
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs font-semibold text-blue-700">المحـوّل من المالية (العهدة)</span>
-                                <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
-                                    <ArrowDownRight className="w-4 h-4" />
-                                </div>
-                            </div>
-                            <h4 className="text-lg sm:text-xl font-extrabold text-blue-950">
-                                {formatCurrency(treasuryMetrics.totalInflows)}
-                            </h4>
-                            <p className="text-[11px] text-gray-500 mt-1">
-                                عدد سندات الصرف: {treasuryMetrics.transfersCount}
-                            </p>
-                        </Card>
-
-                        {/* Actual Purchases (Inventory + Fixed Assets) */}
-                        <Card className="p-4 bg-gradient-to-br from-slate-50 to-white border-gray-200">
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs font-semibold text-gray-700">إجمالي المشتريات الفعلية</span>
-                                <div className="w-7 h-7 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center">
-                                    <ShoppingCart className="w-4 h-4" />
-                                </div>
-                            </div>
-                            <h4 className="text-lg sm:text-xl font-extrabold text-gray-900">
-                                {formatCurrency(treasuryMetrics.totalPurchases)}
-                            </h4>
-                            <p className="text-[11px] text-gray-500 mt-1">
-                                {purchases.length > 0 ? `عدد الفواتير: ${purchases.length}` : `مخزون: ${inventory.length} مادة`}
-                            </p>
-                        </Card>
-
-                        {/* Dispensed Materials Value */}
-                        <Card className="p-4 bg-gradient-to-br from-purple-50 to-white border-purple-100">
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs font-semibold text-purple-700">المواد المصروفة للعيادات</span>
-                                <div className="w-7 h-7 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center">
-                                    <ArrowUpRight className="w-4 h-4" />
-                                </div>
-                            </div>
-                            <h4 className="text-lg sm:text-xl font-extrabold text-purple-950">
-                                {formatCurrency(treasuryMetrics.totalDispensedValue)}
-                            </h4>
-                            <p className="text-[11px] text-gray-500 mt-1">
-                                استهلاك موثق بالعيادات
-                            </p>
-                        </Card>
-
-                        {/* Net Balance */}
-                        <Card className={`p-4 border ${
-                            treasuryMetrics.custodyBalance >= 0 
-                                ? 'bg-gradient-to-br from-emerald-50 to-white border-emerald-200' 
-                                : 'bg-gradient-to-br from-red-50 to-white border-red-200'
-                        }`}>
-                            <div className="flex items-center justify-between mb-2">
-                                <span className={`text-xs font-semibold ${treasuryMetrics.custodyBalance >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
-                                    {treasuryMetrics.custodyBalance >= 0 ? 'فائض العهدة' : 'عجز العهدة (مطلوب)'}
-                                </span>
-                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
-                                    treasuryMetrics.custodyBalance >= 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'
-                                }`}>
-                                    <Wallet className="w-4 h-4" />
-                                </div>
-                            </div>
-                            <h4 className={`text-lg sm:text-xl font-extrabold ${
-                                treasuryMetrics.custodyBalance >= 0 ? 'text-emerald-950' : 'text-red-950'
-                            }`}>
-                                {formatCurrency(Math.abs(treasuryMetrics.custodyBalance))}
-                            </h4>
-                            <p className="text-[11px] text-gray-500 mt-1">
-                                {treasuryMetrics.custodyBalance >= 0 ? 'متاح نقداً بالعهدة' : 'العيادة مطالبة بتسويته'}
-                            </p>
-                        </Card>
-                    </div>
 
                     {/* Financial Ledger Section (Multi-Tab) */}
                     <Card>

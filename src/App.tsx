@@ -362,7 +362,7 @@ function AppContent() {
 }
 
 import { CompleteRegistrationModal } from './components/auth/CompleteRegistrationModal';
-import { StoreProvider } from './context/StoreContext';
+import { StoreProvider } from './contexts/StoreContext';
 import { CommunityProvider } from './contexts/CommunityContext';
 import { PlatformProvider } from './contexts/PlatformContext';
 import { HelmetProvider } from 'react-helmet-async';

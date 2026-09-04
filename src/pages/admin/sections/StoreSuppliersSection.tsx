@@ -21,7 +21,7 @@ import {
   Save,
   RefreshCw
 } from 'lucide-react';
-import { useStoreContext } from '../../../context/StoreContext';
+import { useStoreContext } from '../../../contexts/StoreContext';
 import { useAdminSuppliers, Supplier } from '../../../hooks/useAdminSuppliers';
 import { useAdminStore } from '../../../hooks/useAdminStore';
 import { Button } from '../../../components/common/Button';

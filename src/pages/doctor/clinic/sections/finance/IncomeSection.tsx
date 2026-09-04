@@ -217,41 +217,44 @@ export const IncomeSection: React.FC<IncomeSectionProps> = ({
     <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500" dir="rtl">
       {/* Top 3 Sub-Tabs Bar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-2 sm:p-3 rounded-2xl border border-gray-100 shadow-xs">
-        <div className="flex bg-gray-100/80 p-1 rounded-xl w-full sm:w-auto gap-1">
+        <div className="grid grid-cols-3 bg-gray-50 rounded-xl p-1 sm:p-1.5 border border-gray-100 w-full sm:w-auto gap-1">
           <button
             onClick={() => setActiveSubTab('ledger')}
-            className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`px-1.5 sm:px-3.5 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-1 sm:gap-2 cursor-pointer ${
               activeSubTab === 'ledger'
-                ? 'bg-white text-emerald-700 shadow-xs'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-white text-emerald-700 shadow-sm font-bold'
+                : 'text-gray-500 hover:text-gray-700'
             }`}
+            title="سجل الإيرادات المتكامل"
           >
-            <TrendingUp className="w-4 h-4 text-emerald-600" />
-            <span>سجل الإيرادات المتكامل</span>
+            <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 shrink-0" />
+            <span className="truncate">سجل الإيرادات<span className="hidden md:inline"> المتكامل</span></span>
           </button>
 
           <button
             onClick={() => setActiveSubTab('receivables')}
-            className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`px-1.5 sm:px-3.5 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-1 sm:gap-2 cursor-pointer ${
               activeSubTab === 'receivables'
-                ? 'bg-white text-blue-700 shadow-xs'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-white text-blue-700 shadow-sm font-bold'
+                : 'text-gray-500 hover:text-gray-700'
             }`}
+            title="إيرادات العلاج والأقساط"
           >
-            <Receipt className="w-4 h-4 text-blue-600" />
-            <span>إيرادات العلاج والأقساط</span>
+            <Receipt className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 shrink-0" />
+            <span className="truncate"><span className="hidden md:inline">إيرادات </span>العلاج والأقساط</span>
           </button>
 
           <button
             onClick={() => setActiveSubTab('patients')}
-            className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`px-1.5 sm:px-3.5 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-1 sm:gap-2 cursor-pointer ${
               activeSubTab === 'patients'
-                ? 'bg-white text-indigo-700 shadow-xs'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-white text-indigo-700 shadow-sm font-bold'
+                : 'text-gray-500 hover:text-gray-700'
             }`}
+            title="كشف حسابات المراجعين"
           >
-            <Users className="w-4 h-4 text-indigo-600" />
-            <span>كشف حسابات المراجعين</span>
+            <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-600 shrink-0" />
+            <span className="truncate"><span className="hidden md:inline">كشف </span>حسابات المراجعين</span>
           </button>
         </div>
 
@@ -283,21 +286,21 @@ export const IncomeSection: React.FC<IncomeSectionProps> = ({
       {activeSubTab === 'ledger' && (
         <Card className="rounded-2xl border-gray-100/80 shadow-xs overflow-hidden">
           {/* Header Filters */}
-          <div className="p-4 sm:p-5 border-b border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 bg-gray-50/50">
-            <div className="relative w-full sm:max-w-sm">
-              <Search className="absolute right-3 top-2.5 w-4 h-4 text-gray-400" />
+          <div className="p-3 sm:p-4 border-b border-gray-100 flex items-center justify-between gap-2 sm:gap-3 bg-gray-50/50">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute right-2.5 sm:right-3 top-2.5 w-4 h-4 text-gray-400 pointer-events-none" />
               <input
                 type="text"
-                placeholder="بحث برقم الوصل، المراجع، أو البيان..."
-                className="w-full pr-10 pl-4 py-2 rounded-xl border border-gray-200 text-sm focus:ring-2 focus:ring-emerald-500/20 bg-white"
+                placeholder="بحث"
+                className="w-full pr-8 sm:pr-9 pl-3 py-2 rounded-xl border border-gray-200 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500/20 bg-white"
                 value={ledgerSearch}
                 onChange={e => setLedgerSearch(e.target.value)}
               />
             </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="shrink-0">
               <select
-                className="w-full sm:w-auto border border-gray-200 rounded-xl px-3 py-2 text-right bg-white text-xs sm:text-sm font-medium text-gray-700"
+                className="border border-gray-200 rounded-xl px-2.5 sm:px-3 py-2 text-right bg-white text-xs sm:text-sm font-medium text-gray-700 outline-none cursor-pointer focus:ring-2 focus:ring-emerald-500/20"
                 value={ledgerCategoryFilter}
                 onChange={e => setLedgerCategoryFilter(e.target.value)}
               >

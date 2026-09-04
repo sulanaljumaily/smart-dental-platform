@@ -310,17 +310,6 @@ export const ClinicInventoryPage: React.FC<ClinicInventoryPageProps> = ({ clinic
               </button>
             ))}
           </div>
-
-          {onNavigateToTreasury && (
-            <button
-              onClick={onNavigateToTreasury}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
-              title="الانتقال إلى الصندوق المالي لعهدة المخزن"
-            >
-              <Wallet className="w-3.5 h-3.5" />
-              <span>الصندوق المالي للمخزن</span>
-            </button>
-          )}
         </div>
       </div>
 

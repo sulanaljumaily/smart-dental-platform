@@ -1,4 +1,4 @@
-import { useStoreContext } from '../context/StoreContext';
+import { useStoreContext } from '../contexts/StoreContext';
 
 export const useStoreCart = () => {
     const { cart, addToCart, removeFromCart, updateQuantity, clearCart, cartTotals } = useStoreContext();

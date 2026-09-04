@@ -100,20 +100,7 @@
 <body>
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
-  
-  <!-- Force unregister old Service Workers -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function (registrations) {
-        for (let registration of registrations) {
-          registration.unregister();
-        }
-        if (registrations.length > 0) {
-          window.location.reload();
-        }
-      });
-    }
-  </script>
-</body>
+
+
 
 </html>

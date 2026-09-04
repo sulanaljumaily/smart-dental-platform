@@ -1,4 +1,4 @@
-import { useStoreContext } from '../context/StoreContext';
+import { useStoreContext } from '../contexts/StoreContext';
 import { supabase } from '../lib/supabase';
 import { sendNotification } from '../lib/notifications';
 

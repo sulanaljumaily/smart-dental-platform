@@ -8,6 +8,7 @@ export default defineConfig(({ mode }) => {
   const isProd = mode === 'production'
 
   return {
+    base: './', // مسار نسبي لضمان عمل الملفات في Capacitor و Tauri
     plugins: [
       react(),
       sourceIdentifierPlugin({

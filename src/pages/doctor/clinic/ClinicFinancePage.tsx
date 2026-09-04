@@ -4,6 +4,7 @@ import {
   TrendingUp,
   TrendingDown,
   DollarSign,
+  LayoutDashboard,
   ArrowUpRight,
   ArrowDownRight,
   Wallet,
@@ -1173,48 +1174,52 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
 
   return (
     <div className="space-y-6">
-      {/* Top Header Tabs */}
-      <div className="flex justify-end">
-        <div className="flex bg-gray-100 p-1 rounded-xl gap-1">
+      {/* Top Header Tabs (Styled like appointments section tabs) */}
+      <div className="flex justify-center">
+        <div className="flex bg-gray-50 rounded-xl p-1.5 border border-gray-100 gap-1 overflow-x-auto scrollbar-hide">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'overview'
-                ? 'bg-white text-blue-600 shadow-xs'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-white text-blue-600 shadow-sm font-bold'
+                : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            نظرة عامة
+            <LayoutDashboard className="w-4 h-4" />
+            <span>نظرة عامة</span>
           </button>
           <button
             onClick={() => setActiveTab('income')}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'income'
-                ? 'bg-white text-emerald-600 shadow-xs'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-white text-emerald-600 shadow-sm font-bold'
+                : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            الإيرادات
+            <TrendingUp className="w-4 h-4" />
+            <span>الإيرادات</span>
           </button>
           <button
             onClick={() => setActiveTab('expenses')}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'expenses'
-                ? 'bg-white text-red-600 shadow-xs'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-white text-red-600 shadow-sm font-bold'
+                : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            المصروفات
+            <TrendingDown className="w-4 h-4" />
+            <span>المصروفات</span>
           </button>
           <button
             onClick={() => setActiveTab('settings')}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'settings'
-                ? 'bg-white text-gray-800 shadow-xs'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-white text-gray-800 shadow-sm font-bold'
+                : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            الإعدادات
+            <SettingsIcon className="w-4 h-4" />
+            <span>الإعدادات</span>
           </button>
         </div>
       </div>
