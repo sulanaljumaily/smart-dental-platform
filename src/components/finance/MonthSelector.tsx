@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, Layers, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { Card } from '../common/Card';
 
 interface MonthSelectorProps {
@@ -72,26 +72,46 @@ export const MonthSelector: React.FC<MonthSelectorProps> = ({ selectedPeriod, on
   return (
     <Card className="p-3 sm:p-4 bg-white shadow-sm border-gray-100/80 rounded-2xl">
       <div className="flex flex-col gap-3">
-        {/* Header: Title + Year Navigator */}
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-2 text-gray-800">
-            <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">
-              <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
+        {/* Header: Title + Segment Filter (الكل / كامل السنة) + Year Navigator */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">
+                <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
+              <span className="text-sm sm:text-base font-bold text-gray-900 whitespace-nowrap">تصفية حسب:</span>
             </div>
-            <div>
-              <span className="text-sm sm:text-base font-bold text-gray-900">تصفية الفترة المالية</span>
-              <span className="text-xs text-gray-400 block sm:inline sm:mr-2">
-                {isAllSelected
-                  ? '(كل الأوقات)'
-                  : isYearSelected
-                  ? `(كامل سنة ${activeYear})`
-                  : `(شهر ${MONTH_NAMES[parseInt(selectedPeriod.split('-')[1], 10) - 1] || ''} ${activeYear})`}
-              </span>
+
+            {/* Segment Controls: الكل / كامل السنة */}
+            <div className="flex items-center gap-1.5 bg-gray-100/80 p-1 rounded-xl">
+              <button
+                type="button"
+                onClick={() => onPeriodChange('all')}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  isAllSelected
+                    ? 'bg-white text-blue-600 shadow-xs'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                🌐 الكل (شامل)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onPeriodChange(`year-${activeYear}`)}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  isYearSelected
+                    ? 'bg-white text-blue-600 shadow-xs'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                📆 سنة {activeYear}
+              </button>
             </div>
           </div>
 
           {/* Year Controls */}
-          <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-2.5 py-1 border border-gray-100">
+          <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-2.5 py-1 border border-gray-100 self-end sm:self-auto">
             <button
               onClick={handleNextYear}
               className="p-1 hover:bg-white rounded-lg transition-all text-gray-500 hover:text-blue-600 hover:shadow-xs cursor-pointer"
@@ -112,62 +132,13 @@ export const MonthSelector: React.FC<MonthSelectorProps> = ({ selectedPeriod, on
           </div>
         </div>
 
-        {/* Scrollable Row: [الكل] + [السنة] + [12 Months] */}
+        {/* Scrollable Row: 12 Months */}
         <div
           ref={scrollRef}
           className="flex overflow-x-auto gap-2 sm:gap-2.5 pb-1.5 pt-0.5 snap-x scrollbar-hide"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {/* 1. All Time Button */}
-          <button
-            data-selected={isAllSelected}
-            onClick={() => onPeriodChange('all')}
-            className={`
-              relative min-w-[85px] sm:min-w-[95px] flex-shrink-0 snap-center rounded-xl px-3 py-2.5 text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer
-              ${isAllSelected
-                ? 'bg-gradient-to-r from-blue-700 to-indigo-700 text-white shadow-md shadow-blue-100 scale-102 border-transparent'
-                : 'bg-gray-50 text-gray-700 hover:bg-gray-100/80 border border-gray-200/70 hover:border-blue-200'
-              }
-            `}
-          >
-            <div className="flex flex-col items-center gap-1">
-              <div className="flex items-center gap-1">
-                <Layers className="w-3.5 h-3.5" />
-                <span>الكل</span>
-              </div>
-              <span className={`text-[10px] font-normal ${isAllSelected ? 'text-blue-100' : 'text-gray-400'}`}>
-                كل الوقت
-              </span>
-            </div>
-          </button>
-
-          {/* 2. Current / Selected Year Button */}
-          <button
-            data-selected={isYearSelected}
-            onClick={() => onPeriodChange(`year-${activeYear}`)}
-            className={`
-              relative min-w-[90px] sm:min-w-[100px] flex-shrink-0 snap-center rounded-xl px-3 py-2.5 text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer
-              ${isYearSelected
-                ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-md shadow-blue-100 scale-102 border-transparent'
-                : 'bg-gray-50 text-gray-700 hover:bg-gray-100/80 border border-gray-200/70 hover:border-blue-200'
-              }
-            `}
-          >
-            <div className="flex flex-col items-center gap-1">
-              <div className="flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5" />
-                <span>سنة {activeYear}</span>
-              </div>
-              <span className={`text-[10px] font-normal ${isYearSelected ? 'text-blue-100' : 'text-gray-400'}`}>
-                كامل السنة
-              </span>
-            </div>
-          </button>
-
-          {/* Divider */}
-          <div className="w-[1px] bg-gray-200 my-1 flex-shrink-0" />
-
-          {/* 3. 12 Month Cards - Styled with Blue / Indigo Theme */}
+          {/* 12 Month Cards - Styled with Blue / Indigo Theme */}
           {MONTH_NAMES.map((monthName, index) => {
             const monthNumberStr = String(index + 1).padStart(2, '0');
             const monthValue = `${activeYear}-${monthNumberStr}`;
