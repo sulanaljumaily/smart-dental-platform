@@ -329,8 +329,8 @@ export const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({
                     </div>
 
                     {/* 2. Invoice General Info */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-gray-50/70 p-3.5 rounded-xl border border-gray-100">
-                        <div>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 bg-gray-50/70 p-3.5 rounded-xl border border-gray-100">
+                        <div className="col-span-2 lg:col-span-1">
                             <label className="block text-[11px] font-bold text-gray-700 mb-1">المورد / المجهز</label>
                             <input
                                 type="text"
@@ -341,7 +341,7 @@ export const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({
                             />
                         </div>
 
-                        <div>
+                        <div className="col-span-1">
                             <label className="block text-[11px] font-bold text-gray-700 mb-1">تاريخ الشراء</label>
                             <input
                                 type="date"
@@ -352,7 +352,7 @@ export const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({
                             />
                         </div>
 
-                        <div>
+                        <div className="col-span-1">
                             <label className="block text-[11px] font-bold text-gray-700 mb-1">طريقة السداد</label>
                             <select
                                 value={paymentMethod}
@@ -366,7 +366,7 @@ export const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({
                             </select>
                         </div>
 
-                        <div>
+                        <div className="col-span-2 lg:col-span-1">
                             <div className="flex items-center justify-between mb-1">
                                 <label className="block text-[11px] font-bold text-gray-700">
                                     المبلغ الإجمالي (د.ع) <span className="text-red-500">*</span>
