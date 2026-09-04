@@ -80,7 +80,7 @@ export const AssetsSettings: React.FC<AssetsSettingsProps> = ({ clinicId }) => {
 
     // Purchase Modal & Treasury Ledger Tab
     const [showPurchaseModal, setShowPurchaseModal] = useState(false);
-    const [treasuryLedgerTab, setTreasuryLedgerTab] = useState<'purchases' | 'transfers' | 'dispenses'>('purchases');
+    const [treasuryLedgerTab, setTreasuryLedgerTab] = useState<'all' | 'purchases' | 'transfers' | 'dispenses'>('all');
 
     // --- Department Management State ---
     const [isAddingDept, setIsAddingDept] = useState(false);
@@ -127,6 +127,99 @@ export const AssetsSettings: React.FC<AssetsSettingsProps> = ({ clinicId }) => {
             purchasesCount: purchases.length
         };
     }, [transactions, inventory, movements, assets, totalPurchasesAmount, purchases]);
+
+    // Unified Ledger combining All Records (Purchases, Finance Inflows, Department Dispenses)
+    const allLedgerRecords = useMemo(() => {
+        const list: Array<{
+            id: string;
+            rawDate: string;
+            date?: string;
+            type: 'purchase' | 'transfer' | 'dispense';
+            typeName: string;
+            typeBadgeColor: string;
+            refNumber: string;
+            title: string;
+            subtitle?: string;
+            partyOrDept: string;
+            recorder: string;
+            amount: number;
+            direction: 'in' | 'out' | 'dispense';
+            paymentMethod?: string;
+            original: any;
+        }> = [];
+
+        // 1. Purchases (فواتير المشتريات)
+        purchases.forEach(p => {
+            const dateStr = p.purchaseDate || p.createdAt || '';
+            list.push({
+                id: `purchase_${p.id}`,
+                rawDate: dateStr,
+                date: p.purchaseDate,
+                type: 'purchase',
+                typeName: p.purchaseType === 'fixed_asset' ? 'أصول ثابتة' : 'مشتريات مخزون',
+                typeBadgeColor: p.purchaseType === 'fixed_asset' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                refNumber: p.invoiceNumber ? `#${p.invoiceNumber}` : `#${p.id.substring(0, 7)}`,
+                title: p.items && p.items.length > 0 ? p.items.map(i => i.name).join('، ') : 'مشتريات عامة',
+                subtitle: p.supplier ? `المورد: ${p.supplier}${p.notes ? ` - ${p.notes}` : ''}` : p.notes,
+                partyOrDept: p.supplier || 'مورد محلي',
+                recorder: p.recorderName || 'أمين المخزن',
+                amount: Number(p.totalAmount) || 0,
+                direction: 'out',
+                paymentMethod: p.paymentMethod,
+                original: p
+            });
+        });
+
+        // 2. Transfers from Finance (تحويلات المالية للعهدة)
+        treasuryMetrics.inventoryExpenses.forEach(tx => {
+            const dateStr = tx.date || '';
+            list.push({
+                id: `tx_${tx.id}`,
+                rawDate: dateStr,
+                date: tx.date,
+                type: 'transfer',
+                typeName: 'تمويل من المالية',
+                typeBadgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
+                refNumber: `#${tx.id.substring(0, 8)}`,
+                title: tx.description || 'تمويل مشتريات مخزون وتغذية عهدة',
+                subtitle: tx.relatedPerson ? `المورد / المستلم: ${tx.relatedPerson}` : undefined,
+                partyOrDept: 'الإدارة المالية',
+                recorder: tx.recorderName || 'المحاسب',
+                amount: Number(tx.amount) || 0,
+                direction: 'in',
+                paymentMethod: tx.paymentMethod,
+                original: tx
+            });
+        });
+
+        // 3. Dispenses / Movements out to Clinic Departments (صرف واستهلاك الأقسام)
+        movements.filter(m => m.movementType === 'out').forEach(mv => {
+            const dateStr = mv.createdAt || '';
+            list.push({
+                id: `mv_${mv.id}`,
+                rawDate: dateStr,
+                date: mv.createdAt,
+                type: 'dispense',
+                typeName: 'صرف واستهلاك قسم',
+                typeBadgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
+                refNumber: `#${mv.id.substring(0, 7)}`,
+                title: `${mv.itemName} (${mv.quantity} قطعة)`,
+                subtitle: mv.notes || 'استهلاك دوري للعيادة',
+                partyOrDept: mv.departmentName || 'العيادة العامة',
+                recorder: mv.recipientName || mv.recorderName || '-',
+                amount: Number(mv.totalCost) || 0,
+                direction: 'dispense',
+                paymentMethod: undefined,
+                original: mv
+            });
+        });
+
+        return list.sort((a, b) => {
+            const timeA = a.rawDate ? new Date(a.rawDate).getTime() : 0;
+            const timeB = b.rawDate ? new Date(b.rawDate).getTime() : 0;
+            return timeB - timeA;
+        });
+    }, [purchases, treasuryMetrics.inventoryExpenses, movements]);
 
     // Handle Requesting Settlement from Finance
     const handleSendSettlementRequest = async () => {
@@ -413,8 +506,25 @@ export const AssetsSettings: React.FC<AssetsSettingsProps> = ({ clinicId }) => {
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-gray-100">
                                 <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1 sm:pb-0">
                                     <button
+                                        onClick={() => setTreasuryLedgerTab('all')}
+                                        className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                                            treasuryLedgerTab === 'all'
+                                                ? 'bg-blue-600 text-white shadow-xs'
+                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                        }`}
+                                    >
+                                        <Layers className="w-3.5 h-3.5" />
+                                        <span>الكل</span>
+                                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                                            treasuryLedgerTab === 'all' ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-700'
+                                        }`}>
+                                            {allLedgerRecords.length}
+                                        </span>
+                                    </button>
+
+                                    <button
                                         onClick={() => setTreasuryLedgerTab('purchases')}
-                                        className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                                        className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                                             treasuryLedgerTab === 'purchases'
                                                 ? 'bg-blue-600 text-white shadow-xs'
                                                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -431,7 +541,7 @@ export const AssetsSettings: React.FC<AssetsSettingsProps> = ({ clinicId }) => {
 
                                     <button
                                         onClick={() => setTreasuryLedgerTab('transfers')}
-                                        className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                                        className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                                             treasuryLedgerTab === 'transfers'
                                                 ? 'bg-blue-600 text-white shadow-xs'
                                                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -448,7 +558,7 @@ export const AssetsSettings: React.FC<AssetsSettingsProps> = ({ clinicId }) => {
 
                                     <button
                                         onClick={() => setTreasuryLedgerTab('dispenses')}
-                                        className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                                        className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                                             treasuryLedgerTab === 'dispenses'
                                                 ? 'bg-blue-600 text-white shadow-xs'
                                                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -464,16 +574,127 @@ export const AssetsSettings: React.FC<AssetsSettingsProps> = ({ clinicId }) => {
                                     </button>
                                 </div>
 
-                                {treasuryLedgerTab === 'purchases' && (
+                                {(treasuryLedgerTab === 'all' || treasuryLedgerTab === 'purchases') && (
                                     <Button
                                         onClick={() => setShowPurchaseModal(true)}
-                                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shrink-0 shadow-xs"
+                                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shrink-0 shadow-xs cursor-pointer"
                                     >
                                         <Plus className="w-4 h-4 ml-1.5" />
                                         إضافة مشتريات
                                     </Button>
                                 )}
                             </div>
+
+                            {/* TAB 0: All Records (الكل - سجل الصندوق الشامل) */}
+                            {treasuryLedgerTab === 'all' && (
+                                allLedgerRecords.length === 0 ? (
+                                    <div className="text-center py-12 text-gray-400">
+                                        <Layers className="w-12 h-12 mx-auto mb-2 opacity-30 text-blue-600" />
+                                        <p className="text-sm font-semibold text-gray-700">لا توجد أي حركات أو سجلات في صندوق المخزن بعد.</p>
+                                        <p className="text-xs text-gray-400 mt-1">
+                                            ستظهر هنا كافة فواتير المشتريات، تحويلات المالية، وصرفيات الأقسام مجتمعة بتسلسل زمني موحد.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-right text-xs">
+                                            <thead>
+                                                <tr className="border-b border-gray-100 text-gray-500 font-semibold bg-gray-50/50">
+                                                    <th className="py-3 px-3">التاريخ</th>
+                                                    <th className="py-3 px-3">نوع الحركة</th>
+                                                    <th className="py-3 px-3">رقم السند</th>
+                                                    <th className="py-3 px-3">البيان والتفاصيل</th>
+                                                    <th className="py-3 px-3">الجهة / القسم</th>
+                                                    <th className="py-3 px-3">القائم بالعملية</th>
+                                                    <th className="py-3 px-3 font-bold text-gray-900">المبلغ / القيمة</th>
+                                                    <th className="py-3 px-3 text-center">إجراءات</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-50">
+                                                {allLedgerRecords.map((item) => (
+                                                    <tr key={item.id} className="hover:bg-gray-50/60 transition-colors">
+                                                        <td className="py-3.5 px-3 text-gray-600 font-medium whitespace-nowrap">
+                                                            {item.date ? new Date(item.date).toLocaleDateString('ar-EG', {
+                                                                year: 'numeric',
+                                                                month: 'short',
+                                                                day: 'numeric'
+                                                            }) : '-'}
+                                                        </td>
+                                                        <td className="py-3.5 px-3 whitespace-nowrap">
+                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${item.typeBadgeColor}`}>
+                                                                {item.typeName}
+                                                            </span>
+                                                        </td>
+                                                        <td className="py-3.5 px-3 font-mono text-[11px] text-gray-500 whitespace-nowrap">
+                                                            {item.refNumber}
+                                                        </td>
+                                                        <td className="py-3.5 px-3 max-w-xs">
+                                                            <div className="font-bold text-gray-900 truncate" title={item.title}>
+                                                                {item.title}
+                                                            </div>
+                                                            {item.subtitle && (
+                                                                <div className="text-[10px] text-gray-400 truncate mt-0.5" title={item.subtitle}>
+                                                                    {item.subtitle}
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                        <td className="py-3.5 px-3 text-gray-700 whitespace-nowrap">
+                                                            <span className="bg-gray-100 px-2 py-0.5 rounded-md text-[11px]">
+                                                                {item.partyOrDept}
+                                                            </span>
+                                                        </td>
+                                                        <td className="py-3.5 px-3 text-gray-600 whitespace-nowrap">
+                                                            {item.recorder}
+                                                        </td>
+                                                        <td className="py-3.5 px-3 whitespace-nowrap">
+                                                            {item.direction === 'in' ? (
+                                                                <span className="font-extrabold text-blue-700 text-sm flex items-center gap-1">
+                                                                    <span>+{formatCurrency(item.amount)}</span>
+                                                                    <span className="text-[9px] font-normal text-blue-500">(وارد عهدة)</span>
+                                                                </span>
+                                                            ) : item.direction === 'out' ? (
+                                                                <span className="font-extrabold text-emerald-700 text-sm flex items-center gap-1">
+                                                                    <span>-{formatCurrency(item.amount)}</span>
+                                                                    <span className="text-[9px] font-normal text-emerald-500">(شراء)</span>
+                                                                </span>
+                                                            ) : (
+                                                                <span className="font-extrabold text-gray-700 text-sm flex items-center gap-1">
+                                                                    <span>{formatCurrency(item.amount)}</span>
+                                                                    <span className="text-[9px] font-normal text-amber-600">(استهلاك)</span>
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td className="py-3.5 px-3 text-center whitespace-nowrap">
+                                                            {item.type === 'purchase' ? (
+                                                                <button
+                                                                    onClick={async () => {
+                                                                        if (window.confirm('هل أنت متأكد من حذف هذه الفاتورة من سجل المشتريات؟')) {
+                                                                            await deletePurchase(item.original.id);
+                                                                            toast.success('تم حذف فاتورة المشتريات بنجاح');
+                                                                        }
+                                                                    }}
+                                                                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                                                    title="حذف الفاتورة"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
+                                                            ) : item.type === 'transfer' ? (
+                                                                <span className="text-green-600 text-[10px] font-bold bg-green-50 px-2 py-0.5 rounded-full">
+                                                                    معتمد بالمالية
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-purple-600 text-[10px] font-bold bg-purple-50 px-2 py-0.5 rounded-full">
+                                                                    حركة استهلاك
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )
+                            )}
 
                             {/* TAB 1: Purchases Ledger */}
                             {treasuryLedgerTab === 'purchases' && (
