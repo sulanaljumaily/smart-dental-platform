@@ -42,7 +42,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article }) => {
           <div className="absolute top-3 left-3 z-20">
             <span className="px-2.5 py-1 bg-black/40 backdrop-blur-md text-[10px] font-medium text-white rounded-full shadow-sm flex items-center gap-1">
               <Calendar className="w-3 h-3 text-white/80" />
-              <span>{formatNumericDate(article.date || new Date().toISOString())}</span>
+              <span>{formatNumericDate(article.date || '2026-01-28')}</span>
             </span>
           </div>
         </div>

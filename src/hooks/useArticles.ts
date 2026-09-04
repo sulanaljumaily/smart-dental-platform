@@ -33,7 +33,7 @@ export function useArticles() {
         excerpt: article.excerpt,
         content: article.content,
         author: article.author,
-        date: article.date,
+        date: article.date || (article.created_at ? article.created_at.split('T')[0] : '2026-01-28'),
         category: article.category,
         image: article.image_url
       })) || []
@@ -90,7 +90,7 @@ export function useArticle(id: string) {
           excerpt: data.excerpt,
           content: data.content,
           author: data.author,
-          date: data.date,
+          date: data.date || (data.created_at ? data.created_at.split('T')[0] : '2026-01-28'),
           category: data.category,
           image: data.image_url
         }

@@ -89,7 +89,8 @@ export const ArticleDetailPage: React.FC = () => {
             "headline": article.title,
             "description": article.excerpt,
             "image": article.image || "https://dental-platform.com/icons/icon-512x512.png",
-            "datePublished": article.date || "2026-01-01",
+            "datePublished": article.date || "2026-01-28",
+            "dateModified": article.date || "2026-01-28",
             "author": {
               "@type": "Organization",
               "name": article.author || "DENTAL PLATFORM"
@@ -142,7 +143,7 @@ export const ArticleDetailPage: React.FC = () => {
             </span>
             <div className="flex items-center gap-1.5 text-xs font-medium text-gray-500 bg-gray-50 px-3 py-1 rounded-full border border-gray-100">
               <Calendar className="w-3.5 h-3.5 text-gray-400" />
-              <span>{formatNumericDate(article.date || new Date().toISOString())}</span>
+              <span>{formatNumericDate(article.date || '2026-01-28')}</span>
             </div>
           </div>
 
