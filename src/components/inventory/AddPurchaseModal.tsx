@@ -293,39 +293,33 @@ export const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({
                             <button
                                 type="button"
                                 onClick={() => setPurchaseType('inventory')}
-                                className={`flex items-center justify-center gap-2.5 p-3 rounded-xl border-2 transition-all cursor-pointer ${
+                                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl border-2 transition-all cursor-pointer ${
                                     purchaseType === 'inventory'
                                         ? 'border-emerald-600 bg-emerald-50/70 text-emerald-900 font-bold shadow-xs'
                                         : 'border-gray-200 hover:border-gray-300 text-gray-600 bg-white'
                                 }`}
                             >
-                                <Package className={`w-5 h-5 ${purchaseType === 'inventory' ? 'text-emerald-600' : 'text-gray-400'}`} />
-                                <div className="text-right">
-                                    <div className="text-xs font-bold">مواد ومستلزمات مخزون</div>
-                                    <div className="text-[10px] text-gray-500 font-normal">مواد استهلاكية، أدوية، أدوات</div>
-                                </div>
+                                <Package className={`w-4 h-4 ${purchaseType === 'inventory' ? 'text-emerald-600' : 'text-gray-400'}`} />
+                                <span className="text-xs font-bold">مواد ومستلزمات مخزون</span>
                             </button>
 
                             <button
                                 type="button"
                                 onClick={() => setPurchaseType('fixed_asset')}
-                                className={`flex items-center justify-center gap-2.5 p-3 rounded-xl border-2 transition-all cursor-pointer ${
+                                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl border-2 transition-all cursor-pointer ${
                                     purchaseType === 'fixed_asset'
                                         ? 'border-blue-600 bg-blue-50/70 text-blue-900 font-bold shadow-xs'
                                         : 'border-gray-200 hover:border-gray-300 text-gray-600 bg-white'
                                 }`}
                             >
-                                <Monitor className={`w-5 h-5 ${purchaseType === 'fixed_asset' ? 'text-blue-600' : 'text-gray-400'}`} />
-                                <div className="text-right">
-                                    <div className="text-xs font-bold">أصول ثابتة (أجهزة ومعدات)</div>
-                                    <div className="text-[10px] text-gray-500 font-normal">أجهزة طبية، كراسي، أثاث، كمبيوترات</div>
-                                </div>
+                                <Monitor className={`w-4 h-4 ${purchaseType === 'fixed_asset' ? 'text-blue-600' : 'text-gray-400'}`} />
+                                <span className="text-xs font-bold">أصول ثابتة (أجهزة ومعدات)</span>
                             </button>
                         </div>
                     </div>
 
                     {/* 2. Invoice General Info */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 bg-gray-50/70 p-3.5 rounded-xl border border-gray-100">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-gray-50/70 p-3.5 rounded-xl border border-gray-100">
                         <div>
                             <label className="block text-[11px] font-bold text-gray-700 mb-1">المورد / المجهز</label>
                             <input
@@ -333,17 +327,6 @@ export const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({
                                 value={supplier}
                                 onChange={e => setSupplier(e.target.value)}
                                 placeholder="مثال: مذخر الفرات، شركة الماسة"
-                                className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-gray-800 focus:ring-2 focus:ring-emerald-500 outline-none"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-[11px] font-bold text-gray-700 mb-1">رقم الفاتورة / السند</label>
-                            <input
-                                type="text"
-                                value={invoiceNumber}
-                                onChange={e => setInvoiceNumber(e.target.value)}
-                                placeholder="مثال: INV-2026-90"
                                 className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-gray-800 focus:ring-2 focus:ring-emerald-500 outline-none"
                             />
                         </div>
