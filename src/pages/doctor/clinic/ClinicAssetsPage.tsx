@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Stethoscope, Package, Monitor, ClipboardList, Settings } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { LayoutDashboard, Stethoscope, Package, Monitor, ClipboardList, Wallet } from 'lucide-react';
 import { Card } from '../../../components/common/Card';
 
 // Import sub-sections
@@ -14,7 +15,10 @@ interface ClinicAssetsPageProps {
     clinicId?: string;
 }
 
-export const ClinicAssetsPage: React.FC<ClinicAssetsPageProps> = ({ clinicId = '1' }) => {
+export const ClinicAssetsPage: React.FC<ClinicAssetsPageProps> = ({ clinicId: propClinicId }) => {
+    const { clinicId: routeClinicId } = useParams<{ clinicId: string }>();
+    const clinicId = propClinicId?.toString() || routeClinicId || '19';
+
     const [activeTab, setActiveTab] = useState('overview');
 
     const renderActiveTab = () => {
@@ -24,7 +28,7 @@ export const ClinicAssetsPage: React.FC<ClinicAssetsPageProps> = ({ clinicId = '
             case 'treatments':
                 return <AssetsTreatments clinicId={clinicId} />;
             case 'inventory':
-                return <ClinicInventoryPage clinicId={clinicId} />;
+                return <ClinicInventoryPage clinicId={clinicId} onNavigateToTreasury={() => setActiveTab('settings')} />;
             case 'devices':
                 return <AssetsDevices clinicId={clinicId} />;
             case 'settings':
@@ -46,7 +50,7 @@ export const ClinicAssetsPage: React.FC<ClinicAssetsPageProps> = ({ clinicId = '
                             { id: 'treatments', label: 'العلاجات', icon: Stethoscope },
                             { id: 'inventory', label: 'المخزون', icon: Package },
                             { id: 'devices', label: 'الأصول الثابتة (أجهزة / أثاث)', icon: Monitor },
-                            { id: 'settings', label: 'الإعدادات', icon: Settings }
+                            { id: 'settings', label: 'إدارة وصندوق المخزن', icon: Wallet }
                         ].map(tab => (
                             <button
                                 key={tab.id}

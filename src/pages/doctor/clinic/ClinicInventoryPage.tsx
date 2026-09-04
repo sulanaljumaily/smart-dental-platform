@@ -27,6 +27,7 @@ import {
   User,
   PackageMinus
 } from 'lucide-react';
+import { useParams } from 'react-router-dom';
 import { Card } from '../../../components/common/Card';
 import { BentoStatCard } from '../../../components/dashboard/BentoStatCard';
 import { useInventory, InventoryItem } from '../../../hooks/useInventory';
@@ -37,15 +38,19 @@ import { formatCurrency } from '../../../lib/utils';
 
 interface ClinicInventoryPageProps {
   clinicId: string;
+  onNavigateToTreasury?: () => void;
 }
 
-export const ClinicInventoryPage: React.FC<ClinicInventoryPageProps> = ({ clinicId }) => {
+export const ClinicInventoryPage: React.FC<ClinicInventoryPageProps> = ({ clinicId: propClinicId, onNavigateToTreasury }) => {
+  const { clinicId: routeClinicId } = useParams<{ clinicId: string }>();
+  const clinicId = propClinicId || routeClinicId || '19';
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [activeSubTab, setActiveSubTab] = useState<'items' | 'movements'>('items');
-  const [selectedPeriod, setSelectedPeriod] = useState<'month' | 'year' | 'all'>('month');
+  const [selectedPeriod, setSelectedPeriod] = useState<'month' | 'year' | 'all'>('all');
 
   // Supabase Integration
   const { inventory, loading, addItem, updateItem, deleteItem } = useInventory(clinicId);
@@ -275,55 +280,72 @@ export const ClinicInventoryPage: React.FC<ClinicInventoryPageProps> = ({ clinic
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 sm:px-5 rounded-2xl border border-gray-100 shadow-xs">
         <div className="flex items-center gap-2">
           <Wallet className="w-5 h-5 text-blue-600" />
-          <span className="font-bold text-sm text-gray-900">المؤشرات المالية والمخزون:</span>
+          <span className="font-bold text-sm text-gray-900">المؤشرات المالية للمخزن:</span>
           <span className="text-xs text-gray-500">({periodLabel})</span>
         </div>
-        <div className="flex items-center gap-1.5 bg-gray-100/80 p-1 rounded-xl">
-          {[
-            { id: 'month', label: '📅 الشهر الحالي' },
-            { id: 'year', label: '📆 السنة الحالية' },
-            { id: 'all', label: '🌐 الكل' }
-          ].map(p => (
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 bg-gray-100/80 p-1 rounded-xl">
+            {[
+              { id: 'all', label: '🌐 الكل (شامل)' },
+              { id: 'month', label: '📅 الشهر الحالي' },
+              { id: 'year', label: '📆 السنة الحالية' }
+            ].map(p => (
+              <button
+                key={p.id}
+                onClick={() => setSelectedPeriod(p.id as any)}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+                  selectedPeriod === p.id
+                    ? 'bg-white text-blue-600 shadow-xs'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          {onNavigateToTreasury && (
             <button
-              key={p.id}
-              onClick={() => setSelectedPeriod(p.id as any)}
-              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
-                selectedPeriod === p.id
-                  ? 'bg-white text-blue-600 shadow-xs'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
+              onClick={onNavigateToTreasury}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
+              title="الانتقال إلى الصندوق المالي لعهدة المخزن"
             >
-              {p.label}
+              <Wallet className="w-3.5 h-3.5" />
+              <span>الصندوق المالي للمخزن</span>
             </button>
-          ))}
+          )}
         </div>
       </div>
 
       {/* Stats Cards (Financial Custody & Stock Overview) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* 1. Finance Inflow to Inventory */}
-        <BentoStatCard
-          title="صرفيات المخزون (المالية)"
-          value={formatCurrency(periodStats.periodFinanceExpenses)}
-          icon={Wallet}
-          color="blue"
-          trend="up"
-          trendValue={periodLabel}
-          delay={100}
-          compact={true}
-        />
+        <div onClick={onNavigateToTreasury} className="cursor-pointer">
+          <BentoStatCard
+            title="المبالغ المحولة من المالية"
+            value={formatCurrency(selectedPeriod === 'all' ? periodStats.allTimeFinanceExpenses : periodStats.periodFinanceExpenses)}
+            icon={Wallet}
+            color="blue"
+            trend="up"
+            trendValue={selectedPeriod === 'all' ? `${periodStats.allTimeFinanceExpenses > 0 ? 'كافة التحويلات' : 'لا توجد تحويلات'}` : `المحول: ${periodLabel}`}
+            delay={100}
+            compact={true}
+          />
+        </div>
 
         {/* 2. Warehouse Custody Balance (Surplus or Deficit / Negative) */}
-        <BentoStatCard
-          title={periodStats.custodyBalance >= 0 ? "فائض عهدة المخزن" : "المخزن يطلب العيادة"}
-          value={formatCurrency(Math.abs(periodStats.custodyBalance))}
-          icon={periodStats.custodyBalance >= 0 ? ArrowUpRight : ArrowDownRight}
-          color={periodStats.custodyBalance >= 0 ? "green" : "red"}
-          trend={periodStats.custodyBalance >= 0 ? "up" : "down"}
-          trendValue={periodStats.custodyBalance >= 0 ? "فائض سيولة (+)" : "عجز / شراء آجل (-)"}
-          delay={200}
-          compact={true}
-        />
+        <div onClick={onNavigateToTreasury} className="cursor-pointer">
+          <BentoStatCard
+            title={periodStats.custodyBalance >= 0 ? "فائض عهدة المخزن" : "المخزن يطلب العيادة"}
+            value={formatCurrency(Math.abs(periodStats.custodyBalance))}
+            icon={periodStats.custodyBalance >= 0 ? ArrowUpRight : ArrowDownRight}
+            color={periodStats.custodyBalance >= 0 ? "green" : "red"}
+            trend={periodStats.custodyBalance >= 0 ? "up" : "down"}
+            trendValue={periodStats.custodyBalance >= 0 ? "فائض سيولة (+)" : "عجز مطلوب تسويته (-)"}
+            delay={200}
+            compact={true}
+          />
+        </div>
 
         {/* 3. Dispensed Materials Value */}
         <BentoStatCard

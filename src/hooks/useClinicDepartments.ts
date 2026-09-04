@@ -64,16 +64,17 @@ export const useClinicDepartments = (clinicId?: string) => {
             // 2. Auto-seed with single department carrying clinic name if none exist
             let clinicName = 'العيادة الرئيسية';
             try {
+                const numId = parseInt(clinicId, 10);
                 const { data: clinicData } = await supabase
                     .from('clinics')
                     .select('name')
-                    .eq('id', clinicId)
+                    .eq('id', !isNaN(numId) ? numId : clinicId)
                     .single();
                 if (clinicData?.name) {
                     clinicName = clinicData.name.trim();
                 }
-            } catch {
-                // Fallback
+            } catch (err) {
+                console.warn('Could not fetch clinic name, using fallback:', err);
             }
 
             const initialDept: ClinicDepartment = {
@@ -85,12 +86,12 @@ export const useClinicDepartments = (clinicId?: string) => {
                 createdAt: new Date().toISOString()
             };
 
-            // Try saving initial to Supabase
+            // Try saving initial to Supabase if table exists
             try {
                 const { data: inserted, error: insertErr } = await supabase
                     .from('clinic_departments')
                     .insert([{
-                        clinic_id: clinicId,
+                        clinic_id: !isNaN(parseInt(clinicId, 10)) ? parseInt(clinicId, 10) : clinicId,
                         name: initialDept.name,
                         description: initialDept.description,
                         is_active: true
@@ -101,7 +102,7 @@ export const useClinicDepartments = (clinicId?: string) => {
                     initialDept.id = inserted[0].id.toString();
                 }
             } catch {
-                // Table might not exist yet in DB
+                // Table might not exist yet in DB, local state handles it seamlessly
             }
 
             const initialList = [initialDept];
@@ -109,15 +110,28 @@ export const useClinicDepartments = (clinicId?: string) => {
             localStorage.setItem(getLocalStorageKey(), JSON.stringify(initialList));
         } catch (err) {
             console.error('Error in useClinicDepartments:', err);
-            // Fallback from localStorage
+            // Fallback from localStorage or guarantee default department
             const localData = localStorage.getItem(getLocalStorageKey());
             if (localData) {
                 try {
-                    setDepartments(JSON.parse(localData));
+                    const parsed = JSON.parse(localData);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        setDepartments(parsed);
+                        setLoading(false);
+                        return;
+                    }
                 } catch {
                     // Ignore
                 }
             }
+            // Absolute guarantee: at least one department with clinic name or default
+            setDepartments([{
+                id: 'dept-default',
+                clinicId: clinicId ? clinicId.toString() : '1',
+                name: 'العيادة الرئيسية',
+                description: 'القسم الرئيسي للعيادة',
+                isActive: true
+            }]);
         } finally {
             setLoading(false);
         }
