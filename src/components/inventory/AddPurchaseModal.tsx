@@ -58,8 +58,7 @@ export const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({
     const [invoiceNumber, setInvoiceNumber] = useState('');
     const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().split('T')[0]);
     const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'bank' | 'credit'>('cash');
-    const [pricingMode, setPricingMode] = useState<'itemized' | 'lump_sum'>('itemized');
-    const [lumpSumAmount, setLumpSumAmount] = useState<string>('');
+    const [enteredTotal, setEnteredTotal] = useState<string>('');
     const [notes, setNotes] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -76,8 +75,7 @@ export const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({
             setInvoiceNumber('');
             setPurchaseDate(new Date().toISOString().split('T')[0]);
             setPaymentMethod('cash');
-            setPricingMode('itemized');
-            setLumpSumAmount('');
+            setEnteredTotal('');
             setNotes('');
             setItems([
                 { id: '', name: '', quantity: 1, unitPrice: 0, totalPrice: 0, unit: 'قطعة', isNewItem: false, specialty: 'General', type: 'Consumables', category: 'equipment' }
@@ -87,9 +85,10 @@ export const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({
 
     if (!isOpen) return null;
 
-    // Calculate itemized total
+    // Calculate totals and pricing mode automatically
     const itemizedTotal = items.reduce((sum, item) => sum + (Number(item.totalPrice) || (Number(item.quantity) * Number(item.unitPrice || 0))), 0);
-    const finalTotalAmount = pricingMode === 'itemized' ? itemizedTotal : (parseFloat(lumpSumAmount) || 0);
+    const finalTotalAmount = itemizedTotal > 0 ? itemizedTotal : (parseFloat(enteredTotal) || 0);
+    const pricingMode: 'itemized' | 'lump_sum' = itemizedTotal > 0 ? 'itemized' : 'lump_sum';
 
     // Row management
     const handleAddItemRow = () => {
@@ -150,8 +149,8 @@ export const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (finalTotalAmount <= 0 && pricingMode === 'lump_sum') {
-            toast.error('يرجى إدخال المبلغ الإجمالي للفاتورة');
+        if (finalTotalAmount <= 0) {
+            toast.error('يرجى إدخال المبلغ الإجمالي للفاتورة أو تسعير المواد');
             return;
         }
 
@@ -163,11 +162,11 @@ export const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({
             for (const item of items) {
                 const itemName = item.name.trim();
                 const qty = Number(item.quantity) || 0;
-                const unitCost = Number(item.unitPrice) || (qty > 0 ? (finalTotalAmount / (items.length || 1) / qty) : 0);
+                const unitCost = Number(item.unitPrice) || (qty > 0 && items.length > 0 ? (finalTotalAmount / items.length / qty) : 0);
                 const rowTotal = item.totalPrice || (qty * unitCost);
 
                 if (!itemName && items.length > 1) continue; // Skip empty rows if multiple
-                if (!itemName && items.length === 1 && pricingMode === 'lump_sum') {
+                if (!itemName && items.length === 1) {
                     // Bulk purchase without specific items
                     break;
                 }
@@ -236,6 +235,17 @@ export const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({
                     quantity: qty,
                     unitPrice: unitCost,
                     totalPrice: rowTotal
+                });
+            }
+
+            // If no individual items were specified, create a single general purchase item entry
+            if (validItems.length === 0) {
+                validItems.push({
+                    name: purchaseType === 'inventory' ? 'مشتريات مخزون عامة' : 'مشتريات أصول عامة',
+                    quantity: 1,
+                    unitPrice: finalTotalAmount,
+                    totalPrice: finalTotalAmount,
+                    unit: 'دفعة'
                 });
             }
 
@@ -319,7 +329,7 @@ export const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({
                     </div>
 
                     {/* 2. Invoice General Info */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-gray-50/70 p-3.5 rounded-xl border border-gray-100">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-gray-50/70 p-3.5 rounded-xl border border-gray-100">
                         <div>
                             <label className="block text-[11px] font-bold text-gray-700 mb-1">المورد / المجهز</label>
                             <input
@@ -355,57 +365,49 @@ export const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({
                                 <option value="credit">آجل (ذمم دائنة)</option>
                             </select>
                         </div>
-                    </div>
 
-                    {/* 3. Pricing Mode Toggle */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-2">
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-gray-800">طريقة احتساب تكلفة الفاتورة:</span>
-                            <div className="inline-flex bg-gray-100 p-0.5 rounded-lg text-xs font-bold">
-                                <button
-                                    type="button"
-                                    onClick={() => setPricingMode('itemized')}
-                                    className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
-                                        pricingMode === 'itemized' ? 'bg-white text-emerald-800 shadow-xs' : 'text-gray-600'
-                                    }`}
-                                >
-                                    تسعير إفرادي (لكل مادة)
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setPricingMode('lump_sum')}
-                                    className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
-                                        pricingMode === 'lump_sum' ? 'bg-white text-emerald-800 shadow-xs' : 'text-gray-600'
-                                    }`}
-                                >
-                                    سعر إجمالي للفاتورة
-                                </button>
+                        <div>
+                            <div className="flex items-center justify-between mb-1">
+                                <label className="block text-[11px] font-bold text-gray-700">
+                                    المبلغ الإجمالي (د.ع) <span className="text-red-500">*</span>
+                                </label>
+                                {itemizedTotal > 0 && (
+                                    <span className="text-[9px] text-emerald-700 font-bold bg-emerald-100 px-1.5 py-0.5 rounded">
+                                        محسوب من المواد
+                                    </span>
+                                )}
                             </div>
-                        </div>
-
-                        {pricingMode === 'lump_sum' && (
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-gray-700">المبلغ الإجمالي للفاتورة (د.ع):</span>
+                            {itemizedTotal > 0 ? (
+                                <div className="w-full px-2.5 py-1.5 bg-emerald-50 border border-emerald-300 rounded-lg text-xs font-black text-emerald-800 flex items-center justify-between">
+                                    <span>{itemizedTotal.toLocaleString()} د.ع</span>
+                                    <span className="text-[10px] font-medium text-emerald-600">تلقائي</span>
+                                </div>
+                            ) : (
                                 <input
                                     type="number"
                                     min="1"
-                                    value={lumpSumAmount}
-                                    onChange={e => setLumpSumAmount(e.target.value)}
-                                    placeholder="المبلغ الإجمالي د.ع"
-                                    className="w-36 px-2.5 py-1.5 border border-emerald-300 rounded-lg text-xs font-extrabold text-emerald-800 bg-emerald-50/50 outline-none focus:ring-2 focus:ring-emerald-500"
-                                    required={pricingMode === 'lump_sum'}
+                                    step="500"
+                                    value={enteredTotal}
+                                    onChange={e => setEnteredTotal(e.target.value)}
+                                    placeholder="أدخل الإجمالي د.ع"
+                                    className="w-full px-2.5 py-1.5 bg-white border border-emerald-300 rounded-lg text-xs font-extrabold text-emerald-800 focus:ring-2 focus:ring-emerald-500 outline-none"
                                 />
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
 
-                    {/* 4. Items List Rows */}
+                    {/* 3. Items List Rows */}
                     <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                            <h4 className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
-                                <Layers className="w-4 h-4 text-emerald-600" />
-                                <span>قائمة المواد / الأصول في الفاتورة ({items.length})</span>
-                            </h4>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <h4 className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                                    <Layers className="w-4 h-4 text-emerald-600" />
+                                    <span>قائمة المواد / الأصول في الفاتورة ({items.length})</span>
+                                </h4>
+                                <span className="text-[11px] text-gray-400 font-normal">
+                                    (اختياري - يمكنك حفظ فاتورة إجمالية مباشرة دون تحديد مواد)
+                                </span>
+                            </div>
                             <Button
                                 type="button"
                                 size="sm"
@@ -455,7 +457,6 @@ export const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({
                                                             onChange={e => handleItemChange(idx, 'name', e.target.value)}
                                                             placeholder="اكتب اسم المادة الجديدة..."
                                                             className="w-full px-2.5 py-1.5 bg-white border border-emerald-300 rounded-lg text-xs text-gray-800 focus:ring-2 focus:ring-emerald-500 outline-none"
-                                                            required
                                                         />
                                                         <button
                                                             type="button"
@@ -471,7 +472,7 @@ export const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({
                                                         onChange={e => handleItemChange(idx, 'id', e.target.value)}
                                                         className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-gray-800 focus:ring-2 focus:ring-emerald-500 outline-none"
                                                     >
-                                                        <option value="">-- اختر مادة من المخزون --</option>
+                                                        <option value="">-- اختر مادة من المخزون (اختياري) --</option>
                                                         {inventory.map(inv => (
                                                             <option key={inv.id} value={inv.id}>
                                                                 {inv.name} (الرصيد الحالي: {inv.quantity} {inv.unit})
@@ -487,7 +488,6 @@ export const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({
                                                     onChange={e => handleItemChange(idx, 'name', e.target.value)}
                                                     placeholder="مثال: جهاز أوتوكلاف، كرسي أسنان..."
                                                     className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none"
-                                                    required
                                                 />
                                             )}
                                         </div>
@@ -501,7 +501,6 @@ export const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({
                                                 value={item.quantity}
                                                 onChange={e => handleItemChange(idx, 'quantity', Math.max(1, parseInt(e.target.value) || 1))}
                                                 className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-800 text-center outline-none focus:ring-2 focus:ring-emerald-500"
-                                                required
                                             />
                                         </div>
 
@@ -517,32 +516,29 @@ export const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({
                                             />
                                         </div>
 
-                                        {/* Unit Price (if itemized mode) */}
-                                        {pricingMode === 'itemized' ? (
-                                            <div className="sm:col-span-3">
-                                                <label className="block text-[11px] font-semibold text-gray-700 mb-1">سعر المفرد (د.ع)</label>
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="500"
-                                                    value={item.unitPrice || ''}
-                                                    onChange={e => handleItemChange(idx, 'unitPrice', parseFloat(e.target.value) || 0)}
-                                                    placeholder="0"
-                                                    className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-800 text-left outline-none focus:ring-2 focus:ring-emerald-500"
-                                                />
+                                        {/* Unit Price */}
+                                        <div className="sm:col-span-3">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <label className="block text-[11px] font-semibold text-gray-700">سعر المفرد (د.ع)</label>
+                                                <span className="text-[10px] text-gray-400 font-normal">اختياري</span>
                                             </div>
-                                        ) : (
-                                            <div className="sm:col-span-3 text-[11px] text-gray-400 py-2">
-                                                مشترك بالسعر الإجمالي
-                                            </div>
-                                        )}
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="500"
+                                                value={item.unitPrice || ''}
+                                                onChange={e => handleItemChange(idx, 'unitPrice', parseFloat(e.target.value) || 0)}
+                                                placeholder="0 (اختياري)"
+                                                className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-800 text-left outline-none focus:ring-2 focus:ring-emerald-500"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* 5. Notes */}
+                    {/* 4. Notes */}
                     <div>
                         <label className="block text-xs font-bold text-gray-700 mb-1">ملاحظات الفاتورة (اختياري)</label>
                         <input
@@ -577,7 +573,7 @@ export const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({
                         <Button
                             type="button"
                             onClick={handleSubmit}
-                            disabled={isSubmitting || (pricingMode === 'itemized' && itemizedTotal <= 0 && items.every(i => !i.name))}
+                            disabled={isSubmitting || finalTotalAmount <= 0}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-5 py-2 cursor-pointer shadow-md shadow-emerald-600/20"
                         >
                             {isSubmitting ? 'جاري الحفظ والتحديث...' : 'تأكيد وحفظ الفاتورة'}
