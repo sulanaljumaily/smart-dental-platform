@@ -442,43 +442,44 @@ export const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({
                                         )}
                                     </div>
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
+                                    <div className="grid grid-cols-12 gap-1.5 sm:gap-2.5 items-end">
                                         {/* Name / Selection */}
-                                        <div className="sm:col-span-5">
-                                            <label className="block text-[11px] font-semibold text-gray-700 mb-1">
-                                                {item.isNewItem ? 'اسم المادة الجديدة' : 'المادة أو العنصر'}
+                                        <div className="col-span-5">
+                                            <label className="block text-[10px] sm:text-[11px] font-semibold text-gray-700 mb-1 truncate">
+                                                {item.isNewItem ? 'المادة الجديدة' : 'المادة أو العنصر'}
                                             </label>
                                             {purchaseType === 'inventory' ? (
                                                 item.isNewItem ? (
-                                                    <div className="flex gap-1.5">
+                                                    <div className="flex gap-1">
                                                         <input
                                                             type="text"
                                                             value={item.name}
                                                             onChange={e => handleItemChange(idx, 'name', e.target.value)}
-                                                            placeholder="اكتب اسم المادة الجديدة..."
-                                                            className="w-full px-2.5 py-1.5 bg-white border border-emerald-300 rounded-lg text-xs text-gray-800 focus:ring-2 focus:ring-emerald-500 outline-none"
+                                                            placeholder="اكتب اسم المادة..."
+                                                            className="w-full px-1.5 sm:px-2.5 py-1.5 bg-white border border-emerald-300 rounded-lg text-xs text-gray-800 focus:ring-2 focus:ring-emerald-500 outline-none"
                                                         />
                                                         <button
                                                             type="button"
                                                             onClick={() => handleItemChange(idx, 'isNewItem', false)}
-                                                            className="px-2 py-1 text-[10px] bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg cursor-pointer whitespace-nowrap"
+                                                            className="px-1.5 py-1 text-[10px] bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg cursor-pointer whitespace-nowrap shrink-0"
+                                                            title="اختيار من المخزن"
                                                         >
-                                                            اختيار من المخزن
+                                                            قائمة
                                                         </button>
                                                     </div>
                                                 ) : (
                                                     <select
                                                         value={item.id || ''}
                                                         onChange={e => handleItemChange(idx, 'id', e.target.value)}
-                                                        className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-gray-800 focus:ring-2 focus:ring-emerald-500 outline-none"
+                                                        className="w-full px-1.5 sm:px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-gray-800 focus:ring-2 focus:ring-emerald-500 outline-none truncate"
                                                     >
-                                                        <option value="">-- اختر مادة من المخزون (اختياري) --</option>
+                                                        <option value="">-- اختر مادة --</option>
                                                         {inventory.map(inv => (
                                                             <option key={inv.id} value={inv.id}>
-                                                                {inv.name} (الرصيد الحالي: {inv.quantity} {inv.unit})
+                                                                {inv.name} (الرصيد: {inv.quantity} {inv.unit})
                                                             </option>
                                                         ))}
-                                                        <option value="__new__">➕ كتابة مادة جديدة غير مسجلة...</option>
+                                                        <option value="__new__">➕ مادة جديدة غير مسجلة...</option>
                                                     </select>
                                                 )
                                             ) : (
@@ -486,41 +487,41 @@ export const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({
                                                     type="text"
                                                     value={item.name}
                                                     onChange={e => handleItemChange(idx, 'name', e.target.value)}
-                                                    placeholder="مثال: جهاز أوتوكلاف، كرسي أسنان..."
-                                                    className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none"
+                                                    placeholder="اسم الأصل (مثال: أوتوكلاف)..."
+                                                    className="w-full px-1.5 sm:px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none"
                                                 />
                                             )}
                                         </div>
 
                                         {/* Quantity */}
-                                        <div className="sm:col-span-2">
-                                            <label className="block text-[11px] font-semibold text-gray-700 mb-1">الكمية</label>
+                                        <div className="col-span-2">
+                                            <label className="block text-[10px] sm:text-[11px] font-semibold text-gray-700 mb-1 text-center truncate">الكمية</label>
                                             <input
                                                 type="number"
                                                 min="1"
                                                 value={item.quantity}
                                                 onChange={e => handleItemChange(idx, 'quantity', Math.max(1, parseInt(e.target.value) || 1))}
-                                                className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-800 text-center outline-none focus:ring-2 focus:ring-emerald-500"
+                                                className="w-full px-1 sm:px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-800 text-center outline-none focus:ring-2 focus:ring-emerald-500"
                                             />
                                         </div>
 
                                         {/* Unit */}
-                                        <div className="sm:col-span-2">
-                                            <label className="block text-[11px] font-semibold text-gray-700 mb-1">الوحدة</label>
+                                        <div className="col-span-2">
+                                            <label className="block text-[10px] sm:text-[11px] font-semibold text-gray-700 mb-1 text-center truncate">الوحدة</label>
                                             <input
                                                 type="text"
                                                 value={item.unit || 'قطعة'}
                                                 onChange={e => handleItemChange(idx, 'unit', e.target.value)}
-                                                placeholder="علبة / قطعة"
-                                                className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-gray-700 text-center outline-none"
+                                                placeholder="قطعة"
+                                                className="w-full px-1 sm:px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-gray-700 text-center outline-none"
                                             />
                                         </div>
 
                                         {/* Unit Price */}
-                                        <div className="sm:col-span-3">
+                                        <div className="col-span-3">
                                             <div className="flex items-center justify-between mb-1">
-                                                <label className="block text-[11px] font-semibold text-gray-700">سعر المفرد (د.ع)</label>
-                                                <span className="text-[10px] text-gray-400 font-normal">اختياري</span>
+                                                <label className="block text-[10px] sm:text-[11px] font-semibold text-gray-700 truncate">سعر المفرد</label>
+                                                <span className="hidden sm:inline text-[10px] text-gray-400 font-normal">اختياري</span>
                                             </div>
                                             <input
                                                 type="number"
@@ -528,8 +529,8 @@ export const AddPurchaseModal: React.FC<AddPurchaseModalProps> = ({
                                                 step="500"
                                                 value={item.unitPrice || ''}
                                                 onChange={e => handleItemChange(idx, 'unitPrice', parseFloat(e.target.value) || 0)}
-                                                placeholder="0 (اختياري)"
-                                                className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-800 text-left outline-none focus:ring-2 focus:ring-emerald-500"
+                                                placeholder="0"
+                                                className="w-full px-1.5 sm:px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-800 text-left outline-none focus:ring-2 focus:ring-emerald-500"
                                             />
                                         </div>
                                     </div>
