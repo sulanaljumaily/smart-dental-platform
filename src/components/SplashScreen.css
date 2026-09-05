@@ -1,6 +1,6 @@
 /* ==========================================================================
-   SplashScreen Modern Styles - Dental Platform (منصة طب الأسنان)
-   Theme: Quoted directly from Doctor Clinic Login Page (#3B82F6 -> #1E40AF -> #1E3A8A)
+   SplashScreen Styles - Pixel-Perfect Match to Official Reference Design
+   Theme: Luxury Midnight Medical Navy (#020712 ➔ #030f21 ➔ #081a33 ➔ #0d2a4d)
    ========================================================================== */
 
 .splash-screen {
@@ -8,9 +8,10 @@
   inset: 0;
   width: 100vw;
   height: 100vh;
-  /* التدرج اللوني الملكي المقتبس تماماً من صفحة تسجيل الدخول للأطباء (from-primary via-primary-dark to-blue-900) */
-  background: linear-gradient(135deg, #3B82F6 0%, #1E40AF 50%, #1E3A8A 100%);
+  /* التدرج اللوني الليلي الطبي الفاخر - مطابق تماماً للصورة */
+  background: radial-gradient(circle at 85% 18%, #0d2a4d 0%, #081a33 35%, #030f21 70%, #020712 100%);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   z-index: 999999;
@@ -30,185 +31,161 @@
   pointer-events: none;
 }
 
-/* هالات الضوء الخلفية بدرجات الأزرق الملكي الداكنة المتناسقة */
-.splash-ambient-orb {
+/* هالة التوهج العلوية الفخمة خلف مجسم السن */
+.splash-top-glow {
   position: absolute;
+  top: -5%;
+  right: -5%;
+  width: 480px;
+  height: 480px;
   border-radius: 50%;
-  filter: blur(120px);
+  background: radial-gradient(circle, rgba(30, 95, 175, 0.35) 0%, rgba(10, 35, 75, 0) 70%);
+  filter: blur(70px);
   pointer-events: none;
-  opacity: 0.25;
-  animation: float-ambient 9s ease-in-out infinite alternate;
+  z-index: 0;
 }
 
-.orb-1 {
-  width: 400px;
-  height: 400px;
-  background: #3B82F6;
-  top: 10%;
-  left: 15%;
+/* مجسم السن الشبكي الكريستالي 3D في الزاوية العلوية اليمنى */
+.splash-tooth-mesh {
+  position: absolute;
+  top: -15px;
+  right: -25px;
+  width: 440px;
+  max-width: 90vw;
+  height: 560px;
+  pointer-events: none;
+  opacity: 0.42;
+  z-index: 1;
 }
 
-.orb-2 {
-  width: 420px;
-  height: 420px;
-  background: #1E3A8A;
-  bottom: 10%;
-  right: 15%;
-  animation-delay: -4.5s;
-}
-
-/* الحاوية المركزية للشاشة */
-.splash-container {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1.75rem;
-  padding: 2rem 1.5rem;
-  max-width: 540px;
-  width: 100%;
-  z-index: 2;
-}
-
-/* --------------------------------------------------------------------------
-   الشعار الرسمي وقاعدة الكرت البيضاء (مستوحى من كرت صفحة تسجيل الدخول)
-   الشعار أزرق وأبيض (أيقونة بيضاء على خلفية زرقاء) والقاعدة البيضاء تبرزه بقوة
-   -------------------------------------------------------------------------- */
-.splash-logo-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.splash-logo-card {
-  position: relative;
-  width: 112px;
-  height: 112px;
-  background: #ffffff;
-  border-radius: 28px;
-  padding: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.3);
-  animation: logo-entrance 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards,
-             logo-float 4s ease-in-out 0.85s infinite alternate;
-}
-
-.splash-logo-img {
+.tooth-wireframe-svg {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  border-radius: 20px;
-  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 0 15px rgba(100, 181, 246, 0.2));
 }
 
-/* --------------------------------------------------------------------------
-   النصوص وتناسق الخطوط بالأبيض الملكي النقي
-   -------------------------------------------------------------------------- */
-.splash-text-group {
+/* الحاوية المركزية للشعار والنصوص */
+.splash-center-content {
+  position: relative;
+  z-index: 10;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 0.6rem;
-  width: 100%;
-}
-
-.splash-en-badge {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.85);
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  padding: 3px 14px;
-  border-radius: 9999px;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  animation: text-reveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
-}
-
-.splash-title {
-  font-size: 2.35rem;
-  font-weight: 900;
-  color: #ffffff;
-  margin: 0.1rem 0 0 0;
-  letter-spacing: -0.4px;
-  line-height: 1.25;
-  text-shadow: 0 3px 12px rgba(15, 23, 42, 0.3);
-  animation: text-reveal 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.28s both;
-}
-
-.splash-slogan {
-  font-size: 1.15rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.94);
-  margin: 0;
-  line-height: 1.55;
-  text-shadow: 0 2px 6px rgba(15, 23, 42, 0.2);
-  animation: text-reveal 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.42s both;
+  margin-top: -40px;
+  padding: 0 1.5rem;
 }
 
 /* --------------------------------------------------------------------------
-   مؤشر التحميل الأنيق الانسيابي
+   أيقونة التطبيق الفخمة (السكويركل الأزرق الداكن بتدرج وانعكاس حواف مطابق للصورة)
    -------------------------------------------------------------------------- */
-.splash-loader-section {
+.splash-app-icon {
+  width: 114px;
+  height: 114px;
+  border-radius: 28px;
+  background: linear-gradient(155deg, #1d4e83 0%, #123762 50%, #0b2546 100%);
+  border: 1.5px solid rgba(135, 195, 250, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 
+    0 24px 48px -8px rgba(0, 0, 0, 0.75), 
+    0 0 35px rgba(25, 75, 130, 0.35), 
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.32);
+  animation: icon-float 4s ease-in-out infinite alternate;
+}
+
+.splash-icon-svg {
+  width: 66px;
+  height: 66px;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.25));
+}
+
+/* --------------------------------------------------------------------------
+   النصوص الطبوغرافية المطابقة للتصميم المرفق بالمليمتر
+   -------------------------------------------------------------------------- */
+.splash-en-brand {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 4.5px;
+  text-transform: uppercase;
+  color: #8faecc;
+  margin-top: 26px;
+  animation: text-fade-in 0.8s ease-out 0.2s both;
+}
+
+.splash-ar-title {
+  font-size: 2.25rem;
+  font-weight: 900;
+  color: #ffffff;
+  margin: 8px 0 0 0;
+  line-height: 1.25;
+  letter-spacing: -0.3px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  animation: text-fade-in 0.85s ease-out 0.35s both;
+}
+
+.splash-ar-subtitle {
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: #7c9cbe;
+  margin: 8px 0 0 0;
+  letter-spacing: 0.2px;
+  animation: text-fade-in 0.85s ease-out 0.5s both;
+}
+
+/* --------------------------------------------------------------------------
+   قسم التحميل السفلي (الدائرة المتدرجة + جاري تهيئة المنظومة...)
+   -------------------------------------------------------------------------- */
+.splash-bottom-loader {
+  position: absolute;
+  bottom: 44px;
+  left: 0;
+  right: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.6rem;
-  margin-top: 0.75rem;
-  animation: text-reveal 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.55s both;
+  gap: 14px;
+  z-index: 10;
+  animation: text-fade-in 0.9s ease-out 0.65s both;
 }
 
-.splash-progress-track {
-  width: 150px;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.22);
-  border-radius: 9999px;
-  overflow: hidden;
+.splash-spinner-ring {
+  width: 44px;
+  height: 44px;
   position: relative;
 }
 
-.splash-progress-bar {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 50%;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.1), #ffffff, rgba(255, 255, 255, 0.1));
-  border-radius: 9999px;
-  box-shadow: 0 0 10px rgba(255, 255, 255, 0.85);
-  animation: progress-shimmer 1.6s ease-in-out infinite;
+.splash-spinner-svg {
+  width: 100%;
+  height: 100%;
+  animation: spin-loader 1.15s linear infinite;
+  filter: drop-shadow(0 0 8px rgba(147, 197, 253, 0.45));
 }
 
-.splash-loading-label {
-  font-size: 0.8rem;
+.splash-loader-text {
+  font-size: 0.85rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.8);
+  color: #5e7d9d;
+  margin: 0;
   letter-spacing: 0.2px;
+  direction: rtl;
 }
 
 /* --------------------------------------------------------------------------
    الحركات Keyframes
    -------------------------------------------------------------------------- */
-@keyframes logo-entrance {
+@keyframes spin-loader {
   0% {
-    opacity: 0;
-    transform: scale(0.85) translateY(-10px);
+    transform: rotate(0deg);
   }
   100% {
-    opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: rotate(360deg);
   }
 }
 
-@keyframes logo-float {
+@keyframes icon-float {
   0% {
     transform: translateY(0);
   }
@@ -217,7 +194,7 @@
   }
 }
 
-@keyframes text-reveal {
+@keyframes text-fade-in {
   0% {
     opacity: 0;
     transform: translateY(12px);
@@ -228,64 +205,70 @@
   }
 }
 
-@keyframes progress-shimmer {
-  0% {
-    left: -50%;
-  }
-  100% {
-    left: 100%;
-  }
-}
-
-@keyframes float-ambient {
-  0% {
-    transform: translate(0, 0) scale(1);
-  }
-  100% {
-    transform: translate(20px, -15px) scale(1.06);
-  }
-}
-
 /* --------------------------------------------------------------------------
    التوافق مع الشاشات الصغيرة وتطبيقات الجوال
    -------------------------------------------------------------------------- */
 @media (max-width: 640px) {
-  .splash-container {
-    gap: 1.35rem;
-    padding: 1.5rem 1rem;
+  .splash-center-content {
+    margin-top: -30px;
+    padding: 0 1rem;
   }
 
-  .splash-logo-card {
-    width: 96px;
-    height: 96px;
+  .splash-app-icon {
+    width: 100px;
+    height: 100px;
     border-radius: 24px;
-    padding: 7px;
   }
 
-  .splash-logo-img {
-    border-radius: 17px;
+  .splash-icon-svg {
+    width: 58px;
+    height: 58px;
   }
 
-  .splash-title {
+  .splash-en-brand {
+    font-size: 0.72rem;
+    letter-spacing: 3.8px;
+    margin-top: 22px;
+  }
+
+  .splash-ar-title {
     font-size: 1.85rem;
+    margin-top: 6px;
   }
 
-  .splash-slogan {
-    font-size: 0.98rem;
-    padding: 0 0.75rem;
+  .splash-ar-subtitle {
+    font-size: 0.95rem;
+    margin-top: 6px;
   }
 
-  .splash-progress-track {
-    width: 125px;
+  .splash-tooth-mesh {
+    width: 320px;
+    height: 440px;
+    top: -10px;
+    right: -15px;
+  }
+
+  .splash-bottom-loader {
+    bottom: 34px;
+    gap: 10px;
+  }
+
+  .splash-spinner-ring {
+    width: 38px;
+    height: 38px;
+  }
+
+  .splash-loader-text {
+    font-size: 0.8rem;
   }
 }
 
 @media (max-width: 380px) {
-  .splash-title {
+  .splash-ar-title {
     font-size: 1.6rem;
   }
 
-  .splash-slogan {
-    font-size: 0.9rem;
+  .splash-ar-subtitle {
+    font-size: 0.88rem;
   }
 }

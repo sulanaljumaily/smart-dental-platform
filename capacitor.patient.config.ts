@@ -11,7 +11,7 @@ const config: CapacitorConfig = {
   plugins: {
     SplashScreen: {
       launchShowDuration: 3000,
-      backgroundColor: '#1E40AF',
+      backgroundColor: '#030f21',
       showSpinner: false,
       splashImmersive: true,
       layoutName: 'splash',

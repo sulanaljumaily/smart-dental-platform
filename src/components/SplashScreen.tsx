@@ -16,26 +16,12 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
   const [show, setShow] = useState(isVisible);
   const [isFadingOut, setIsFadingOut] = useState(false);
 
-  const isPatientApp = import.meta.env.VITE_BUILD_TARGET === 'patient';
-  const isProApp = import.meta.env.VITE_BUILD_TARGET === 'pro';
-
-  // العنوان الرئيسي الموحد
-  const mainTitle = 'منصة طب الأسنان';
-  const englishTitle = 'DENTAL PLATFORM';
-
-  // الشعار الملم والشامل لكافة أرجاء المنظومة
-  const platformSlogan = isPatientApp
-    ? 'بوابتكم الموحدة لخدمات ورعاية طب الأسنان'
-    : isProApp
-    ? 'المنظومة الرقمية المتكاملة لإدارة العيادات والمراكز التخصصية'
-    : 'المنظومة الرقمية الشاملة والمتكاملة لطب وجراحة الفم والأسنان';
-
   useEffect(() => {
     if (isVisible) {
       setShow(true);
       setIsFadingOut(false);
 
-      // تنسيق الإخفاء مع بيئة كاباسيتور للهواتف
+      // تنسيق الإخفاء مع بيئة كاباسيتور للهواتف الأصلية
       CapacitorSplashScreen.show({
         autoHide: true,
         showDuration: duration,
@@ -66,42 +52,146 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
     <div
       className={`splash-screen ${isFadingOut ? 'splash-fade-out' : ''}`}
       dir="rtl"
-      aria-label="شاشة التحميل - منصة طب الأسنان"
+      aria-label="منصة طب الأسنان - Dental Platform"
     >
-      {/* هالات إضاءة ملكية متطابقة مع ألوان صفحة تسجيل الدخول */}
-      <div className="splash-ambient-orb orb-1" aria-hidden="true"></div>
-      <div className="splash-ambient-orb orb-2" aria-hidden="true"></div>
+      {/* هالة التوهج العلوية خلف مجسم السن ثلاثي الأبعاد */}
+      <div className="splash-top-glow" aria-hidden="true"></div>
 
-      <div className="splash-container">
-        {/* قاعدة الشعار البيضاء المقتبسة من كرت صفحة تسجيل الدخول لإبراز الشعار الأزرق بدقة */}
-        <div className="splash-logo-wrapper">
-          <div className="splash-logo-card">
-            <img
-              src="/logo.svg"
-              onError={(e) => {
-                e.currentTarget.onerror = null;
-                e.currentTarget.src = '/logo.png';
-              }}
-              alt="شعار منصة طب الأسنان الرسمي"
-              className="splash-logo-img"
+      {/* مجسم السن الشبكي الكريستالي 3D في الزاوية العلوية اليمنى مطابق تماماً للتصميم */}
+      <div className="splash-tooth-mesh" aria-hidden="true">
+        <svg
+          viewBox="0 0 400 520"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          className="tooth-wireframe-svg"
+        >
+          <defs>
+            <linearGradient id="mesh-edge-glow" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#7ec3f8" stopOpacity="0.45" />
+              <stop offset="50%" stopColor="#3b82f6" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="#1e3a8a" stopOpacity="0.06" />
+            </linearGradient>
+            <linearGradient id="facet-fill" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#60a5fa" stopOpacity="0.08" />
+              <stop offset="100%" stopColor="#1d4ed8" stopOpacity="0.02" />
+            </linearGradient>
+          </defs>
+
+          {/* مثلثات الأوجه الكريستالية لتاج وجذور السن Low-Poly */}
+          <polygon points="210,45 280,35 245,95" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="280,35 340,55 315,110" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="245,95 280,35 315,110" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="150,65 210,45 185,115" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="185,115 210,45 245,95" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="110,105 150,65 145,145" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="145,145 150,65 185,115" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="340,55 385,90 360,140" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="315,110 340,55 360,140" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+
+          {/* منتصف التاج والسطح الخارجي */}
+          <polygon points="145,145 185,115 220,170" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="185,115 245,95 220,170" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="245,95 315,110 280,165" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="245,95 280,165 220,170" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="315,110 360,140 335,190" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="280,165 315,110 335,190" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+
+          {/* الخط العنقي وقاعدة التاج */}
+          <polygon points="95,175 145,145 130,225" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="145,145 220,170 175,230" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="130,225 145,145 175,230" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="220,170 280,165 245,235" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="175,230 220,170 245,235" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="280,165 335,190 305,245" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="245,235 280,165 305,245" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="335,190 380,165 355,230" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="305,245 335,190 355,230" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+
+          {/* الجذع وتفرع الجذور */}
+          <polygon points="115,280 130,225 165,295" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="130,225 175,230 165,295" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="175,230 245,235 210,300" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="165,295 175,230 210,300" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="245,235 305,245 265,305" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="210,300 245,235 265,305" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="305,245 355,230 320,290" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="265,305 305,245 320,290" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+
+          {/* الجذر الإنسي (الأيسر) */}
+          <polygon points="140,360 165,295 185,365" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="165,295 210,300 185,365" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="140,360 185,365 160,430" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="185,365 210,360 195,435" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="160,430 185,365 195,435" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="160,430 195,435 180,490" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="180,490 195,435 190,515" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+
+          {/* الجذر الوحشي (الأيمن) */}
+          <polygon points="240,365 265,305 290,360" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="265,305 320,290 290,360" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="255,425 240,365 290,360" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="255,425 290,360 300,420" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="270,475 255,425 300,420" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="270,475 300,420 305,470" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+          <polygon points="285,505 270,475 305,470" fill="url(#facet-fill)" stroke="url(#mesh-edge-glow)" strokeWidth="0.9" />
+        </svg>
+      </div>
+
+      {/* المحتوى المركزي: الأيقونة والنصوص */}
+      <div className="splash-center-content">
+        {/* أيقونة التطبيق الزرقاء الفخمة بتدرج وحواف طبق الأصل من الصورة */}
+        <div className="splash-app-icon">
+          <svg viewBox="0 0 128 128" className="splash-icon-svg" fill="none">
+            <path
+              d="M19.509,63.125c0.021,-8.31 0.003,-8.293 0.008,-9.014c0.004,-0.606 0.309,-0.502 0.786,-0.137c12.187,9.322 37.838,28.133 41.144,30.558c1.389,1.018 2.375,0.907 1.535,2.407c-3.689,6.592 3.204,8.923 4.911,8.509c3.296,-0.798 4.384,-2.929 5.668,-1.986c1.07,0.786 12.606,9.255 13.29,9.935c0.524,0.52 -0.099,0.593 -7.148,5.835c-4.138,3.077 -4.204,3.515 -5.855,2.975c-11.689,-3.824 -19.432,-5.589 -28.734,-9.306c-26.917,-10.755 -25.606,-26.448 -25.606,-39.776Z"
+              fill="#ffffff"
             />
-          </div>
+            <path
+              d="M110.741,46.375c-0.01,2.922 0.659,3.399 -1.7,5.14c-6.621,4.888 -6.576,4.942 -7.178,5.328c-0.473,0.303 -0.252,-0.35 -0.344,-18.466c-0.063,-12.433 -11.552,-20.615 -23.917,-14.799c-8.476,3.987 -14.746,5.194 -24.5,0.09c-10.884,-5.696 -25.195,0.847 -24.357,16.704c0.233,4.409 0.011,5.111 0.03,16.243c0.001,0.773 -0.663,0.094 -4.973,-3.147c-3.691,-2.776 -4.262,-2.814 -4.276,-4.092c-0.114,-10.141 -1.971,-27.519 15.821,-35.068c11.989,-5.086 22.949,1.913 24.028,2.317c12.027,4.503 16.103,-6.593 30.981,-3.65c10.828,2.142 20.196,11.378 20.377,24.898c0.009,0.68 0.085,6.281 0.008,8.502Z"
+              fill="#ffffff"
+            />
+            <path
+              d="M110.741,60.375c0.465,17.434 -0.12,25.703 -13.943,36.15c-0.665,0.502 -8.055,6.088 -8.419,6.128c-0.269,0.03 -0.26,-0.065 -9.588,-6.916c-0.175,-0.128 -0.164,-0.121 -2.731,-2.024c-1.46,-1.083 -2.351,-1.179 -1.285,-2.661c0.079,-0.11 0.812,-1.562 -0.915,-0.706c-1.211,0.6 -7.087,6.784 -9.635,0.984c-1.347,-3.065 0.817,-3.877 12.083,-12.296c17.005,-12.708 17.018,-12.649 18.495,-13.753c15.305,-11.444 16.125,-12.107 16.087,-11.159c-0.038,0.958 -0.169,0.932 -0.15,6.252Z"
+              fill="#ffffff"
+            />
+            <path
+              d="M66.361,117.758c-4.504,0.104 -4.676,-0.233 -17.65,-9.998c-2.503,-1.884 -1.846,-2.428 -1.613,-2.464c0.082,-0.013 22.552,7.242 24.512,7.875c0.103,0.033 1.296,0.418 1.174,0.665c-0.396,0.804 -1.66,1.766 -1.828,1.894c-2.324,1.769 -3.577,1.737 -4.595,2.028Z"
+              fill="#ffffff"
+            />
+          </svg>
         </div>
 
-        {/* النصوص المتناسقة بالأبيض النقي دون تصنيفات */}
-        <div className="splash-text-group">
-          <div className="splash-en-badge">{englishTitle}</div>
-          <h1 className="splash-title">{mainTitle}</h1>
-          <p className="splash-slogan">{platformSlogan}</p>
-        </div>
+        {/* النصوص المتطابقة تماماً من الصورة بالترتيب والتنسيق والخطوط */}
+        <div className="splash-en-brand">DENTAL PLATFORM</div>
+        <h1 className="splash-ar-title">منصة طب الأسنان</h1>
+        <p className="splash-ar-subtitle">المنظومة الشاملة لطب الأسنان</p>
+      </div>
 
-        {/* مؤشر التحميل الانسيابي بالأبيض والشفافية */}
-        <div className="splash-loader-section">
-          <div className="splash-progress-track">
-            <div className="splash-progress-bar"></div>
-          </div>
-          <span className="splash-loading-label">جاري تهيئة المنظومة...</span>
+      {/* قسم التحميل السفلي: دائرة اللودر المتدرجة وعبارة جاري تهيئة المنظومة */}
+      <div className="splash-bottom-loader">
+        <div className="splash-spinner-ring">
+          <svg viewBox="0 0 50 50" className="splash-spinner-svg">
+            <defs>
+              <linearGradient id="ring-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
+                <stop offset="45%" stopColor="#93c5fd" stopOpacity="0.6" />
+                <stop offset="85%" stopColor="#3b82f6" stopOpacity="0.15" />
+                <stop offset="100%" stopColor="#1e3a8a" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            <circle
+              cx="25"
+              cy="25"
+              r="18"
+              fill="none"
+              stroke="url(#ring-gradient)"
+              strokeWidth="3.4"
+              strokeLinecap="round"
+              strokeDasharray="80 35"
+            />
+          </svg>
         </div>
+        <p className="splash-loader-text">...جاري تهيئة المنظومة</p>
       </div>
     </div>
   );
