@@ -8,18 +8,7 @@ const config: CapacitorConfig = {
     androidScheme: 'https',
     allowNavigation: ['*.supabase.co', '*.supabase.io'],
   },
-  plugins: {
-    SplashScreen: {
-      launchShowDuration: 3000,
-      backgroundColor: '#030f21',
-      showSpinner: false,
-      splashImmersive: true,
-      layoutName: 'splash',
-    },
-    PushNotifications: {
-      presentationOptions: ['badge', 'sound', 'alert'],
-    },
-  },
+  plugins: {},
 };
 
 export default config;
