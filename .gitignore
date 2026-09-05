@@ -33,6 +33,6 @@ scratch/smart-dental-platform
 src-tauri/target/
 
 # Mobile build artifacts
-android/
-ios/
+/android/
+/ios/
 

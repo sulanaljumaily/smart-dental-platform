@@ -12,7 +12,6 @@ import { ServicesPage } from './pages/public/ServicesPage';
 import { ArticleDetailPage } from './pages/public/ArticleDetailPage';
 import { DiagnosisDetailPage } from './pages/public/DiagnosisDetailPage';
 import { SmartDiagnosisPage } from './pages/public/SmartDiagnosisPage';
-import { MohaAIShowcase } from './pages/public/MohaAIShowcase';
 
 // Emergency Pages
 import { DentalEmergencyPage } from './pages/emergency/DentalEmergencyPage';
@@ -259,7 +258,6 @@ function AppContent() {
 
         {/* Smart Diagnosis Page without Header/Footer */}
         <Route path="/diagnosis/ai" element={<SmartDiagnosisPage />} />
-        <Route path="/moha-showcase" element={<MohaAIShowcase />} />
 
         {/* Auth Routes (No Header) */}
         <Route

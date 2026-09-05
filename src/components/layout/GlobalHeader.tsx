@@ -46,18 +46,7 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({
   const getGuestButtons = () => {
     const isProApp = import.meta.env.VITE_BUILD_TARGET === 'pro';
     const isPatientApp = import.meta.env.VITE_BUILD_TARGET === 'patient';
-
-    // في تطبيق القطاع الطبي (Pro): زر واحد واضح "تسجيل الدخول"
-    if (isProApp) {
-      return [
-        {
-          text: 'تسجيل الدخول',
-          icon: <UserCog className="w-4 h-4 sm:w-6 sm:h-6" />,
-          path: '/login',
-          gradient: 'from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700'
-        }
-      ];
-    }
+    const path = location.pathname;
 
     // في تطبيق المرضى (Patient): إخفاء زر الأطباء تماماً
     if (isPatientApp) {
@@ -77,33 +66,32 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({
       ];
     }
 
-    const path = location.pathname;
-
+    // صفحات الاستقبال الخاصة بالقطاع الطبي (Doctor / Lab / Supplier)
     if (path === '/doctor-welcome') {
       return [
         {
-          text: 'تسجيل',
+          text: 'تسجيل الدخول',
           icon: <UserPlus className="w-4 h-4 sm:w-6 sm:h-6" />,
           path: '/login',
           gradient: 'from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'
         },
         {
-          text: 'هل أنت معمل أسنان؟',
+          text: 'مختبر أسنان؟',
           icon: <Stethoscope className="w-4 h-4 sm:w-6 sm:h-6" />,
           path: '/lab-welcome',
           gradient: 'from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600'
         },
         {
-          text: 'هل أنت مورد؟',
+          text: 'مورد؟',
           icon: <Package className="w-4 h-4 sm:w-6 sm:h-6" />,
           path: '/supplier-welcome',
           gradient: 'from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600'
         }
       ];
-    } else if (path === '/supplier-welcome' || path === '/lab-welcome') {
+    } else if (path === '/lab-welcome') {
       return [
         {
-          text: 'تسجيل',
+          text: 'تسجيل الدخول',
           icon: <UserPlus className="w-4 h-4 sm:w-6 sm:h-6" />,
           path: '/login',
           gradient: 'from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'
@@ -113,31 +101,76 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({
           icon: <UserCog className="w-4 h-4 sm:w-6 sm:h-6" />,
           path: '/doctor-welcome',
           gradient: 'from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700'
-        }
-      ];
-    } else {
-      // Default Public Pages (/, /services)
-      return [
-        {
-          text: 'الخدمات الطبية',
-          icon: <Stethoscope className="w-4 h-4 sm:w-6 sm:h-6" />,
-          path: '/services',
-          gradient: 'from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600'
         },
         {
-          text: 'تسجيل',
+          text: 'مورد؟',
+          icon: <Package className="w-4 h-4 sm:w-6 sm:h-6" />,
+          path: '/supplier-welcome',
+          gradient: 'from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600'
+        }
+      ];
+    } else if (path === '/supplier-welcome') {
+      return [
+        {
+          text: 'تسجيل الدخول',
           icon: <UserPlus className="w-4 h-4 sm:w-6 sm:h-6" />,
-          path: '/patient-login',
-          gradient: 'from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700'
+          path: '/login',
+          gradient: 'from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'
         },
         {
           text: 'للأطباء',
           icon: <UserCog className="w-4 h-4 sm:w-6 sm:h-6" />,
           path: '/doctor-welcome',
           gradient: 'from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700'
+        },
+        {
+          text: 'مختبر أسنان؟',
+          icon: <Stethoscope className="w-4 h-4 sm:w-6 sm:h-6" />,
+          path: '/lab-welcome',
+          gradient: 'from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600'
         }
       ];
     }
+
+    // في تطبيق القطاع الطبي (Pro) لباقي الصفحات (كالرئيسية):
+    if (isProApp) {
+      return [
+        {
+          text: 'للأطباء',
+          icon: <UserCog className="w-4 h-4 sm:w-6 sm:h-6" />,
+          path: '/doctor-welcome',
+          gradient: 'from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700'
+        },
+        {
+          text: 'تسجيل الدخول',
+          icon: <UserPlus className="w-4 h-4 sm:w-6 sm:h-6" />,
+          path: '/login',
+          gradient: 'from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700'
+        }
+      ];
+    }
+
+    // Default Public Pages في بيئة الويب (/, /services)
+    return [
+      {
+        text: 'الخدمات الطبية',
+        icon: <Stethoscope className="w-4 h-4 sm:w-6 sm:h-6" />,
+        path: '/services',
+        gradient: 'from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600'
+      },
+      {
+        text: 'تسجيل',
+        icon: <UserPlus className="w-4 h-4 sm:w-6 sm:h-6" />,
+        path: '/patient-login',
+        gradient: 'from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700'
+      },
+      {
+        text: 'للأطباء',
+        icon: <UserCog className="w-4 h-4 sm:w-6 sm:h-6" />,
+        path: '/doctor-welcome',
+        gradient: 'from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700'
+      }
+    ];
   };
 
   const handleLogout = async () => {
