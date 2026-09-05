@@ -24,12 +24,6 @@ export const HomePage: React.FC = () => {
   const { settings } = usePlatform();
   const { clinics } = usePublicClinics();
 
-  const stats = [
-    { number: 'عيادات', label: 'عيادات قريبة منك' },
-    { number: 'تشخيص', label: 'تشخيص ذكي' },
-    { number: 'طوارئ', label: 'تعلم التعامل مع الحالات الطارئة' },
-    { number: 'مقالات', label: 'ثقف نفسك بصحة الفم و الاسنان' }
-  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -98,7 +92,7 @@ export const HomePage: React.FC = () => {
 
 
               {/* Modern Statistics Section */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mt-4 lg:mt-0">
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-3 sm:gap-4 mt-6 lg:mt-0 w-full max-w-lg mx-auto lg:mx-0">
                 {[
                   {
                     number: 'عيادات',
@@ -128,23 +122,23 @@ export const HomePage: React.FC = () => {
                   <Link
                     to={stat.href}
                     key={index}
-                    className="group"
+                    className="group block w-full min-w-0"
                   >
                     <div
-                      className="group relative p-3 lg:p-4 bg-white/70 backdrop-blur-xl rounded-2xl border border-white/20 shadow-lg hover:shadow-2xl transition-all duration-500 hover:scale-105 hover:bg-white/80 cursor-pointer h-full flex flex-col justify-center items-center"
+                      className="group relative p-3.5 sm:p-4 lg:p-5 bg-white/80 backdrop-blur-xl rounded-2xl border border-white/30 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 hover:bg-white/95 cursor-pointer h-full flex flex-col justify-center items-center text-center overflow-hidden"
                       style={{
                         animationDelay: `${index * 0.1}s`
                       }}
                     >
                       {/* Glow Effect */}
-                      <div className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-10 rounded-2xl blur-xl group-hover:opacity-20 transition-all duration-500`}></div>
+                      <div className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-10 rounded-2xl blur-xl group-hover:opacity-25 transition-all duration-300`}></div>
 
                       {/* Content */}
-                      <div className="relative z-10 text-center">
-                        <div className={`text-xl sm:text-2xl lg:text-4xl font-black bg-gradient-to-r ${stat.color} bg-clip-text text-transparent mb-1 `}>
+                      <div className="relative z-10 w-full min-w-0 text-center">
+                        <div className={`text-base sm:text-lg lg:text-xl font-black bg-gradient-to-r ${stat.color} bg-clip-text text-transparent mb-1 truncate`}>
                           {stat.number}
                         </div>
-                        <div className="text-gray-600 font-semibold text-[10px] sm:text-xs leading-tight group-hover:text-gray-700 transition-colors">
+                        <div className="text-gray-600 font-semibold text-[11px] sm:text-xs lg:text-sm leading-tight group-hover:text-gray-800 transition-colors truncate">
                           {stat.label}
                         </div>
                       </div>

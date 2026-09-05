@@ -240,25 +240,25 @@ export const LabWelcomePage: React.FC = () => {
                     </div>
 
                     {/* CTA Banner (Full Width) */}
-                    <div className="col-span-1 md:col-span-4 mt-8">
-                        <div className="bg-teal-600 rounded-[2.5rem] p-12 text-center relative overflow-hidden shadow-2xl shadow-teal-200">
+                    <div className="col-span-1 md:col-span-4 mt-6">
+                        <div className="bg-teal-600 rounded-3xl p-6 sm:p-8 text-center relative overflow-hidden shadow-xl shadow-teal-200/50">
                             <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
-                            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
+                            <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-2xl -mr-12 -mt-12"></div>
 
-                            <div className="relative z-10 max-w-3xl mx-auto">
-                                <h2 className="text-4xl md:text-5xl font-black text-white mb-6">نظم عمل معملك اليوم</h2>
-                                <p className="text-teal-100 text-xl mb-10">انضم إلى شبكة المعامل المعتمدة واستقبل طلبات من أفضل العيادات.</p>
+                            <div className="relative z-10 max-w-2xl mx-auto">
+                                <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">نظم عمل معملك واستقبل الطلبات</h2>
+                                <p className="text-teal-100 text-sm sm:text-base mb-6">انضم لشبكة المعامل المعتمدة واستقبل طلبات التركيبات مباشرة من أفضل العيادات.</p>
 
-                                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                                <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                                     <Link to="/register?type=laboratory" className="w-full sm:w-auto">
-                                        <Button className="w-full sm:w-auto bg-white text-teal-600 hover:bg-teal-50 px-10 py-5 rounded-2xl text-xl font-bold shadow-xl transition-transform hover:scale-105">
+                                        <Button className="w-full sm:w-auto bg-white text-teal-600 hover:bg-teal-50 px-6 py-2.5 rounded-xl text-sm sm:text-base font-bold shadow-md transition-transform hover:scale-105">
                                             سجل حساب معمل جديد
-                                            <ArrowRight className="w-5 h-5 mr-2" />
+                                            <ArrowRight className="w-4 h-4 mr-2" />
                                         </Button>
                                     </Link>
-                                    <span className="text-teal-200 text-sm">أو</span>
-                                    <Link to="/" className="text-white font-medium hover:underline flex items-center gap-2">
-                                        تصفح النظام أولاً <MoveRight className="w-4 h-4" />
+                                    <span className="text-teal-200 text-xs sm:text-sm">أو</span>
+                                    <Link to="/" className="text-white text-sm font-medium hover:underline flex items-center gap-1.5">
+                                        تصفح النظام أولاً <MoveRight className="w-3.5 h-3.5" />
                                     </Link>
                                 </div>
                             </div>
@@ -268,8 +268,8 @@ export const LabWelcomePage: React.FC = () => {
                 </div>
 
                 {/* Footer */}
-                <div className="mt-20 border-t border-gray-200 pt-8 text-center">
-                    <p className="text-gray-500 font-medium">{settings.footer_text || '© 2025 SMART system. جميع الحقوق محفوظة.'}</p>
+                <div className="mt-12 border-t border-gray-200 pt-6 text-center">
+                    <p className="text-gray-500 font-medium text-xs sm:text-sm">{settings.footer_text || '© 2026 Dental Platform - منصة طب الأسنان. جميع الحقوق محفوظة.'}</p>
                 </div>
 
             </div>
