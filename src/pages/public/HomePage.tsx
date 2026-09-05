@@ -125,7 +125,7 @@ export const HomePage: React.FC = () => {
                     className="group block w-full min-w-0"
                   >
                     <div
-                      className="group relative p-3.5 sm:p-4 lg:p-5 bg-white/80 backdrop-blur-xl rounded-2xl border border-white/30 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 hover:bg-white/95 cursor-pointer h-full flex flex-col justify-center items-center text-center overflow-hidden"
+                      className="group relative p-4 sm:p-5 lg:p-6 bg-white/85 backdrop-blur-xl rounded-2xl border border-white/40 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 hover:bg-white/95 cursor-pointer h-full flex flex-col justify-center items-center text-center overflow-hidden"
                       style={{
                         animationDelay: `${index * 0.1}s`
                       }}
@@ -135,10 +135,10 @@ export const HomePage: React.FC = () => {
 
                       {/* Content */}
                       <div className="relative z-10 w-full min-w-0 text-center">
-                        <div className={`text-lg sm:text-xl lg:text-2xl font-black bg-gradient-to-r ${stat.color} bg-clip-text text-transparent mb-1 truncate`}>
+                        <div className={`text-xl sm:text-2xl lg:text-3xl font-black bg-gradient-to-r ${stat.color} bg-clip-text text-transparent mb-1.5`}>
                           {stat.number}
                         </div>
-                        <div className="text-gray-600 font-semibold text-xs sm:text-sm leading-tight group-hover:text-gray-800 transition-colors truncate">
+                        <div className="text-gray-600 font-semibold text-xs sm:text-sm lg:text-base leading-tight group-hover:text-gray-800 transition-colors truncate">
                           {stat.label}
                         </div>
                       </div>
