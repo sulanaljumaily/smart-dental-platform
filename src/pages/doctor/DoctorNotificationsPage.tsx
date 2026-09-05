@@ -11,6 +11,7 @@ import { clinicsData } from '../../data/mock/clinics';
 import { useAppointments } from '../../hooks/useAppointments';
 import { useLabOrders } from '../../hooks/useLabOrders';
 import { useStoreOrders } from '../../hooks/useStoreOrders';
+import { ClinicOfflineIndicator } from '../../components/clinic/ClinicOfflineIndicator';
 
 // Define the display categories
 type FilterCategory = 'all' | 'unread' | 'general' | 'update' | 'system' | 'appointment' | 'inventory' | 'order';
@@ -395,6 +396,9 @@ export const DoctorNotificationsPage: React.FC = () => {
           })}
         </div>
       </div>
+
+      {/* بطاقة حالة المزامنة والاتصال */}
+      <ClinicOfflineIndicator className="!m-0 mb-4 shadow-sm" />
 
       {/* List */}
       <div className="space-y-3">

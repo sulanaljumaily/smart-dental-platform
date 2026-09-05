@@ -38,7 +38,6 @@ import { ClinicFinancePage } from './ClinicFinancePage';
 
 
 import { BottomNavigation } from '../../../components/layout/BottomNavigation';
-import { ClinicOfflineIndicator } from '../../../components/clinic/ClinicOfflineIndicator';
 
 export const ClinicDashboard: React.FC = () => {
   const { clinicId } = useParams<{ clinicId: string }>();
@@ -251,10 +250,6 @@ export const ClinicDashboard: React.FC = () => {
               </nav>
             </div>
 
-            {/* Right Side Actions - Offline Status & Controls */}
-            <div className="flex items-center gap-2 sm:gap-3">
-              <ClinicOfflineIndicator compact />
-            </div>
 
             {/* Mobile Menu Toggle */}
             <button

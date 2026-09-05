@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { usePlatform } from '../../contexts/PlatformContext';
 import { LoadingState } from '../common/LoadingState';
 import { useNotifications } from '../../hooks/useNotifications';
+import { ClinicOfflineIndicator } from '../clinic/ClinicOfflineIndicator';
 
 interface GlobalHeaderProps {
   cartItemsCount?: number;
@@ -193,6 +194,9 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({
                       </div>
 
                       <div className="max-h-[400px] overflow-y-auto">
+                        {/* بطاقة حالة المزامنة والاتصال */}
+                        <ClinicOfflineIndicator />
+
                         {/* Platform Updates Highlight */}
                         {updates.length > 0 && (
                           <div className="bg-blue-50/50 p-2 m-2 rounded-lg border border-blue-100">

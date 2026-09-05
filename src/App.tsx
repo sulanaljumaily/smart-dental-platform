@@ -393,6 +393,7 @@ import { HelmetProvider } from 'react-helmet-async';
 
 import { Toaster } from 'sonner';
 import { SplashScreen } from './components/SplashScreen';
+import { OfflineConnectionNotice } from './components/common/OfflineConnectionNotice';
 
 function App() {
   return (
@@ -400,6 +401,7 @@ function App() {
       <AuthProvider>
         <HelmetProvider>
           <SplashScreen />
+          <OfflineConnectionNotice />
           <Toaster position="top-center" richColors />
           <CompleteRegistrationModal />
           <StoreProvider>

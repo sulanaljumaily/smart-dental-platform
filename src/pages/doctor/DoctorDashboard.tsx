@@ -21,7 +21,6 @@ import { DoctorProvider, useDoctorContext } from '../../contexts/DoctorContext';
 import { BottomNavigation } from '../../components/layout/BottomNavigation';
 import { LoadingState } from '../../components/common/LoadingState';
 import { useNotifications } from '../../hooks/useNotifications';
-import { ClinicOfflineIndicator } from '../../components/clinic/ClinicOfflineIndicator';
 
 const DoctorDashboardContent: React.FC = () => {
   const { user, logout } = useAuth();
@@ -134,7 +133,6 @@ const DoctorDashboardContent: React.FC = () => {
 
               {/* Right Side Actions */}
               <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                <ClinicOfflineIndicator compact />
                 {/* User Menu */}
                 <div className="relative">
                   <button
