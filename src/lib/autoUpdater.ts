@@ -3,7 +3,6 @@
  * يُتيح تحديث ملفات التطبيق (JS/CSS) هوائياً في الخلفية بدون الحاجة لرفع حزمة جديدة إلى المتاجر
  */
 import { Capacitor } from '@capacitor/core';
-import { CapacitorUpdater } from '@capgo/capacitor-updater';
 import { supabase } from './supabase';
 
 export const initAutoUpdater = async (): Promise<void> => {
@@ -13,6 +12,7 @@ export const initAutoUpdater = async (): Promise<void> => {
   }
 
   try {
+    const { CapacitorUpdater } = await import('@capgo/capacitor-updater');
     // إخطار Capacitor بأن الحزمة الحالية تعمل بنجاح (لمنع الـ Rollback التلقائي)
     await CapacitorUpdater.notifyAppReady().catch(() => {
       // تجاهل أي استثناء

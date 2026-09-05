@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { SplashScreen as CapacitorSplashScreen } from '@capacitor/splash-screen';
 import './SplashScreen.css';
 
@@ -21,13 +22,15 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
       setShow(true);
       setIsFadingOut(false);
 
-      // تنسيق الإخفاء مع بيئة كاباسيتور للهواتف الأصلية
-      CapacitorSplashScreen.show({
-        autoHide: true,
-        showDuration: duration,
-      }).catch(() => {
-        // متصفح أو سطح المكتب
-      });
+      // تنسيق الإخفاء مع بيئة كاباسيتور للهواتف الأصلية فقط
+      if (Capacitor.isNativePlatform()) {
+        CapacitorSplashScreen.show({
+          autoHide: true,
+          showDuration: duration,
+        }).catch(() => {
+          // تجاهل أي استثناء
+        });
+      }
 
       // بدء التلاشي الانسيابي قبل الإغلاق بـ 400ms
       const fadeTimer = setTimeout(() => {

@@ -37,6 +37,9 @@ jobs:
       # ── 1. بناء وتصدير تطبيق المراجعين (Patient App) ──────────────────────
       - name: Build Patient Web Assets
         run: pnpm run build:patient
+        env:
+          VITE_SUPABASE_URL: https://nhueyaeyutfmadbgghfe.supabase.co
+          VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5odWV5YWV5dXRmbWFkYmdnaGZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MzcwNTYsImV4cCI6MjA4NDQxMzA1Nn0.56MIbpOtVu9b_fwEyo-hvlxGxA_E5c-nU7q1MSfTg-g
 
       - name: Sync Patient Capacitor
         run: |
@@ -55,6 +58,9 @@ jobs:
       # ── 2. بناء وتصدير تطبيق القطاع الطبي (Pro App) ───────────────────────
       - name: Build Pro Web Assets
         run: pnpm run build:pro
+        env:
+          VITE_SUPABASE_URL: https://nhueyaeyutfmadbgghfe.supabase.co
+          VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5odWV5YWV5dXRmbWFkYmdnaGZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MzcwNTYsImV4cCI6MjA4NDQxMzA1Nn0.56MIbpOtVu9b_fwEyo-hvlxGxA_E5c-nU7q1MSfTg-g
 
       - name: Sync Pro Capacitor
         run: |

@@ -11,6 +11,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Dental Platform - نظام إدارة العيادات والقطاع الطبي",
         "url": "index.html",
         "fullscreen": false,
@@ -19,7 +20,8 @@
         "minWidth": 960,
         "minHeight": 640,
         "resizable": true,
-        "center": true
+        "center": true,
+        "devtools": true
       }
     ]
   },
