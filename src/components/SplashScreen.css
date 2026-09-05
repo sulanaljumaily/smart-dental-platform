@@ -1,6 +1,6 @@
 /* ==========================================================================
-   SplashScreen Styles - Pixel-Perfect Match to Official Reference Design
-   Theme: Luxury Midnight Medical Navy (#020712 ➔ #030f21 ➔ #081a33 ➔ #0d2a4d)
+   SplashScreen Styles - Animated Double-Squircle Frame & Luxury Dark Navy
+   Theme: Luxury Midnight Medical Navy (Pixel-Perfect Match to Image)
    ========================================================================== */
 
 .splash-screen {
@@ -8,8 +8,8 @@
   inset: 0;
   width: 100vw;
   height: 100vh;
-  /* التدرج اللوني الليلي الطبي الفاخر - مطابق تماماً للصورة */
-  background: radial-gradient(circle at 85% 18%, #0d2a4d 0%, #081a33 35%, #030f21 70%, #020712 100%);
+  /* خلفية كحلية طبية ليلية فاخرة وموحدة بدون شكل السن */
+  background: radial-gradient(circle at 50% 32%, #0e2747 0%, #081a32 40%, #030f21 75%, #010610 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -31,38 +31,19 @@
   pointer-events: none;
 }
 
-/* هالة التوهج العلوية الفخمة خلف مجسم السن */
-.splash-top-glow {
+/* هالة التوهج المركزية الناعمة خلف الشعار */
+.splash-ambient-center-glow {
   position: absolute;
-  top: -5%;
-  right: -5%;
-  width: 480px;
-  height: 480px;
+  top: 30%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 440px;
+  height: 440px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(30, 95, 175, 0.35) 0%, rgba(10, 35, 75, 0) 70%);
-  filter: blur(70px);
+  background: radial-gradient(circle, rgba(30, 85, 155, 0.28) 0%, rgba(10, 30, 60, 0) 70%);
+  filter: blur(80px);
   pointer-events: none;
   z-index: 0;
-}
-
-/* مجسم السن الشبكي الكريستالي 3D في الزاوية العلوية اليمنى */
-.splash-tooth-mesh {
-  position: absolute;
-  top: -15px;
-  right: -25px;
-  width: 440px;
-  max-width: 90vw;
-  height: 560px;
-  pointer-events: none;
-  opacity: 0.42;
-  z-index: 1;
-}
-
-.tooth-wireframe-svg {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  filter: drop-shadow(0 0 15px rgba(100, 181, 246, 0.2));
 }
 
 /* الحاوية المركزية للشعار والنصوص */
@@ -78,28 +59,86 @@
 }
 
 /* --------------------------------------------------------------------------
-   أيقونة التطبيق الفخمة (السكويركل الأزرق الداكن بتدرج وانعكاس حواف مطابق للصورة)
+   مسرح الشعار ذو الإطار المزدوج ثلاثي الأبعاد مع الأنميشن
    -------------------------------------------------------------------------- */
-.splash-app-icon {
-  width: 114px;
-  height: 114px;
-  border-radius: 28px;
-  background: linear-gradient(155deg, #1d4e83 0%, #123762 50%, #0b2546 100%);
-  border: 1.5px solid rgba(135, 195, 250, 0.4);
+.splash-icon-stage {
+  position: relative;
+  width: 126px;
+  height: 126px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 
-    0 24px 48px -8px rgba(0, 0, 0, 0.75), 
-    0 0 35px rgba(25, 75, 130, 0.35), 
-    inset 0 1.5px 2px rgba(255, 255, 255, 0.32);
-  animation: icon-float 4s ease-in-out infinite alternate;
+  animation: icon-float 3.6s ease-in-out infinite alternate;
 }
 
-.splash-icon-svg {
-  width: 66px;
-  height: 66px;
-  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.25));
+/* هالة النبض المتوهجة التفاعلية خلف الإطار */
+.splash-icon-aura {
+  position: absolute;
+  inset: -8px;
+  border-radius: 42px;
+  background: radial-gradient(circle, rgba(45, 130, 220, 0.45) 0%, rgba(15, 55, 110, 0) 72%);
+  filter: blur(20px);
+  animation: aura-pulse 3s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+/* الإطار الخارجي المجسم (Outer Squircle Frame) طبق الأصل من الصورة */
+.splash-outer-squircle {
+  position: relative;
+  width: 118px;
+  height: 118px;
+  border-radius: 32px;
+  background: linear-gradient(155deg, #1c4879 0%, #103055 45%, #0a213c 100%);
+  padding: 10px;
+  border: 1.5px solid rgba(135, 195, 250, 0.45);
+  box-shadow: 
+    0 24px 50px -6px rgba(0, 0, 0, 0.82), 
+    0 0 32px rgba(25, 80, 145, 0.35), 
+    inset 0 1.5px 2px rgba(255, 255, 255, 0.35);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: squircle-entrance 0.85s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* لمعة الضوء المتحركة التي تمر فوق الإطار */
+.splash-shimmer-sweep {
+  position: absolute;
+  top: -50%;
+  left: -80%;
+  width: 45%;
+  height: 200%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+  transform: rotate(25deg);
+  animation: light-sweep 3.8s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* الإطار الداخلي الأنيق المحتضن للشعار (Inner Squircle Inset) */
+.splash-inner-squircle {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 23px;
+  background: linear-gradient(165deg, #2167b0 0%, #154b85 50%, #0d345f 100%);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.42), 
+    inset 0 -2px 5px rgba(0, 0, 0, 0.5), 
+    0 4px 12px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.splash-symbol-svg {
+  width: 62px;
+  height: 62px;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.32));
+  animation: symbol-pop 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both;
 }
 
 /* --------------------------------------------------------------------------
@@ -185,12 +224,54 @@
   }
 }
 
+@keyframes squircle-entrance {
+  0% {
+    opacity: 0;
+    transform: scale(0.65) translateY(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes symbol-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 @keyframes icon-float {
   0% {
     transform: translateY(0);
   }
   100% {
-    transform: translateY(-5px);
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes aura-pulse {
+  0%, 100% {
+    transform: scale(0.95);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 0.7;
+  }
+}
+
+@keyframes light-sweep {
+  0% {
+    left: -80%;
+  }
+  35%, 100% {
+    left: 160%;
   }
 }
 
@@ -214,15 +295,25 @@
     padding: 0 1rem;
   }
 
-  .splash-app-icon {
-    width: 100px;
-    height: 100px;
-    border-radius: 24px;
+  .splash-icon-stage {
+    width: 108px;
+    height: 108px;
   }
 
-  .splash-icon-svg {
-    width: 58px;
-    height: 58px;
+  .splash-outer-squircle {
+    width: 104px;
+    height: 104px;
+    border-radius: 26px;
+    padding: 8px;
+  }
+
+  .splash-inner-squircle {
+    border-radius: 19px;
+  }
+
+  .splash-symbol-svg {
+    width: 54px;
+    height: 54px;
   }
 
   .splash-en-brand {
@@ -239,13 +330,6 @@
   .splash-ar-subtitle {
     font-size: 0.95rem;
     margin-top: 6px;
-  }
-
-  .splash-tooth-mesh {
-    width: 320px;
-    height: 440px;
-    top: -10px;
-    right: -15px;
   }
 
   .splash-bottom-loader {
