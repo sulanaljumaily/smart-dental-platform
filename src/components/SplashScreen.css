@@ -1,6 +1,6 @@
 /* ==========================================================================
    SplashScreen Modern Styles - Dental Platform (منصة طب الأسنان)
-   Theme: Official Medical Blue Palette (#0084D1 / #0284C7 / #0EA5E9)
+   Theme: Quoted directly from Doctor Clinic Login Page (#3B82F6 -> #1E40AF -> #1E3A8A)
    ========================================================================== */
 
 .splash-screen {
@@ -8,8 +8,8 @@
   inset: 0;
   width: 100vw;
   height: 100vh;
-  /* تدرج شعاعي طبي فاخر يرتكز بؤرياً خلف الشعار */
-  background: radial-gradient(circle at 50% 34%, #0ea5e9 0%, #0284c7 32%, #0369a1 68%, #074e76 100%);
+  /* التدرج اللوني الملكي المقتبس تماماً من صفحة تسجيل الدخول للأطباء (from-primary via-primary-dark to-blue-900) */
+  background: linear-gradient(135deg, #3B82F6 0%, #1E40AF 50%, #1E3A8A 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -18,32 +18,32 @@
   user-select: none;
   opacity: 1;
   visibility: visible;
-  transition: opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.45s ease;
+  transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.4s ease;
   font-family: 'Cairo', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   direction: rtl;
 }
 
-/* حالة التلاشي الانسيابي عند انتهاء التحميل */
+/* حالة التلاشي الانسيابي عند انتهاء شاشة البداية */
 .splash-screen.splash-fade-out {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
 }
 
-/* هالات الضوء المحيطية الناعمة بالخلفية */
+/* هالات الضوء الخلفية بدرجات الأزرق الملكي الداكنة المتناسقة */
 .splash-ambient-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(100px);
+  filter: blur(120px);
   pointer-events: none;
-  opacity: 0.35;
+  opacity: 0.25;
   animation: float-ambient 9s ease-in-out infinite alternate;
 }
 
 .orb-1 {
-  width: 380px;
-  height: 380px;
-  background: #38bdf8;
+  width: 400px;
+  height: 400px;
+  background: #3B82F6;
   top: 10%;
   left: 15%;
 }
@@ -51,9 +51,9 @@
 .orb-2 {
   width: 420px;
   height: 420px;
-  background: #0284c7;
-  bottom: 8%;
-  right: 12%;
+  background: #1E3A8A;
+  bottom: 10%;
+  right: 15%;
   animation-delay: -4.5s;
 }
 
@@ -64,70 +64,56 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1.85rem;
+  gap: 1.75rem;
   padding: 2rem 1.5rem;
-  max-width: 600px;
+  max-width: 540px;
   width: 100%;
   z-index: 2;
 }
 
 /* --------------------------------------------------------------------------
-   الشعار الرسمي وتأثيرات الهالة والنبض
+   الشعار الرسمي وقاعدة الكرت البيضاء (مستوحى من كرت صفحة تسجيل الدخول)
+   الشعار أزرق وأبيض (أيقونة بيضاء على خلفية زرقاء) والقاعدة البيضاء تبرزه بقوة
    -------------------------------------------------------------------------- */
-.splash-logo-container {
+.splash-logo-wrapper {
   position: relative;
-  width: 140px;
-  height: 140px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.splash-logo-glow {
-  position: absolute;
-  width: 150px;
-  height: 150px;
-  border-radius: 40px;
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.55) 0%, rgba(2, 132, 199, 0) 72%);
-  filter: blur(16px);
-  animation: glow-pulse 3.2s ease-in-out infinite alternate;
-}
-
-.splash-logo-ring {
-  position: absolute;
-  inset: -6px;
-  border-radius: 38px;
-  border: 1.5px solid rgba(255, 255, 255, 0.22);
-  animation: ring-breathe 3.2s ease-in-out infinite;
-}
-
-.splash-logo-box {
+.splash-logo-card {
   position: relative;
-  width: 116px;
-  height: 116px;
+  width: 112px;
+  height: 112px;
+  background: #ffffff;
   border-radius: 28px;
-  overflow: hidden;
-  box-shadow: 0 16px 36px rgba(0, 45, 90, 0.38), 0 0 0 1px rgba(255, 255, 255, 0.15) inset;
-  animation: logo-entrance 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards,
-             logo-float 4.5s ease-in-out 0.9s infinite alternate;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.3);
+  animation: logo-entrance 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards,
+             logo-float 4s ease-in-out 0.85s infinite alternate;
 }
 
 .splash-logo-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: 20px;
   display: block;
 }
 
 /* --------------------------------------------------------------------------
-   النصوص وتناسق الخطوط
+   النصوص وتناسق الخطوط بالأبيض الملكي النقي
    -------------------------------------------------------------------------- */
 .splash-text-group {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 0.65rem;
+  gap: 0.6rem;
   width: 100%;
 }
 
@@ -136,14 +122,14 @@
   font-weight: 700;
   letter-spacing: 3px;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.82);
+  color: rgba(255, 255, 255, 0.85);
   background: rgba(255, 255, 255, 0.12);
   border: 1px solid rgba(255, 255, 255, 0.22);
   padding: 3px 14px;
   border-radius: 9999px;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   animation: text-reveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
 }
 
@@ -154,61 +140,30 @@
   margin: 0.1rem 0 0 0;
   letter-spacing: -0.4px;
   line-height: 1.25;
-  text-shadow: 0 3px 14px rgba(0, 30, 60, 0.28);
-  animation: text-reveal 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
+  text-shadow: 0 3px 12px rgba(15, 23, 42, 0.3);
+  animation: text-reveal 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.28s both;
 }
 
 .splash-slogan {
-  font-size: 1.12rem;
+  font-size: 1.15rem;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.95);
+  color: rgba(255, 255, 255, 0.94);
   margin: 0;
   line-height: 1.55;
-  text-shadow: 0 2px 8px rgba(0, 30, 60, 0.18);
-  animation: text-reveal 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.45s both;
-}
-
-/* شريط أركان المنظومة الشامل الزجاجي */
-.splash-pillars-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 0.55rem;
-  background: rgba(255, 255, 255, 0.13);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  padding: 6px 18px;
-  border-radius: 9999px;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 6px 20px rgba(0, 30, 70, 0.12);
-  margin-top: 0.3rem;
-  animation: text-reveal 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.6s both;
-}
-
-.splash-pillar-item {
-  font-size: 0.84rem;
-  font-weight: 700;
-  color: #ffffff;
-  white-space: nowrap;
-}
-
-.splash-pillar-dot {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 0.8rem;
-  user-select: none;
+  text-shadow: 0 2px 6px rgba(15, 23, 42, 0.2);
+  animation: text-reveal 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.42s both;
 }
 
 /* --------------------------------------------------------------------------
-   مؤشر التحميل الأنيق
+   مؤشر التحميل الأنيق الانسيابي
    -------------------------------------------------------------------------- */
 .splash-loader-section {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.6rem;
-  margin-top: 0.5rem;
-  animation: text-reveal 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.72s both;
+  margin-top: 0.75rem;
+  animation: text-reveal 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.55s both;
 }
 
 .splash-progress-track {
@@ -225,27 +180,27 @@
   top: 0;
   bottom: 0;
   left: 0;
-  width: 55%;
+  width: 50%;
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.1), #ffffff, rgba(255, 255, 255, 0.1));
   border-radius: 9999px;
-  box-shadow: 0 0 12px rgba(255, 255, 255, 0.85);
-  animation: progress-shimmer 1.7s ease-in-out infinite;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.85);
+  animation: progress-shimmer 1.6s ease-in-out infinite;
 }
 
 .splash-loading-label {
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.78);
+  color: rgba(255, 255, 255, 0.8);
   letter-spacing: 0.2px;
 }
 
 /* --------------------------------------------------------------------------
-   الرسوم المتحركة Keyframes
+   الحركات Keyframes
    -------------------------------------------------------------------------- */
 @keyframes logo-entrance {
   0% {
     opacity: 0;
-    transform: scale(0.82) translateY(-14px);
+    transform: scale(0.85) translateY(-10px);
   }
   100% {
     opacity: 1;
@@ -258,36 +213,14 @@
     transform: translateY(0);
   }
   100% {
-    transform: translateY(-6px);
-  }
-}
-
-@keyframes glow-pulse {
-  0% {
-    transform: scale(0.95);
-    opacity: 0.35;
-  }
-  100% {
-    transform: scale(1.1);
-    opacity: 0.65;
-  }
-}
-
-@keyframes ring-breathe {
-  0%, 100% {
-    transform: scale(1);
-    opacity: 0.25;
-  }
-  50% {
-    transform: scale(1.06);
-    opacity: 0.6;
+    transform: translateY(-5px);
   }
 }
 
 @keyframes text-reveal {
   0% {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(12px);
   }
   100% {
     opacity: 1;
@@ -297,7 +230,7 @@
 
 @keyframes progress-shimmer {
   0% {
-    left: -55%;
+    left: -50%;
   }
   100% {
     left: 100%;
@@ -309,7 +242,7 @@
     transform: translate(0, 0) scale(1);
   }
   100% {
-    transform: translate(25px, -20px) scale(1.08);
+    transform: translate(20px, -15px) scale(1.06);
   }
 }
 
@@ -318,19 +251,19 @@
    -------------------------------------------------------------------------- */
 @media (max-width: 640px) {
   .splash-container {
-    gap: 1.4rem;
+    gap: 1.35rem;
     padding: 1.5rem 1rem;
   }
 
-  .splash-logo-container {
-    width: 115px;
-    height: 115px;
-  }
-
-  .splash-logo-box {
+  .splash-logo-card {
     width: 96px;
     height: 96px;
     border-radius: 24px;
+    padding: 7px;
+  }
+
+  .splash-logo-img {
+    border-radius: 17px;
   }
 
   .splash-title {
@@ -338,17 +271,8 @@
   }
 
   .splash-slogan {
-    font-size: 0.96rem;
-    padding: 0 0.5rem;
-  }
-
-  .splash-pillars-row {
-    padding: 5px 14px;
-    gap: 0.4rem;
-  }
-
-  .splash-pillar-item {
-    font-size: 0.74rem;
+    font-size: 0.98rem;
+    padding: 0 0.75rem;
   }
 
   .splash-progress-track {
@@ -362,15 +286,6 @@
   }
 
   .splash-slogan {
-    font-size: 0.88rem;
-  }
-
-  .splash-pillars-row {
-    padding: 4px 10px;
-    gap: 0.3rem;
-  }
-
-  .splash-pillar-item {
-    font-size: 0.7rem;
+    font-size: 0.9rem;
   }
 }

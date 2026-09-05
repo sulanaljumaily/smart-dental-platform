@@ -23,31 +23,24 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
   const mainTitle = 'منصة طب الأسنان';
   const englishTitle = 'DENTAL PLATFORM';
 
-  // الشعار الملم والشامل لجميع أركان المنظومة
+  // الشعار الملم والشامل لكافة أرجاء المنظومة
   const platformSlogan = isPatientApp
     ? 'بوابتكم الموحدة لخدمات ورعاية طب الأسنان'
     : isProApp
     ? 'المنظومة الرقمية المتكاملة لإدارة العيادات والمراكز التخصصية'
     : 'المنظومة الرقمية الشاملة والمتكاملة لطب وجراحة الفم والأسنان';
 
-  // أركان المنصة الشاملة
-  const pillars = isPatientApp
-    ? ['حجز المواعيد', 'الملف الطبي', 'استشارات فورية', 'عيادات معتمدة']
-    : isProApp
-    ? ['إدارة العيادات', 'الملفات الطبية', 'المعامل والمالية', 'الذكاء الاصطناعي']
-    : ['العيادات', 'الأطباء', 'المراجعين', 'المعامل', 'المستلزمات'];
-
   useEffect(() => {
     if (isVisible) {
       setShow(true);
       setIsFadingOut(false);
 
-      // تنسيق الإخفاء مع بيئة تطبيقات الموبايل Capacitor Native
+      // تنسيق الإخفاء مع بيئة كاباسيتور للهواتف
       CapacitorSplashScreen.show({
         autoHide: true,
         showDuration: duration,
       }).catch(() => {
-        // تشغيل على المتصفح أو تطبيق الويندوز Tauri
+        // متصفح أو سطح المكتب
       });
 
       // بدء التلاشي الانسيابي قبل الإغلاق بـ 400ms
@@ -75,20 +68,17 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
       dir="rtl"
       aria-label="شاشة التحميل - منصة طب الأسنان"
     >
-      {/* هالات الإضاءة المحيطية الناعمة */}
+      {/* هالات إضاءة ملكية متطابقة مع ألوان صفحة تسجيل الدخول */}
       <div className="splash-ambient-orb orb-1" aria-hidden="true"></div>
       <div className="splash-ambient-orb orb-2" aria-hidden="true"></div>
 
       <div className="splash-container">
-        {/* الشعار المعتمد مع هالة النبض الفخمة */}
-        <div className="splash-logo-container">
-          <div className="splash-logo-glow" aria-hidden="true"></div>
-          <div className="splash-logo-ring" aria-hidden="true"></div>
-          <div className="splash-logo-box">
+        {/* قاعدة الشعار البيضاء المقتبسة من كرت صفحة تسجيل الدخول لإبراز الشعار الأزرق بدقة */}
+        <div className="splash-logo-wrapper">
+          <div className="splash-logo-card">
             <img
               src="/logo.svg"
               onError={(e) => {
-                // استبدال بالنسخة النقطية في حال تعذر قراءة الفيكتور
                 e.currentTarget.onerror = null;
                 e.currentTarget.src = '/logo.png';
               }}
@@ -98,26 +88,14 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
           </div>
         </div>
 
-        {/* النصوص المتناسقة بدقة طبوغرافية عالية */}
+        {/* النصوص المتناسقة بالأبيض النقي دون تصنيفات */}
         <div className="splash-text-group">
           <div className="splash-en-badge">{englishTitle}</div>
           <h1 className="splash-title">{mainTitle}</h1>
           <p className="splash-slogan">{platformSlogan}</p>
-
-          {/* شريط أركان المنظومة الشامل */}
-          <div className="splash-pillars-row">
-            {pillars.map((pillar, idx) => (
-              <React.Fragment key={pillar}>
-                <span className="splash-pillar-item">{pillar}</span>
-                {idx < pillars.length - 1 && (
-                  <span className="splash-pillar-dot" aria-hidden="true">•</span>
-                )}
-              </React.Fragment>
-            ))}
-          </div>
         </div>
 
-        {/* مؤشر التحميل الأنيق الانسيابي */}
+        {/* مؤشر التحميل الانسيابي بالأبيض والشفافية */}
         <div className="splash-loader-section">
           <div className="splash-progress-track">
             <div className="splash-progress-bar"></div>
