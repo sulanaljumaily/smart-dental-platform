@@ -5,69 +5,124 @@ import './SplashScreen.css';
 interface SplashScreenProps {
   isVisible?: boolean;
   onHide?: () => void;
+  duration?: number;
 }
 
-export const SplashScreen: React.FC<SplashScreenProps> = ({ isVisible = true, onHide }) => {
+export const SplashScreen: React.FC<SplashScreenProps> = ({
+  isVisible = true,
+  onHide,
+  duration = 2600,
+}) => {
   const [show, setShow] = useState(isVisible);
+  const [isFadingOut, setIsFadingOut] = useState(false);
 
   const isPatientApp = import.meta.env.VITE_BUILD_TARGET === 'patient';
-  const title = isPatientApp ? 'منصة طب الأسنان' : 'Dental Platform';
-  const subtitle = isPatientApp ? 'صحتك وابتسامتك أولويتنا' : 'نظام إدارة العيادات الذكي';
+  const isProApp = import.meta.env.VITE_BUILD_TARGET === 'pro';
+
+  // العنوان الرئيسي الموحد
+  const mainTitle = 'منصة طب الأسنان';
+  const englishTitle = 'DENTAL PLATFORM';
+
+  // الشعار الملم والشامل لجميع أركان المنظومة
+  const platformSlogan = isPatientApp
+    ? 'بوابتكم الموحدة لخدمات ورعاية طب الأسنان'
+    : isProApp
+    ? 'المنظومة الرقمية المتكاملة لإدارة العيادات والمراكز التخصصية'
+    : 'المنظومة الرقمية الشاملة والمتكاملة لطب وجراحة الفم والأسنان';
+
+  // أركان المنصة الشاملة
+  const pillars = isPatientApp
+    ? ['حجز المواعيد', 'الملف الطبي', 'استشارات فورية', 'عيادات معتمدة']
+    : isProApp
+    ? ['إدارة العيادات', 'الملفات الطبية', 'المعامل والمالية', 'الذكاء الاصطناعي']
+    : ['العيادات', 'الأطباء', 'المراجعين', 'المعامل', 'المستلزمات'];
 
   useEffect(() => {
     if (isVisible) {
       setShow(true);
+      setIsFadingOut(false);
+
+      // تنسيق الإخفاء مع بيئة تطبيقات الموبايل Capacitor Native
       CapacitorSplashScreen.show({
         autoHide: true,
-        showDuration: 3000,
+        showDuration: duration,
       }).catch(() => {
-        // في حالة التشغيل على المتصفح أو بيئة لا تدعم Capacitor Native
+        // تشغيل على المتصفح أو تطبيق الويندوز Tauri
       });
 
-      const timer = setTimeout(() => {
+      // بدء التلاشي الانسيابي قبل الإغلاق بـ 400ms
+      const fadeTimer = setTimeout(() => {
+        setIsFadingOut(true);
+      }, Math.max(duration - 400, 800));
+
+      const hideTimer = setTimeout(() => {
         setShow(false);
         if (onHide) onHide();
-      }, 3000);
+      }, duration);
 
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(fadeTimer);
+        clearTimeout(hideTimer);
+      };
     }
-  }, [isVisible, onHide]);
+  }, [isVisible, duration, onHide]);
 
   if (!show) return null;
 
   return (
-    <div className="splash-screen">
+    <div
+      className={`splash-screen ${isFadingOut ? 'splash-fade-out' : ''}`}
+      dir="rtl"
+      aria-label="شاشة التحميل - منصة طب الأسنان"
+    >
+      {/* هالات الإضاءة المحيطية الناعمة */}
+      <div className="splash-ambient-orb orb-1" aria-hidden="true"></div>
+      <div className="splash-ambient-orb orb-2" aria-hidden="true"></div>
+
       <div className="splash-container">
-        {/* Icon with animation */}
-        <div className="splash-icon-wrapper">
-          <div className="splash-icon">
-            <svg
-              viewBox="0 0 200 200"
-              xmlns="http://www.w3.org/2000/svg"
-              className="tooth-icon"
-            >
-              {/* Tooth shape */}
-              <path
-                d="M100 20C100 20 80 40 80 70C80 100 90 130 100 150C110 130 120 100 120 70C120 40 100 20 100 20Z"
-                fill="#ffffff"
-              />
-              {/* Shine effect */}
-              <ellipse cx="90" cy="60" rx="8" ry="15" fill="rgba(255,255,255,0.4)" />
-            </svg>
+        {/* الشعار المعتمد مع هالة النبض الفخمة */}
+        <div className="splash-logo-container">
+          <div className="splash-logo-glow" aria-hidden="true"></div>
+          <div className="splash-logo-ring" aria-hidden="true"></div>
+          <div className="splash-logo-box">
+            <img
+              src="/logo.svg"
+              onError={(e) => {
+                // استبدال بالنسخة النقطية في حال تعذر قراءة الفيكتور
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = '/logo.png';
+              }}
+              alt="شعار منصة طب الأسنان الرسمي"
+              className="splash-logo-img"
+            />
           </div>
         </div>
 
-        {/* Dynamic Target Text */}
+        {/* النصوص المتناسقة بدقة طبوغرافية عالية */}
         <div className="splash-text-group">
-          <h1 className="splash-title animate-fade-in-up">{title}</h1>
-          <p className="splash-subtitle animate-fade-in-up-delayed">{subtitle}</p>
+          <div className="splash-en-badge">{englishTitle}</div>
+          <h1 className="splash-title">{mainTitle}</h1>
+          <p className="splash-slogan">{platformSlogan}</p>
+
+          {/* شريط أركان المنظومة الشامل */}
+          <div className="splash-pillars-row">
+            {pillars.map((pillar, idx) => (
+              <React.Fragment key={pillar}>
+                <span className="splash-pillar-item">{pillar}</span>
+                {idx < pillars.length - 1 && (
+                  <span className="splash-pillar-dot" aria-hidden="true">•</span>
+                )}
+              </React.Fragment>
+            ))}
+          </div>
         </div>
 
-        {/* Loading indicator */}
-        <div className="splash-loader">
-          <div className="loader-dot"></div>
-          <div className="loader-dot"></div>
-          <div className="loader-dot"></div>
+        {/* مؤشر التحميل الأنيق الانسيابي */}
+        <div className="splash-loader-section">
+          <div className="splash-progress-track">
+            <div className="splash-progress-bar"></div>
+          </div>
+          <span className="splash-loading-label">جاري تهيئة المنظومة...</span>
         </div>
       </div>
     </div>
