@@ -11,10 +11,16 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: 'pnpm'
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
@@ -26,17 +32,17 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install Dependencies
-        run: npm install
+        run: pnpm install --no-frozen-lockfile
 
       # ── 1. بناء وتصدير تطبيق المراجعين (Patient App) ──────────────────────
       - name: Build Patient Web Assets
-        run: npm run build:patient
+        run: pnpm run build:patient
 
       - name: Sync Patient Capacitor
         run: |
           cp capacitor.patient.config.ts capacitor.config.ts
-          npx cap add android || true
-          npx cap sync android
+          pnpm exec cap add android || true
+          pnpm exec cap sync android
 
       - name: Build Patient APK
         run: |
@@ -48,12 +54,12 @@ jobs:
 
       # ── 2. بناء وتصدير تطبيق القطاع الطبي (Pro App) ───────────────────────
       - name: Build Pro Web Assets
-        run: npm run build:pro
+        run: pnpm run build:pro
 
       - name: Sync Pro Capacitor
         run: |
           cp capacitor.pro.config.ts capacitor.config.ts
-          npx cap sync android
+          pnpm exec cap sync android
 
       - name: Build Pro APK
         run: |

@@ -90,7 +90,7 @@ export const PromotionalCarousel: React.FC = () => {
                     <img
                         src={displayImage}
                         alt={currentItem.title}
-                        className="w-full h-full object-cover opacity-100 group-hover:scale-105 transition-transform duration-[2s]"
+                        className="w-full h-full object-cover opacity-100 group-hover:scale-105 transition-transform [transition-duration:2000ms]"
                     />
 
                     {/* 2. Color Wash Overlay (Doctor Welcome Style) */}

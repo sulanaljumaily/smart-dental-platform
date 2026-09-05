@@ -4,8 +4,8 @@
   "version": "1.0.0",
   "identifier": "com.dentalplatform.pro",
   "build": {
-    "beforeBuildCommand": "npm run build:pro",
-    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "pnpm run build:pro",
+    "beforeDevCommand": "pnpm run dev",
     "frontendDist": "../dist"
   },
   "app": {

@@ -17,22 +17,28 @@ jobs:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: 'pnpm'
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install dependencies
-        run: npm install
+        run: pnpm install --no-frozen-lockfile
 
       - name: Build Web Pro Target
-        run: npm run build:pro
+        run: pnpm run build:pro
 
       - name: Build Windows Installer (NSIS & MSI)
-        run: npx tauri build
+        run: pnpm exec tauri build
 
       - name: Upload EXE/MSI Artifacts
         uses: actions/upload-artifact@v4

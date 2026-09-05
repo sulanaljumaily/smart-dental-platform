@@ -2,14 +2,20 @@
  * Dental Platform — Over-The-Air (OTA) Auto-Updater via Supabase Storage
  * يُتيح تحديث ملفات التطبيق (JS/CSS) هوائياً في الخلفية بدون الحاجة لرفع حزمة جديدة إلى المتاجر
  */
+import { Capacitor } from '@capacitor/core';
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
 import { supabase } from './supabase';
 
 export const initAutoUpdater = async (): Promise<void> => {
+  // التحديثات الهوائية خاصة بتطبيقات الهواتف الأصلية (Android / iOS عبر Capacitor) فقط
+  if (!Capacitor.isNativePlatform()) {
+    return;
+  }
+
   try {
     // إخطار Capacitor بأن الحزمة الحالية تعمل بنجاح (لمنع الـ Rollback التلقائي)
     await CapacitorUpdater.notifyAppReady().catch(() => {
-      // تجاهل إذا كان التطبيق يعمل في المتصفح
+      // تجاهل أي استثناء
     });
 
     const target = (import.meta.env.VITE_BUILD_TARGET as string) || 'pro';

@@ -1,7 +1,31 @@
 import React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
-import { QRCodeSVG } from 'qrcode.react';
+import QRCode from 'qrcode';
 import { formatCategoryName } from './utils';
+
+// Helper to generate standalone QR SVG string synchronously without react-dom/server
+const generateQrSvgString = (url: string, size = 84): string => {
+  try {
+    const qr = QRCode.create(url, { errorCorrectionLevel: 'M' });
+    const moduleCount = qr.modules.size;
+    const margin = 1;
+    const totalSize = moduleCount + margin * 2;
+    let path = '';
+
+    for (let r = 0; r < moduleCount; r++) {
+      for (let c = 0; c < moduleCount; c++) {
+        if (qr.modules.get(r, c)) {
+          const x = c + margin;
+          const y = r + margin;
+          path += `M${x} ${y}h1v1h-1z `;
+        }
+      }
+    }
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${totalSize} ${totalSize}" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#ffffff"/><path fill="#000000" d="${path.trim()}"/></svg>`;
+  } catch {
+    return '';
+  }
+};
 
 // Helper to convert number to Arabic words (Iraqi dinar formatter)
 export const numberToArabicWords = (num: number): string => {
@@ -538,9 +562,7 @@ export const printIncomeReceipt = ({
 
   // QR Code URL pointing to patient portal
   const portalUrl = `${window.location.origin}/patient-portal/${clinicId}/${patientId || '0'}`;
-  const qrSvgString = renderToStaticMarkup(
-    React.createElement(QRCodeSVG, { value: portalUrl, size: 84, level: 'M' })
-  );
+  const qrSvgString = generateQrSvgString(portalUrl, 84);
 
   const html = `
     <div class="thermal-receipt">
@@ -854,9 +876,7 @@ export const printTreatmentPlanReport = ({
   }).join('');
 
   const portalUrl = `${window.location.origin}/patient-portal/${clinicId}/${patientId || '0'}`;
-  const qrSvgString = renderToStaticMarkup(
-    React.createElement(QRCodeSVG, { value: portalUrl, size: 84, level: 'M' })
-  );
+  const qrSvgString = generateQrSvgString(portalUrl, 84);
 
   const html = `
     <div class="thermal-receipt">
@@ -997,9 +1017,7 @@ export const printPatientFullStatement = ({
   const remaining = Math.max(0, totalCost - totalPaid);
 
   const portalUrl = `${window.location.origin}/patient-portal/${clinicId}/${patientId || '0'}`;
-  const qrSvgString = renderToStaticMarkup(
-    React.createElement(QRCodeSVG, { value: portalUrl, size: 84, level: 'M' })
-  );
+  const qrSvgString = generateQrSvgString(portalUrl, 84);
 
   const html = `
     <div class="thermal-receipt">

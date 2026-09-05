@@ -17,25 +17,30 @@ jobs:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: 'pnpm'
 
       - name: Install dependencies
         run: |
-          npm install
-          npm install -g @capacitor/cli
+          pnpm install --no-frozen-lockfile
 
       - name: Build Web Application
-        run: npm run build:pro
+        run: pnpm run build:pro
 
       - name: Add iOS & Sync Capacitor
         run: |
           cp capacitor.pro.config.ts capacitor.config.ts
-          [ ! -d "ios/App" ] && npx cap add ios
+          [ ! -d "ios/App" ] && pnpm exec cap add ios
           rm -rf node_modules/@capgo
-          npx cap sync ios
+          pnpm exec cap sync ios
 
           if [ ! -f "ios/App/App.xcodeproj/project.pbxproj" ]; then
             echo "ERROR: Xcode project not properly configured"

@@ -17,6 +17,7 @@ export default defineConfig(({ mode }) => {
         includeProps: true,
       }),
       VitePWA({
+        disable: process.env.VITE_BUILD_TARGET === 'pro' || process.env.VITE_BUILD_TARGET === 'patient',
         registerType: 'autoUpdate',
         includeAssets: ['icons/*.png', 'logo.png'],
         manifest: {
@@ -84,7 +85,6 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
-        "react-dom/server": "react-dom/server.browser",
       },
       dedupe: ['react', 'react-dom'],
     },
