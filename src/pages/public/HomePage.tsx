@@ -135,10 +135,10 @@ export const HomePage: React.FC = () => {
 
                       {/* Content */}
                       <div className="relative z-10 w-full min-w-0 text-center">
-                        <div className={`text-base sm:text-lg lg:text-xl font-black bg-gradient-to-r ${stat.color} bg-clip-text text-transparent mb-1 truncate`}>
+                        <div className={`text-lg sm:text-xl lg:text-2xl font-black bg-gradient-to-r ${stat.color} bg-clip-text text-transparent mb-1 truncate`}>
                           {stat.number}
                         </div>
-                        <div className="text-gray-600 font-semibold text-[11px] sm:text-xs lg:text-sm leading-tight group-hover:text-gray-800 transition-colors truncate">
+                        <div className="text-gray-600 font-semibold text-xs sm:text-sm leading-tight group-hover:text-gray-800 transition-colors truncate">
                           {stat.label}
                         </div>
                       </div>
