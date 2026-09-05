@@ -143,7 +143,10 @@ export const LoginPage: React.FC = () => {
   return (
     <>
       <Header />
-      <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-primary via-primary-dark to-blue-900 flex items-center justify-center p-4">
+      <div
+        className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-primary via-primary-dark to-blue-900 flex items-center justify-center p-4"
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 1.5rem)' }}
+      >
         <Card className="w-full max-w-md">
           <div className="p-4 sm:p-8 space-y-6">
             {/* Logo */}

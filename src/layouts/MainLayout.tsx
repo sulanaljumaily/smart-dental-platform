@@ -10,7 +10,13 @@ export const MainLayout: React.FC = () => {
                             location.pathname.includes('/diagnosis/ai');
 
     return (
-        <div className="min-h-screen bg-white pb-24">
+        <div
+            className="min-h-screen bg-white"
+            style={{
+                paddingBottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))',
+                paddingTop: shouldHideHeader ? 'env(safe-area-inset-top, 0px)' : undefined
+            }}
+        >
             {!shouldHideHeader && (
                 <GlobalHeader
                     cartItemsCount={3}

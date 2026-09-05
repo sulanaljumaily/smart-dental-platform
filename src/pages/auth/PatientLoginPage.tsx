@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Phone, Lock, LogIn, AlertTriangle, HeartPulse } from 'lucide-react';
+import { Phone, Lock, LogIn, HeartPulse } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePlatform } from '../../contexts/PlatformContext';
 import { Card } from '../../components/common/Card';
@@ -105,7 +105,10 @@ export const PatientLoginPage: React.FC = () => {
   return (
     <>
       <Header />
-      <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-blue-600 via-blue-700 to-blue-900 flex flex-col items-center justify-center p-4">
+      <div
+        className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-blue-600 via-blue-700 to-blue-900 flex flex-col items-center justify-center p-4"
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 1.5rem)' }}
+      >
         {/* Logo */}
       <div className="mb-6 flex flex-col items-center">
         {settings.logo_url ? (
@@ -121,17 +124,6 @@ export const PatientLoginPage: React.FC = () => {
 
       <Card className="w-full max-w-md shadow-2xl">
         <div className="p-6 space-y-5">
-
-          {/* ─── Orange notice for professionals ─── */}
-          <div className="flex items-start gap-2 p-3 bg-orange-50 border border-orange-200 rounded-xl text-sm text-orange-800">
-            <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0 text-orange-500" />
-            <span>
-              إذا كنت <strong>طبيباً أو مورداً أو مختبراً</strong>،{' '}
-              <Link to="/login" className="font-bold underline hover:text-orange-600">
-                سجّل دخولك من هنا
-              </Link>
-            </span>
-          </div>
 
           {/* ─── Mode toggle ─── */}
           <div className="flex p-1 bg-gray-100 rounded-xl gap-1">

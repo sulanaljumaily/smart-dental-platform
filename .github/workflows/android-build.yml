@@ -45,6 +45,7 @@ jobs:
         run: |
           cp capacitor.patient.config.ts capacitor.config.ts
           [ ! -d "android" ] && pnpm exec cap add android
+          node scripts/prepare-android-assets.cjs
           pnpm exec cap sync android
 
       - name: Build Patient APK
@@ -62,14 +63,18 @@ jobs:
           VITE_SUPABASE_URL: https://nhueyaeyutfmadbgghfe.supabase.co
           VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5odWV5YWV5dXRmbWFkYmdnaGZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MzcwNTYsImV4cCI6MjA4NDQxMzA1Nn0.56MIbpOtVu9b_fwEyo-hvlxGxA_E5c-nU7q1MSfTg-g
 
-      - name: Sync Pro Capacitor
+      - name: Recreate Android Project for Pro App
         run: |
+          rm -rf android
           cp capacitor.pro.config.ts capacitor.config.ts
+          pnpm exec cap add android
+          node scripts/prepare-android-assets.cjs
           pnpm exec cap sync android
 
       - name: Build Pro APK
         run: |
           cd android
+          chmod +x gradlew
           ./gradlew assembleDebug
           cd ..
           cp android/app/build/outputs/apk/debug/app-debug.apk pro-app.apk

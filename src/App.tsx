@@ -262,9 +262,36 @@ function AppContent() {
         <Route path="/moha-showcase" element={<MohaAIShowcase />} />
 
         {/* Auth Routes (No Header) */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/patient-login" element={<PatientLoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+        <Route
+          path="/login"
+          element={
+            import.meta.env.VITE_BUILD_TARGET === 'patient' ? (
+              <Navigate to="/patient-login" replace />
+            ) : (
+              <LoginPage />
+            )
+          }
+        />
+        <Route
+          path="/patient-login"
+          element={
+            import.meta.env.VITE_BUILD_TARGET === 'pro' ? (
+              <Navigate to="/login" replace />
+            ) : (
+              <PatientLoginPage />
+            )
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            import.meta.env.VITE_BUILD_TARGET === 'patient' ? (
+              <Navigate to="/patient-login" replace />
+            ) : (
+              <RegisterPage />
+            )
+          }
+        />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
         <Route path="/terms-of-service" element={<TermsOfServicePage />} />

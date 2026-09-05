@@ -145,7 +145,10 @@ export const RegisterPage: React.FC = () => {
     return (
       <>
         <Header />
-        <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-primary via-primary-dark to-blue-900 flex items-center justify-center p-4">
+        <div
+          className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-primary via-primary-dark to-blue-900 flex items-center justify-center p-4"
+          style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 1.5rem)' }}
+        >
           <Card className="w-full max-w-md my-8 text-center p-8 shadow-2xl">
             <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <Mail className="w-10 h-10 text-green-600" />
@@ -178,7 +181,10 @@ export const RegisterPage: React.FC = () => {
   return (
     <>
       <Header />
-      <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-primary via-primary-dark to-blue-900 flex items-center justify-center p-4">
+      <div
+        className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-primary via-primary-dark to-blue-900 flex items-center justify-center p-4"
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 1.5rem)' }}
+      >
         <Card className="w-full max-w-2xl my-8">
           <div className="p-8 space-y-6">
             {/* Logo */}

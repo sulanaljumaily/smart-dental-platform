@@ -152,7 +152,11 @@ export const BottomNavigation: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-50 pb-[calc(env(safe-area-inset-bottom))]" dir="ltr">
+    <div
+      className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-50"
+      style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 8px)' }}
+      dir="ltr"
+    >
       <div className="max-w-7xl mx-auto px-2 py-2">
         <div className="flex justify-around items-center">
           {navItems.map((item) => {

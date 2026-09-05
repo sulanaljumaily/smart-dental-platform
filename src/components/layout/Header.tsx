@@ -14,7 +14,10 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200/50 shadow-sm pt-[calc(env(safe-area-inset-top)*0.75)]">
+    <header
+      className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200/50 shadow-sm"
+      style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+    >
       <div className="container mx-auto px-2 sm:px-4">
         <div className="flex items-center justify-between h-11 sm:h-12">
           {/* Logo */}
