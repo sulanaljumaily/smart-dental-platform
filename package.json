@@ -19,7 +19,9 @@
     "clean": "rimraf node_modules .pnpm-store pnpm-lock.yaml"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.1",
     "@capacitor/core": "^8.5.1",
+    "@capacitor/ios": "^8.5.1",
     "@capacitor/push-notifications": "^8.1.2",
     "@capacitor/splash-screen": "^8.0.2",
     "@capgo/capacitor-updater": "^8.51.15",

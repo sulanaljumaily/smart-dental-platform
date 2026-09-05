@@ -41,7 +41,7 @@ jobs:
       - name: Sync Patient Capacitor
         run: |
           cp capacitor.patient.config.ts capacitor.config.ts
-          pnpm exec cap add android || true
+          [ ! -d "android" ] && pnpm exec cap add android
           pnpm exec cap sync android
 
       - name: Build Patient APK
