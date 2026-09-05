@@ -1,0 +1,74 @@
+name: iOS IPA Build
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build-ios:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: |
+          npm install
+          npm install -g @capacitor/cli
+
+      - name: Build Web Application
+        run: npm run build:pro
+
+      - name: Add iOS & Sync Capacitor
+        run: |
+          cp capacitor.pro.config.ts capacitor.config.ts
+          [ ! -d "ios/App" ] && npx cap add ios
+          rm -rf node_modules/@capgo
+          npx cap sync ios
+
+          if [ ! -f "ios/App/App.xcodeproj/project.pbxproj" ]; then
+            echo "ERROR: Xcode project not properly configured"
+            exit 1
+          fi
+
+      - name: Build unsigned iOS IPA
+        run: |
+          cd ios/App
+          xcodebuild -project App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -allowProvisioningUpdates \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            clean build
+
+      - name: Package Payload to IPA
+        run: |
+          BUILD_PATH=$(find ~/Library/Developer/Xcode/DerivedData -path "*/Build/Products/Release-iphoneos/App.app" -type d 2>/dev/null | head -1)
+          if [ -z "$BUILD_PATH" ]; then
+            echo "ERROR: Could not find App.app in DerivedData"
+            exit 1
+          fi
+          mkdir -p ios/App/build/Release-iphoneos/Payload
+          cp -r "$BUILD_PATH" ios/App/build/Release-iphoneos/Payload/
+          cd ios/App/build/Release-iphoneos
+          zip -r dental-pro-unsigned.ipa Payload/
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-pro-unsigned-ipa
+          path: ios/App/build/Release-iphoneos/dental-pro-unsigned.ipa

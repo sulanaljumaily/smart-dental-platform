@@ -1,0 +1,54 @@
+name: Over-The-Air (OTA) Live Update Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target Application'
+        required: true
+        default: 'pro'
+        type: choice
+        options:
+          - pro
+          - patient
+      version:
+        description: 'Version string (e.g. 1.0.1)'
+        required: true
+        default: '1.0.1'
+
+jobs:
+  ota-bundle:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Web Target
+        run: |
+          if [ "${{ github.event.inputs.target }}" = "patient" ]; then
+            npm run build:patient
+          else
+            npm run build:pro
+          fi
+
+      - name: Create Update Zip Bundle
+        run: |
+          cd dist
+          zip -r ../update-bundle-${{ github.event.inputs.target }}-v${{ github.event.inputs.version }}.zip .
+          cd ..
+          ls -lh *.zip
+
+      - name: Upload OTA Bundle Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ota-bundle-${{ github.event.inputs.target }}-v${{ github.event.inputs.version }}
+          path: update-bundle-${{ github.event.inputs.target }}-v${{ github.event.inputs.version }}.zip

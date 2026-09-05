@@ -107,10 +107,21 @@ export const BottomNavigation: React.FC = () => {
     { id: 'services', label: 'الخدمات الطبية', icon: Stethoscope, path: '/services', activeOn: ['/services'] },
   ];
 
+  const isPatientApp = import.meta.env.VITE_BUILD_TARGET === 'patient';
+  const isProApp = import.meta.env.VITE_BUILD_TARGET === 'pro';
+
+  // في تطبيق القطاع الطبي (Pro App): يتم إخفاء الشريط السفلي تماماً قبل تسجيل الدخول
+  if (isProApp && !isAuthenticated) {
+    return null;
+  }
+
   // --- Select Menu Based on Role ---
   let navItems = publicMenu; // Default for unauthenticated
 
-  if (isAuthenticated) {
+  if (isPatientApp) {
+    // في تطبيق المرضى: القائمة دائماً مخصصة للمراجعين مع منع أي زر للأطباء
+    navItems = isAuthenticated ? patientMenu : publicMenu;
+  } else if (isAuthenticated) {
     if (user?.role === 'doctor') {
       navItems = doctorMenu;
     } else if (user?.role === 'supplier') {
@@ -126,6 +137,11 @@ export const BottomNavigation: React.FC = () => {
     }
   }
 
+  // فلترة صارمة لمنع ظهور زر مركز الأطباء للمراجعين في تطبيق المرضى
+  if (isPatientApp) {
+    navItems = navItems.filter(item => item.id !== 'doctor' && item.id !== 'supplier' && item.id !== 'lab' && item.id !== 'admin');
+  }
+
   const isActive = (activeOn: string[]) => {
     return activeOn.some(path => {
       if (path === '/') {
@@ -136,7 +152,7 @@ export const BottomNavigation: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-50" dir="ltr">
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-50 pb-[calc(env(safe-area-inset-bottom))]" dir="ltr">
       <div className="max-w-7xl mx-auto px-2 py-2">
         <div className="flex justify-around items-center">
           {navItems.map((item) => {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Patient } from '../types';
+import { db } from '../lib/offline/db';
 import { toast } from 'sonner';
 
 export const usePatient = (patientId: string | undefined) => {
@@ -15,8 +16,51 @@ export const usePatient = (patientId: string | undefined) => {
 
     const fetchPatient = async () => {
         if (!patientId) return;
+
+        // إذا كان الجهاز أوفلاين، استرجع بيانات المريض محلياً فوراً
+        if (!navigator.onLine) {
+            try {
+                const local = await db.patients.get(patientId);
+                if (local) {
+                    const d = (local.data || {}) as any;
+                    const offlineMapped: Patient = {
+                        id: local.id,
+                        name: local.name || d.full_name || 'مريض محلي',
+                        age: d.age || 0,
+                        phone: local.phone || d.phone || '',
+                        email: d.email || '',
+                        lastVisit: local.updated_at || local.created_at,
+                        totalVisits: d.total_visits || 1,
+                        balance: d.balance || 0,
+                        gender: d.gender || 'male',
+                        address: d.address,
+                        notes: d.notes,
+                        status: d.status || 'active',
+                        medicalHistory: d.medical_history,
+                        clinicId: local.clinic_id,
+                        patientUserId: d.patient_user_id,
+                        medicalHistoryData: d.medical_history_data || {
+                            vitals: { weight: '', height: '', bp: '', sugar: '', pulse: '' },
+                            conditions: [],
+                            allergies: [],
+                            habits: [],
+                            notes: ''
+                        }
+                    };
+                    setPatient(offlineMapped);
+                    setLoading(false);
+                    return;
+                }
+            } catch (e) {
+                console.warn('[usePatient] Fast-path Dexie get error:', e);
+            }
+            setLoading(false);
+            return;
+        }
+
         setLoading(true);
         try {
+            // محاولة التحميل من السيرفر
             const { data, error } = await supabase
                 .from('patients')
                 .select('*')
@@ -26,7 +70,6 @@ export const usePatient = (patientId: string | undefined) => {
             if (error) throw error;
 
             if (data) {
-                // Map snake_case to camelCase
                 const mappedPatient: Patient = {
                     id: data.id?.toString(),
                     name: data.full_name || data.name || 'Unknown',
@@ -35,7 +78,7 @@ export const usePatient = (patientId: string | undefined) => {
                     email: data.email || '',
                     lastVisit: data.last_visit_date,
                     totalVisits: data.total_visits || 0,
-                    balance: data.balance || 0, // Assuming balance is in DB or 0
+                    balance: data.balance || 0,
                     gender: data.gender,
                     address: data.address,
                     notes: data.notes,
@@ -44,7 +87,6 @@ export const usePatient = (patientId: string | undefined) => {
                     clinicId: data.clinic_id,
                     patientUserId: data.patient_user_id,
 
-                    // JSONB Fields
                     medicalHistoryData: data.medical_history_data || {
                         vitals: { weight: '', height: '', bp: '', sugar: '', pulse: '' },
                         conditions: [],
@@ -54,8 +96,60 @@ export const usePatient = (patientId: string | undefined) => {
                     }
                 };
                 setPatient(mappedPatient);
+
+                // حفظ في الكاش المحلي
+                try {
+                    await db.patients.put({
+                        id: data.id?.toString(),
+                        clinic_id: data.clinic_id?.toString() || '',
+                        name: mappedPatient.name,
+                        phone: mappedPatient.phone,
+                        data: data,
+                        synced: true,
+                        created_at: data.created_at || new Date().toISOString(),
+                        updated_at: new Date().toISOString()
+                    });
+                } catch {}
             }
         } catch (err: any) {
+            console.warn('[usePatient] Server fetch failed, checking Dexie offline cache:', err);
+            // في حالة الأوفلاين، استرجاع بيانات المريض من Dexie
+            try {
+                const local = await db.patients.get(patientId);
+                if (local) {
+                    const d = (local.data || {}) as any;
+                    const offlineMapped: Patient = {
+                        id: local.id,
+                        name: local.name || d.full_name || 'مريض محلي',
+                        age: d.age || 0,
+                        phone: local.phone || d.phone || '',
+                        email: d.email || '',
+                        lastVisit: local.updated_at || local.created_at,
+                        totalVisits: d.total_visits || 1,
+                        balance: d.balance || 0,
+                        gender: d.gender || 'male',
+                        address: d.address,
+                        notes: d.notes,
+                        status: d.status || 'active',
+                        medicalHistory: d.medical_history,
+                        clinicId: local.clinic_id,
+                        patientUserId: d.patient_user_id,
+                        medicalHistoryData: d.medical_history_data || {
+                            vitals: { weight: '', height: '', bp: '', sugar: '', pulse: '' },
+                            conditions: [],
+                            allergies: [],
+                            habits: [],
+                            notes: ''
+                        }
+                    };
+                    setPatient(offlineMapped);
+                    setError(null);
+                    return;
+                }
+            } catch (dexieErr) {
+                console.error('[usePatient] Error loading from Dexie:', dexieErr);
+            }
+
             console.error('Error fetching patient:', err);
             setError(err.message);
             toast.error('فشل تحميل بيانات المريض');

@@ -1,0 +1,72 @@
+name: Android Dual APK Build
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Dependencies
+        run: npm install
+
+      # ── 1. بناء وتصدير تطبيق المراجعين (Patient App) ──────────────────────
+      - name: Build Patient Web Assets
+        run: npm run build:patient
+
+      - name: Sync Patient Capacitor
+        run: |
+          cp capacitor.patient.config.ts capacitor.config.ts
+          npx cap add android || true
+          npx cap sync android
+
+      - name: Build Patient APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+          cd ..
+          cp android/app/build/outputs/apk/debug/app-debug.apk patient-app.apk
+
+      # ── 2. بناء وتصدير تطبيق القطاع الطبي (Pro App) ───────────────────────
+      - name: Build Pro Web Assets
+        run: npm run build:pro
+
+      - name: Sync Pro Capacitor
+        run: |
+          cp capacitor.pro.config.ts capacitor.config.ts
+          npx cap sync android
+
+      - name: Build Pro APK
+        run: |
+          cd android
+          ./gradlew assembleDebug
+          cd ..
+          cp android/app/build/outputs/apk/debug/app-debug.apk pro-app.apk
+
+      # ── 3. رفع ملفات APK الجاهزة ──────────────────────────────────────────
+      - name: Upload Both APKs as Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dental-platform-android-apks
+          path: |
+            patient-app.apk
+            pro-app.apk

@@ -41,8 +41,41 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // تحديد نوع الأزرار بناءً على الصفحة الحالية (`getNavigationButtons` logic for guests)
+  // تحديد نوع الأزرار بناءً على نوع البناء والصفحة الحالية
   const getGuestButtons = () => {
+    const isProApp = import.meta.env.VITE_BUILD_TARGET === 'pro';
+    const isPatientApp = import.meta.env.VITE_BUILD_TARGET === 'patient';
+
+    // في تطبيق القطاع الطبي (Pro): زر واحد واضح "تسجيل الدخول"
+    if (isProApp) {
+      return [
+        {
+          text: 'تسجيل الدخول',
+          icon: <UserCog className="w-4 h-4 sm:w-6 sm:h-6" />,
+          path: '/login',
+          gradient: 'from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700'
+        }
+      ];
+    }
+
+    // في تطبيق المرضى (Patient): إخفاء زر الأطباء تماماً
+    if (isPatientApp) {
+      return [
+        {
+          text: 'الخدمات الطبية',
+          icon: <Stethoscope className="w-4 h-4 sm:w-6 sm:h-6" />,
+          path: '/services',
+          gradient: 'from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600'
+        },
+        {
+          text: 'تسجيل',
+          icon: <UserPlus className="w-4 h-4 sm:w-6 sm:h-6" />,
+          path: '/patient-login',
+          gradient: 'from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700'
+        }
+      ];
+    }
+
     const path = location.pathname;
 
     if (path === '/doctor-welcome') {

@@ -3,6 +3,7 @@ import { User, UserRole } from '../types';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import { sendRoleNotification } from '../lib/notifications';
+import { db } from '../lib/offline/db';
 
 interface AuthContextType {
   user: User | null;
@@ -101,8 +102,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (!mountedRef.current) return;
 
       if (!error && data) {
-        updateUserState(buildUserFromProfile(data, email));
+        const userObj = buildUserFromProfile(data, email);
+        updateUserState(userObj);
+        // حفظ البروفايل محلياً في Dexie لاستخدامه في وضع الأوفلاين
+        try {
+          await db.user_profile.put({
+            id: userId,
+            role: data.role,
+            profile_data: userObj as unknown as Record<string, unknown>,
+            cached_at: Date.now()
+          });
+        } catch (e) {
+          console.warn('[Auth] Error caching profile offline:', e);
+        }
       } else {
+        // محاولة استرجاع البروفايل من الكاش المحلي أولاً إذا كان أوفلاين
+        try {
+          const cached = await db.user_profile.get(userId);
+          if (cached?.profile_data && mountedRef.current) {
+            updateUserState(cached.profile_data as unknown as User);
+            return;
+          }
+        } catch {
+          // تجاوز إذا لم توجد بيانات كاش
+        }
+
         // Profile query failed or no row → fallback to auth metadata
         if (error && !error.message?.includes('AbortError')) {
           console.warn('[Auth] Profile fetch error, using metadata fallback:', error.message);
@@ -114,6 +138,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (err: any) {
       if (err?.name === 'AbortError' || err?.message?.includes('AbortError')) return;
       console.error('[Auth] Unexpected error fetching profile:', err);
+      // في حالة حدوث خطأ اتصال (Offline)، محاولة استرجاع الكاش المحلي أولاً
+      try {
+        const cached = await db.user_profile.get(userId);
+        if (cached?.profile_data && mountedRef.current) {
+          updateUserState(cached.profile_data as unknown as User);
+          return;
+        }
+      } catch {
+        // تجاوز
+      }
       if (mountedRef.current) {
         updateUserState(buildUserFromMeta(userId, email));
       }
@@ -135,12 +169,43 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (session?.user) {
           await fetchProfile(session.user.id, session.user.email!);
         } else {
+          // عند فتح التطبيق أوفلاين، نسترجع الجلسة المحفوظة محلياً في Dexie
+          try {
+            const cachedProfiles = await db.user_profile.toArray();
+            if (cachedProfiles.length > 0 && mountedRef.current) {
+              const lastProfile = cachedProfiles[0];
+              if (lastProfile?.profile_data) {
+                console.log('[Auth] Restored offline session from Dexie:', lastProfile.id);
+                updateUserState(lastProfile.profile_data as unknown as User);
+                setLoading(false);
+                return;
+              }
+            }
+          } catch (e) {
+            console.warn('[Auth] Could not check offline user_profile:', e);
+          }
+
           updateUserState(null);
           setLoading(false);
         }
       } catch (error: any) {
         if (error?.name === 'AbortError' || error?.message?.includes('AbortError')) return;
         console.error('Error checking auth session:', error);
+
+        // محاولة استرجاع الجلسة من Dexie في حالة حدوث خطأ اتصال (Network Error)
+        try {
+          const cachedProfiles = await db.user_profile.toArray();
+          if (cachedProfiles.length > 0 && mountedRef.current) {
+            const lastProfile = cachedProfiles[0];
+            if (lastProfile?.profile_data) {
+              console.log('[Auth] Restored offline session after network error:', lastProfile.id);
+              updateUserState(lastProfile.profile_data as unknown as User);
+              setLoading(false);
+              return;
+            }
+          }
+        } catch {}
+
         if (mountedRef.current) setLoading(false);
       }
     };
@@ -163,8 +228,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             fetchProfile(session.user.id, session.user.email!);
           }
         }, 100);
-      } else {
+      } else if (event === 'SIGNED_OUT') {
         updateUserState(null);
+        setLoading(false);
+      } else {
+        // When session is null on INITIAL_SESSION or network disconnect:
+        // Do NOT clear user if offline or if we have an offline user restored
+        if (!navigator.onLine) {
+          if (!userRef.current) {
+            try {
+              const cachedProfiles = await db.user_profile.toArray();
+              if (cachedProfiles.length > 0 && mountedRef.current) {
+                const lastProfile = cachedProfiles[0];
+                if (lastProfile?.profile_data) {
+                  updateUserState(lastProfile.profile_data as unknown as User);
+                  setLoading(false);
+                  return;
+                }
+              }
+            } catch {}
+          } else {
+            // Already have offline user session, maintain it
+            setLoading(false);
+            return;
+          }
+        }
+
+        if (!userRef.current) {
+          updateUserState(null);
+        }
         setLoading(false);
       }
     });
@@ -286,10 +378,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = async () => {
     try {
       await supabase.auth.signOut();
+      try {
+        await db.user_profile.clear();
+      } catch {}
       setUser(null);
       toast.success('تم تسجيل الخروج');
     } catch (error) {
       console.error('Logout error:', error);
+      try {
+        await db.user_profile.clear();
+      } catch {}
+      setUser(null);
     }
   };
 

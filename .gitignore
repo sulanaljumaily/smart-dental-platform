@@ -28,3 +28,11 @@ pnpm-debug.log*
 
 # Temporary files
 scratch/smart-dental-platform
+
+# Tauri build artifacts
+src-tauri/target/
+
+# Mobile build artifacts
+android/
+ios/
+

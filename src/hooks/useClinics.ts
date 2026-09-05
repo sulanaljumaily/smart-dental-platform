@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Clinic } from '../types';
+import { setCache, getCache } from '../lib/offline/db';
 
 export const useClinics = () => {
     const { user } = useAuth();
@@ -94,9 +95,25 @@ export const useClinics = () => {
             }));
 
             setClinics(mappedClinics);
+            // حفظ في الكاش المحلي لاستعراض العيادات أوفلاين
+            if (user?.id) {
+                setCache('user_clinics_' + user.id, mappedClinics, 86400).catch(() => {});
+            }
         } catch (err: any) {
             if (err?.name === 'AbortError' || err?.message?.includes('AbortError')) return;
-            if (mountedRef.current) console.error('Error fetching clinics:', err);
+            if (mountedRef.current) {
+                console.warn('[useClinics] Network error, checking offline cache:', err);
+                if (user?.id) {
+                    try {
+                        const cached = await getCache<Clinic[]>('user_clinics_' + user.id);
+                        if (cached && cached.length > 0) {
+                            setClinics(cached);
+                        }
+                    } catch (e) {
+                        console.error('[useClinics] Failed to load offline clinics:', e);
+                    }
+                }
+            }
         } finally {
             if (mountedRef.current) setLoading(false);
         }

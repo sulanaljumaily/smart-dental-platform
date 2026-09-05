@@ -1,0 +1,46 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Dental Platform",
+  "version": "1.0.0",
+  "identifier": "com.dentalplatform.pro",
+  "build": {
+    "beforeBuildCommand": "npm run build:pro",
+    "beforeDevCommand": "npm run dev",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Dental Platform - نظام إدارة العيادات والقطاع الطبي",
+        "url": "index.html",
+        "fullscreen": false,
+        "width": 1280,
+        "height": 800,
+        "minWidth": 960,
+        "minHeight": 640,
+        "resizable": true,
+        "center": true
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "msi"],
+    "icon": [
+      "icons/icon.ico",
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png"
+    ],
+    "category": "Business",
+    "shortDescription": "المنصة الذكية لإدارة عيادات ومراكز طب الأسنان",
+    "longDescription": "برنامج سطح المكتب لإدارة عيادات الأسنان، المواعيد، سجلات المرضى، الإيرادات والربط مع المعامل والموردين",
+    "copyright": "Dental Platform © 2026",
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
+    }
+  },
+  "plugins": {}
+}

@@ -3,6 +3,7 @@ import { ToothCondition, TreatmentPlan, TreatmentSession } from '../types/treatm
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
+import { setCache, getCache } from '../lib/offline/db';
 
 // Mock data for fallback or initial state
 const INITIAL_TEETH: ToothCondition[] = Array.from({ length: 32 }, (_, i) => {
@@ -36,6 +37,24 @@ export const usePatientTreatments = (patientId: string | undefined) => {
 
     const fetchData = async () => {
         if (!patientId) return;
+
+        // إذا كان الجهاز أوفلاين، استرجع مخطط الأسنان والخطط العلاجية محلياً فوراً
+        if (!navigator.onLine) {
+            try {
+                const cachedTeeth = await getCache<ToothCondition[]>('patient_teeth_' + patientId);
+                const cachedPlans = await getCache<TreatmentPlan[]>('patient_plans_' + patientId);
+                if (cachedTeeth || cachedPlans) {
+                    if (cachedTeeth) setTeeth(cachedTeeth);
+                    if (cachedPlans) setTreatmentPlans(cachedPlans);
+                    setError(null);
+                }
+            } catch (e) {
+                console.warn('[usePatientTreatments] Immediate Dexie load error:', e);
+            }
+            setLoading(false);
+            return;
+        }
+
         setLoading(true);
         try {
             // 1. Fetch Teeth Conditions
@@ -47,20 +66,20 @@ export const usePatientTreatments = (patientId: string | undefined) => {
             if (teethError) throw teethError;
 
             // Merge with initial
+            let currentTeeth = INITIAL_TEETH;
             if (dbTeeth) {
-                const mergedTeeth = INITIAL_TEETH.map(initial => {
+                currentTeeth = INITIAL_TEETH.map(initial => {
                     const found = dbTeeth.find(t => t.tooth_number === initial.number);
                     if (found) {
                         return {
                             ...initial,
                             condition: found.condition,
                             notes: found.notes || '',
-                            // Diagnosis can be mapped here if needed
                         };
                     }
                     return initial;
                 });
-                setTeeth(mergedTeeth);
+                setTeeth(currentTeeth);
             } else {
                 setTeeth(INITIAL_TEETH);
             }
@@ -106,7 +125,30 @@ export const usePatientTreatments = (patientId: string | undefined) => {
             }));
 
             setTreatmentPlans(mappedPlans);
+
+            // حفظ في الكاش المحلي لاستعراض العلاجات ومخطط الأسنان أوفلاين
+            if (patientId) {
+                setCache('patient_teeth_' + patientId, currentTeeth, 86400).catch(() => {});
+                setCache('patient_plans_' + patientId, mappedPlans, 86400).catch(() => {});
+            }
         } catch (err: any) {
+            console.warn('[usePatientTreatments] Network error, checking Dexie offline cache:', err);
+            // محاولة التحميل من الكاش المحلي أوفلاين
+            if (patientId) {
+                try {
+                    const cachedTeeth = await getCache<ToothCondition[]>('patient_teeth_' + patientId);
+                    const cachedPlans = await getCache<TreatmentPlan[]>('patient_plans_' + patientId);
+                    if (cachedTeeth || cachedPlans) {
+                        if (cachedTeeth) setTeeth(cachedTeeth);
+                        if (cachedPlans) setTreatmentPlans(cachedPlans);
+                        setError(null);
+                        return;
+                    }
+                } catch (dexieErr) {
+                    console.error('[usePatientTreatments] Offline cache read error:', dexieErr);
+                }
+            }
+
             console.error('Error fetching treatments:', err);
             setError(err.message);
             toast.error('فشل تحميل بيانات العلاج');

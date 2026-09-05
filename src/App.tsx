@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { MainLayout } from './layouts/MainLayout';
@@ -129,12 +129,35 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requiredRole?: strin
     return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>;
   }
 
+  const location = useLocation();
+
   if (!isAuthenticated) {
-    const currentPath = window.location.pathname.toLowerCase();
-    if (requiredRole === 'patient' || currentPath.startsWith('/patient')) {
+    const currentPath = location.pathname.toLowerCase();
+    const isPatientBuild = import.meta.env.VITE_BUILD_TARGET === 'patient';
+    const isProBuild = import.meta.env.VITE_BUILD_TARGET === 'pro';
+
+    if (isProBuild && (currentPath.startsWith('/patient') || requiredRole === 'patient')) {
+      return <Navigate to="/login" replace />;
+    }
+    if (isPatientBuild || requiredRole === 'patient' || currentPath.startsWith('/patient')) {
       return <Navigate to="/patient-login" replace />;
     }
     return <Navigate to="/login" replace />;
+  }
+
+  // في تطبيق القطاع الطبي: حظر مسارات المراجعين
+  if (import.meta.env.VITE_BUILD_TARGET === 'pro' && location.pathname.toLowerCase().startsWith('/patient')) {
+    return <Navigate to="/" replace />;
+  }
+
+  // في تطبيق المرضى: حظر مسارات الأطباء واللوحات الاحترافية
+  if (import.meta.env.VITE_BUILD_TARGET === 'patient' && (
+    location.pathname.toLowerCase().startsWith('/doctor') ||
+    location.pathname.toLowerCase().startsWith('/laboratory') ||
+    location.pathname.toLowerCase().startsWith('/supplier') ||
+    location.pathname.toLowerCase().startsWith('/admin')
+  )) {
+    return <Navigate to="/" replace />;
   }
 
   if (requiredRole) {
@@ -152,10 +175,12 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requiredRole?: strin
 };
 
 function AppContent() {
+  const isWebTarget = !import.meta.env.VITE_BUILD_TARGET || import.meta.env.VITE_BUILD_TARGET === 'web';
+
   return (
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      {/* PWA Install Button - floating above bottom nav */}
-      <PWAInstallButton variant="floating" />
+      {/* PWA Install Button - floating above bottom nav (Only for Web) */}
+      {isWebTarget && <PWAInstallButton variant="floating" />}
       <Routes>
         {/* Public Routes Wrapped in MainLayout (Header + Bottom Nav) */}
         <Route element={<MainLayout />}>
@@ -278,7 +303,6 @@ function AppContent() {
           <Route path="messages" element={<DoctorMessagesPage />} />
           <Route path="notifications" element={<DoctorNotificationsPage />} />
           <Route path="updates" element={<UpdatesPage />} />
-          <Route path="updates" element={<UpdatesPage />} />
           <Route path="profile" element={<DoctorProfilePage />} />
           <Route path="ai" element={<AIAnalysisPage />} />
 
@@ -368,12 +392,14 @@ import { PlatformProvider } from './contexts/PlatformContext';
 import { HelmetProvider } from 'react-helmet-async';
 
 import { Toaster } from 'sonner';
+import { SplashScreen } from './components/SplashScreen';
 
 function App() {
   return (
-    <HelmetProvider>
-      <LanguageProvider>
-        <AuthProvider>
+    <LanguageProvider>
+      <AuthProvider>
+        <HelmetProvider>
+          <SplashScreen />
           <Toaster position="top-center" richColors />
           <CompleteRegistrationModal />
           <StoreProvider>
@@ -383,9 +409,9 @@ function App() {
               </PlatformProvider>
             </CommunityProvider>
           </StoreProvider>
-        </AuthProvider>
-      </LanguageProvider>
-    </HelmetProvider>
+        </HelmetProvider>
+      </AuthProvider>
+    </LanguageProvider>
   );
 }
 
