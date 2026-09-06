@@ -82,33 +82,36 @@ export const ArticleDetailPage: React.FC = () => {
         {article.image && <meta name="twitter:image" content={article.image} />}
 
         {/* Structured Data (JSON-LD) for Article */}
-        <script type="application/ld+json">
-          {JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "MedicalWebPage",
-            "headline": article.title,
-            "description": article.excerpt,
-            "image": article.image || "https://dental-platform.com/icons/icon-512x512.png",
-            "datePublished": article.date || "2026-01-28",
-            "dateModified": article.date || "2026-01-28",
-            "author": {
-              "@type": "Organization",
-              "name": article.author || "DENTAL PLATFORM"
-            },
-            "publisher": {
-              "@type": "Organization",
-              "name": "DENTAL PLATFORM",
-              "logo": {
-                "@type": "ImageObject",
-                "url": "https://dental-platform.com/icons/icon-512x512.png"
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "MedicalWebPage",
+              "headline": article.title,
+              "description": article.excerpt,
+              "image": article.image || "https://dental-platform.com/icons/icon-512x512.png",
+              "datePublished": article.date || "2026-01-28",
+              "dateModified": article.date || "2026-01-28",
+              "author": {
+                "@type": "Organization",
+                "name": article.author || "DENTAL PLATFORM"
+              },
+              "publisher": {
+                "@type": "Organization",
+                "name": "DENTAL PLATFORM",
+                "logo": {
+                  "@type": "ImageObject",
+                  "url": "https://dental-platform.com/icons/icon-512x512.png"
+                }
+              },
+              "mainEntityOfPage": {
+                "@type": "WebPage",
+                "@id": `https://dental-platform.com/article/${article.id}`
               }
-            },
-            "mainEntityOfPage": {
-              "@type": "WebPage",
-              "@id": `https://dental-platform.com/article/${article.id}`
-            }
-          })}
-        </script>
+            })
+          }}
+        />
       </Helmet>
       
       <div className="min-h-screen bg-white pb-32">
