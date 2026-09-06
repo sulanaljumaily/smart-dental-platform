@@ -37,9 +37,14 @@
     @apply border-border;
   }
 
+  html {
+    background-color: #030f21;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-family: 'Cairo', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    min-height: 100vh;
   }
 
   /* RTL Support */

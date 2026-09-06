@@ -141,10 +141,10 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <>
-      <Header />
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-900 via-blue-950 to-[#030f21]">
+      <Header dark />
       <div
-        className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-primary via-primary-dark to-blue-900 flex items-center justify-center p-4"
+        className="flex-1 flex items-center justify-center p-4"
         style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 1.5rem)' }}
       >
         <Card className="w-full max-w-md">
@@ -368,6 +368,6 @@ export const LoginPage: React.FC = () => {
           </div>
         </Card>
       </div>
-    </>
+    </div>
   );
 };

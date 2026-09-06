@@ -4,7 +4,11 @@ import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePlatform } from '../../contexts/PlatformContext';
 
-export const Header: React.FC = () => {
+interface HeaderProps {
+  dark?: boolean;
+}
+
+export const Header: React.FC<HeaderProps> = ({ dark = false }) => {
   const { language, setLanguage, t } = useLanguage();
   const { isAuthenticated, logout } = useAuth();
   const { settings } = usePlatform();
@@ -15,7 +19,11 @@ export const Header: React.FC = () => {
 
   return (
     <header
-      className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-200/50 shadow-sm"
+      className={`sticky top-0 z-40 backdrop-blur-md transition-colors ${
+        dark 
+          ? 'bg-slate-900/70 border-b border-white/10 text-white' 
+          : 'bg-white/80 border-b border-gray-200/50 shadow-sm'
+      }`}
       style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
       <div className="container mx-auto px-2 sm:px-4">

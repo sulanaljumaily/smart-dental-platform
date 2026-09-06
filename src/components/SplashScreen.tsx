@@ -10,7 +10,7 @@ interface SplashScreenProps {
 export const SplashScreen: React.FC<SplashScreenProps> = ({
   isVisible = true,
   onHide,
-  duration = 1600,
+  duration = 2400,
 }) => {
   const [show, setShow] = useState(isVisible);
   const [isFadingOut, setIsFadingOut] = useState(false);
@@ -20,10 +20,10 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
       setShow(true);
       setIsFadingOut(false);
 
-      // بدء التلاشي الانسيابي قبل الإغلاق بـ 400ms
+      // بدء التلاشي الانسيابي قبل الإغلاق بـ 600ms
       const fadeTimer = setTimeout(() => {
         setIsFadingOut(true);
-      }, Math.max(duration - 400, 800));
+      }, Math.max(duration - 600, 1000));
 
       const hideTimer = setTimeout(() => {
         setShow(false);

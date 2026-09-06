@@ -19,14 +19,16 @@
   user-select: none;
   opacity: 1;
   visibility: visible;
-  transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.4s ease;
+  transform: scale(1);
+  transition: opacity 0.6s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0.6s ease;
   font-family: 'Cairo', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   direction: rtl;
 }
 
-/* تلاشي انسيابي عند إغلاق الشاشة */
+/* تلاشي انسيابي سينمائي ناعم عند إغلاق الشاشة */
 .splash-screen.splash-fade-out {
   opacity: 0;
+  transform: scale(1.03);
   visibility: hidden;
   pointer-events: none;
 }

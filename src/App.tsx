@@ -31,6 +31,7 @@ import { PatientLoginPage } from './pages/auth/PatientLoginPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { PrivacyPolicyPage } from './pages/auth/PrivacyPolicyPage';
 import { TermsOfServicePage } from './pages/auth/TermsOfServicePage';
+import { DesktopContextMenu } from './components/common/DesktopContextMenu';
 
 // Doctor Pages
 import { DoctorDashboard } from './pages/doctor/DoctorDashboard';
@@ -178,6 +179,7 @@ function AppContent() {
 
   return (
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <DesktopContextMenu />
       {/* PWA Install Button - floating above bottom nav (Only for Web) */}
       {isWebTarget && <PWAInstallButton variant="floating" />}
       <Routes>
