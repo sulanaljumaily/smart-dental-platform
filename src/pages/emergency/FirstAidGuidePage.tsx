@@ -294,7 +294,7 @@ export const FirstAidGuidePage: React.FC = () => {
                     بدء الدليل
                   </Button>
                   <Button variant="outline" className="rounded-xl px-6 py-3" onClick={() => navigate('/emergency/centers')}>
-                    أقرب مكز طوارئ
+                    أقرب مركز طوارئ
                   </Button>
                 </div>
               </div>

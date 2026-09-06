@@ -205,7 +205,7 @@ export const EmergencyCentersPage: React.FC = () => {
             <div className="max-w-2xl">
               <h1 className="text-3xl md:text-4xl font-black text-gray-900 mb-4 tracking-tight">مراكز الطوارئ</h1>
               <p className="text-xl text-gray-500 leading-relaxed">
-                عثر على أقرب مراكز الطوارئ والمستشفيات في العراق مع معلومات التواصل المباشر.
+                اعثر على أقرب مراكز طوارئ الأسنان والمستشفيات في العراق مع معلومات التواصل المباشر على مدار الساعة.
               </p>
             </div>
             <div>

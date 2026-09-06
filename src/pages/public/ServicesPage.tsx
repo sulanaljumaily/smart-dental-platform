@@ -116,12 +116,68 @@ export const ServicesPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Helmet>
-        <title>الخدمات الطبية وعيادات الأسنان | Dental Platform</title>
-        <meta name="description" content="ابحث عن أفضل عيادات وأطباء الأسنان في العراق، خدمات التشخيص الذكي بالذكاء الاصطناعي، والمقالات الطبية المتخصصة." />
+        <title>أفضل أطباء وعيادات الأسنان في العراق | دليل الخدمات الطبية المعتمدة</title>
+        <meta
+          name="description"
+          content="دليل أفضل أطباء وعيادات الأسنان في العراق بمختلف المحافظات (بغداد، أربيل، البصرة، النجف). احجز موعدك فوراً، واستفد من التشخيص الذكي بالذكاء الاصطناعي وطوارئ الأسنان 24/7."
+        />
+        <meta
+          name="keywords"
+          content="افضل اطباء اسنان في العراق, افضل عيادات اسنان في العراق, دليل اطباء الاسنان العراق, حجز طبيب اسنان العراق, عيادات اسنان بغداد, طوارئ اسنان العراق 24 ساعة, تشخيص اسنان بالذكاء الاصطناعي, مراكز اسنان العراق"
+        />
         <link rel="canonical" href="https://dental-platform.com/services" />
-        <meta property="og:title" content="الخدمات الطبية وعيادات الأسنان | Dental Platform" />
-        <meta property="og:description" content="دليل عيادات الأسنان، التشخيص الذكي، وحجز المواعيد." />
+        <meta property="og:title" content="أفضل أطباء وعيادات الأسنان في العراق | دليل الخدمات الطبية المعتمدة" />
+        <meta
+          property="og:description"
+          content="دليل أفضل أطباء وعيادات الأسنان في العراق، حجز المواعيد الفورية، تشخيص الأسنان الذكي، وطوارئ الأسنان على مدار 24 ساعة."
+        />
         <meta property="og:url" content="https://dental-platform.com/services" />
+        <meta property="og:type" content="website" />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "MedicalWebPage",
+            "name": "أفضل أطباء وعيادات الأسنان في العراق | دليل الخدمات الطبية المعتمدة",
+            "url": "https://dental-platform.com/services",
+            "description": "دليل شامل لأفضل أطباء وعيادات الأسنان في محافظات العراق، مع إمكانية حجز المواعيد والتشخيص الذكي وطوارئ الأسنان.",
+            "inLanguage": "ar",
+            "about": [
+              {
+                "@type": "MedicalSpecialty",
+                "name": "Dentistry"
+              }
+            ],
+            "mainEntity": {
+              "@type": "ItemList",
+              "itemListElement": [
+                {
+                  "@type": "ListItem",
+                  "position": 1,
+                  "name": "دليل أفضل أطباء وعيادات الأسنان في العراق",
+                  "description": "استكشف أفضل عيادات الأسنان في بغداد وكافة المحافظات واحجز موعدك مباشرة."
+                },
+                {
+                  "@type": "ListItem",
+                  "position": 2,
+                  "name": "التشخيص الذكي لألم الأسنان بالذكاء الاصطناعي",
+                  "description": "تقييم فوري ودقيق لأعراض وألم الأسنان عبر خوارزميات ذكية متقدمة."
+                },
+                {
+                  "@type": "ListItem",
+                  "position": 3,
+                  "name": "خدمات ومراكز طوارئ الأسنان على مدار 24 ساعة",
+                  "description": "إسعافات أولية عاجلة ودليل أقرب مراكز طوارئ الأسنان المناوبة في العراق."
+                },
+                {
+                  "@type": "ListItem",
+                  "position": 4,
+                  "name": "المقالات الطبية والتثقيف السني المعتمد",
+                  "description": "مقالات وإرشادات طبية موثوقة يقدمها نخبة من أطباء الأسنان المتخصصين."
+                }
+              ]
+            }
+          })}
+        </script>
       </Helmet>
       {/* Header */}
       <div className="bg-gradient-to-b from-white via-blue-50/50 to-white pt-6 pb-12 px-4 relative overflow-hidden border-b border-blue-100/50">
@@ -136,13 +192,15 @@ export const ServicesPage: React.FC = () => {
           <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-4 text-center md:text-right">
             <div>
               <div className="flex items-center justify-center md:justify-start gap-3 mb-4">
-                <span className="px-4 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm font-bold border border-blue-100 shadow-sm">خدمات طبية</span>
-                <span className="px-4 py-1.5 bg-purple-50 text-purple-700 rounded-full text-sm font-bold border border-purple-100 shadow-sm">شاملة</span>
+                <span className="px-4 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm font-bold border border-blue-100 shadow-sm">دليل العراق الطبي</span>
+                <span className="px-4 py-1.5 bg-purple-50 text-purple-700 rounded-full text-sm font-bold border border-purple-100 shadow-sm">أطباء وعيادات معتمدة</span>
               </div>
-              <h1 className="text-4xl md:text-5xl font-black text-slate-900 mb-4 tracking-tight leading-tight">
-                الخدمات <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">الطبية</span>
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 mb-4 tracking-tight leading-tight">
+                أفضل أطباء وعيادات <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">الأسنان في العراق</span>
               </h1>
-              <p className="text-xl text-slate-600 max-w-2xl leading-relaxed">منصة طبية متكاملة لخدمتك.. من التشخيص الذكي وحتى حجز الموعد.</p>
+              <p className="text-base sm:text-lg md:text-xl text-slate-600 max-w-2xl leading-relaxed">
+                دليلك الطبي الموثوق لاختيار أفضل أطباء الأسنان، حجز المواعيد المباشرة، التشخيص الذكي بالذكاء الاصطناعي، وطوارئ الأسنان على مدار 24 ساعة في جميع المحافظات.
+              </p>
             </div>
           </div>
         </div>
@@ -152,10 +210,10 @@ export const ServicesPage: React.FC = () => {
       <div className="container mx-auto px-4 -mt-8 max-w-6xl mb-3 relative z-20 flex justify-center">
         <div className="bg-white rounded-2xl shadow-xl shadow-gray-200/50 p-1.5 border border-gray-100 grid grid-cols-2 md:flex md:flex-row items-center justify-center gap-1 w-full md:w-auto">
             {[
-              { id: 'clinics', label: 'العيادات', icon: MapPin, color: 'text-blue-600', bg: 'bg-blue-50' },
-              { id: 'diagnosis', label: 'تشخيص ذكي', icon: Brain, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-              { id: 'articles', label: 'مقالات طبية', icon: FileText, color: 'text-green-600', bg: 'bg-green-50' },
-              { id: 'emergency', label: 'طوارئ', icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50' }
+              { id: 'clinics', label: 'أطباء وعيادات الأسنان', icon: MapPin, color: 'text-blue-600', bg: 'bg-blue-50' },
+              { id: 'diagnosis', label: 'التشخيص الذكي', icon: Brain, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+              { id: 'articles', label: 'المقالات الطبية', icon: FileText, color: 'text-green-600', bg: 'bg-green-50' },
+              { id: 'emergency', label: 'طوارئ الأسنان 24/7', icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50' }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -163,15 +221,15 @@ export const ServicesPage: React.FC = () => {
                   setActiveTab(tab.id as any);
                 }}
                 id={`tab-${tab.id}`}
-                className={`flex items-center justify-center md:justify-start gap-2 px-4 py-2.5 rounded-xl transition-all duration-300 whitespace-nowrap w-full md:w-auto ${activeTab === tab.id
-                  ? `${tab.bg} ${tab.color} shadow-sm ring-1 ring-inset ring-black/5 scale-105 z-10`
+                className={`flex items-center justify-center md:justify-start gap-2 px-3 sm:px-4 py-2.5 rounded-xl transition-all duration-300 w-full md:w-auto ${activeTab === tab.id
+                  ? `${tab.bg} ${tab.color} shadow-sm ring-1 ring-inset ring-black/5 scale-[1.02] md:scale-105 z-10`
                   : 'hover:bg-gray-50 text-gray-500 hover:text-gray-900'
                   }`}
               >
-                <div className={`p-1.5 rounded-lg ${activeTab === tab.id ? 'bg-white/80' : 'bg-gray-100'} transition-colors`}>
+                <div className={`p-1.5 rounded-lg ${activeTab === tab.id ? 'bg-white/80' : 'bg-gray-100'} transition-colors flex-shrink-0`}>
                   <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? tab.color : 'text-gray-500'}`} />
                 </div>
-                <span className={`font-bold text-xs ${activeTab === tab.id ? 'text-gray-900' : ''}`}>{tab.label}</span>
+                <span className={`font-bold text-xs truncate sm:whitespace-normal ${activeTab === tab.id ? 'text-gray-900' : ''}`}>{tab.label}</span>
               </button>
             ))}
         </div>
@@ -181,6 +239,15 @@ export const ServicesPage: React.FC = () => {
       <div className="container mx-auto px-4 pt-2 pb-8 max-w-6xl">
         {activeTab === 'clinics' && (
           <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* SEO & User Intro */}
+            <div className="text-center md:text-right mb-2">
+              <h2 className="text-2xl md:text-3xl font-black text-gray-900 mb-1">
+                دليل أفضل أطباء وعيادات الأسنان في العراق
+              </h2>
+              <p className="text-sm md:text-base text-gray-600">
+                ابحث عن أفضل عيادات وأطباء الأسنان المعتمدين في بغداد، أربيل، البصرة، النجف وباقي المدن، مع استعراض التقييمات، الاختصاصات وحجز المواعيد المباشرة.
+              </p>
+            </div>
             {/* Sub-Tabs: Map vs Featured */}
             <div className="flex justify-center md:justify-center gap-2 mb-2">
               <button
@@ -271,8 +338,8 @@ export const ServicesPage: React.FC = () => {
               <div>
                 <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
                   <TrendingUp className="w-5 h-5 text-blue-600" />
-                  {selectedGovernorate || selectedSpecialty ? 'نتائج البحث' : 'استكشف العيادات'}
-                  <span className="text-sm font-normal text-gray-400 mr-2">({filteredClinics.length}) عيادة</span>
+                  {selectedGovernorate || selectedSpecialty ? 'نتائج البحث عن أفضل أطباء وعيادات الأسنان' : 'استكشف قائمة أفضل أطباء وعيادات الأسنان في العراق'}
+                  <span className="text-sm font-normal text-gray-400 mr-2">({filteredClinics.length}) عيادة معتمدة</span>
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredClinics.map(clinic => (
@@ -304,13 +371,15 @@ export const ServicesPage: React.FC = () => {
         {activeTab === 'diagnosis' && (
           <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Diagnosis Header */}
-            <div className="text-center mb-4">
-              <div className="inline-flex items-center justify-center p-2 bg-purple-100 rounded-xl mb-2">
-                <Brain className="w-6 h-6 text-purple-600" />
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center justify-center p-2.5 bg-purple-100 rounded-2xl mb-3">
+                <Brain className="w-7 h-7 text-purple-600" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-1 tracking-tight">التشخيص الذكي</h2>
-              <p className="text-sm text-gray-500 max-w-lg mx-auto">
-                احصل على تشخيص فوري لحالتك باستخدام تقنيات الذكاء الاصطناعي
+              <h2 className="text-2xl md:text-3xl font-black text-gray-900 mb-2 tracking-tight">
+                التشخيص الذكي لألم وصحة الأسنان بالذكاء الاصطناعي
+              </h2>
+              <p className="text-sm md:text-base text-gray-600 max-w-xl mx-auto leading-relaxed">
+                استشر طبيب الأسنان الافتراضي واحصل على تقييم سريري فوري ودقيق لحالتك وأعراضك بأحدث خوارزميات الذكاء الاصطناعي لاقتراح العلاج الأنسب والعيادة الأفضل.
               </p>
             </div>
 
@@ -359,8 +428,12 @@ export const ServicesPage: React.FC = () => {
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">المقالات الطبية</h2>
-                <p className="text-gray-500">ثقف نفسك بأحدث المعلومات الطبية الموثوقة</p>
+                <h2 className="text-2xl md:text-3xl font-black text-gray-900 mb-1">
+                  المقالات الطبية والتثقيف السني المعتمد
+                </h2>
+                <p className="text-sm md:text-base text-gray-600">
+                  دليلك الطبي الموثوق لصحة الفم والأسنان بأقلام وتوصيات نخبة من أفضل أطباء وجراحي الأسنان في العراق
+                </p>
               </div>
               <div className="hidden md:flex gap-2">
                 <Button variant="outline" size="sm" className="rounded-xl">الأحدث</Button>
@@ -389,9 +462,15 @@ export const ServicesPage: React.FC = () => {
             {/* Emergency Services Header */}
             <div className="text-center relative">
               <div className="absolute top-1/2 left-0 right-0 h-px bg-gray-100 -z-10"></div>
-              <span className="bg-gray-50 px-4 text-red-500 font-bold tracking-widest text-sm uppercase">منطقة الطوارئ</span>
-              <h2 className="text-4xl font-black text-gray-900 mt-4 mb-2">خدمات الطوارئ العاجلة</h2>
-              <p className="text-xl text-gray-600">استجابة سريعة للحالات الحرجة على مدار 24 ساعة</p>
+              <span className="bg-gray-50 px-4 text-red-600 font-bold tracking-widest text-xs md:text-sm uppercase rounded-full border border-red-100">
+                طوارئ الأسنان 24 ساعة في العراق
+              </span>
+              <h2 className="text-3xl md:text-4xl font-black text-gray-900 mt-4 mb-2">
+                خدمات ومراكز طوارئ الأسنان العاجلة
+              </h2>
+              <p className="text-base md:text-xl text-gray-600 max-w-2xl mx-auto">
+                استجابة فورية للحالات الحرجة، دليل أقرب المستشفيات والعيادات المناوبة، وإرشادات الإسعافات الأولية على مدار 24 ساعة
+              </p>
             </div>
 
             {/* Emergency Service Cards */}
@@ -408,8 +487,8 @@ export const ServicesPage: React.FC = () => {
                       <Zap className="w-5 h-5 md:w-8 md:h-8" />
                     </div>
                   </div>
-                  <h3 className="text-sm md:text-2xl font-bold text-gray-900 mb-1 md:mb-3">طوارئ الأسنان</h3>
-                  <p className="text-[10px] md:text-base text-gray-600 mb-3 md:mb-6 leading-relaxed">إدارة فورية للألم والحوادث الطارئة للأسنان</p>
+                  <h3 className="text-sm md:text-2xl font-bold text-gray-900 mb-1 md:mb-3">طوارئ وألم الأسنان</h3>
+                  <p className="text-[10px] md:text-base text-gray-600 mb-3 md:mb-6 leading-relaxed">إدارة فورية للألم الشديد، النزيف وحوادث الأسنان الطارئة</p>
 
                   <div className="flex flex-wrap gap-1 md:gap-2 justify-center mb-4 md:mb-8">
                     <span className="px-2 py-0.5 md:px-3 md:py-1 bg-red-50 text-red-600 text-[9px] md:text-xs font-bold rounded-lg border border-red-100">ألم شديد</span>
@@ -434,8 +513,8 @@ export const ServicesPage: React.FC = () => {
                       <Heart className="w-5 h-5 md:w-8 md:h-8" />
                     </div>
                   </div>
-                  <h3 className="text-sm md:text-2xl font-bold text-gray-900 mb-1 md:mb-3">دليل الإسعافات</h3>
-                  <p className="text-[10px] md:text-base text-gray-600 mb-3 md:mb-6 leading-relaxed">تعامل مع الحالات الطارئة خطوة بخطوة</p>
+                  <h3 className="text-sm md:text-2xl font-bold text-gray-900 mb-1 md:mb-3">دليل الإسعافات الأولية</h3>
+                  <p className="text-[10px] md:text-base text-gray-600 mb-3 md:mb-6 leading-relaxed">تعامل مع حالات طوارئ الأسنان خطوة بخطوة</p>
 
                   <div className="flex flex-wrap gap-1 md:gap-2 justify-center mb-4 md:mb-8">
                     <span className="px-2 py-0.5 md:px-3 md:py-1 bg-blue-50 text-blue-600 text-[9px] md:text-xs font-bold rounded-lg border border-blue-100">إرشادات</span>
@@ -459,8 +538,8 @@ export const ServicesPage: React.FC = () => {
                       <MapPin className="w-5 h-5 md:w-8 md:h-8" />
                     </div>
                   </div>
-                  <h3 className="text-sm md:text-2xl font-bold text-gray-900 mb-1 md:mb-3">مراكز الطوارئ</h3>
-                  <p className="text-[10px] md:text-base text-gray-600 mb-3 md:mb-6 leading-relaxed">أقرب العيادات والمستشفيات المناوبة</p>
+                  <h3 className="text-sm md:text-2xl font-bold text-gray-900 mb-1 md:mb-3">مراكز الطوارئ والمستشفيات</h3>
+                  <p className="text-[10px] md:text-base text-gray-600 mb-3 md:mb-6 leading-relaxed">أقرب عيادات ومستشفيات الأسنان المناوبة 24/7</p>
 
                   <div className="flex flex-wrap gap-1 md:gap-2 justify-center mb-4 md:mb-8">
                     <span className="px-2 py-0.5 md:px-3 md:py-1 bg-green-50 text-green-600 text-[9px] md:text-xs font-bold rounded-lg border border-green-100">24/7</span>
