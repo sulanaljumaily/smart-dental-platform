@@ -33,14 +33,14 @@ export const DoctorWelcomePage: React.FC = () => {
   // Hero Carousel Data
   const heroSlides = [
     {
-      title: "منصة طب الأسنان لإدارة العيادات",
-      subtitle: "الحل المتكامل لإدارة عيادتك الطبية بذكاء وكفاءة",
+      title: "برنامج إدارة العيادة من منصة طب الأسنان",
+      subtitle: "الحل الذكي الشامل لإدارة عيادتك الطبية وتنظيم المواعيد وسجلات المرضى | Dental Clinic Management App",
       gradient: "from-blue-900 to-indigo-900",
       image: "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&q=80&w=2068"
     },
     {
-      title: "نظم مواعيدك بدقة",
-      subtitle: "نظام حجوزات ذكي يمنع التعارض ويقلل وقت الانتظار",
+      title: "تطبيق ونظام إدارة العيادة الذكي",
+      subtitle: "نظم مواعيدك وسجلات مرضاك بدقة متناهية، مع منع التعارض وتقليل وقت الانتظار",
       gradient: "from-purple-900 to-blue-900",
       image: "https://images.unsplash.com/photo-1579684385180-8c6f1a8afb2d?auto=format&fit=crop&q=80&w=2070"
     }
@@ -57,12 +57,40 @@ export const DoctorWelcomePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 pb-24" dir="rtl">
       <Helmet>
-        <title>نظام إدارة العيادات من منصة طب الأسنان | Dental Platform</title>
-        <meta name="description" content="نظام إدارة العيادات الذكي من منصة طب الأسنان — تنظيم المواعيد، السجلات الطبية الإلكترونية، الفواتير، والربط مع المعامل والموردين." />
+        <title>برنامج ونظام إدارة العيادة | تطبيق إدارة العيادات من منصة طب الأسنان - Dental Clinic Management App</title>
+        <meta
+          name="description"
+          content="أقوى برنامج ونظام إدارة العيادة وتطبيق شامل لإدارة عيادات ومراكز طب الأسنان (Dental Clinic Management App from Dental Platform). تنظيم المواعيد، السجلات الإلكترونية، الفواتير، ومختبرات الأسنان."
+        />
+        <meta
+          name="keywords"
+          content="نظام ادارة العيادة, تطبيق ادارة العيادة, برنامج ادارة العيادة, برنامج ادارة العيادة من منصة طب الاسنان, dental clinic management app, dental clinic management app from dental platform, برنامج عيادات الاسنان, تطبيق ادارة عيادات الاسنان"
+        />
         <link rel="canonical" href="https://dental-platform.com/doctor-welcome" />
-        <meta property="og:title" content="نظام إدارة العيادات من منصة طب الأسنان | Dental Platform" />
-        <meta property="og:description" content="الحل المتكامل لإدارة عيادتك الطبية بذكاء وكفاءة." />
+        <meta property="og:title" content="برنامج ونظام إدارة العيادة | تطبيق إدارة العيادات من منصة طب الأسنان" />
+        <meta
+          property="og:description"
+          content="برنامج وتطبيق إدارة العيادة المتكامل من منصة طب الأسنان — تنظيم المواعيد، السجلات، والفواتير بذكاء واحترافية."
+        />
         <meta property="og:url" content="https://dental-platform.com/doctor-welcome" />
+        <meta property="og:type" content="website" />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            "name": "برنامج ونظام إدارة العيادة من منصة طب الأسنان",
+            "alternateName": "Dental Clinic Management App from Dental Platform",
+            "applicationCategory": "HealthApplication",
+            "operatingSystem": "Web, Android, Windows, iOS",
+            "url": "https://dental-platform.com/doctor-welcome",
+            "description": "برنامج ونظام إدارة العيادة وتطبيق شامل لإدارة عيادات ومراكز طب الأسنان يشمل تنظيم المواعيد، السجلات الطبية الإلكترونية، الحسابات، والمعامل.",
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "IQD"
+            }
+          })}
+        </script>
       </Helmet>
       <div className="container mx-auto px-4 py-8 max-w-7xl">
 
@@ -83,7 +111,7 @@ export const DoctorWelcomePage: React.FC = () => {
                 <div className="absolute inset-0 flex flex-col justify-center px-8 md:px-20 text-white z-20">
                   <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md rounded-full w-fit mb-6 border border-white/10">
                     <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
-                    <span className="text-sm font-medium text-blue-100">نظام إدارة العيادات #1 في العراق</span>
+                    <span className="text-sm font-medium text-blue-100">نظام وتطبيق إدارة العيادة #1 | Dental Clinic Management App</span>
                   </div>
                   <h1 className="text-4xl md:text-7xl font-black mb-6 leading-tight max-w-4xl tracking-tight">
                     {slide.title}
@@ -126,12 +154,12 @@ export const DoctorWelcomePage: React.FC = () => {
               <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600 mb-6 group-hover:rotate-6 transition-transform">
                 <Building2 className="w-7 h-7" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">إدارة العيادات</h3>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">نظام إدارة العيادات المتكامل</h3>
               <p className="text-gray-500 leading-relaxed mb-6 flex-grow">
-                تحكم كامل في عياداتك: المواعيد-المرضى-الطاقم-الاصول المادية-معامل الأسنان الموارد من لوحة تحكم واحدة متكاملة
+                تحكم كامل عبر نظام إدارة العيادة: المواعيد، سجلات المرضى، الطاقم الطبي، الأصول، ومعامل الأسنان من لوحة تحكم واحدة متكاملة.
               </p>
               <div className="space-y-3">
-                {['تعد د العيادات : لوحة تحكم خاصة بكل عيادة', 'إدارة أنواع العلاج-المخزون-الاجهزة-الايرادات-الصرفيات', 'إدارة صلاحيات و سجل نشاط  الطاقم في كل عيادة'].map((item, i) => (
+                {['تعدد العيادات: لوحة تحكم خاصة لكل عيادة ومركز', 'إدارة أنواع العلاج، المخزون، الأجهزة، الإيرادات والمصروفات', 'إدارة صلاحيات وسجل نشاط الطاقم الطبي في كل عيادة'].map((item, i) => (
                   <div key={i} className="flex items-center gap-2 text-sm text-gray-700 bg-gray-50 p-2 rounded-xl">
                     <CheckCircle className="w-4 h-4 text-green-500" />
                     {item}
@@ -149,9 +177,9 @@ export const DoctorWelcomePage: React.FC = () => {
                 <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center mb-4">
                   <Calendar className="w-6 h-6 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold mb-2">نظام حجوزات ذكي</h3>
+                <h3 className="text-2xl font-bold mb-2">تطبيق ونظام حجوزات ذكي</h3>
                 <p className="text-indigo-100 leading-relaxed">
-                  نظم مواعيد المراجعين و ربط كل موعد مع الطبيب المعالج ، مع نظام تنبيهات تلقائي لضمان سهولة و انسيابية في العمل
+                  تطبيق إدارة العيادة ينظم مواعيد المراجعين ويربط كل موعد مع الطبيب المعالج، مع تنبيهات تلقائية لمنع التعارض وضمان انسيابية العمل.
                 </p>
               </div>
               <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10 w-full md:w-auto min-w-[200px]">
@@ -282,8 +310,8 @@ export const DoctorWelcomePage: React.FC = () => {
               <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-2xl -mr-12 -mt-12"></div>
 
               <div className="relative z-10 max-w-2xl mx-auto">
-                <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">جاهز لتطوير عيادتك الطبية؟</h2>
-                <p className="text-blue-100 text-sm sm:text-base mb-6">انضم لمنصة طب الأسنان وابدأ تنظيم عيادتك ومواعيدك وسجلات مرضاك بذكاء وسلاسة.</p>
+                <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">جاهز لتشغيل أفضل برنامج وتطبيق لإدارة العيادة؟</h2>
+                <p className="text-blue-100 text-sm sm:text-base mb-6">احصل على نظام وبرنامج إدارة العيادات من منصة طب الأسنان (Dental Clinic Management App) وابدأ تنظيم عيادتك ومواعيدك وسجلات مرضاك مجاناً الآن.</p>
 
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                   <Link to="/register?type=doctor" className="w-full sm:w-auto">
