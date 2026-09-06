@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { FileText, ArrowRight } from 'lucide-react';
 import { Card } from '../../components/common/Card';
 import { formatNumericDate } from '../../lib/date';
@@ -7,6 +8,14 @@ import { formatNumericDate } from '../../lib/date';
 export const TermsOfServicePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
+      <Helmet>
+        <title>الشروط والأحكام | Dental Platform</title>
+        <meta name="description" content="شروط وأحكام استخدام منصة طب الأسنان Dental Platform للعيادات والمستخدمين." />
+        <link rel="canonical" href="https://dental-platform.com/terms-of-service" />
+        <meta property="og:title" content="الشروط والأحكام | Dental Platform" />
+        <meta property="og:description" content="شروط وأحكام استخدام منصة طب الأسنان Dental Platform للعيادات والمستخدمين." />
+        <meta property="og:url" content="https://dental-platform.com/terms-of-service" />
+      </Helmet>
       {/* Header */}
       <div className="bg-gradient-to-r from-primary to-primary-dark text-white py-12 px-4">
         <div className="container mx-auto">

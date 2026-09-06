@@ -1,12 +1,21 @@
 import { formatNumericDate } from '../../lib/date';
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { Shield, ArrowRight } from 'lucide-react';
 import { Card } from '../../components/common/Card';
 
 export const PrivacyPolicyPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
+      <Helmet>
+        <title>سياسة الخصوصية | Dental Platform</title>
+        <meta name="description" content="سياسة الخصوصية وحماية البيانات في منصة طب الأسنان Dental Platform." />
+        <link rel="canonical" href="https://dental-platform.com/privacy-policy" />
+        <meta property="og:title" content="سياسة الخصوصية | Dental Platform" />
+        <meta property="og:description" content="سياسة الخصوصية وحماية البيانات في منصة طب الأسنان Dental Platform." />
+        <meta property="og:url" content="https://dental-platform.com/privacy-policy" />
+      </Helmet>
       {/* Header */}
       <div className="bg-gradient-to-r from-primary to-primary-dark text-white py-12 px-4">
         <div className="container mx-auto">
