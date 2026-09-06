@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
   const isProd = mode === 'production'
 
   return {
-    base: './', // مسار نسبي لضمان عمل الملفات في Capacitor و Tauri
+    base: process.env.VITE_BUILD_TARGET === 'desktop' ? './' : '/', // مسار جذري للويب لضمان عمل الروابط المتشعبة والمقالات
     plugins: [
       react(),
       sourceIdentifierPlugin({

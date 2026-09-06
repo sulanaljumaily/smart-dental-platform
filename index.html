@@ -98,6 +98,10 @@
     // حماية واجهة سطح المكتب والهواتف من الشاشة البيضاء في حال حدوث أي خطأ غير متوقع
     window.addEventListener('error', function (event) {
       console.error('[DentalPlatform Error]', event.error || event.message);
+      // يقتصر مربع الطوارئ هذا حصرياً على تطبيقات سطح المكتب والهواتف المثبتة
+      var isApp = document.documentElement && document.documentElement.classList.contains('app-mode');
+      if (!isApp) return;
+
       if (document.getElementById('root') && !document.querySelector('#root > *:not(#instant-splash)')) {
         var box = document.getElementById('startup-error-dialog');
         if (!box) {
@@ -141,12 +145,14 @@
     })();
   </script>
   <style>
-    /* الإعدادات الافتراضية للنظام */
+    /* الإعدادات الافتراضية للنظام - خلفية بيضاء نقية لوضع الويب */
     html, body {
       margin: 0;
       padding: 0;
       width: 100%;
       min-height: 100%;
+      background-color: #ffffff;
+      color: #1e293b;
       -webkit-font-smoothing: antialiased;
       direction: rtl;
     }
@@ -287,7 +293,7 @@
   </style>
 </head>
 
-<body style="margin: 0; padding: 0; background-color: #030f21;">
+<body style="margin: 0; padding: 0;">
   <div id="root">
     <!-- Instant Native-Matching Splash Screen (Zero White Screen Delay) -->
     <div id="instant-splash">

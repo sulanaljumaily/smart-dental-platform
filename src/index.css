@@ -37,8 +37,12 @@
     @apply border-border;
   }
 
-  html {
+  html.app-mode {
     background-color: #030f21;
+  }
+
+  html:not(.app-mode) {
+    background-color: #ffffff;
   }
 
   body {
