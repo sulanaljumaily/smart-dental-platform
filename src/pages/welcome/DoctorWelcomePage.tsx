@@ -33,7 +33,7 @@ export const DoctorWelcomePage: React.FC = () => {
   // Hero Carousel Data
   const heroSlides = [
     {
-      title: `منصة ${settings.platform_name_en || 'SMART'} لإدارة العيادات`,
+      title: "منصة طب الأسنان لإدارة العيادات",
       subtitle: "الحل المتكامل لإدارة عيادتك الطبية بذكاء وكفاءة",
       gradient: "from-blue-900 to-indigo-900",
       image: "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&q=80&w=2068"
@@ -57,10 +57,10 @@ export const DoctorWelcomePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 pb-24" dir="rtl">
       <Helmet>
-        <title>انضم كطبيب أسنان | Dental Platform</title>
-        <meta name="description" content="انضم لمنظومة طب الأسنان الذكية — نظام إدارة العيادات، المواعيد الذكية، السجلات الطبية الإلكترونية، والمجتمع الطبي." />
+        <title>نظام إدارة العيادات من منصة طب الأسنان | Dental Platform</title>
+        <meta name="description" content="نظام إدارة العيادات الذكي من منصة طب الأسنان — تنظيم المواعيد، السجلات الطبية الإلكترونية، الفواتير، والربط مع المعامل والموردين." />
         <link rel="canonical" href="https://dental-platform.com/doctor-welcome" />
-        <meta property="og:title" content="انضم كطبيب أسنان | Dental Platform" />
+        <meta property="og:title" content="نظام إدارة العيادات من منصة طب الأسنان | Dental Platform" />
         <meta property="og:description" content="الحل المتكامل لإدارة عيادتك الطبية بذكاء وكفاءة." />
         <meta property="og:url" content="https://dental-platform.com/doctor-welcome" />
       </Helmet>
