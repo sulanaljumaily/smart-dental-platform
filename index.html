@@ -114,21 +114,52 @@
         }
       }
     });
+
+    // كشف فوري للبيئة (تطبيق الهاتف أو سطح المكتب مقابل وضع الويب المخصص لـ SEO)
+    (function () {
+      var isNative = (
+        window.location.protocol === 'capacitor:' ||
+        window.location.protocol === 'tauri:' ||
+        window.location.protocol === 'asset:' ||
+        window.location.protocol === 'file:' ||
+        window.__TAURI__ !== undefined ||
+        window.__TAURI_INTERNALS__ !== undefined ||
+        (window.location.hostname === 'localhost' && window.location.port === '' && window.location.protocol === 'https:')
+      );
+      if (isNative) {
+        document.documentElement.classList.add('app-mode');
+      } else {
+        document.documentElement.classList.add('web-mode');
+      }
+    })();
   </script>
   <style>
-    /* Instant Zero-Delay Seamless Dark Theme & Splash Screen */
+    /* الإعدادات الافتراضية للنظام */
     html, body {
       margin: 0;
       padding: 0;
       width: 100%;
       min-height: 100%;
-      background-color: #030f21;
-      background: radial-gradient(circle at 50% 36%, #143b67 0%, #091e38 48%, #030d1a 100%);
-      color: #ffffff;
       -webkit-font-smoothing: antialiased;
       direction: rtl;
     }
+
+    /* إخفاء شاشة البدء المؤقتة في وضع الويب تماماً لدعم محركات البحث والفهرسة الفورية (SEO) */
     #instant-splash {
+      display: none;
+    }
+
+    /* تفعيل شاشة البدء الفورية حصرياً داخل تطبيقات الهاتف وسطح المكتب لمنع أي شاشة بيضاء */
+    html.app-mode {
+      background-color: #030f21;
+      background: radial-gradient(circle at 50% 36%, #143b67 0%, #091e38 48%, #030d1a 100%);
+      color: #ffffff;
+    }
+    html.app-mode body {
+      background-color: #030f21;
+      color: #ffffff;
+    }
+    html.app-mode #instant-splash {
       position: fixed;
       inset: 0;
       width: 100vw;

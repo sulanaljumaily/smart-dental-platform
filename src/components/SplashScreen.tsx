@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { isNativeApp } from '../lib/platform';
 import './SplashScreen.css';
 
 interface SplashScreenProps {
@@ -12,6 +13,11 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
   onHide,
   duration = 2400,
 }) => {
+  // شاشة البدء تعمل حصرياً في تطبيق الهاتف وتطبيق سطح المكتب.
+  // في وضع الويب، يتم إيقافها تماماً لضمان أفضل فهرسة في محركات البحث (SEO) وظهور فوري لنتائج Google.
+  if (!isNativeApp()) {
+    return null;
+  }
   const [show, setShow] = useState(isVisible);
   const [isFadingOut, setIsFadingOut] = useState(false);
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Home, RotateCw, Copy, ExternalLink } from 'lucide-react';
+import { isDesktopApp } from '../../lib/platform';
 
 interface MenuPosition {
   x: number;
@@ -15,6 +16,9 @@ export const DesktopContextMenu: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Only activate in desktop app (Tauri/Windows)
+    if (!isDesktopApp()) return;
+
     const handleContextMenu = (e: MouseEvent) => {
       // Allow native behavior on text input / textarea if user is typing
       const target = e.target as HTMLElement;
@@ -22,7 +26,7 @@ export const DesktopContextMenu: React.FC = () => {
       const selection = window.getSelection()?.toString().trim() || '';
       setSelectedText(selection);
 
-      // On desktop / web, always show our tailored premium application menu
+      // In desktop app, always show our tailored premium application menu
       e.preventDefault();
 
       const menuWidth = 210;
