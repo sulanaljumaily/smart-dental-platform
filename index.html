@@ -130,6 +130,13 @@
         document.documentElement.classList.add('app-mode');
       } else {
         document.documentElement.classList.add('web-mode');
+        // تحويل فوري للروابط القديمة أو المؤرشفة بالهاش /#/ إلى مسارات نظيفة تدعم محركات البحث (Google SEO)
+        if (window.location.hash && window.location.hash.indexOf('#/') === 0) {
+          var cleanPath = window.location.hash.substring(1);
+          if (window.history && window.history.replaceState) {
+            window.history.replaceState(null, '', cleanPath + window.location.search);
+          }
+        }
       }
     })();
   </script>

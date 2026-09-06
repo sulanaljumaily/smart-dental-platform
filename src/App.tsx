@@ -1,5 +1,10 @@
-import React from 'react';
-import { HashRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter, HashRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { isNativeApp } from './lib/platform';
+
+// في بيئة الويب: استخدام BrowserRouter للمسارات النظيفة وأرشفة Google SEO الكاملة
+// في بيئة التطبيقات الأصلية (أندرويد / آيفون / ويندوز): استخدام HashRouter لاستقرار نظام الملفات المحلي
+const Router = isNativeApp() ? HashRouter : BrowserRouter;
 import { LanguageProvider } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { MainLayout } from './layouts/MainLayout';
@@ -176,6 +181,14 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requiredRole?: strin
 
 function AppContent() {
   const isWebTarget = !import.meta.env.VITE_BUILD_TARGET || import.meta.env.VITE_BUILD_TARGET === 'web';
+
+  // تحويل فوري لأي رابط قديم يحتوي على /#/ في المتصفح إلى رابط نظيف يدعم محركات البحث
+  useEffect(() => {
+    if (!isNativeApp() && typeof window !== 'undefined' && window.location.hash.startsWith('#/')) {
+      const cleanPath = window.location.hash.slice(1);
+      window.history.replaceState(null, '', cleanPath + window.location.search);
+    }
+  }, []);
 
   return (
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>

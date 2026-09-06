@@ -97,7 +97,19 @@
   </url>
   <url>
     <loc>https://dental-platform.com/article/18336b0f-71b0-4a0a-99a3-8ef9300fc0f7</loc>
-    <lastmod>2026-01-28</lastmod>
+    <lastmod>2026-09-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://dental-platform.com/article/afed7ccf-88d1-4f8e-b9af-62a3c94baaf0</loc>
+    <lastmod>2026-09-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://dental-platform.com/article/324d655c-272e-4cf5-9c24-790ddb9157ba</loc>
+    <lastmod>2026-09-04</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
