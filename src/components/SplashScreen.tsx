@@ -10,7 +10,7 @@ interface SplashScreenProps {
 export const SplashScreen: React.FC<SplashScreenProps> = ({
   isVisible = true,
   onHide,
-  duration = 2600,
+  duration = 1600,
 }) => {
   const [show, setShow] = useState(isVisible);
   const [isFadingOut, setIsFadingOut] = useState(false);

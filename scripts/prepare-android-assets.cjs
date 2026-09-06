@@ -52,18 +52,20 @@ if (fs.existsSync(bgXmlPath)) {
   console.log('[prepare-android-assets] Updated ic_launcher_background.xml to #051329');
 }
 
-// 4. Install transparent_splash.xml drawable
-const transXmlSrc = path.join(androidIconsBase, 'transparent_splash.xml');
-const transXmlDst = path.join(resDir, 'drawable', 'transparent_splash.xml');
-if (fs.existsSync(transXmlSrc)) {
-  if (!fs.existsSync(path.join(resDir, 'drawable'))) {
-    fs.mkdirSync(path.join(resDir, 'drawable'), { recursive: true });
+// 4. Install splash_icon.png drawable for Android 12+ SplashScreen API
+const splashIconSrc = path.join(androidIconsBase, 'splash_icon.png');
+for (const dirName of ['drawable', 'drawable-v24', 'drawable-nodpi']) {
+  const targetDir = path.join(resDir, dirName);
+  if (!fs.existsSync(targetDir)) {
+    fs.mkdirSync(targetDir, { recursive: true });
   }
-  fs.copyFileSync(transXmlSrc, transXmlDst);
-  console.log('[prepare-android-assets] Installed transparent_splash.xml');
+  if (fs.existsSync(splashIconSrc)) {
+    fs.copyFileSync(splashIconSrc, path.join(targetDir, 'splash_icon.png'));
+  }
 }
+console.log('[prepare-android-assets] Installed splash_icon.png into drawables');
 
-// 5. Splash screen mappings: install solid #030f21 splash images
+// 5. Splash screen mappings: install centered logo #030f21 splash images across all drawables
 const splashSrc = path.join(projectRoot, 'public', 'splash.png');
 if (fs.existsSync(splashSrc)) {
   const entries = fs.readdirSync(resDir);
@@ -76,10 +78,10 @@ if (fs.existsSync(splashSrc)) {
       }
     }
   }
-  console.log('[prepare-android-assets] Installed solid #030f21 splash images across all drawable folders');
+  console.log('[prepare-android-assets] Installed seamless splash.png across all drawable folders');
 }
 
-// 6. Update styles.xml to use #030f21 and transparent icon for Theme.SplashScreen
+// 6. Update styles.xml to use #030f21 and splash_icon for Theme.SplashScreen
 const stylesXmlPath = path.join(resDir, 'values', 'styles.xml');
 if (fs.existsSync(stylesXmlPath)) {
   let stylesContent = fs.readFileSync(stylesXmlPath, 'utf8');
@@ -88,7 +90,7 @@ if (fs.existsSync(stylesXmlPath)) {
   const launchStyleRegex = /<style name="AppTheme\.NoActionBarLaunch"[\s\S]*?<\/style>/;
   const newLaunchStyle = `<style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">#030f21</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/transparent_splash</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
         <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
         <item name="android:background">#030f21</item>
     </style>`;
@@ -99,7 +101,7 @@ if (fs.existsSync(stylesXmlPath)) {
     stylesContent = stylesContent.replace('</resources>', `    ${newLaunchStyle}\n</resources>`);
   }
   fs.writeFileSync(stylesXmlPath, stylesContent, 'utf8');
-  console.log('[prepare-android-assets] Updated styles.xml with seamless solid splash screen config');
+  console.log('[prepare-android-assets] Updated styles.xml with seamless logo splash screen config');
 }
 
 // 7. Update colors.xml to match #030f21

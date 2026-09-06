@@ -98,7 +98,7 @@
     // حماية واجهة سطح المكتب والهواتف من الشاشة البيضاء في حال حدوث أي خطأ غير متوقع
     window.addEventListener('error', function (event) {
       console.error('[DentalPlatform Error]', event.error || event.message);
-      if (document.getElementById('root') && !document.getElementById('root').hasChildNodes()) {
+      if (document.getElementById('root') && !document.querySelector('#root > *:not(#instant-splash)')) {
         var box = document.getElementById('startup-error-dialog');
         if (!box) {
           box = document.createElement('div');
@@ -115,12 +115,162 @@
       }
     });
   </script>
+  <style>
+    /* Instant Zero-Delay Seamless Dark Theme & Splash Screen */
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #030f21;
+      background: radial-gradient(circle at 50% 36%, #143b67 0%, #091e38 48%, #030d1a 100%);
+      color: #ffffff;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+      direction: rtl;
+    }
+    #instant-splash {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 99999;
+      background: radial-gradient(circle at 50% 36%, #143b67 0%, #091e38 48%, #030d1a 100%);
+      user-select: none;
+      font-family: 'Cairo', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    .instant-ambient {
+      position: absolute;
+      top: 36%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 420px;
+      height: 420px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(30, 85, 155, 0.24) 0%, rgba(10, 30, 60, 0) 70%);
+      filter: blur(70px);
+      pointer-events: none;
+    }
+    .instant-content {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      margin-top: -30px;
+      padding: 0 1.5rem;
+    }
+    .instant-frame {
+      position: relative;
+      width: 144px;
+      height: 144px;
+      border-radius: 34px;
+      background: linear-gradient(165deg, rgba(38, 86, 134, 0.78) 0%, rgba(18, 48, 80, 0.88) 55%, rgba(10, 26, 48, 0.96) 100%);
+      border: 1.5px solid rgba(82, 148, 226, 0.42);
+      box-shadow: 0 22px 48px -8px rgba(0, 0, 0, 0.8), 0 0 28px rgba(18, 68, 130, 0.28), inset 0 1.5px 2px rgba(255, 255, 255, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    .instant-card {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 22px;
+      overflow: hidden;
+      background: linear-gradient(170deg, #2a6f9f 0%, #1c527e 55%, #123d61 100%);
+      border: 1.2px solid rgba(135, 195, 255, 0.48);
+      box-shadow: 0 10px 22px -3px rgba(0, 0, 0, 0.45), inset 0 1.5px 2px rgba(255, 255, 255, 0.42), inset 0 -1.5px 2px rgba(0, 0, 0, 0.3);
+      padding: 14px;
+      box-sizing: border-box;
+    }
+    .instant-emblem {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.25));
+    }
+    .instant-en {
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 4.5px;
+      text-transform: uppercase;
+      color: #8eaecf;
+      margin-top: 26px;
+    }
+    .instant-ar {
+      font-size: 2.1rem;
+      font-weight: 800;
+      color: #ffffff;
+      margin: 8px 0 0 0;
+      line-height: 1.25;
+      letter-spacing: -0.3px;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+    }
+    .instant-sub {
+      font-size: 1.02rem;
+      font-weight: 500;
+      color: #7697b8;
+      margin: 8px 0 0 0;
+      letter-spacing: 0.2px;
+    }
+    .instant-loader {
+      position: absolute;
+      bottom: 56px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      z-index: 10;
+    }
+    .instant-spinner {
+      width: 36px;
+      height: 36px;
+      border: 3.4px solid rgba(147, 197, 253, 0.18);
+      border-top-color: #ffffff;
+      border-right-color: #93c5fd;
+      border-radius: 50%;
+      animation: instant-spin 0.85s linear infinite;
+    }
+    @keyframes instant-spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
 </head>
 
-<body>
-  <div id="root"></div>
+<body style="margin: 0; padding: 0; background-color: #030f21; overflow: hidden;">
+  <div id="root">
+    <!-- Instant Native-Matching Splash Screen (Zero White Screen Delay) -->
+    <div id="instant-splash">
+      <div class="instant-ambient" aria-hidden="true"></div>
+      <div class="instant-content">
+        <div class="instant-frame">
+          <div class="instant-card">
+            <img src="/logo-emblem.png" alt="منصة طب الأسنان" class="instant-emblem" />
+          </div>
+        </div>
+        <div class="instant-en">DENTAL PLATFORM</div>
+        <h1 class="instant-ar">منصة طب الأسنان</h1>
+        <p class="instant-sub">المنظومة الشاملة لطب الأسنان</p>
+      </div>
+      <div class="instant-loader">
+        <div class="instant-spinner"></div>
+      </div>
+    </div>
+  </div>
   <script type="module" src="/src/main.tsx"></script>
-
-
+</body>
 
 </html>
