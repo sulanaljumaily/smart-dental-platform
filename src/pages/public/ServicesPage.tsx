@@ -213,7 +213,7 @@ export const ServicesPage: React.FC = () => {
               { id: 'clinics', label: 'أطباء وعيادات الأسنان', icon: MapPin, color: 'text-blue-600', bg: 'bg-blue-50' },
               { id: 'diagnosis', label: 'التشخيص الذكي', icon: Brain, color: 'text-indigo-600', bg: 'bg-indigo-50' },
               { id: 'articles', label: 'المقالات الطبية', icon: FileText, color: 'text-green-600', bg: 'bg-green-50' },
-              { id: 'emergency', label: 'طوارئ الأسنان 24/7', icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50' }
+              { id: 'emergency', label: 'طوارئ الأسنان', icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50' }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -463,7 +463,7 @@ export const ServicesPage: React.FC = () => {
             <div className="text-center relative">
               <div className="absolute top-1/2 left-0 right-0 h-px bg-gray-100 -z-10"></div>
               <span className="bg-gray-50 px-4 text-red-600 font-bold tracking-widest text-xs md:text-sm uppercase rounded-full border border-red-100">
-                طوارئ الأسنان 24 ساعة في العراق
+                دليل طوارئ الأسنان في العراق
               </span>
               <h2 className="text-3xl md:text-4xl font-black text-gray-900 mt-4 mb-2">
                 خدمات ومراكز طوارئ الأسنان العاجلة
