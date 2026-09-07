@@ -108,24 +108,24 @@ export const DoctorWelcomePage: React.FC = () => {
                 <div className={`absolute inset-0 bg-gradient-to-r ${slide.gradient} opacity-80 mix-blend-multiply`}></div>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
 
-                <div className="absolute inset-0 flex flex-col justify-center px-8 md:px-20 text-white z-20">
-                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md rounded-full w-fit mb-6 border border-white/10">
+                <div className="absolute inset-0 flex flex-col justify-center px-6 sm:px-10 md:px-16 text-white z-20">
+                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-white/10 backdrop-blur-md rounded-full w-fit mb-4 border border-white/10">
                     <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
-                    <span className="text-sm font-medium text-blue-100">نظام وتطبيق إدارة العيادة #1 | Dental Clinic Management App</span>
+                    <span className="text-xs sm:text-sm font-medium text-blue-100">نظام وتطبيق إدارة العيادة #1 | Dental Clinic Management App</span>
                   </div>
-                  <h1 className="text-4xl md:text-7xl font-black mb-6 leading-tight max-w-4xl tracking-tight">
+                  <h1 className="text-2xl sm:text-3xl md:text-5xl font-black mb-3 md:mb-5 leading-tight max-w-3xl tracking-tight">
                     {slide.title}
                   </h1>
-                  <p className="text-xl md:text-2xl text-gray-200 mb-10 max-w-2xl font-light leading-relaxed">
+                  <p className="text-sm sm:text-base md:text-lg text-gray-200 mb-6 md:mb-8 max-w-2xl font-normal leading-relaxed">
                     {slide.subtitle}
                   </p>
-                  <div className="flex gap-4">
+                  <div className="flex flex-wrap gap-3 sm:gap-4">
                     <Link to="/register?type=doctor">
-                      <Button className="bg-white text-blue-900 hover:bg-gray-100 px-8 py-4 rounded-2xl text-lg font-bold shadow-lg shadow-blue-900/20 transition-all hover:-translate-y-1">
+                      <Button className="bg-white text-blue-900 hover:bg-gray-100 px-6 py-3 md:px-7 md:py-3.5 rounded-xl md:rounded-2xl text-base md:text-lg font-bold shadow-lg shadow-blue-900/20 transition-all hover:-translate-y-1">
                         ابـدأ الآن مجـانـاً
                       </Button>
                     </Link>
-                    <Button variant="outline" className="text-white border-white/30 hover:bg-white/10 px-8 py-4 rounded-2xl text-lg font-medium backdrop-blur-sm">
+                    <Button variant="outline" className="text-white border-white/30 hover:bg-white/10 px-6 py-3 md:px-7 md:py-3.5 rounded-xl md:rounded-2xl text-base md:text-lg font-medium backdrop-blur-sm">
                       شاهد العرض التوضيحي
                     </Button>
                   </div>

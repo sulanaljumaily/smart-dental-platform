@@ -171,8 +171,8 @@ export const ServicesPage: React.FC = () => {
                 {
                   "@type": "ListItem",
                   "position": 4,
-                  "name": "المقالات الطبية والتثقيف السني المعتمد",
-                  "description": "مقالات وإرشادات طبية موثوقة يقدمها نخبة من أطباء الأسنان المتخصصين."
+                  "name": "مقالات تثقيفية في صحة الفم والأسنان",
+                  "description": "ثقف نفسك بأحدث المقالات والإرشادات الطبية الموثوقة بأقلام نخبة من أطباء الأسنان."
                 }
               ]
             }
@@ -429,10 +429,10 @@ export const ServicesPage: React.FC = () => {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-2xl md:text-3xl font-black text-gray-900 mb-1">
-                  المقالات الطبية والتثقيف السني المعتمد
+                  مقالات تثقيفية في صحة الفم والأسنان
                 </h2>
                 <p className="text-sm md:text-base text-gray-600">
-                  دليلك الطبي الموثوق لصحة الفم والأسنان بأقلام وتوصيات نخبة من أفضل أطباء وجراحي الأسنان في العراق
+                  ثقف نفسك بأحدث المعلومات والإرشادات الطبية الموثوقة بأقلام وتوصيات نخبة من أطباء الأسنان في العراق
                 </p>
               </div>
               <div className="hidden md:flex gap-2">
