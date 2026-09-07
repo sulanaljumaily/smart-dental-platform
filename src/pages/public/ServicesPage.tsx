@@ -199,7 +199,7 @@ export const ServicesPage: React.FC = () => {
                 أفضل أطباء وعيادات <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">الأسنان في العراق</span>
               </h1>
               <p className="text-base sm:text-lg md:text-xl text-slate-600 max-w-2xl leading-relaxed">
-                دليلك الطبي الموثوق لاختيار أفضل أطباء الأسنان، حجز المواعيد المباشرة، التشخيص الذكي بالذكاء الاصطناعي، وطوارئ الأسنان على مدار 24 ساعة في جميع المحافظات.
+                دليل طب الأسنان لاختيار أفضل أطباء الأسنان، حجز المواعيد، التشخيص الذكي، ودليل طوارئ الأسنان.
               </p>
             </div>
           </div>
