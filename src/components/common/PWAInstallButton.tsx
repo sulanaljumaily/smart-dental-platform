@@ -105,8 +105,8 @@ export function PWAInstallButton({ variant = 'floating' }: PWAInstallButtonProps
   if (variant === 'floating') {
     return (
       <>
-        {/* Floating pill — sits just above the bottom nav bar (bottom-20 ≈ 80px) */}
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[150] flex items-center gap-2 animate-in slide-in-from-bottom-4 fade-in duration-500">
+        {/* Floating pill — sits just above the bottom nav bar */}
+        <div className="fixed bottom-14 left-1/2 -translate-x-1/2 z-[150] flex items-center gap-2 animate-in slide-in-from-bottom-4 fade-in duration-500">
           <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 bg-gradient-to-r from-[#0D8ABC] to-[#0a6fa0] text-white rounded-full shadow-lg shadow-blue-400/40 border border-white/20">
             {/* App icon */}
             <img src="/icons/icon-72x72.png" alt="" className="w-7 h-7 rounded-full border-2 border-white/40" />

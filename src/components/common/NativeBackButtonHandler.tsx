@@ -1,8 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { App as CapApp } from '@capacitor/app';
-import type { PluginListenerHandle } from '@capacitor/core';
-import { isMobileApp } from '../../lib/platform';
+import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
 import { toast } from 'sonner';
 
 /**
@@ -26,8 +25,8 @@ export const NativeBackButtonHandler: React.FC = () => {
   }, [location, navigate]);
 
   useEffect(() => {
-    // Only register on native mobile platforms (Android)
-    if (!isMobileApp()) {
+    // Only register on Android devices - iOS does not have a hardware back button
+    if (Capacitor.getPlatform() !== 'android') {
       return;
     }
 

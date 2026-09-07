@@ -103,8 +103,8 @@ export const PatientLoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-900 via-blue-950 to-[#030f21]">
-      <Header dark />
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-primary via-primary-dark to-blue-900">
+      <Header />
       <div
         className="flex-1 flex flex-col items-center justify-center p-4"
         style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 1.5rem)' }}

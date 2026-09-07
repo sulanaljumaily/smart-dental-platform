@@ -43,6 +43,7 @@ jobs:
           cp capacitor.pro.config.ts capacitor.config.ts
           [ ! -d "ios/App" ] && pnpm exec cap add ios
           rm -rf node_modules/@capgo
+          rm -rf node_modules/@capacitor/app node_modules/.pnpm/@capacitor+app*
           pnpm exec cap sync ios
 
           if [ ! -f "ios/App/App.xcodeproj/project.pbxproj" ]; then

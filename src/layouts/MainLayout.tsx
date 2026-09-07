@@ -13,7 +13,7 @@ export const MainLayout: React.FC = () => {
         <div
             className="min-h-screen bg-white"
             style={{
-                paddingBottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))',
+                paddingBottom: 'calc(3.25rem + max(calc(env(safe-area-inset-bottom, 0px) * 0.5), 4px))',
                 paddingTop: shouldHideHeader ? 'env(safe-area-inset-top, 0px)' : undefined
             }}
         >

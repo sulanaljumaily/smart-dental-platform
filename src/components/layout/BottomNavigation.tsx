@@ -154,10 +154,10 @@ export const BottomNavigation: React.FC = () => {
   return (
     <div
       className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-50"
-      style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 8px)' }}
+      style={{ paddingBottom: 'max(calc(env(safe-area-inset-bottom, 0px) * 0.5), 4px)' }}
       dir="ltr"
     >
-      <div className="max-w-7xl mx-auto px-2 py-2">
+      <div className="max-w-7xl mx-auto px-2 py-1 sm:py-1.5">
         <div className="flex justify-around items-center">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -167,13 +167,13 @@ export const BottomNavigation: React.FC = () => {
               <Link
                 key={item.id}
                 to={item.path}
-                className={`flex flex-col items-center justify-center px-2 py-1.5 rounded-xl transition-all min-w-[64px] no-underline duration-200 ${active
-                  ? 'text-blue-600 bg-blue-50/80 -translate-y-1'
+                className={`flex flex-col items-center justify-center px-2 py-1 rounded-xl transition-all min-w-[58px] no-underline duration-200 ${active
+                  ? 'text-blue-600 bg-blue-50/80 -translate-y-0.5'
                   : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                   }`}
                 aria-label={item.label}
               >
-                <Icon className={`w-6 h-6 mb-1 transition-colors ${active ? 'text-blue-600 fill-blue-600/10' : 'text-gray-500'}`} strokeWidth={active ? 2.5 : 2} />
+                <Icon className={`w-5 h-5 mb-0.5 transition-colors ${active ? 'text-blue-600 fill-blue-600/10' : 'text-gray-500'}`} strokeWidth={active ? 2.5 : 2} />
                 <span className={`text-[10px] font-bold ${active ? 'text-blue-600' : 'text-gray-500'}`}>
                   {item.label}
                 </span>
