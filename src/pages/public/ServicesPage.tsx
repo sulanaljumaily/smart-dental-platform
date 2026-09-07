@@ -192,8 +192,8 @@ export const ServicesPage: React.FC = () => {
           <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-4 text-center md:text-right">
             <div>
               <div className="flex items-center justify-center md:justify-start gap-3 mb-4">
-                <span className="px-4 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm font-bold border border-blue-100 shadow-sm">دليل العراق الطبي</span>
-                <span className="px-4 py-1.5 bg-purple-50 text-purple-700 rounded-full text-sm font-bold border border-purple-100 shadow-sm">أطباء وعيادات معتمدة</span>
+                <span className="px-4 py-1.5 bg-blue-50 text-blue-700 rounded-full text-sm font-bold border border-blue-100 shadow-sm">دليل طب الأسنان في العراق</span>
+                <span className="px-4 py-1.5 bg-purple-50 text-purple-700 rounded-full text-sm font-bold border border-purple-100 shadow-sm">طب أسنان</span>
               </div>
               <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 mb-4 tracking-tight leading-tight">
                 أفضل أطباء وعيادات <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">الأسنان في العراق</span>
