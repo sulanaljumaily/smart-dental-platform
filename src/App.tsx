@@ -37,6 +37,7 @@ import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { PrivacyPolicyPage } from './pages/auth/PrivacyPolicyPage';
 import { TermsOfServicePage } from './pages/auth/TermsOfServicePage';
 import { DesktopContextMenu } from './components/common/DesktopContextMenu';
+import { NativeBackButtonHandler } from './components/common/NativeBackButtonHandler';
 
 // Doctor Pages
 import { DoctorDashboard } from './pages/doctor/DoctorDashboard';
@@ -192,6 +193,7 @@ function AppContent() {
 
   return (
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <NativeBackButtonHandler />
       <DesktopContextMenu />
       {/* PWA Install Button - floating above bottom nav (Only for Web) */}
       {isWebTarget && <PWAInstallButton variant="floating" />}
@@ -442,7 +444,13 @@ function App() {
         <HelmetProvider>
           <SplashScreen />
           <OfflineConnectionNotice />
-          <Toaster position="top-center" richColors />
+          <Toaster
+            position="top-center"
+            richColors
+            dir="rtl"
+            offset="calc(env(safe-area-inset-top, 0px) + 68px)"
+            mobileOffset="calc(env(safe-area-inset-top, 0px) + 68px)"
+          />
           <CompleteRegistrationModal />
           <StoreProvider>
             <CommunityProvider>

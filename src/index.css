@@ -279,6 +279,17 @@ button {
   }
 }
 
+/* Bento UI Toast Wrapper Positioning & Safe Area */
+[data-sonner-toaster] {
+  --offset: calc(env(safe-area-inset-top, 0px) + 68px) !important;
+  --mobile-offset-top: calc(env(safe-area-inset-top, 0px) + 68px) !important;
+  z-index: 999999 !important;
+}
+
+[data-sonner-toaster][data-y-position="top"] {
+  top: calc(env(safe-area-inset-top, 0px) + 68px) !important;
+}
+
 /* Bento UI Toast Styling and Animations */
 [data-sonner-toast] {
   background: rgba(255, 255, 255, 0.8) !important;
