@@ -12,9 +12,11 @@ import { InteractiveMap } from '../../components/common/InteractiveMap';
 import { usePublicClinics } from '../../hooks/usePublicClinics';
 import { useArticles } from '../../hooks/useArticles';
 import { useGeolocation } from '../../hooks/useGeolocation';
+import { useEmergencyHotline } from '../../hooks/useEmergencyHotline';
 import { Clinic } from '../../types';
 
 export const ServicesPage: React.FC = () => {
+  const { hotline } = useEmergencyHotline();
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'clinics' | 'diagnosis' | 'articles' | 'emergency'>('clinics');
@@ -133,51 +135,54 @@ export const ServicesPage: React.FC = () => {
         />
         <meta property="og:url" content="https://dental-platform.com/services" />
         <meta property="og:type" content="website" />
-        <script type="application/ld+json">
-          {JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "MedicalWebPage",
-            "name": "أفضل أطباء وعيادات الأسنان في العراق | دليل الخدمات الطبية المعتمدة",
-            "url": "https://dental-platform.com/services",
-            "description": "دليل شامل لأفضل أطباء وعيادات الأسنان في محافظات العراق، مع إمكانية حجز المواعيد والتشخيص الذكي وطوارئ الأسنان.",
-            "inLanguage": "ar",
-            "about": [
-              {
-                "@type": "MedicalSpecialty",
-                "name": "Dentistry"
-              }
-            ],
-            "mainEntity": {
-              "@type": "ItemList",
-              "itemListElement": [
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "MedicalWebPage",
+              "name": "أفضل أطباء وعيادات الأسنان في العراق | دليل الخدمات الطبية المعتمدة",
+              "url": "https://dental-platform.com/services",
+              "description": "دليل شامل لأفضل أطباء وعيادات الأسنان في محافظات العراق، مع إمكانية حجز المواعيد والتشخيص الذكي وطوارئ الأسنان.",
+              "inLanguage": "ar",
+              "about": [
                 {
-                  "@type": "ListItem",
-                  "position": 1,
-                  "name": "دليل أفضل أطباء وعيادات الأسنان في العراق",
-                  "description": "استكشف أفضل عيادات الأسنان في بغداد وكافة المحافظات واحجز موعدك مباشرة."
-                },
-                {
-                  "@type": "ListItem",
-                  "position": 2,
-                  "name": "التشخيص الذكي لألم الأسنان بالذكاء الاصطناعي",
-                  "description": "تقييم فوري ودقيق لأعراض وألم الأسنان عبر خوارزميات ذكية متقدمة."
-                },
-                {
-                  "@type": "ListItem",
-                  "position": 3,
-                  "name": "خدمات ومراكز طوارئ الأسنان على مدار 24 ساعة",
-                  "description": "إسعافات أولية عاجلة ودليل أقرب مراكز طوارئ الأسنان المناوبة في العراق."
-                },
-                {
-                  "@type": "ListItem",
-                  "position": 4,
-                  "name": "مقالات تثقيفية في صحة الفم والأسنان",
-                  "description": "ثقف نفسك بأحدث المقالات والإرشادات الطبية الموثوقة بأقلام نخبة من أطباء الأسنان."
+                  "@type": "MedicalSpecialty",
+                  "name": "Dentistry"
                 }
-              ]
-            }
-          })}
-        </script>
+              ],
+              "mainEntity": {
+                "@type": "ItemList",
+                "itemListElement": [
+                  {
+                    "@type": "ListItem",
+                    "position": 1,
+                    "name": "دليل أفضل أطباء وعيادات الأسنان في العراق",
+                    "description": "استكشف أفضل عيادات الأسنان في بغداد وكافة المحافظات واحجز موعدك مباشرة."
+                  },
+                  {
+                    "@type": "ListItem",
+                    "position": 2,
+                    "name": "التشخيص الذكي لألم الأسنان بالذكاء الاصطناعي",
+                    "description": "تقييم فوري ودقيق لأعراض وألم الأسنان عبر خوارزميات ذكية متقدمة."
+                  },
+                  {
+                    "@type": "ListItem",
+                    "position": 3,
+                    "name": "خدمات ومراكز طوارئ الأسنان على مدار 24 ساعة",
+                    "description": "إسعافات أولية عاجلة ودليل أقرب مراكز طوارئ الأسنان المناوبة في العراق."
+                  },
+                  {
+                    "@type": "ListItem",
+                    "position": 4,
+                    "name": "مقالات تثقيفية في صحة الفم والأسنان",
+                    "description": "ثقف نفسك بأحدث المقالات والإرشادات الطبية الموثوقة بأقلام نخبة من أطباء الأسنان."
+                  }
+                ]
+              }
+            })
+          }}
+        />
       </Helmet>
       {/* Header */}
       <div className="bg-gradient-to-b from-white via-blue-50/50 to-white pt-6 pb-12 px-4 relative overflow-hidden border-b border-blue-100/50">
@@ -557,12 +562,12 @@ export const ServicesPage: React.FC = () => {
               <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-16 -mt-16 blur-3xl"></div>
 
               <div className="grid grid-cols-3 md:grid-cols-3 gap-2 md:gap-6 relative z-10">
-                <a href="tel:+9647700000000" className="block group">
+                <a href={`tel:${hotline}`} className="block group">
                   <div className="h-full bg-red-600 hover:bg-red-700 p-2 md:p-6 rounded-xl md:rounded-2xl transition-all flex flex-col items-center justify-center text-center gap-1 md:gap-3 border border-red-500 shadow-lg shadow-red-900/20">
                     <div className="w-8 h-8 md:w-12 md:h-12 bg-white/20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
                       <Phone className="w-4 h-4 md:w-6 md:h-6 text-white" />
                     </div>
-                    <span className="text-[10px] md:text-lg font-bold">اتصال</span>
+                    <span className="text-[10px] md:text-lg font-bold">طوارئ {hotline}</span>
                   </div>
                 </a>
 

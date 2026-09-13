@@ -4,6 +4,7 @@ import { Helmet } from 'react-helmet-async';
 import { ArrowRight, AlertCircle, Heart, Zap, Shield, UserCheck, Phone, ChevronDown, ChevronUp, Stethoscope } from 'lucide-react';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
+import { useEmergencyHotline } from '../../hooks/useEmergencyHotline';
 
 interface ExpandableCardProps {
   title: string;
@@ -77,6 +78,7 @@ const ExpandableCard: React.FC<ExpandableCardProps> = ({ title, icon, children, 
 
 export const DentalEmergencyPage: React.FC = () => {
   const navigate = useNavigate();
+  const { hotline } = useEmergencyHotline();
   const [activeSection, setActiveSection] = useState('pain');
 
   const sections = [
@@ -287,10 +289,10 @@ export const DentalEmergencyPage: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-3 w-full md:w-auto">
-            <a href="tel:+9647700000000" className="w-full md:w-auto">
+            <a href={`tel:${hotline}`} className="w-full md:w-auto">
               <Button className="bg-red-600 hover:bg-red-700 text-white w-full md:w-auto shadow-lg shadow-red-200 h-12 px-6 text-lg" size="lg">
                 <Phone className="w-5 h-5 ml-2" />
-                اتصال بالطوارئ
+                طوارئ {hotline}
               </Button>
             </a>
           </div>

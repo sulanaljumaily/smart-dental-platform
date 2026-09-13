@@ -4,6 +4,7 @@ import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
+import { useEmergencyHotline } from '../../hooks/useEmergencyHotline';
 
 interface FirstAidStep {
   id: number;
@@ -155,6 +156,7 @@ const FirstAidCard: React.FC<FirstAidCardProps> = ({
 
 export const FirstAidGuidePage: React.FC = () => {
   const navigate = useNavigate();
+  const { hotline } = useEmergencyHotline();
   const [expandedCard, setExpandedCard] = useState<string | null>('toothache'); // Default expand first one
   const [stepsData, setStepsData] = useState<{ [key: string]: FirstAidStep[] }>({
     toothache: [
@@ -310,7 +312,9 @@ export const FirstAidGuidePage: React.FC = () => {
                 <p className="text-sm text-gray-600 mb-4">
                   في الحالات الحرجة جداً (مثل صعوبة التنفس)، اتصل بالإسعاف فوراً.
                 </p>
-                <div className="text-2xl font-black text-blue-600">122</div>
+                <a href={`tel:${hotline}`} className="block">
+                  <div className="text-2xl font-black text-blue-600 hover:text-blue-700 transition-colors">{hotline}</div>
+                </a>
               </div>
             </div>
           </div>

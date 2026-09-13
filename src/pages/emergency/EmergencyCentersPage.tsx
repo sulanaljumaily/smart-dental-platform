@@ -7,6 +7,7 @@ import { Card } from '../../components/common/Card';
 import { formatLocation } from '../../utils/location';
 import { useClinics } from '../../hooks/useClinics';
 import { supabase } from '../../lib/supabase';
+import { useEmergencyHotline } from '../../hooks/useEmergencyHotline';
 
 interface EmergencyCenter {
   id: string;
@@ -33,8 +34,8 @@ const governorates = [
 ];
 
 export const EmergencyCentersPage: React.FC = () => {
+  const { hotline } = useEmergencyHotline();
   const [emergencyCenters, setEmergencyCenters] = useState<EmergencyCenter[]>([]);
-  const [hotline, setHotline] = useState('07700000000');
   const [loading, setLoading] = useState(true);
 
   const [selectedGovernorate, setSelectedGovernorate] = useState('');
@@ -71,17 +72,6 @@ export const EmergencyCentersPage: React.FC = () => {
             location: c.location
           }));
           setEmergencyCenters(mappedCenters);
-        }
-
-        // Fetch Settings
-        const { data: settingsData } = await supabase
-          .from('emergency_settings')
-          .select('value')
-          .eq('key', 'hotline')
-          .single();
-
-        if (settingsData && settingsData.value?.is_active) {
-          setHotline(settingsData.value.number);
         }
       } catch (error) {
         console.error('Error fetching emergency data:', error);
