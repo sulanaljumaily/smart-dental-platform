@@ -143,6 +143,46 @@ export const ClinicLocationPicker: React.FC<ClinicLocationPickerProps> = ({
     }, [readOnly, handleLocationSelect]);
 
     const getUserLocation = () => {
+        if (typeof window !== 'undefined' && (window as any).AndroidNative?.requestLocationPermission) {
+            try {
+                (window as any).AndroidNative.requestLocationPermission();
+            } catch (e) {
+                console.warn('AndroidNative.requestLocationPermission failed:', e);
+            }
+        }
+        if (navigator.geolocation) {
+            const onSuccess = (position: GeolocationPosition) => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                map?.panTo({ lat, lng });
+                map?.setZoom(15);
+                handleLocationSelect(lat, lng);
+                toast.success('تم تحديد موقعك الحالي بنجاح');
+            };
+            const onError = (err: GeolocationPositionError) => {
+                if (err.code === err.PERMISSION_DENIED) {
+                    toast.error('يرجى السماح بصلاحية الموقع للتطبيق وتفعيل الـ GPS في جهازك');
+                } else {
+                    toast.error('تعذر تحديد موقعك الحالي، يرجى التأكد من تفعيل خدمة الموقع (GPS)');
+                }
+            };
+            navigator.geolocation.getCurrentPosition(
+                onSuccess,
+                (err) => {
+                    if (err.code !== err.PERMISSION_DENIED) {
+                        navigator.geolocation.getCurrentPosition(onSuccess, onError, {
+                            enableHighAccuracy: false,
+                            timeout: 15000,
+                            maximumAge: 60000
+                        });
+                    } else {
+                        onError(err);
+                    }
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+            return;
+        }
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (position) => {

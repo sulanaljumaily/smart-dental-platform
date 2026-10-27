@@ -26,6 +26,12 @@ import { BentoStatCard } from '../dashboard/BentoStatCard';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { formatCategoryName } from '../../lib/utils';
+import {
+  printIncomeReceipt,
+  printExpenseVoucher,
+  printTreatmentPlanReport,
+  printPatientFullStatement
+} from '../../lib/printReceipt';
 
 interface PatientAccountModalProps {
   isOpen: boolean;
@@ -55,6 +61,7 @@ export const PatientAccountModal: React.FC<PatientAccountModalProps> = ({
   const [activeSubTab, setActiveSubTab] = useState<'overview' | 'treatments' | 'expenses'>('overview');
   const [loading, setLoading] = useState(false);
   const [patient, setPatient] = useState<any>(null);
+  const [clinicInfo, setClinicInfo] = useState<any>(null);
   const [treatmentPlans, setTreatmentPlans] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [labOrders, setLabOrders] = useState<any[]>([]);
@@ -65,6 +72,14 @@ export const PatientAccountModal: React.FC<PatientAccountModalProps> = ({
     const fetchPatientFinancialData = async () => {
       setLoading(true);
       try {
+        // 0. Fetch Clinic Info for Print Headers
+        const { data: cData } = await supabase
+          .from('clinics')
+          .select('id, name, phone, address, image_url')
+          .eq('id', clinicId)
+          .maybeSingle();
+        if (cData) setClinicInfo(cData);
+
         // 1. Fetch Patient Basic Info
         const { data: pData, error: pError } = await supabase
           .from('patients')
@@ -143,8 +158,60 @@ export const PatientAccountModal: React.FC<PatientAccountModalProps> = ({
         labOrders
       });
     } else {
-      window.print();
+      printPatientFullStatement({
+        patient: patient || { id: patientId, full_name: 'المراجع' },
+        plans: treatmentPlans,
+        transactions,
+        labOrders,
+        clinic: clinicInfo || { id: clinicId }
+      });
     }
+  };
+
+  const handlePrintSingleTransaction = (t: any) => {
+    const formattedTx = {
+      ...t,
+      date: t.transaction_date || t.date || t.created_at,
+      patientId: patient?.id || patientId,
+      patientName: patient?.full_name,
+      patientPhone: patient?.phone,
+      clinicId: clinicId,
+      doctorName: t.staff_record?.full_name || t.doctor_name,
+      recorderName: t.recorder_staff?.full_name || t.recorded_by_name
+    };
+
+    if (onPrintTransaction) {
+      onPrintTransaction(formattedTx);
+      return;
+    }
+
+    if (t.type === 'expense') {
+      printExpenseVoucher({
+        transaction: formattedTx,
+        clinic: clinicInfo || { id: clinicId },
+        recorderName: formattedTx.recorderName
+      });
+    } else {
+      printIncomeReceipt({
+        transaction: formattedTx,
+        clinic: clinicInfo || { id: clinicId },
+        patient: patient || { id: patientId, full_name: 'المراجع' },
+        doctorName: formattedTx.doctorName,
+        recorderName: formattedTx.recorderName
+      });
+    }
+  };
+
+  const handlePrintSinglePlan = (plan: any) => {
+    if (onPrintTreatmentPlan) {
+      onPrintTreatmentPlan(plan, patient);
+      return;
+    }
+    printTreatmentPlanReport({
+      plan,
+      patient: patient || { id: patientId, full_name: 'المراجع' },
+      clinic: clinicInfo || { id: clinicId }
+    });
   };
 
   return (
@@ -352,25 +419,14 @@ export const PatientAccountModal: React.FC<PatientAccountModalProps> = ({
                           </td>
                           <td className="px-4 py-3 text-center">
                             <div className="flex items-center justify-center">
-                              {onPrintTransaction && (
-                                <button
-                                  onClick={() => onPrintTransaction({
-                                    ...t,
-                                    date: t.transaction_date || t.date || t.created_at,
-                                    patientId: patient?.id || patientId,
-                                    patientName: patient?.full_name,
-                                    patientPhone: patient?.phone,
-                                    clinicId: clinicId,
-                                    doctorName: t.staff_record?.full_name || t.doctor_name,
-                                    recorderName: t.recorder_staff?.full_name || t.recorded_by_name
-                                  })}
-                                  className="px-2.5 py-1 text-xs text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg font-bold transition-all flex items-center gap-1.5 cursor-pointer border border-indigo-200/60"
-                                  title="طباعة وصل المعاملة"
-                                >
-                                  <Printer className="w-3.5 h-3.5 text-indigo-600" />
-                                  <span>طباعة الوصل</span>
-                                </button>
-                              )}
+                              <button
+                                onClick={() => handlePrintSingleTransaction(t)}
+                                className="px-2.5 py-1 text-xs text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg font-bold transition-all flex items-center gap-1.5 cursor-pointer border border-indigo-200/60"
+                                title="طباعة وصل المعاملة"
+                              >
+                                <Printer className="w-3.5 h-3.5 text-indigo-600" />
+                                <span>طباعة الوصل</span>
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -458,18 +514,16 @@ export const PatientAccountModal: React.FC<PatientAccountModalProps> = ({
                             </div>
 
                             <div className="flex items-center gap-2">
-                              {onPrintTreatmentPlan && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => onPrintTreatmentPlan(plan, patient)}
-                                  className="text-xs px-2.5 py-1.5 border-gray-200 text-gray-700 hover:bg-gray-100 flex items-center gap-1 cursor-pointer"
-                                  title="طباعة خطة العلاج والأقساط"
-                                >
-                                  <Printer className="w-3.5 h-3.5" />
-                                  <span>طباعة الخطة</span>
-                                </Button>
-                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handlePrintSinglePlan(plan)}
+                                className="text-xs px-2.5 py-1.5 border-gray-200 text-gray-700 hover:bg-gray-100 flex items-center gap-1 cursor-pointer"
+                                title="طباعة خطة العلاج والأقساط"
+                              >
+                                <Printer className="w-3.5 h-3.5" />
+                                <span>طباعة الخطة</span>
+                              </Button>
                               {onPayInstallment && remaining > 0 && (
                                 <Button
                                   size="sm"

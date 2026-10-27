@@ -1,6 +1,7 @@
 import React from 'react';
 import QRCode from 'qrcode';
 import { formatCategoryName } from './utils';
+import { getPublicOrigin, isMobileApp } from './platform';
 
 // Helper to generate standalone QR SVG string synchronously without react-dom/server
 const generateQrSvgString = (url: string, size = 84): string => {
@@ -428,10 +429,282 @@ const getThermalPrintStyles = () => `
 `;
 
 /**
- * Executes high-fidelity isolated receipt printing via a hidden iframe
- * designed specifically for Thermal Roll Printers (80mm) and standard printers.
+ * Executes high-fidelity isolated receipt and report printing across Desktop (Tauri/Web)
+ * and Mobile (Capacitor Android/iOS & Mobile Browsers).
  */
-const printViaIframe = (htmlContent: string) => {
+const triggerTopLevelWindowPrint = (fullHtml: string) => {
+  let printMount = document.getElementById('dental-print-mount');
+  if (!printMount) {
+    printMount = document.createElement('div');
+    printMount.id = 'dental-print-mount';
+    document.body.appendChild(printMount);
+  }
+
+  let printStyle = document.getElementById('dental-print-mount-style') as HTMLStyleElement;
+  if (!printStyle) {
+    printStyle = document.createElement('style');
+    printStyle.id = 'dental-print-mount-style';
+    printStyle.innerHTML = `
+      #dental-print-mount { display: none; }
+      @media print {
+        body > *:not(#dental-print-mount) { display: none !important; }
+        #dental-print-mount {
+          display: block !important;
+          position: absolute !important;
+          top: 0 !important;
+          left: 0 !important;
+          right: 0 !important;
+          width: 100% !important;
+          background: #ffffff !important;
+          z-index: 2147483647 !important;
+        }
+      }
+    `;
+    document.head.appendChild(printStyle);
+  }
+
+  // Extract styles and body from fullHtml so top-level print renders identically
+  const styleMatches = fullHtml.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || [];
+  const bodyMatch = fullHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  const bodyInner = bodyMatch ? bodyMatch[1] : fullHtml;
+  printMount.innerHTML = `${styleMatches.join('\n')}<div dir="rtl">${bodyInner}</div>`;
+
+  setTimeout(() => {
+    try {
+      window.print();
+    } catch (err) {
+      console.error('window.print error:', err);
+    }
+  }, 150);
+};
+
+const showMobilePrintModal = (fullHtml: string, docTitle: string, isFullA4Doc: boolean) => {
+  const existing = document.getElementById('dental-mobile-print-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'dental-mobile-print-overlay';
+  overlay.dir = 'rtl';
+  overlay.style.cssText = `
+    position: fixed;
+    inset: 0;
+    z-index: 999999;
+    background: rgba(15, 23, 42, 0.82);
+    backdrop-filter: blur(6px);
+    display: flex;
+    flex-direction: column;
+    font-family: 'Cairo', system-ui, sans-serif;
+  `;
+
+  const topBar = document.createElement('div');
+  topBar.style.cssText = `
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: calc(env(safe-area-inset-top, 12px) + 10px) 14px 12px;
+    background: #0f172a;
+    color: #ffffff;
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  `;
+
+  const titleEl = document.createElement('div');
+  titleEl.style.cssText = 'font-size: 14px; font-weight: 800; color: #f8fafc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%;';
+  titleEl.textContent = docTitle;
+
+  const actionsWrap = document.createElement('div');
+  actionsWrap.style.cssText = 'display: flex; align-items: center; gap: 8px; flex-shrink: 0;';
+
+  const printBtn = document.createElement('button');
+  printBtn.type = 'button';
+  printBtn.style.cssText = `
+    background: #2563eb;
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 800;
+    font-family: inherit;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 2px 8px rgba(37,99,235,0.4);
+  `;
+  printBtn.innerHTML = '<span>🖨️ طباعة / PDF</span>';
+
+  const shareBtn = document.createElement('button');
+  shareBtn.type = 'button';
+  shareBtn.style.cssText = `
+    background: rgba(255,255,255,0.12);
+    color: #ffffff;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  `;
+  shareBtn.innerHTML = '<span>📤 مشاركة</span>';
+
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.style.cssText = `
+    background: rgba(239,68,68,0.2);
+    color: #fca5a5;
+    border: 1px solid rgba(239,68,68,0.35);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 800;
+    font-family: inherit;
+    cursor: pointer;
+  `;
+  closeBtn.textContent = '✕ إغلاق';
+
+  const bodyContainer = document.createElement('div');
+  bodyContainer.style.cssText = `
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 12px calc(env(safe-area-inset-bottom, 16px) + 20px);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  `;
+
+  const previewCard = document.createElement('div');
+  previewCard.style.cssText = `
+    width: 100%;
+    max-width: ${isFullA4Doc ? '820px' : '380px'};
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.35);
+    overflow: hidden;
+  `;
+
+  const previewIframe = document.createElement('iframe');
+  previewIframe.style.cssText = `
+    width: 100%;
+    min-height: 74vh;
+    border: 0;
+    display: block;
+    background: #ffffff;
+  `;
+
+  printBtn.onclick = () => {
+    const win = window as any;
+    if (win.AndroidNative && typeof win.AndroidNative.printHtml === 'function') {
+      try {
+        win.AndroidNative.printHtml(fullHtml, docTitle);
+        return;
+      } catch (e) {
+        console.warn('AndroidNative.printHtml error, falling back:', e);
+      }
+    }
+    try {
+      previewIframe.contentWindow?.focus();
+      previewIframe.contentWindow?.print();
+    } catch {
+      // Fallback to top-level print
+    }
+    triggerTopLevelWindowPrint(fullHtml);
+  };
+
+  shareBtn.onclick = async () => {
+    try {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = fullHtml.replace(/<style[\s\S]*?<\/style>/gi, '');
+      const plainText = (tempDiv.innerText || tempDiv.textContent || '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+
+      if (navigator.share) {
+        await navigator.share({
+          title: docTitle,
+          text: `${docTitle}\n\n${plainText.slice(0, 1500)}`
+        });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(plainText);
+        alert('تم نسخ محتوى الوصل للحافظة');
+      }
+    } catch (e) {
+      console.warn('Share cancelled or failed:', e);
+    }
+  };
+
+  closeBtn.onclick = () => {
+    overlay.remove();
+  };
+
+  actionsWrap.appendChild(printBtn);
+  actionsWrap.appendChild(shareBtn);
+  actionsWrap.appendChild(closeBtn);
+  topBar.appendChild(titleEl);
+  topBar.appendChild(actionsWrap);
+
+  previewCard.appendChild(previewIframe);
+  bodyContainer.appendChild(previewCard);
+  overlay.appendChild(topBar);
+  overlay.appendChild(bodyContainer);
+  document.body.appendChild(overlay);
+
+  const iframeDoc = previewIframe.contentWindow?.document || previewIframe.contentDocument;
+  if (iframeDoc) {
+    iframeDoc.open();
+    iframeDoc.write(fullHtml);
+    iframeDoc.close();
+    setTimeout(() => {
+      try {
+        const sh = iframeDoc.body?.scrollHeight;
+        if (sh && sh > 300) {
+          previewIframe.style.height = `${sh + 32}px`;
+        }
+      } catch {
+        // ignore cross-frame measurement errors
+      }
+    }, 250);
+  }
+};
+
+export const printViaIframe = (htmlContent: string, docTitle = 'طباعة السند') => {
+  const isFullDoc = /^\s*<!doctype|^\s*<html/i.test(htmlContent);
+  const fullHtml = isFullDoc
+    ? htmlContent
+    : `<!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>${docTitle}</title>
+      <style>${getThermalPrintStyles()}</style>
+    </head>
+    <body>
+      ${htmlContent}
+    </body>
+    </html>`;
+
+  const win = window as any;
+  const isMobileViewport = typeof window !== 'undefined' && (isMobileApp() || window.innerWidth < 768);
+
+  // On Android native app with AndroidNative bridge, invoke native PrintManager directly AND show preview sheet
+  if (isMobileViewport) {
+    showMobilePrintModal(fullHtml, docTitle, isFullDoc);
+    if (win.AndroidNative && typeof win.AndroidNative.printHtml === 'function') {
+      try {
+        win.AndroidNative.printHtml(fullHtml, docTitle);
+      } catch (e) {
+        console.warn('AndroidNative.printHtml failed:', e);
+      }
+    }
+    return;
+  }
+
   let iframe = document.getElementById('dental-print-iframe') as HTMLIFrameElement;
   if (!iframe) {
     iframe = document.createElement('iframe');
@@ -453,19 +726,7 @@ const printViaIframe = (htmlContent: string) => {
   }
 
   doc.open();
-  doc.write(`
-    <!DOCTYPE html>
-    <html lang="ar" dir="rtl">
-    <head>
-      <meta charset="UTF-8" />
-      <title>طباعة السند</title>
-      <style>${getThermalPrintStyles()}</style>
-    </head>
-    <body>
-      ${htmlContent}
-    </body>
-    </html>
-  `);
+  doc.write(fullHtml);
   doc.close();
 
   // Trigger print after iframe finishes layout and image loading
@@ -477,6 +738,10 @@ const printViaIframe = (htmlContent: string) => {
       console.error('Iframe print error:', e);
     }
   }, 450);
+};
+
+export const printRawHtmlDocument = (fullHtml: string, title = 'طباعة المستند') => {
+  printViaIframe(fullHtml, title);
 };
 
 // Luxury Clinic Header Component with actual clinic logo support
@@ -561,7 +826,7 @@ export const printIncomeReceipt = ({
   const paymentMethod = transaction?.paymentMethod === 'cash' ? 'نقدي (كاش)' : transaction?.paymentMethod === 'card' ? 'بطاقة دفع إلكتروني' : 'نقدي';
 
   // QR Code URL pointing to patient portal
-  const portalUrl = `${window.location.origin}/patient-portal/${clinicId}/${patientId || '0'}`;
+  const portalUrl = `${getPublicOrigin()}/patient-portal/${clinicId}/${patientId || '0'}`;
   const qrSvgString = generateQrSvgString(portalUrl, 84);
 
   const html = `
@@ -875,7 +1140,7 @@ export const printTreatmentPlanReport = ({
     `;
   }).join('');
 
-  const portalUrl = `${window.location.origin}/patient-portal/${clinicId}/${patientId || '0'}`;
+  const portalUrl = `${getPublicOrigin()}/patient-portal/${clinicId}/${patientId || '0'}`;
   const qrSvgString = generateQrSvgString(portalUrl, 84);
 
   const html = `
@@ -1016,7 +1281,7 @@ export const printPatientFullStatement = ({
   const totalPaid = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
   const remaining = Math.max(0, totalCost - totalPaid);
 
-  const portalUrl = `${window.location.origin}/patient-portal/${clinicId}/${patientId || '0'}`;
+  const portalUrl = `${getPublicOrigin()}/patient-portal/${clinicId}/${patientId || '0'}`;
   const qrSvgString = generateQrSvgString(portalUrl, 84);
 
   const html = `
@@ -1917,5 +2182,74 @@ export const printExecutiveReport = ({
     </html>
   `;
 
-  printViaIframe(html);
+  printViaIframe(html, `${reportTypeLabel} - ${clinic?.name || 'العيادة'}`);
 };
+
+// 6. PRINT PATIENT PORTAL QR ACCESS CARD (طباعة بطاقة المراجع بـ QR Code)
+export interface PrintPatientQRCardParams {
+  patientId: string | number;
+  patientName?: string;
+  patientPhone?: string;
+  clinicId: string | number;
+  clinicName?: string;
+  clinic?: any;
+}
+
+export const printPatientQRCard = ({
+  patientId,
+  patientName = 'المراجع',
+  patientPhone = '',
+  clinicId,
+  clinicName = 'عيادة طب الأسنان',
+  clinic
+}: PrintPatientQRCardParams) => {
+  const effectiveClinicName = clinic?.name || clinicName;
+  const clinicPhone = clinic?.phone || '';
+  const clinicAddress = clinic?.address || '';
+  const portalUrl = `${getPublicOrigin()}/patient-portal/${clinicId}/${patientId}`;
+  const qrSvgString = generateQrSvgString(portalUrl, 148);
+
+  const html = `
+    <div class="thermal-receipt">
+      ${renderLuxuryClinicHeader(clinic, effectiveClinicName, clinicPhone, clinicAddress)}
+
+      <div class="divider-double"></div>
+
+      <div class="receipt-badge-wrap">
+        <span class="receipt-badge">★ بطاقة بوابة المراجع الإلكترونية ★</span>
+      </div>
+
+      <div class="meta-box" style="text-align: center; padding: 10px 8px;">
+        <div style="font-size: 14px; font-weight: 900; color: #000000; margin-bottom: 4px;">
+          ${patientName}
+        </div>
+        <div style="font-size: 11px; font-weight: 800; color: #000000;">
+          رقم الملف: <span class="pill-badge">#${patientId}</span>
+          ${patientPhone ? ` • <span dir="ltr">${patientPhone}</span>` : ''}
+        </div>
+      </div>
+
+      <div class="qr-scanner-card" style="padding: 12px 10px; margin: 10px 0;">
+        <div class="qr-frame" style="padding: 8px;">
+          ${qrSvgString}
+        </div>
+        <div class="qr-headline" style="font-size: 11px; margin-top: 6px;">
+          <span>📱</span>
+          <span>امسح الرمز بكاميرا الهاتف للدخول الفوري</span>
+        </div>
+        <p class="qr-subtext" style="font-size: 9.5px; margin-top: 4px;">
+          امسح الرمز في أي وقت للاطلاع على خطتك العلاجية، المواعيد القادمة، وكشف الحساب المالي مباشرة بدون تسجيل دخول.
+        </p>
+      </div>
+
+      <div class="divider-teeth"></div>
+
+      <div class="receipt-footer">
+        <p class="thank-you">نتمنى لكم دوام الصحة وابتسامة مشرقة ✨</p>
+      </div>
+    </div>
+  `;
+
+  printViaIframe(html, `بطاقة مراجع - ${patientName}`);
+};
+

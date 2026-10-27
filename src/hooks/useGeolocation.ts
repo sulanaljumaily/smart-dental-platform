@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 export interface Location {
     lat: number;
@@ -19,43 +19,67 @@ export const useGeolocation = () => {
     });
 
     const getLocation = () => {
+        if (typeof window !== 'undefined' && (window as any).AndroidNative?.requestLocationPermission) {
+            try {
+                (window as any).AndroidNative.requestLocationPermission();
+            } catch (e) {
+                console.warn('AndroidNative.requestLocationPermission failed:', e);
+            }
+        }
+
         if (!navigator.geolocation) {
-            setState(prev => ({ ...prev, error: 'المنصفح لا يدعم تحديد الموقع الجغرافي' }));
+            setState(prev => ({ ...prev, error: 'المتصفح أو الجهاز لا يدعم تحديد الموقع الجغرافي' }));
             return;
         }
 
         setState(prev => ({ ...prev, loading: true, error: null }));
 
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                setState({
-                    location: {
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude,
-                    },
-                    error: null,
-                    loading: false,
-                });
-            },
-            (error) => {
-                let errorMessage = 'حدث خطأ أثناء تحديد الموقع';
-                switch (error.code) {
-                    case error.PERMISSION_DENIED:
-                        errorMessage = 'تم رفض إذن الوصول للموقع';
-                        break;
-                    case error.POSITION_UNAVAILABLE:
-                        errorMessage = 'معلومات الموقع غير متوفرة';
-                        break;
-                    case error.TIMEOUT:
-                        errorMessage = 'انتهت مهلة طلب الموقع';
-                        break;
-                }
-                setState({
-                    location: null,
-                    error: errorMessage,
-                    loading: false,
-                });
+        const onSuccess = (position: GeolocationPosition) => {
+            setState({
+                location: {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude,
+                },
+                error: null,
+                loading: false,
+            });
+        };
+
+        const onFinalError = (error: GeolocationPositionError) => {
+            let errorMessage = 'حدث خطأ أثناء تحديد الموقع الجغرافي';
+            switch (error.code) {
+                case error.PERMISSION_DENIED:
+                    errorMessage = 'يرجى السماح بصلاحية الموقع للتطبيق وتفعيل خدمة الموقع (GPS) في جهازك';
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    errorMessage = 'خدمة تحديد الموقع (GPS) غير مفعلة أو غير متوفرة حالياً';
+                    break;
+                case error.TIMEOUT:
+                    errorMessage = 'انتهت مهلة تحديد الموقع، يرجى التأكد من تفعيل الـ GPS والمحاولة مجدداً';
+                    break;
             }
+            setState({
+                location: null,
+                error: errorMessage,
+                loading: false,
+            });
+        };
+
+        // Try high accuracy first, then fallback to network/coarse location if it times out or fails
+        navigator.geolocation.getCurrentPosition(
+            onSuccess,
+            (err) => {
+                if (err.code !== err.PERMISSION_DENIED) {
+                    navigator.geolocation.getCurrentPosition(
+                        onSuccess,
+                        onFinalError,
+                        { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
+                    );
+                } else {
+                    onFinalError(err);
+                }
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
     };
 

@@ -46,6 +46,14 @@ jobs:
           rm -rf node_modules/@capacitor/app node_modules/.pnpm/@capacitor+app*
           pnpm exec cap sync ios
 
+          # Inject iOS Location Permissions into Info.plist for Interactive Dental Maps
+          if [ -f "ios/App/App/Info.plist" ]; then
+            /usr/libexec/PlistBuddy -c "Add :NSLocationWhenInUseUsageDescription string 'يحتاج التطبيق إلى صلاحية الموقع لتحديد موقعك الحالي وعرض العيادات والمراكز القريبة منك على الخريطة'" ios/App/App/Info.plist || \
+            /usr/libexec/PlistBuddy -c "Set :NSLocationWhenInUseUsageDescription 'يحتاج التطبيق إلى صلاحية الموقع لتحديد موقعك الحالي وعرض العيادات والمراكز القريبة منك على الخريطة'" ios/App/App/Info.plist
+            /usr/libexec/PlistBuddy -c "Add :NSLocationAlwaysAndWhenInUseUsageDescription string 'يحتاج التطبيق إلى صلاحية الموقع لتحديد موقعك الحالي وعرض العيادات والمراكز القريبة منك على الخريطة'" ios/App/App/Info.plist || \
+            /usr/libexec/PlistBuddy -c "Set :NSLocationAlwaysAndWhenInUseUsageDescription 'يحتاج التطبيق إلى صلاحية الموقع لتحديد موقعك الحالي وعرض العيادات والمراكز القريبة منك على الخريطة'" ios/App/App/Info.plist
+          fi
+
           if [ ! -f "ios/App/App.xcodeproj/project.pbxproj" ]; then
             echo "ERROR: Xcode project not properly configured"
             exit 1

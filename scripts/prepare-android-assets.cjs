@@ -123,4 +123,143 @@ if (fs.existsSync(colorsXmlPath)) {
   console.log('[prepare-android-assets] Updated colors.xml with #030f21');
 }
 
+// 8. Inject Location Permissions into AndroidManifest.xml for interactive maps
+const manifestPath = path.join(projectRoot, 'android', 'app', 'src', 'main', 'AndroidManifest.xml');
+if (fs.existsSync(manifestPath)) {
+  let manifestContent = fs.readFileSync(manifestPath, 'utf8');
+  if (!manifestContent.includes('android.permission.ACCESS_FINE_LOCATION')) {
+    const locationPermissions = `
+    <!-- Geolocation permissions for Interactive Dental Maps -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+</manifest>`;
+    manifestContent = manifestContent.replace('</manifest>', locationPermissions);
+    fs.writeFileSync(manifestPath, manifestContent, 'utf8');
+    console.log('[prepare-android-assets] Injected ACCESS_FINE_LOCATION and ACCESS_COARSE_LOCATION into AndroidManifest.xml');
+  }
+}
+
+// 9. Enhance MainActivity.java with AndroidNative bridge (PrintManager, External Browser Intent, Location Permission)
+const javaBaseDir = path.join(projectRoot, 'android', 'app', 'src', 'main', 'java');
+function findMainActivityFiles(dir) {
+  let results = [];
+  if (!fs.existsSync(dir)) return results;
+  for (const entry of fs.readdirSync(dir)) {
+    const fullPath = path.join(dir, entry);
+    if (fs.statSync(fullPath).isDirectory()) {
+      results = results.concat(findMainActivityFiles(fullPath));
+    } else if (entry === 'MainActivity.java') {
+      results.push(fullPath);
+    }
+  }
+  return results;
+}
+
+const mainActivityFiles = findMainActivityFiles(javaBaseDir);
+for (const mainActivityPath of mainActivityFiles) {
+  const existingJava = fs.readFileSync(mainActivityPath, 'utf8');
+  const pkgMatch = existingJava.match(/package\s+([a-zA-Z0-9_.]+)\s*;/);
+  if (pkgMatch) {
+    const packageName = pkgMatch[1];
+    const enhancedMainActivity = `package ${packageName};
+
+import android.Manifest;
+import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.print.PrintAttributes;
+import android.print.PrintDocumentAdapter;
+import android.print.PrintManager;
+import android.webkit.JavascriptInterface;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import com.getcapacitor.BridgeActivity;
+
+public class MainActivity extends BridgeActivity {
+    private WebView printWebView;
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        if (this.bridge != null && this.bridge.getWebView() != null) {
+            this.bridge.getWebView().addJavascriptInterface(new AndroidNativeBridge(), "AndroidNative");
+        }
+    }
+
+    public class AndroidNativeBridge {
+        @JavascriptInterface
+        public void printHtml(final String htmlContent, final String jobName) {
+            runOnUiThread(() -> {
+                try {
+                    printWebView = new WebView(MainActivity.this);
+                    printWebView.getSettings().setJavaScriptEnabled(true);
+                    printWebView.getSettings().setLoadsImagesAutomatically(true);
+                    printWebView.setWebViewClient(new WebViewClient() {
+                        private boolean printed = false;
+
+                        @Override
+                        public void onPageFinished(WebView view, String url) {
+                            if (printed) return;
+                            printed = true;
+                            try {
+                                PrintManager printManager = (PrintManager) getSystemService(Context.PRINT_SERVICE);
+                                String safeTitle = (jobName != null && !jobName.trim().isEmpty()) ? jobName : "Dental_Document";
+                                PrintDocumentAdapter adapter = view.createPrintDocumentAdapter(safeTitle);
+                                if (printManager != null) {
+                                    printManager.print(safeTitle, adapter, new PrintAttributes.Builder().build());
+                                }
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    });
+                    printWebView.loadDataWithBaseURL("https://dental-platform.com/", htmlContent, "text/html", "UTF-8", null);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void openExternalUrl(final String url) {
+            runOnUiThread(() -> {
+                try {
+                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(intent);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void requestLocationPermission() {
+            runOnUiThread(() -> {
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                            requestPermissions(new String[]{
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                            }, 1001);
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        }
+    }
+}
+`;
+    fs.writeFileSync(mainActivityPath, enhancedMainActivity, 'utf8');
+    console.log('[prepare-android-assets] Enhanced MainActivity.java with AndroidNative bridge at:', mainActivityPath);
+  }
+}
+
 console.log('[prepare-android-assets] Android assets configuration completed successfully.');

@@ -43,3 +43,41 @@ export const isNativeApp = (): boolean => {
 export const isWeb = (): boolean => {
   return !isNativeApp();
 };
+
+/**
+ * Returns the public web origin (https://dental-platform.com) when running inside
+ * a native mobile/desktop app so QR codes and external links resolve to the live website
+ * instead of https://localhost, capacitor://localhost, or http://tauri.localhost.
+ */
+export const getPublicOrigin = (): string => {
+  if (typeof window === 'undefined') return 'https://dental-platform.com';
+  return isNativeApp() ? 'https://dental-platform.com' : window.location.origin;
+};
+
+/**
+ * Opens an external URL in the device's default system browser on Mobile/Desktop apps,
+ * or in a new tab on Web.
+ */
+export const openExternalUrl = (url: string): void => {
+  if (typeof window === 'undefined') return;
+
+  try {
+    const win = window as any;
+    if (win.AndroidNative && typeof win.AndroidNative.openExternalUrl === 'function') {
+      win.AndroidNative.openExternalUrl(url);
+      return;
+    }
+  } catch (e) {
+    console.warn('AndroidNative.openExternalUrl failed, falling back:', e);
+  }
+
+  // Create and click an anchor element so Capacitor/iOS/Tauri WebView delegates intercept it cleanly
+  const a = document.createElement('a');
+  a.href = url;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+};
+

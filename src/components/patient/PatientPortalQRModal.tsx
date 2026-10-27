@@ -1,9 +1,11 @@
 import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { QrCode, Copy, ExternalLink, Printer, Check, Smartphone, ShieldCheck } from 'lucide-react';
+import { QrCode, Copy, ExternalLink, Printer, Check, Smartphone, ShieldCheck, Share2 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { toast } from 'sonner';
+import { getPublicOrigin, openExternalUrl } from '../../lib/platform';
+import { printPatientQRCard } from '../../lib/printReceipt';
 
 interface PatientPortalQRModalProps {
   isOpen: boolean;
@@ -28,129 +30,60 @@ export const PatientPortalQRModal: React.FC<PatientPortalQRModalProps> = ({
 
   if (!isOpen) return null;
 
-  // The portal URL
-  const portalUrl = `${window.location.origin}/patient-portal/${clinicId}/${patientId}`;
+  // Always use public domain in mobile/desktop native apps so QR & external browser links resolve properly
+  const portalUrl = `${getPublicOrigin()}/patient-portal/${clinicId}/${patientId}`;
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(portalUrl);
-    setCopied(true);
-    toast.success('تم نسخ رابط بوابة المراجع بنجاح');
-    setTimeout(() => setCopied(false), 2500);
+  const handleCopyLink = async () => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(portalUrl);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = portalUrl;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      setCopied(true);
+      toast.success('تم نسخ رابط بوابة المراجع بنجاح');
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      toast.error('تعذر نسخ الرابط تلقائياً');
+    }
   };
 
   const handleOpenPortal = () => {
-    window.open(portalUrl, '_blank');
+    openExternalUrl(portalUrl);
+  };
+
+  const handleSharePortal = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `بوابة المراجع - ${patientName}`,
+          text: `مرحباً ${patientName}، يمكنك متابعة خطتك العلاجية ومواعيدك وكشف حسابك في ${clinicName} عبر الرابط التالي:`,
+          url: portalUrl,
+        });
+        return;
+      } catch (err: any) {
+        if (err?.name === 'AbortError') return;
+      }
+    }
+    await handleCopyLink();
   };
 
   const handlePrintCard = () => {
-    const win = window.open('', '_blank');
-    if (!win) return;
-
-    win.document.write(`
-      <!DOCTYPE html>
-      <html lang="ar" dir="rtl">
-      <head>
-        <meta charset="UTF-8" />
-        <title>بطاقة مراجع - ${patientName}</title>
-        <style>
-          @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&display=swap');
-          * { box-sizing: border-box; margin: 0; padding: 0; }
-          body {
-            font-family: 'Cairo', sans-serif;
-            direction: rtl;
-            background: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 20px;
-          }
-          .card {
-            width: 380px;
-            border: 2px solid #2563eb;
-            border-radius: 20px;
-            padding: 24px;
-            text-align: center;
-            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-          }
-          .clinic-header {
-            font-size: 16px;
-            font-weight: 900;
-            color: #1e3a8a;
-            margin-bottom: 2px;
-          }
-          .sub {
-            font-size: 11px;
-            color: #64748b;
-            margin-bottom: 16px;
-          }
-          .qr-box {
-            background: #fff;
-            padding: 12px;
-            border-radius: 16px;
-            display: inline-block;
-            border: 1px solid #e2e8f0;
-            margin-bottom: 16px;
-          }
-          .patient-info {
-            background: #eff6ff;
-            border-radius: 12px;
-            padding: 10px;
-            margin-bottom: 12px;
-          }
-          .p-name {
-            font-size: 14px;
-            font-weight: 800;
-            color: #1e40af;
-          }
-          .p-id {
-            font-size: 11px;
-            color: #64748b;
-            font-mono: true;
-          }
-          .desc {
-            font-size: 11px;
-            color: #475569;
-            line-height: 1.4;
-          }
-          @media print {
-            body { padding: 0; }
-            .no-print { display: none; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="card">
-          <div class="clinic-header">${clinicName}</div>
-          <div class="sub">بطاقة الوصول الإلكترونية للمراجع</div>
-
-          <div class="qr-box">
-            <div id="qr-target"></div>
-          </div>
-
-          <div class="patient-info">
-            <div class="p-name">${patientName}</div>
-            <div class="p-id">رقم الملف: #${patientId} ${patientPhone ? `• ${patientPhone}` : ''}</div>
-          </div>
-
-          <div class="desc">
-            امسح الرمز بكاميرا هاتفك في أي وقت للاطلاع على خطتك العلاجية، المواعيد، والسجل المالي بدون تسجيل دخول.
-          </div>
-        </div>
-
-        <script src="https://unpkg.com/qrcode-generator@1.4.4/qrcode.js"></script>
-        <script>
-          var qr = qrcode(0, 'M');
-          qr.addData("${portalUrl}");
-          qr.make();
-          document.getElementById('qr-target').innerHTML = qr.createSvgTag(5, 0);
-          window.onload = function() { window.print(); };
-        </script>
-      </body>
-      </html>
-    `);
-    win.document.close();
+    printPatientQRCard({
+      patientId,
+      patientName,
+      patientPhone,
+      clinicId,
+      clinicName
+    });
   };
 
   return (
@@ -182,14 +115,23 @@ export const PatientPortalQRModal: React.FC<PatientPortalQRModalProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
           <Button
             variant="outline"
             onClick={handleCopyLink}
             className="w-full flex items-center justify-center gap-2 py-2.5 border-gray-200 hover:bg-gray-50 text-gray-700 cursor-pointer"
           >
             {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
-            <span>{copied ? 'تم النسخ!' : 'نسخ رابط البوابة'}</span>
+            <span>{copied ? 'تم النسخ!' : 'نسخ الرابط'}</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={handleSharePortal}
+            className="w-full flex items-center justify-center gap-2 py-2.5 border-indigo-200 text-indigo-700 hover:bg-indigo-50 cursor-pointer"
+          >
+            <Share2 className="w-4 h-4" />
+            <span>مشاركة البوابة</span>
           </Button>
 
           <Button

@@ -19,7 +19,7 @@ import { ComprehensiveTransactionModal } from '../../../components/finance/Compr
 import { PatientPortalQRModal } from '../../../components/patient/PatientPortalQRModal';
 import { TransactionDetailsModal } from './ClinicFinancePage';
 import { PatientAccountModal } from '../../../components/finance/PatientAccountModal';
-import { printIncomeReceipt, printExpenseVoucher } from '../../../lib/printReceipt';
+import { printIncomeReceipt, printExpenseVoucher, printRawHtmlDocument } from '../../../lib/printReceipt';
 import { toast } from 'sonner';
 
 import { Button } from '../../../components/common/Button';
@@ -4184,6 +4184,7 @@ export const ClinicPatientProfile = () => {
           patientId={patientId}
           clinicId={effectiveClinicId}
           staffList={clinicStaff}
+          onPrintTransaction={handlePrintTransaction}
         />
       )}
     </div>
@@ -4721,9 +4722,9 @@ const SmileDesignModalContent: React.FC<SmileDesignModalContentProps> = ({ patie
     if (!patientPhoto) return;
     const today = new Date().toLocaleDateString('ar-IQ', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     const method = step === 2 ? 'تصميم يدوي تحليلي' : 'تصميم الابتسامة بواسطة الـ AI';
-    const win = window.open('', '_blank');
-    if (!win) { toast.error('يرجى السماح بالنوافذ المنبثقة.'); return; }
-    win.document.write(`<html><head><title>تقرير DSD - ${patientName || 'المراجع'}</title>
+    const dsdDocTitle = `تقرير DSD - ${patientName || 'المراجع'}`;
+    const dsdHtml = (`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>${dsdDocTitle}</title>
+      <!-- DSD Header -->
       <style>
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap');
         body{font-family:'Cairo',sans-serif;direction:rtl;text-align:right;padding:40px;color:#1e293b;}
@@ -4744,7 +4745,7 @@ const SmileDesignModalContent: React.FC<SmileDesignModalContentProps> = ({ patie
       </table>
       <div class="no-print"><button class="btn" onclick="window.print()">طباعة / حفظ PDF</button></div>
     </body></html>`);
-    win.document.close();
+    printRawHtmlDocument(dsdHtml, dsdDocTitle);
     toast.success('تم فتح التقرير للطباعة.');
   };
 
