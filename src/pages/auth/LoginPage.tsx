@@ -9,6 +9,7 @@ import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { Header } from '../../components/layout/Header';
 import { supabase } from '../../lib/supabase';
+import { startOAuthSignIn } from '../../lib/nativeOAuth';
 
 export const LoginPage: React.FC = () => {
   const { t } = useLanguage();
@@ -117,7 +118,9 @@ export const LoginPage: React.FC = () => {
   const handleOAuthLogin = async (provider: 'google' | 'facebook') => {
     try {
       setLoadingProvider(provider);
-      const { error } = await supabase.auth.signInWithOAuth({
+      await startOAuthSignIn(provider, role);
+      const error = null;
+      if (false) await supabase.auth.signInWithOAuth({
         provider,
         options: {
           redirectTo: window.location.origin,

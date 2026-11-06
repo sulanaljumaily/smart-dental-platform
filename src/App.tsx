@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, HashRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { isNativeApp } from './lib/platform';
+import { initNativeOAuthBridge } from './lib/nativeOAuth';
 
 // في بيئة الويب: استخدام BrowserRouter للمسارات النظيفة وأرشفة Google SEO الكاملة
 // في بيئة التطبيقات الأصلية (أندرويد / آيفون / ويندوز): استخدام HashRouter لاستقرار نظام الملفات المحلي
@@ -438,6 +439,9 @@ import { SplashScreen } from './components/SplashScreen';
 import { OfflineConnectionNotice } from './components/common/OfflineConnectionNotice';
 
 function App() {
+  useEffect(() => {
+    initNativeOAuthBridge();
+  }, []);
   return (
     <LanguageProvider>
       <AuthProvider>

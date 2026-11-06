@@ -12,7 +12,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Dental Platform - نظام إدارة العيادات والقطاع الطبي",
+        "title": "نظام إدارة العيادات - Dental Platform",
         "url": "index.html",
         "fullscreen": false,
         "width": 1280,
@@ -31,19 +31,24 @@
     "active": true,
     "targets": ["nsis", "msi"],
     "icon": [
-      "icons/icon.ico",
       "icons/32x32.png",
       "icons/128x128.png",
-      "icons/128x128@2x.png"
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
     ],
     "category": "Business",
-    "shortDescription": "المنصة الذكية لإدارة عيادات ومراكز طب الأسنان",
+    "shortDescription": "نظام إدارة العيادات - Dental Platform",
     "longDescription": "برنامج سطح المكتب لإدارة عيادات الأسنان، المواعيد، سجلات المرضى، الإيرادات والربط مع المعامل والموردين",
     "copyright": "Dental Platform © 2026",
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
-      "timestampUrl": ""
+      "timestampUrl": "",
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "installMode": "currentUser"
+      }
     }
   },
   "plugins": {}

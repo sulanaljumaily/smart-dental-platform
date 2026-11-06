@@ -123,10 +123,26 @@ if (fs.existsSync(colorsXmlPath)) {
   console.log('[prepare-android-assets] Updated colors.xml with #030f21');
 }
 
-// 8. Inject Location Permissions into AndroidManifest.xml for interactive maps
+// 8. Inject Location Permissions & OAuth Deep Link Intent Filter into AndroidManifest.xml
 const manifestPath = path.join(projectRoot, 'android', 'app', 'src', 'main', 'AndroidManifest.xml');
 if (fs.existsSync(manifestPath)) {
   let manifestContent = fs.readFileSync(manifestPath, 'utf8');
+  let modified = false;
+
+  if (!manifestContent.includes('android:scheme="dentalplatform"')) {
+    const deepLinkFilter = `
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="dentalplatform" />
+            </intent-filter>
+        </activity>`;
+    manifestContent = manifestContent.replace('</activity>', deepLinkFilter);
+    modified = true;
+    console.log('[prepare-android-assets] Injected dentalplatform:// OAuth deep-link intent-filter into AndroidManifest.xml');
+  }
+
   if (!manifestContent.includes('android.permission.ACCESS_FINE_LOCATION')) {
     const locationPermissions = `
     <!-- Geolocation permissions for Interactive Dental Maps -->
@@ -135,12 +151,16 @@ if (fs.existsSync(manifestPath)) {
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 </manifest>`;
     manifestContent = manifestContent.replace('</manifest>', locationPermissions);
-    fs.writeFileSync(manifestPath, manifestContent, 'utf8');
+    modified = true;
     console.log('[prepare-android-assets] Injected ACCESS_FINE_LOCATION and ACCESS_COARSE_LOCATION into AndroidManifest.xml');
+  }
+
+  if (modified) {
+    fs.writeFileSync(manifestPath, manifestContent, 'utf8');
   }
 }
 
-// 9. Enhance MainActivity.java with AndroidNative bridge (PrintManager, External Browser Intent, Location Permission)
+// 9. Enhance MainActivity.java with AndroidNative bridge (PrintManager, External Browser Intent, Location Permission, OAuth Deep Link)
 const javaBaseDir = path.join(projectRoot, 'android', 'app', 'src', 'main', 'java');
 function findMainActivityFiles(dir) {
   let results = [];
@@ -187,6 +207,30 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         if (this.bridge != null && this.bridge.getWebView() != null) {
             this.bridge.getWebView().addJavascriptInterface(new AndroidNativeBridge(), "AndroidNative");
+        }
+        handleOAuthDeepLink(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleOAuthDeepLink(intent);
+    }
+
+    private void handleOAuthDeepLink(Intent intent) {
+        if (intent == null) return;
+        final Uri data = intent.getData();
+        if (data != null && "dentalplatform".equals(data.getScheme())) {
+            final String urlStr = data.toString().replace("'", "\\\\'");
+            if (this.bridge != null && this.bridge.getWebView() != null) {
+                this.bridge.getWebView().postDelayed(() -> {
+                    this.bridge.getWebView().evaluateJavascript(
+                        "if(window.__handleNativeOAuthDeepLink){window.__handleNativeOAuthDeepLink('" + urlStr + "');}",
+                        null
+                    );
+                }, 400);
+            }
         }
     }
 

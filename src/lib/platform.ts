@@ -61,8 +61,10 @@ export const getPublicOrigin = (): string => {
 export const openExternalUrl = (url: string): void => {
   if (typeof window === 'undefined') return;
 
+  const win = window as any;
+
+  // 1. Android Native Bridge
   try {
-    const win = window as any;
     if (win.AndroidNative && typeof win.AndroidNative.openExternalUrl === 'function') {
       win.AndroidNative.openExternalUrl(url);
       return;
@@ -71,7 +73,23 @@ export const openExternalUrl = (url: string): void => {
     console.warn('AndroidNative.openExternalUrl failed, falling back:', e);
   }
 
-  // Create and click an anchor element so Capacitor/iOS/Tauri WebView delegates intercept it cleanly
+  // 2. Tauri Desktop (Windows / macOS / Linux) via tauri-plugin-shell
+  if (isDesktopApp()) {
+    try {
+      const tauriInvoke = win.__TAURI_INTERNALS__?.invoke || win.__TAURI__?.core?.invoke;
+      if (typeof tauriInvoke === 'function') {
+        tauriInvoke('plugin:shell|open', { path: url }).catch((err: any) => {
+          console.warn('Tauri shell open failed, falling back:', err);
+          window.open(url, '_blank');
+        });
+        return;
+      }
+    } catch (e) {
+      console.warn('Tauri invoke failed, falling back:', e);
+    }
+  }
+
+  // 3. Capacitor iOS / Web fallback
   const a = document.createElement('a');
   a.href = url;
   a.target = '_blank';
@@ -80,4 +98,3 @@ export const openExternalUrl = (url: string): void => {
   a.click();
   document.body.removeChild(a);
 };
-

@@ -8,6 +8,7 @@ import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { Header } from '../../components/layout/Header';
 import { supabase } from '../../lib/supabase';
+import { startOAuthSignIn } from '../../lib/nativeOAuth';
 
 // Helper: build synthetic email from phone for Supabase Auth
 const phoneToEmail = (phone: string) =>
@@ -89,7 +90,9 @@ export const PatientLoginPage: React.FC = () => {
     try {
       // Store flag so AuthContext knows to set role as 'patient'
       localStorage.setItem('patient_oauth_pending', '1');
-      const { error } = await supabase.auth.signInWithOAuth({
+      await startOAuthSignIn(provider, 'patient');
+      const error = null;
+      if (false) await supabase.auth.signInWithOAuth({
         provider,
         options: { redirectTo: `${window.location.origin}?patient=true` }
       });

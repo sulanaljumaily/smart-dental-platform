@@ -10,6 +10,7 @@ import { Button } from '../../components/common/Button';
 import { IRAQI_GOVERNORATES } from '../../utils/location';
 import { Header } from '../../components/layout/Header';
 import { supabase } from '../../lib/supabase';
+import { startOAuthSignIn } from '../../lib/nativeOAuth';
 
 export const RegisterPage: React.FC = () => {
   const { t } = useLanguage();
@@ -126,7 +127,9 @@ export const RegisterPage: React.FC = () => {
   const handleOAuthLogin = async (provider: 'google' | 'facebook', selectedRole: string) => {
     try {
       setLoadingProvider(provider);
-      const { error } = await supabase.auth.signInWithOAuth({
+      await startOAuthSignIn(provider, selectedRole || 'doctor');
+      const error = null;
+      if (false) await supabase.auth.signInWithOAuth({
         provider,
         options: {
           redirectTo: window.location.origin,
