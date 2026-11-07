@@ -5,6 +5,30 @@ import { toast } from 'sonner';
 import { sendRoleNotification } from '../lib/notifications';
 import { db } from '../lib/offline/db';
 
+const OFFLINE_AUTH_USER_KEY = 'dental_offline_auth_user_v1';
+
+function getInstantCachedUser(): User | null {
+  try {
+    const raw = localStorage.getItem(OFFLINE_AUTH_USER_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.id && parsed.email) {
+      return parsed as User;
+    }
+  } catch {}
+  return null;
+}
+
+function setInstantCachedUser(u: User | null) {
+  try {
+    if (!u) {
+      localStorage.removeItem(OFFLINE_AUTH_USER_KEY);
+    } else {
+      localStorage.setItem(OFFLINE_AUTH_USER_KEY, JSON.stringify(u));
+    }
+  } catch {}
+}
+
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string, role?: UserRole) => Promise<void>;
@@ -19,19 +43,35 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const initialCachedUser = getInstantCachedUser();
+  const [user, setUser] = useState<User | null>(initialCachedUser);
+  const [loading, setLoading] = useState<boolean>(!initialCachedUser);
   const mountedRef = useRef(true);
-  const fetchingRef = useRef(false); // Prevent concurrent fetchProfile calls
+  const fetchingRef = useRef(false);
+  const explicitLogoutRef = useRef(false);
 
-  const userRef = useRef<User | null>(null);
+  const userRef = useRef<User | null>(initialCachedUser);
 
-  const updateUserState = useCallback((newUser: User | null) => {
+  const updateUserState = useCallback((newUser: User | null, allowClear = false) => {
     if (!newUser) {
+      // لا تمسح جلسة المستخدم المحفوظة إذا لم يكن تسجيل خروج صريح وكان هناك مستخدم مخزن
+      if (!allowClear && !explicitLogoutRef.current && (!navigator.onLine || getInstantCachedUser())) {
+        const fallback = userRef.current || getInstantCachedUser();
+        if (fallback) {
+          userRef.current = fallback;
+          setUser(fallback);
+          return;
+        }
+      }
       userRef.current = null;
       setUser(null);
+      if (allowClear || explicitLogoutRef.current) {
+        setInstantCachedUser(null);
+      }
       return;
     }
+
+    setInstantCachedUser(newUser);
 
     const prev = userRef.current;
     if (
@@ -43,7 +83,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       prev.phone === newUser.phone &&
       prev.avatar === newUser.avatar
     ) {
-      // Data didn't change: preserve existing object reference to avoid re-rendering dependents
       return;
     }
 
@@ -62,17 +101,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   });
 
   // Build user from auth metadata (fallback)
-  const buildUserFromMeta = (userId: string, email: string, meta?: any): User => ({
-    id: userId,
-    email: email,
-    name: meta?.full_name || email.split('@')[0],
-    role: (meta?.role as UserRole) || null,
-    phone: meta?.phone || '',
-    avatar: ''
-  });
+  const buildUserFromMeta = (userId: string, email: string, meta?: any): User => {
+    const cached = getInstantCachedUser();
+    return {
+      id: userId,
+      email: email || cached?.email || '',
+      name: meta?.full_name || cached?.name || (email ? email.split('@')[0] : 'الطبيب'),
+      role: (meta?.role as UserRole) || cached?.role || 'doctor',
+      phone: meta?.phone || cached?.phone || '',
+      avatar: meta?.avatar_url || cached?.avatar || ''
+    };
+  };
 
   // Auto-assign patient role if coming from patient OAuth flow
   const assignPatientRoleIfNeeded = async (userId: string) => {
+    if (!navigator.onLine) return;
     const isPendingPatient = localStorage.getItem('patient_oauth_pending') === '1';
     if (!isPendingPatient) return;
     localStorage.removeItem('patient_oauth_pending');
@@ -85,11 +128,32 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const fetchProfile = useCallback(async (userId: string, email: string) => {
-    // Prevent concurrent fetches (race between login + onAuthStateChange)
+    // 1. إذا كنا أوفلاين، نسترجع البروفايل المحلي فوراً دون انتظار الشبكة
+    if (!navigator.onLine) {
+      const instant = getInstantCachedUser();
+      if (instant && instant.id === userId) {
+        updateUserState(instant);
+        if (mountedRef.current) setLoading(false);
+        return;
+      }
+      try {
+        const cached = await db.user_profile.get(userId);
+        if (cached?.profile_data && mountedRef.current) {
+          updateUserState(cached.profile_data as unknown as User);
+          setLoading(false);
+          return;
+        }
+      } catch {}
+      if (mountedRef.current) {
+        updateUserState(buildUserFromMeta(userId, email));
+        setLoading(false);
+      }
+      return;
+    }
+
     if (fetchingRef.current) return;
     fetchingRef.current = true;
 
-    // Handle patient OAuth pending flag before fetching profile
     await assignPatientRoleIfNeeded(userId);
 
     try {
@@ -104,7 +168,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (!error && data) {
         const userObj = buildUserFromProfile(data, email);
         updateUserState(userObj);
-        // حفظ البروفايل محلياً في Dexie لاستخدامه في وضع الأوفلاين
         try {
           await db.user_profile.put({
             id: userId,
@@ -116,38 +179,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           console.warn('[Auth] Error caching profile offline:', e);
         }
       } else {
-        // محاولة استرجاع البروفايل من الكاش المحلي أولاً إذا كان أوفلاين
+        // محاولة استرجاع البروفايل من الكاش المحلي أولاً
+        const instant = getInstantCachedUser();
+        if (instant && instant.id === userId && mountedRef.current) {
+          updateUserState(instant);
+          return;
+        }
         try {
           const cached = await db.user_profile.get(userId);
           if (cached?.profile_data && mountedRef.current) {
             updateUserState(cached.profile_data as unknown as User);
             return;
           }
-        } catch {
-          // تجاوز إذا لم توجد بيانات كاش
-        }
+        } catch {}
 
-        // Profile query failed or no row → fallback to auth metadata
-        if (error && !error.message?.includes('AbortError')) {
-          console.warn('[Auth] Profile fetch error, using metadata fallback:', error.message);
-        }
-        const { data: { user: authUser } } = await supabase.auth.getUser();
+        const { data: { user: authUser } } = await supabase.auth.getUser().catch(() => ({ data: { user: null } }));
         if (!mountedRef.current) return;
         updateUserState(buildUserFromMeta(userId, email, authUser?.user_metadata));
       }
     } catch (err: any) {
       if (err?.name === 'AbortError' || err?.message?.includes('AbortError')) return;
-      console.error('[Auth] Unexpected error fetching profile:', err);
-      // في حالة حدوث خطأ اتصال (Offline)، محاولة استرجاع الكاش المحلي أولاً
+      const instant = getInstantCachedUser();
+      if (instant && instant.id === userId && mountedRef.current) {
+        updateUserState(instant);
+        return;
+      }
       try {
         const cached = await db.user_profile.get(userId);
         if (cached?.profile_data && mountedRef.current) {
           updateUserState(cached.profile_data as unknown as User);
           return;
         }
-      } catch {
-        // تجاوز
-      }
+      } catch {}
       if (mountedRef.current) {
         updateUserState(buildUserFromMeta(userId, email));
       }
@@ -160,8 +223,34 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     mountedRef.current = true;
 
+    const restoreOfflineUserFallback = async (): Promise<boolean> => {
+      const instant = getInstantCachedUser();
+      if (instant && mountedRef.current) {
+        updateUserState(instant);
+        setLoading(false);
+        return true;
+      }
+      try {
+        const cachedProfiles = await db.user_profile.toArray();
+        if (cachedProfiles.length > 0 && mountedRef.current) {
+          const lastProfile = cachedProfiles[0];
+          if (lastProfile?.profile_data) {
+            updateUserState(lastProfile.profile_data as unknown as User);
+            setLoading(false);
+            return true;
+          }
+        }
+      } catch {}
+      return false;
+    };
+
     // 1. Initial Session Check
     const initializeAuth = async () => {
+      if (!navigator.onLine) {
+        const restored = await restoreOfflineUserFallback();
+        if (restored) return;
+      }
+
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!mountedRef.current) return;
@@ -169,44 +258,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (session?.user) {
           await fetchProfile(session.user.id, session.user.email!);
         } else {
-          // عند فتح التطبيق أوفلاين، نسترجع الجلسة المحفوظة محلياً في Dexie
-          try {
-            const cachedProfiles = await db.user_profile.toArray();
-            if (cachedProfiles.length > 0 && mountedRef.current) {
-              const lastProfile = cachedProfiles[0];
-              if (lastProfile?.profile_data) {
-                console.log('[Auth] Restored offline session from Dexie:', lastProfile.id);
-                updateUserState(lastProfile.profile_data as unknown as User);
-                setLoading(false);
-                return;
-              }
-            }
-          } catch (e) {
-            console.warn('[Auth] Could not check offline user_profile:', e);
+          const restored = await restoreOfflineUserFallback();
+          if (!restored && mountedRef.current) {
+            updateUserState(null, true);
+            setLoading(false);
           }
-
-          updateUserState(null);
-          setLoading(false);
         }
       } catch (error: any) {
         if (error?.name === 'AbortError' || error?.message?.includes('AbortError')) return;
-        console.error('Error checking auth session:', error);
-
-        // محاولة استرجاع الجلسة من Dexie في حالة حدوث خطأ اتصال (Network Error)
-        try {
-          const cachedProfiles = await db.user_profile.toArray();
-          if (cachedProfiles.length > 0 && mountedRef.current) {
-            const lastProfile = cachedProfiles[0];
-            if (lastProfile?.profile_data) {
-              console.log('[Auth] Restored offline session after network error:', lastProfile.id);
-              updateUserState(lastProfile.profile_data as unknown as User);
-              setLoading(false);
-              return;
-            }
-          }
-        } catch {}
-
-        if (mountedRef.current) setLoading(false);
+        const restored = await restoreOfflineUserFallback();
+        if (!restored && mountedRef.current) {
+          setLoading(false);
+        }
       }
     };
 
@@ -216,48 +279,37 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mountedRef.current) return;
 
-      // Ignore token refresh if user is already loaded and user ID matches
       if (event === 'TOKEN_REFRESHED' && session?.user && userRef.current?.id === session.user.id) {
         return;
       }
 
       if (session?.user) {
-        // Small delay to avoid racing with initial getSession
+        explicitLogoutRef.current = false;
         setTimeout(() => {
           if (mountedRef.current) {
             fetchProfile(session.user.id, session.user.email!);
           }
-        }, 100);
+        }, 50);
       } else if (event === 'SIGNED_OUT') {
-        updateUserState(null);
-        setLoading(false);
-      } else {
-        // When session is null on INITIAL_SESSION or network disconnect:
-        // Do NOT clear user if offline or if we have an offline user restored
-        if (!navigator.onLine) {
-          if (!userRef.current) {
-            try {
-              const cachedProfiles = await db.user_profile.toArray();
-              if (cachedProfiles.length > 0 && mountedRef.current) {
-                const lastProfile = cachedProfiles[0];
-                if (lastProfile?.profile_data) {
-                  updateUserState(lastProfile.profile_data as unknown as User);
-                  setLoading(false);
-                  return;
-                }
-              }
-            } catch {}
-          } else {
-            // Already have offline user session, maintain it
+        if (explicitLogoutRef.current) {
+          updateUserState(null, true);
+          setLoading(false);
+        } else {
+          // حماية الجلسة من المسح التلقائي عند انقطاع الإنترنت أو فشل تحديث التوكن
+          const restored = await restoreOfflineUserFallback();
+          if (!restored && mountedRef.current) {
+            updateUserState(null, true);
             setLoading(false);
-            return;
           }
         }
-
-        if (!userRef.current) {
-          updateUserState(null);
+      } else {
+        const restored = await restoreOfflineUserFallback();
+        if (!restored && mountedRef.current) {
+          if (!userRef.current) {
+            updateUserState(null, true);
+          }
+          setLoading(false);
         }
-        setLoading(false);
       }
     });
 
@@ -265,10 +317,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       mountedRef.current = false;
       subscription.unsubscribe();
     };
-  }, [fetchProfile]);
+  }, [fetchProfile, updateUserState]);
 
   const login = async (email: string, password: string, _role?: UserRole) => {
     try {
+      explicitLogoutRef.current = false;
       setLoading(true);
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
@@ -281,46 +334,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // Helper: login using phone number (builds synthetic email)
-  const loginWithPhone = async (phone: string, password: string) => {
-    const sanitized = phone.replace(/\D/g, '');
-    const email = `${sanitized}@patient.smartdental.com`;
-    return login(email, password, 'patient');
-  };
-
   /**
    * autoLinkPatientData — Called after a patient account is created.
-   * Links any existing appointments/patient files with matching phone
-   * to the new user UUID. Handles Scenario C: booked without account, then registered.
    */
   const autoLinkPatientData = async (userId: string, phone: string) => {
     const sanitizedPhone = phone.replace(/\D/g, '');
     if (!sanitizedPhone) return;
     try {
-      // Link appointments that match this phone and have no account yet
       await supabase
         .from('appointments')
         .update({ patient_user_id: userId })
         .eq('phone_number', sanitizedPhone)
         .is('patient_user_id', null);
 
-      // Link patient files that match this phone and have no account yet
       await supabase
         .from('patients')
         .update({ patient_user_id: userId })
         .eq('phone', sanitizedPhone)
         .is('patient_user_id', null)
         .is('deleted_at', null);
-
-      console.log('[Auth] Auto-linked existing patient data for phone:', sanitizedPhone);
     } catch (err) {
-      // Non-critical: log but don't break registration flow
       console.warn('[Auth] Auto-link patient data failed (non-critical):', err);
     }
   };
 
   const register = async (email: string, password: string, name: string, role: UserRole, phone: string) => {
     try {
+      explicitLogoutRef.current = false;
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -354,19 +394,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         toast.success('تم إنشاء الحساب بنجاح');
 
-        // Auto-link existing appointments/patient files for patient accounts (Scenario C)
         if (role === 'patient' && phone) {
           await autoLinkPatientData(data.user.id, phone);
         }
 
-        // Notify Admins about new professional accounts
         if (role === 'supplier') {
           await sendRoleNotification('admin', 'طلب انضمام مورد جديد', `قام ${name} بالتسجيل كمورد جديد بانتظار المراجعة.`, '/admin/suppliers');
         } else if (role === 'laboratory') {
           await sendRoleNotification('admin', 'طلب انضمام مختبر جديد', `قام ${name} بالتسجيل كمختبر جديد بانتظار المراجعة.`, '/admin/labs');
         }
-
-        // onAuthStateChange will handle fetchProfile
       }
     } catch (error: any) {
       console.error('Registration error:', error);
@@ -376,19 +412,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const logout = async () => {
+    explicitLogoutRef.current = true;
+    setInstantCachedUser(null);
     try {
-      await supabase.auth.signOut();
-      try {
-        await db.user_profile.clear();
-      } catch {}
-      setUser(null);
-      toast.success('تم تسجيل الخروج');
+      await db.user_profile.clear();
+    } catch {}
+    try {
+      if (navigator.onLine) {
+        await supabase.auth.signOut();
+      }
     } catch (error) {
       console.error('Logout error:', error);
-      try {
-        await db.user_profile.clear();
-      } catch {}
-      setUser(null);
+    } finally {
+      updateUserState(null, true);
+      toast.success('تم تسجيل الخروج');
     }
   };
 

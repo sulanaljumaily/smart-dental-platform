@@ -1,14 +1,12 @@
-import { useState, useEffect } from 'react';
-import { ToothCondition, TreatmentPlan, TreatmentSession } from '../types/treatment';
+import { useState, useEffect, useRef } from 'react';
+import { ToothCondition, TreatmentPlan } from '../types/treatment';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
-import { setCache, getCache } from '../lib/offline/db';
+import { setCache, getCache, getInstantCache, addToSyncQueue } from '../lib/offline/db';
 
-// Mock data for fallback or initial state
 const INITIAL_TEETH: ToothCondition[] = Array.from({ length: 32 }, (_, i) => {
     let num = 0;
-    // FDI Numbering Logic (Same as in Component)
     if (i < 8) num = 18 - i;
     else if (i < 16) num = 21 + (i - 8);
     else if (i < 24) num = 38 - (i - 16);
@@ -24,50 +22,74 @@ const INITIAL_TEETH: ToothCondition[] = Array.from({ length: 32 }, (_, i) => {
 
 export const usePatientTreatments = (patientId: string | undefined) => {
     const { user } = useAuth();
-    const [teeth, setTeeth] = useState<ToothCondition[]>(INITIAL_TEETH);
-    const [treatmentPlans, setTreatmentPlans] = useState<TreatmentPlan[]>([]);
+    const targetPatientId = patientId ? String(patientId) : '';
+    const initialTeeth = (targetPatientId ? getInstantCache<ToothCondition[]>('patient_teeth_' + targetPatientId) : null) || INITIAL_TEETH;
+    const initialPlans = (targetPatientId ? getInstantCache<TreatmentPlan[]>('patient_plans_' + targetPatientId) : null) || [];
+
+    const [teeth, setTeeth] = useState<ToothCondition[]>(initialTeeth);
+    const [treatmentPlans, setTreatmentPlans] = useState<TreatmentPlan[]>(initialPlans);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const mountedRef = useRef(true);
 
-    // Initial Fetch
+    const persistTeeth = (nextTeeth: ToothCondition[]) => {
+        if (!targetPatientId) return;
+        setTeeth(nextTeeth);
+        setCache('patient_teeth_' + targetPatientId, nextTeeth, 86400 * 30).catch(() => {});
+    };
+
+    const persistPlans = (nextPlans: TreatmentPlan[]) => {
+        if (!targetPatientId) return;
+        setTreatmentPlans(nextPlans);
+        setCache('patient_plans_' + targetPatientId, nextPlans, 86400 * 30).catch(() => {});
+    };
+
     useEffect(() => {
-        if (!patientId) return;
+        mountedRef.current = true;
+        if (!targetPatientId) return;
+        const cachedT = getInstantCache<ToothCondition[]>('patient_teeth_' + targetPatientId);
+        const cachedP = getInstantCache<TreatmentPlan[]>('patient_plans_' + targetPatientId);
+        if (cachedT) setTeeth(cachedT);
+        if (cachedP) setTreatmentPlans(cachedP);
         fetchData();
-    }, [patientId]);
+        return () => { mountedRef.current = false; };
+    }, [targetPatientId]);
 
     const fetchData = async () => {
-        if (!patientId) return;
+        if (!targetPatientId) return;
 
-        // إذا كان الجهاز أوفلاين، استرجع مخطط الأسنان والخطط العلاجية محلياً فوراً
-        if (!navigator.onLine) {
+        const isUnsyncedPatient = isNaN(Number(targetPatientId));
+
+        if (!navigator.onLine || isUnsyncedPatient) {
             try {
-                const cachedTeeth = await getCache<ToothCondition[]>('patient_teeth_' + patientId);
-                const cachedPlans = await getCache<TreatmentPlan[]>('patient_plans_' + patientId);
-                if (cachedTeeth || cachedPlans) {
+                const cachedTeeth = await getCache<ToothCondition[]>('patient_teeth_' + targetPatientId);
+                const cachedPlans = await getCache<TreatmentPlan[]>('patient_plans_' + targetPatientId);
+                if (mountedRef.current) {
                     if (cachedTeeth) setTeeth(cachedTeeth);
                     if (cachedPlans) setTreatmentPlans(cachedPlans);
                     setError(null);
+                    setLoading(false);
                 }
-            } catch (e) {
-                console.warn('[usePatientTreatments] Immediate Dexie load error:', e);
-            }
-            setLoading(false);
+            } catch {}
+            if (mountedRef.current) setLoading(false);
             return;
         }
 
-        setLoading(true);
+        if (treatmentPlans.length === 0) {
+            setLoading(true);
+        }
+
         try {
             // 1. Fetch Teeth Conditions
             const { data: dbTeeth, error: teethError } = await supabase
                 .from('patient_teeth')
                 .select('*')
-                .eq('patient_id', patientId);
+                .eq('patient_id', targetPatientId);
 
             if (teethError) throw teethError;
 
-            // Merge with initial
             let currentTeeth = INITIAL_TEETH;
-            if (dbTeeth) {
+            if (dbTeeth && dbTeeth.length > 0) {
                 currentTeeth = INITIAL_TEETH.map(initial => {
                     const found = dbTeeth.find(t => t.tooth_number === initial.number);
                     if (found) {
@@ -79,9 +101,6 @@ export const usePatientTreatments = (patientId: string | undefined) => {
                     }
                     return initial;
                 });
-                setTeeth(currentTeeth);
-            } else {
-                setTeeth(INITIAL_TEETH);
             }
 
             // 2. Fetch Treatment Plans joined with Sessions
@@ -91,14 +110,14 @@ export const usePatientTreatments = (patientId: string | undefined) => {
                     *,
                     sessions:treatment_sessions(*)
                 `)
-                .eq('patient_id', patientId)
+                .eq('patient_id', targetPatientId)
                 .order('created_at', { ascending: false });
 
             if (plansError) throw plansError;
 
             const mappedPlans: TreatmentPlan[] = (dbPlans || []).map(p => ({
                 id: p.id,
-                patientId: p.patient_id,
+                patientId: String(p.patient_id),
                 toothNumber: p.tooth_number || 0,
                 toothNumbers: p.tooth_numbers || undefined,
                 type: (p.treatment_type as any) || 'general',
@@ -108,253 +127,308 @@ export const usePatientTreatments = (patientId: string | undefined) => {
                 progress: p.session_count > 0 ? Math.round((p.completed_sessions / p.session_count) * 100) : 0,
                 cost: p.estimated_cost,
                 paid: p.paid || 0,
-                startDate: p.estimated_start_date || p.created_at.split('T')[0],
+                startDate: p.estimated_start_date || (p.created_at ? p.created_at.split('T')[0] : new Date().toISOString().split('T')[0]),
                 notes: p.treatment_description || '',
-                doctor: p.assigned_doctor, // Map from DB
+                doctor: p.assigned_doctor,
                 sessions: (p.sessions || [])
                     .sort((a: any, b: any) => a.session_number - b.session_number)
-                    .map((s: any) => ({
-                        id: s.id,
-                        number: s.session_number,
-                        title: s.procedure_name,
-                        status: s.session_status === 'scheduled' ? 'pending' : s.session_status,
-                        duration: s.duration_minutes || 0,
-                        schemaId: s.phase_name || 'general', // Using phase_name to store schemaId
-                        data: s.notes ? JSON.parse(s.notes) : {} // Storing session data in notes as JSON for flexibility
-                    }))
+                    .map((s: any) => {
+                        let parsedNotes = {};
+                        if (s.notes) {
+                            try {
+                                parsedNotes = typeof s.notes === 'string' ? JSON.parse(s.notes) : s.notes;
+                            } catch {}
+                        }
+                        return {
+                            id: s.id,
+                            number: s.session_number,
+                            title: s.procedure_name,
+                            status: s.session_status === 'scheduled' ? 'pending' : s.session_status,
+                            duration: s.duration_minutes || 0,
+                            schemaId: s.phase_name || 'general',
+                            data: parsedNotes
+                        };
+                    })
             }));
 
-            setTreatmentPlans(mappedPlans);
-
-            // حفظ في الكاش المحلي لاستعراض العلاجات ومخطط الأسنان أوفلاين
-            if (patientId) {
-                setCache('patient_teeth_' + patientId, currentTeeth, 86400).catch(() => {});
-                setCache('patient_plans_' + patientId, mappedPlans, 86400).catch(() => {});
+            if (mountedRef.current) {
+                persistTeeth(currentTeeth);
+                persistPlans(mappedPlans);
+                setError(null);
             }
         } catch (err: any) {
-            console.warn('[usePatientTreatments] Network error, checking Dexie offline cache:', err);
-            // محاولة التحميل من الكاش المحلي أوفلاين
-            if (patientId) {
-                try {
-                    const cachedTeeth = await getCache<ToothCondition[]>('patient_teeth_' + patientId);
-                    const cachedPlans = await getCache<TreatmentPlan[]>('patient_plans_' + patientId);
-                    if (cachedTeeth || cachedPlans) {
-                        if (cachedTeeth) setTeeth(cachedTeeth);
-                        if (cachedPlans) setTreatmentPlans(cachedPlans);
-                        setError(null);
-                        return;
-                    }
-                } catch (dexieErr) {
-                    console.error('[usePatientTreatments] Offline cache read error:', dexieErr);
+            if (err?.name === 'AbortError' || err?.message?.includes('AbortError')) return;
+            try {
+                const cachedTeeth = await getCache<ToothCondition[]>('patient_teeth_' + targetPatientId);
+                const cachedPlans = await getCache<TreatmentPlan[]>('patient_plans_' + targetPatientId);
+                if (mountedRef.current) {
+                    if (cachedTeeth) setTeeth(cachedTeeth);
+                    if (cachedPlans) setTreatmentPlans(cachedPlans);
+                    setError(null);
+                    return;
                 }
-            }
-
-            console.error('Error fetching treatments:', err);
-            setError(err.message);
-            toast.error('فشل تحميل بيانات العلاج');
+            } catch {}
         } finally {
-            setLoading(false);
+            if (mountedRef.current) setLoading(false);
         }
     };
 
     const updateTooth = async (toothNumber: number, condition: string, notes: string) => {
-        if (!patientId) return;
-        if (toothNumber === 0) return; // Skip update for general treatments
+        if (!targetPatientId || toothNumber === 0) return;
 
-        // Optimistic Update Local
-        setTeeth(prev => prev.map(t => t.number === toothNumber ? { ...t, condition: condition as any, notes } : t));
+        const nextTeeth = teeth.map(t => t.number === toothNumber ? { ...t, condition: condition as any, notes } : t);
+        persistTeeth(nextTeeth);
+
+        const upsertPayload = {
+            patient_id: Number.isNaN(Number(targetPatientId)) ? targetPatientId : Number(targetPatientId),
+            tooth_number: toothNumber,
+            condition,
+            notes,
+            updated_at: new Date().toISOString()
+        };
+
+        if (!navigator.onLine || isNaN(Number(targetPatientId))) {
+            await addToSyncQueue('UPSERT', 'patient_teeth', `${targetPatientId}_${toothNumber}`, upsertPayload);
+            toast.success('تم حفظ حالة السن محلياً');
+            return;
+        }
 
         try {
             const { error } = await supabase
                 .from('patient_teeth')
-                .upsert({
-                    patient_id: patientId,
-                    tooth_number: toothNumber,
-                    condition: condition,
-                    notes: notes,
-                    updated_at: new Date().toISOString()
-                }, { onConflict: 'patient_id,tooth_number' });
+                .upsert(upsertPayload, { onConflict: 'patient_id,tooth_number' });
 
             if (error) throw error;
-
-        } catch (err) {
-            console.error('Error updating tooth:', err);
-            toast.error('فشل حفظ حالة السن');
-            // Rollback could go here
+        } catch {
+            await addToSyncQueue('UPSERT', 'patient_teeth', `${targetPatientId}_${toothNumber}`, upsertPayload);
+            toast.info('تم حفظ حالة السن محلياً (ستتم المزامنة عند الاتصال)');
         }
     };
 
     const addPlan = async (plan: TreatmentPlan) => {
-        if (!patientId || !user) return;
+        if (!targetPatientId || !user) return;
 
-        // Optimistic
-        setTreatmentPlans(prev => [plan, ...prev]);
+        const planUuid = plan.id && !plan.id.startsWith('plan-') ? plan.id : crypto.randomUUID();
+        const normalizedSessions = plan.sessions.map(s => ({
+            ...s,
+            id: s.id && !s.id.startsWith('sess-') ? s.id : crypto.randomUUID()
+        }));
+        const normalizedPlan: TreatmentPlan = {
+            ...plan,
+            id: planUuid,
+            patientId: targetPatientId,
+            sessions: normalizedSessions
+        };
+
+        persistPlans([normalizedPlan, ...treatmentPlans]);
+
+        const planInsertPayload = {
+            id: planUuid,
+            patient_id: Number.isNaN(Number(targetPatientId)) ? targetPatientId : Number(targetPatientId),
+            tooth_number: normalizedPlan.toothNumber,
+            tooth_numbers: normalizedPlan.toothNumbers || null,
+            treatment_type: normalizedPlan.type,
+            status: 'planned',
+            overall_status: 'needs_treatment',
+            session_count: normalizedPlan.totalSessions,
+            completed_sessions: 0,
+            estimated_cost: normalizedPlan.cost,
+            diagnosis: normalizedPlan.notes,
+            treatment_description: normalizedPlan.notes,
+            assigned_doctor: normalizedPlan.doctor || (user as any).user_metadata?.full_name || user.name || user.email || 'الطبيب',
+            created_by: user.id
+        };
+
+        const sessionsToInsert = normalizedSessions.map(s => ({
+            id: s.id,
+            plan_id: planUuid,
+            session_number: s.number,
+            session_date: new Date().toISOString().split('T')[0],
+            start_time: '09:00',
+            procedure_name: s.title,
+            session_status: 'scheduled',
+            duration_minutes: s.duration,
+            phase_name: s.schemaId,
+            notes: JSON.stringify(s.data || {})
+        }));
+
+        const queueOfflinePlan = async () => {
+            await addToSyncQueue('INSERT', 'tooth_treatment_plans', planUuid, planInsertPayload);
+            for (const sPayload of sessionsToInsert) {
+                await addToSyncQueue('INSERT', 'treatment_sessions', sPayload.id, sPayload);
+            }
+        };
+
+        if (!navigator.onLine || isNaN(Number(targetPatientId))) {
+            await queueOfflinePlan();
+            toast.success('تم إنشاء خطة العلاج محلياً (ستتم المزامنة تلقائياً عند الاتصال)');
+            return;
+        }
 
         try {
-            // 1. Insert Plan
             const { data: planData, error: planError } = await supabase
                 .from('tooth_treatment_plans')
-                .insert({
-                    patient_id: patientId,
-                    tooth_number: plan.toothNumber,
-                    tooth_numbers: plan.toothNumbers || null,
-                    treatment_type: plan.type,
-                    status: 'planned',
-                    overall_status: 'needs_treatment',
-                    session_count: plan.totalSessions,
-                    completed_sessions: 0,
-                    estimated_cost: plan.cost,
-                    diagnosis: plan.notes, // Mapping notes to diagnosis/description
-                    treatment_description: plan.notes,
-                    assigned_doctor: plan.doctor || (user as any).user_metadata?.full_name || user.email || 'Unknown',
-                    created_by: user.id
-                })
+                .insert(planInsertPayload)
                 .select()
                 .single();
 
             if (planError) throw planError;
 
-            // 2. Insert Sessions
-            const sessionsToInsert = plan.sessions.map((s, idx) => ({
-                plan_id: planData.id,
-                session_number: s.number,
-                session_date: new Date().toISOString().split('T')[0], // Default to today
-                start_time: '09:00', // Default
-                procedure_name: s.title,
-                session_status: 'scheduled',
-                duration_minutes: s.duration,
-                phase_name: s.schemaId, // Storing schemaId
-                notes: JSON.stringify(s.data || {})
+            const finalSessions = sessionsToInsert.map(s => ({
+                ...s,
+                plan_id: planData.id
             }));
 
             const { error: sessionsError } = await supabase
                 .from('treatment_sessions')
-                .insert(sessionsToInsert);
+                .insert(finalSessions);
 
             if (sessionsError) throw sessionsError;
 
             toast.success('تم إنشاء خطة العلاج بنجاح');
-            // Refresh to get real IDs
             fetchData();
-
-        } catch (err) {
-            console.error('Error adding plan:', err);
-            toast.error('فشل حفظ خطة العلاج');
+        } catch {
+            await queueOfflinePlan();
+            toast.info('تم حفظ خطة العلاج محلياً (ستتم المزامنة عند توفر الإنترنت)');
         }
     };
 
     const updateSession = async (planId: string, sessionId: string, data: any) => {
-        if (!patientId) return;
+        if (!targetPatientId) return;
 
-        // Optimistic
-        setTreatmentPlans(prev => prev.map(p => {
+        const nextPlans = treatmentPlans.map(p => {
             if (p.id !== planId) return p;
             return {
                 ...p,
                 sessions: p.sessions.map(s => s.id === sessionId ? { ...s, data } : s)
             };
-        }));
+        });
+        persistPlans(nextPlans);
+
+        if (sessionId.startsWith('sess-')) return;
+
+        const payload = { notes: JSON.stringify(data) };
+
+        if (!navigator.onLine) {
+            await addToSyncQueue('UPDATE', 'treatment_sessions', sessionId, payload);
+            return;
+        }
 
         try {
-            // If it's a temp ID (optimistic creation not yet synced), we can't update properly.
-            // But usually we refresh after add.
-            if (sessionId.startsWith('sess-')) return;
-
             const { error } = await supabase
                 .from('treatment_sessions')
-                .update({
-                    notes: JSON.stringify(data) // Storing structured data in notes for now
-                })
+                .update(payload)
                 .eq('id', sessionId);
 
             if (error) throw error;
-        } catch (err) {
-            console.error('Error updating session:', err);
-            // toast.error('فشل حفظ بيانات الجلسة'); // Silent save preferred usually
+        } catch {
+            await addToSyncQueue('UPDATE', 'treatment_sessions', sessionId, payload);
         }
     };
 
     const updatePlan = async (planId: string, updates: Partial<TreatmentPlan>) => {
-        if (!patientId) return;
+        if (!targetPatientId) return;
 
-        // Optimistic Update
-        setTreatmentPlans(prev => prev.map(p => p.id === planId ? { ...p, ...updates } : p));
+        const nextPlans = treatmentPlans.map(p => p.id === planId ? { ...p, ...updates } : p);
+        persistPlans(nextPlans);
+
+        const dbUpdates: Record<string, any> = {};
+        if (updates.paid !== undefined) dbUpdates.paid = updates.paid;
+        if (updates.status !== undefined) dbUpdates.status = updates.status;
+        if (updates.cost !== undefined) dbUpdates.estimated_cost = updates.cost;
+        if (updates.notes !== undefined) dbUpdates.treatment_description = updates.notes;
+
+        if (Object.keys(dbUpdates).length === 0) return;
+
+        if (!navigator.onLine) {
+            await addToSyncQueue('UPDATE', 'tooth_treatment_plans', planId, dbUpdates);
+            return;
+        }
 
         try {
-            // We only support updating specific fields for now in DB mapping
-            // For 'paid' field specifically:
-            if (updates.paid !== undefined) {
-                const { error } = await supabase
-                    .from('tooth_treatment_plans')
-                    .update({ paid: updates.paid })
-                    .eq('id', planId);
-                if (error) throw error;
-            }
-
-            // For other fields, add logic as needed
-
-        } catch (err) {
-            console.error('Error updating plan:', err);
-            // Revert logic would go here
-            toast.error('فشل تحديث الخطة');
+            const { error } = await supabase
+                .from('tooth_treatment_plans')
+                .update(dbUpdates)
+                .eq('id', planId);
+            if (error) throw error;
+        } catch {
+            await addToSyncQueue('UPDATE', 'tooth_treatment_plans', planId, dbUpdates);
         }
     };
 
     const completeSession = async (planId: string, sessionId: string, cost: number) => {
-        if (!patientId) return;
+        if (!targetPatientId) return;
 
-        // Optimistic
-        setTreatmentPlans(prev => prev.map(p => {
+        let newCompletedCount = 1;
+        let totalSessionCount = 1;
+
+        const nextPlans = treatmentPlans.map(p => {
             if (p.id !== planId) return p;
             const updatedSessions = p.sessions.map(s => s.id === sessionId ? { ...s, status: 'completed' as const } : s);
             const completedCount = updatedSessions.filter(s => s.status === 'completed').length;
+            newCompletedCount = completedCount;
+            totalSessionCount = p.totalSessions || 1;
+            const nextStatus = completedCount >= totalSessionCount ? 'completed' : 'in_progress';
             return {
                 ...p,
+                status: nextStatus as any,
                 sessions: updatedSessions,
                 completedSessions: completedCount,
-                progress: Math.round((completedCount / p.totalSessions) * 100)
+                progress: Math.round((completedCount / totalSessionCount) * 100)
             };
-        }));
+        });
+        persistPlans(nextPlans);
+
+        const sessionUpdatePayload = {
+            session_status: 'completed',
+            amount_charged: cost,
+            updated_at: new Date().toISOString()
+        };
+        const nextPlanStatus = newCompletedCount >= totalSessionCount ? 'completed' : 'in_progress';
+        const planUpdatePayload = {
+            completed_sessions: newCompletedCount,
+            status: nextPlanStatus,
+            overall_status: nextPlanStatus === 'completed' ? 'post_treatment' : 'in_progress'
+        };
+
+        if (!navigator.onLine) {
+            await addToSyncQueue('UPDATE', 'treatment_sessions', sessionId, sessionUpdatePayload);
+            await addToSyncQueue('UPDATE', 'tooth_treatment_plans', planId, planUpdatePayload);
+            toast.success('تم إكمال الجلسة محلياً');
+            return;
+        }
 
         try {
-            // 1. Update Session
             const { error: sessionError } = await supabase
                 .from('treatment_sessions')
-                .update({
-                    session_status: 'completed',
-                    amount_charged: cost,
-                    updated_at: new Date().toISOString()
-                })
+                .update(sessionUpdatePayload)
                 .eq('id', sessionId);
 
             if (sessionError) throw sessionError;
 
-            // 2. Update Plan Counters (Can be done via trigger, but doing manually for safety)
-            // Retrieve current count first
-            const { data: planData } = await supabase.from('tooth_treatment_plans').select('completed_sessions, session_count').eq('id', planId).single();
-            if (planData) {
-                const newCount = planData.completed_sessions + 1;
-                const status = newCount >= planData.session_count ? 'completed' : 'in_progress';
-
-                await supabase.from('tooth_treatment_plans').update({
-                    completed_sessions: newCount,
-                    status: status,
-                    overall_status: status === 'completed' ? 'post_treatment' : 'in_progress'
-                }).eq('id', planId);
-            }
+            await supabase
+                .from('tooth_treatment_plans')
+                .update(planUpdatePayload)
+                .eq('id', planId);
 
             toast.success('تم إكمال الجلسة');
-        } catch (err) {
-            console.error('Error completing session:', err);
-            toast.error('فشل تحديث الحالة');
+        } catch {
+            await addToSyncQueue('UPDATE', 'treatment_sessions', sessionId, sessionUpdatePayload);
+            await addToSyncQueue('UPDATE', 'tooth_treatment_plans', planId, planUpdatePayload);
+            toast.info('تم إكمال الجلسة محلياً (ستتم المزامنة عند الاتصال)');
         }
     };
 
     const deletePlan = async (planId: string) => {
-        if (!patientId) return;
+        if (!targetPatientId) return;
 
-        // Optimistic
-        setTreatmentPlans(prev => prev.filter(p => p.id !== planId));
+        persistPlans(treatmentPlans.filter(p => p.id !== planId));
+
+        if (!navigator.onLine) {
+            await addToSyncQueue('DELETE', 'tooth_treatment_plans', planId, {});
+            toast.success('تم حذف الخطة محلياً');
+            return;
+        }
 
         try {
             const { error } = await supabase
@@ -364,10 +438,9 @@ export const usePatientTreatments = (patientId: string | undefined) => {
 
             if (error) throw error;
             toast.success('تم حذف الخطة');
-        } catch (err) {
-            console.error('Error deleting plan:', err);
-            toast.error('فشل حذف الخطة');
-            // Rollback could be added here
+        } catch {
+            await addToSyncQueue('DELETE', 'tooth_treatment_plans', planId, {});
+            toast.info('تم حذف الخطة محلياً (ستتم المزامنة عند الاتصال)');
         }
     };
 

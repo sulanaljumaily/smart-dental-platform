@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { getInstantCache, setCache, getCache } from '../lib/offline/db';
 
 export interface PlanLimits {
     max_clinics: number;
     max_patients: number;
     max_services: number;
-    max_ai: number; // -1 for unlimited, 0 for none, >0 for daily limit
+    max_ai: number;
 }
 
 export interface PlanGatedFeatures {
@@ -37,8 +38,8 @@ export interface DoctorSubscription {
 
 const DEFAULT_FREE_LIMITS: PlanLimits = {
     max_clinics: 1,
-    max_patients: 2,
-    max_services: 2,
+    max_patients: 100,
+    max_services: 20,
     max_ai: 0
 };
 
@@ -51,12 +52,34 @@ const DEFAULT_FREE_GATED_FEATURES: PlanGatedFeatures = {
 
 export const useDoctorSubscription = () => {
     const { user } = useAuth();
-    const [subscription, setSubscription] = useState<DoctorSubscription | null>(null);
-    const [loading, setLoading] = useState(true);
+    const cacheKey = user?.id ? `doctor_sub_${user.id}` : '';
+    const initialSub = cacheKey ? getInstantCache<DoctorSubscription>(cacheKey) : null;
+    const [subscription, setSubscription] = useState<DoctorSubscription | null>(initialSub);
+    const [loading, setLoading] = useState<boolean>(!initialSub && !!user);
     const mountedRef = useRef(true);
 
+    const saveSubscription = (sub: DoctorSubscription) => {
+        if (!mountedRef.current) return;
+        setSubscription(sub);
+        if (user?.id) {
+            setCache(`doctor_sub_${user.id}`, sub, 86400 * 30).catch(() => {});
+        }
+    };
+
     const fetchSubscription = async () => {
-        if (!user) return;
+        if (!user) {
+            if (mountedRef.current) setLoading(false);
+            return;
+        }
+
+        if (!navigator.onLine) {
+            const cached = await getCache<DoctorSubscription>(`doctor_sub_${user.id}`);
+            if (cached && mountedRef.current) {
+                setSubscription(cached);
+            }
+            if (mountedRef.current) setLoading(false);
+            return;
+        }
 
         try {
             if (!subscription) setLoading(true);
@@ -89,7 +112,7 @@ export const useDoctorSubscription = () => {
                 .maybeSingle();
 
             if (error && error.code !== 'PGRST116') {
-                console.error('Error fetching subscription:', error);
+                console.warn('Error fetching subscription:', error);
             }
 
             if (data && data.status === 'approved') {
@@ -119,15 +142,14 @@ export const useDoctorSubscription = () => {
                         : []);
 
                 if (isExpired) {
-                    // Plan is EXPIRED -> Revert effective limits & gated features to the Free Plan
-                    setSubscription({
+                    saveSubscription({
                         id: data.id,
                         plan: {
                             id: freePlanData?.id || 'free',
                             name: `${data.plan?.name || 'الباقة السابقة'} (منتهية الصلاحية)`,
                             features: freePlanFeatures,
-                            limits: freePlanLimits, // Enforce free plan limits
-                            gatedFeatures: freePlanGated // Disable gated features
+                            limits: freePlanLimits,
+                            gatedFeatures: freePlanGated
                         },
                         status: 'expired',
                         startDate: approvalDate.toISOString().split('T')[0],
@@ -139,8 +161,7 @@ export const useDoctorSubscription = () => {
                         originalPlanLimits: paidPlanLimits
                     });
                 } else {
-                    // Plan is ACTIVE and approved
-                    setSubscription({
+                    saveSubscription({
                         id: data.id,
                         plan: {
                             id: data.plan?.id || 'paid',
@@ -158,8 +179,7 @@ export const useDoctorSubscription = () => {
                     });
                 }
             } else if (data && data.status === 'pending') {
-                // Pending subscription request -> Still on free plan limits until approved
-                setSubscription({
+                saveSubscription({
                     id: data.id,
                     plan: {
                         id: freePlanData?.id || 'free',
@@ -176,8 +196,7 @@ export const useDoctorSubscription = () => {
                     isActive: false
                 });
             } else {
-                // No subscription request -> Free Plan Default
-                setSubscription({
+                saveSubscription({
                     id: freePlanData?.id || 'free',
                     plan: {
                         id: freePlanData?.id || 'free',
@@ -194,10 +213,12 @@ export const useDoctorSubscription = () => {
                     isActive: true
                 });
             }
-
         } catch (error: any) {
             if (error?.name === 'AbortError' || error?.message?.includes('AbortError')) return;
-            if (mountedRef.current) console.error('Subscription fetch error:', error);
+            const cached = await getCache<DoctorSubscription>(`doctor_sub_${user.id}`);
+            if (cached && mountedRef.current) {
+                setSubscription(cached);
+            }
         } finally {
             if (mountedRef.current) setLoading(false);
         }
@@ -216,7 +237,7 @@ const tryParseJSON = (jsonString: string): string[] => {
     try {
         const parsed = JSON.parse(jsonString);
         return Array.isArray(parsed) ? parsed : [];
-    } catch (e) {
+    } catch {
         return [];
     }
 };

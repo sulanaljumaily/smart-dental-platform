@@ -86,6 +86,10 @@ export const DoctorClinicsPage: React.FC = () => {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'cover') => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!navigator.onLine) {
+      toast.error('رفع الصور وتعديل إعدادات العيادة يتطلب اتصالاً بالإنترنت');
+      return;
+    }
 
     // Optional: Local preview while uploading (to feel snappy)
     const previewUrl = URL.createObjectURL(file);
@@ -161,6 +165,10 @@ export const DoctorClinicsPage: React.FC = () => {
 
   const handleSaveSettings = async () => {
     if (!selectedClinic) return;
+    if (!navigator.onLine) {
+      toast.error('تعديل وحفظ إعدادات العيادة يتطلب اتصالاً بالإنترنت');
+      return;
+    }
 
     try {
       // Capture working hours from input if needed, or stick to controlled state if we fully refactored
@@ -263,6 +271,10 @@ export const DoctorClinicsPage: React.FC = () => {
 
   const handleAddClinic = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!navigator.onLine) {
+      toast.error('إضافة عيادة جديدة تتطلب اتصالاً بالإنترنت');
+      return;
+    }
 
     if (!newClinic.name) {
       toast.error('يرجى إدخال اسم العيادة');
@@ -299,6 +311,10 @@ export const DoctorClinicsPage: React.FC = () => {
 
   const handleDeleteClinic = async () => {
     if (!clinicToDelete) return;
+    if (!navigator.onLine) {
+      toast.error('حذف العيادة يتطلب اتصالاً بالإنترنت');
+      return;
+    }
     try {
       await deleteClinic(clinicToDelete);
       toast.success('تم حذف العيادة بنجاح');

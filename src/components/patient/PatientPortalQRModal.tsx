@@ -1,6 +1,6 @@
 import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { QrCode, Copy, ExternalLink, Printer, Check, Smartphone, ShieldCheck, Share2 } from 'lucide-react';
+import { QrCode, Copy, ExternalLink, Printer, Check, Smartphone, ShieldCheck, Share2, WifiOff, AlertTriangle } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { toast } from 'sonner';
@@ -30,10 +30,17 @@ export const PatientPortalQRModal: React.FC<PatientPortalQRModalProps> = ({
 
   if (!isOpen) return null;
 
+  const isUnsyncedOffline = isNaN(Number(patientId)) || String(patientId).startsWith('offline_');
+  const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
   // Always use public domain in mobile/desktop native apps so QR & external browser links resolve properly
   const portalUrl = `${getPublicOrigin()}/patient-portal/${clinicId}/${patientId}`;
 
   const handleCopyLink = async () => {
+    if (isUnsyncedOffline) {
+      toast.warning('يرجى الاتصال بالإنترنت أولاً لمزامنة ملف المراجع وتفعيل رابط البوابة الإلكترونية');
+      return;
+    }
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(portalUrl);
@@ -57,10 +64,22 @@ export const PatientPortalQRModal: React.FC<PatientPortalQRModalProps> = ({
   };
 
   const handleOpenPortal = () => {
+    if (isUnsyncedOffline) {
+      toast.warning('تمت إضافة هذا المراجع في وضع عدم الاتصال؛ ستتفعّل البوابة فور الاتصال بالإنترنت ومزامنة البيانات');
+      return;
+    }
+    if (isOffline) {
+      toast.info('معاينة البوابة الإلكترونية أونلاين تتطلب اتصالاً بالإنترنت');
+      return;
+    }
     openExternalUrl(portalUrl);
   };
 
   const handleSharePortal = async () => {
+    if (isUnsyncedOffline) {
+      toast.warning('يرجى الاتصال بالإنترنت أولاً لمزامنة ملف المراجع وتفعيل رابط البوابة الإلكترونية');
+      return;
+    }
     if (navigator.share) {
       try {
         await navigator.share({
@@ -77,6 +96,10 @@ export const PatientPortalQRModal: React.FC<PatientPortalQRModalProps> = ({
   };
 
   const handlePrintCard = () => {
+    if (isUnsyncedOffline) {
+      toast.warning('يرجى الاتصال بالإنترنت أولاً لمزامنة ملف المراجع والحصول على الرمز الدائم قبل الطباعة');
+      return;
+    }
     printPatientQRCard({
       patientId,
       patientName,
@@ -97,10 +120,31 @@ export const PatientPortalQRModal: React.FC<PatientPortalQRModalProps> = ({
           <div>
             <h3 className="font-bold text-gray-900 text-base">{patientName}</h3>
             <p className="text-xs text-gray-500 mt-0.5">
-              رقم الملف: #{patientId} {patientPhone && `• ${patientPhone}`}
+              رقم الملف: #{isUnsyncedOffline ? 'بانتظار المزامنة' : patientId} {patientPhone && `• ${patientPhone}`}
             </p>
           </div>
         </div>
+
+        {/* Unsynced Offline Patient Warning */}
+        {isUnsyncedOffline && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 flex items-start gap-3 text-amber-800">
+            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="text-xs leading-relaxed">
+              <p className="font-bold mb-0.5">بانتظار المزامنة مع السحابة (يتطلب اتصالاً بالإنترنت)</p>
+              <p className="text-amber-700">
+                تمت إضافة هذا المراجع في وضع عدم الاتصال (أوفلاين). ستتفعّل البوابة الإلكترونية ورمز QR الدائم تلقائياً فور الاتصال بالإنترنت ومزامنة البيانات.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Offline Notice for Synced Patients */}
+        {!isUnsyncedOffline && isOffline && (
+          <div className="bg-blue-50/80 border border-blue-200 rounded-xl p-2.5 flex items-center gap-2 text-blue-800 text-xs">
+            <WifiOff className="w-4 h-4 text-blue-600 shrink-0" />
+            <span>أنت في وضع عدم الاتصال؛ رمز QR جاهز للطباعة أو النسخ، بينما تتطلب معاينة البوابة اتصالاً بالإنترنت.</span>
+          </div>
+        )}
 
         {/* QR Code Container */}
         <div className="flex flex-col items-center justify-center p-6 bg-white rounded-2xl border border-gray-100 shadow-xs">

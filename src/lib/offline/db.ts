@@ -1,6 +1,6 @@
 /**
- * Dental Platform — Offline Database (IndexedDB via Dexie.js)
- * يُخزّن البيانات محلياً للعمل بدون إنترنت
+ * Dental Platform — Offline Database (IndexedDB via Dexie.js + Instant LocalStorage Mirror)
+ * يُخزّن البيانات محلياً للعمل بدون إنترنت بسرعة فورية (0ms) على أندرويد وويندوز وآيفون والويب
  */
 import Dexie, { Table } from 'dexie';
 
@@ -87,8 +87,8 @@ export interface LocalMessage {
 
 export interface SyncQueueItem {
   id?: number; // auto-increment
-  operation: 'INSERT' | 'UPDATE' | 'DELETE';
-  table: string;         // 'patients' | 'appointments' | 'tasks' | 'messages' | 'treatments'
+  operation: 'INSERT' | 'UPDATE' | 'DELETE' | 'UPSERT';
+  table: string;
   record_id: string;
   data: Record<string, unknown>;
   timestamp: number;
@@ -142,32 +142,64 @@ export class DentalPlatformDB extends Dexie {
 // Singleton instance
 export const db = new DentalPlatformDB();
 
-// ── دوال مساعدة للـ Cache ──────────────────────────────────────────────────
+const INSTANT_CACHE_PREFIX = 'dental_instant_cache_v1_';
 
-/** حفظ بيانات في الكاش المحلي */
-export async function setCache(key: string, data: unknown, ttlSeconds = 300) {
-  const now = Date.now();
-  await db.cache.put({
-    key,
-    data,
-    cached_at: now,
-    expires_at: now + ttlSeconds * 1000,
-  });
+/** حفظ فوري متزامن في localStorage للتحميل اللحظي (0ms) عند فتح الصفحات */
+export function setInstantCache(key: string, data: unknown) {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(INSTANT_CACHE_PREFIX + key, JSON.stringify(data));
+  } catch {
+    // Ignore quota errors
+  }
 }
 
-/** قراءة بيانات من الكاش (null إذا انتهت صلاحيتها) */
-export async function getCache<T>(key: string): Promise<T | null> {
-  const item = await db.cache.get(key);
-  if (!item) return null;
-  if (Date.now() > item.expires_at) {
-    await db.cache.delete(key);
+/** قراءة فورية متزامنة من localStorage (0ms) */
+export function getInstantCache<T>(key: string): T | null {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(INSTANT_CACHE_PREFIX + key);
+    if (!raw) return null;
+    return JSON.parse(raw) as T;
+  } catch {
     return null;
   }
-  return item.data as T;
 }
 
-/** حذف الكاش المنتهي الصلاحية */
+// ── دوال مساعدة للـ Cache ──────────────────────────────────────────────────
+
+/** حفظ بيانات في الكاش المحلي (Dexie + LocalStorage Mirror) */
+export async function setCache(key: string, data: unknown, ttlSeconds = 86400 * 30) {
+  setInstantCache(key, data);
+  const now = Date.now();
+  try {
+    await db.cache.put({
+      key,
+      data,
+      cached_at: now,
+      expires_at: now + ttlSeconds * 1000,
+    });
+  } catch (err) {
+    console.warn('[OfflineDB] setCache Dexie error:', err);
+  }
+}
+
+/** قراءة بيانات من الكاش (لا تحذف الكاش أبداً عند انقطاع الإنترنت لضمان بقاء البيانات) */
+export async function getCache<T>(key: string): Promise<T | null> {
+  try {
+    const item = await db.cache.get(key);
+    if (item && item.data !== undefined && item.data !== null) {
+      return item.data as T;
+    }
+  } catch (err) {
+    console.warn('[OfflineDB] getCache Dexie error:', err);
+  }
+  return getInstantCache<T>(key);
+}
+
+/** حذف الكاش المنتهي الصلاحية (فقط عند الاتصال بالإنترنت) */
 export async function cleanExpiredCache() {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return;
   const now = Date.now();
   await db.cache.where('expires_at').below(now).delete();
 }
@@ -184,7 +216,7 @@ export async function addToSyncQueue(
   await db.sync_queue.add({
     operation,
     table,
-    record_id,
+    record_id: String(record_id),
     data,
     timestamp: Date.now(),
     retries: 0,
@@ -224,7 +256,7 @@ export async function saveClinicData(
   clinicId: string,
   dataType: LocalClinicData['data_type'],
   data: Record<string, unknown>,
-  ttlSeconds = 3600 // ساعة واحدة كـ TTL افتراضي
+  ttlSeconds = 86400 * 30 // 30 يوم افتراضياً
 ) {
   const now = Date.now();
   await db.clinic_data.put({
@@ -236,7 +268,7 @@ export async function saveClinicData(
   });
 }
 
-/** قراءة بيانات العيادة من التخزين المحلي */
+/** قراءة بيانات العيادة من التخزين المحلي (بدون حذف عند عدم الاتصال) */
 export async function getClinicData<T>(
   clinicId: string,
   dataType: LocalClinicData['data_type']
@@ -244,17 +276,14 @@ export async function getClinicData<T>(
   const item = await db.clinic_data
     .where({ clinic_id: clinicId, data_type: dataType })
     .first();
-  
+
   if (!item) return null;
-  if (Date.now() > item.expires_at) {
-    if (item.id) await db.clinic_data.delete(item.id);
-    return null;
-  }
   return item.data as T;
 }
 
 /** حذف بيانات عيادة منتهية الصلاحية */
 export async function clearExpiredClinicData() {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return;
   const now = Date.now();
   await db.clinic_data.where('expires_at').below(now).delete();
 }
@@ -271,10 +300,10 @@ export async function preloadClinicData(
   }
 ) {
   const now = Date.now();
-  const ttl = 3600 * 1000; // ساعة
-  
+  const ttl = 86400 * 30 * 1000;
+
   const items: LocalClinicData[] = [];
-  
+
   if (data.overview) {
     items.push({
       clinic_id: clinicId,
@@ -320,7 +349,7 @@ export async function preloadClinicData(
       expires_at: now + ttl,
     });
   }
-  
+
   await db.clinic_data.bulkPut(items);
 }
 
@@ -330,7 +359,7 @@ export async function getAllClinicData(clinicId: string) {
     .where('clinic_id')
     .equals(clinicId)
     .toArray();
-  
+
   const result: Record<string, unknown> = {};
   for (const item of items) {
     result[item.data_type] = item.data;

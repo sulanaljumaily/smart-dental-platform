@@ -1,107 +1,206 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Patient } from '../types';
-import { db } from '../lib/offline/db';
+import { db, addToSyncQueue, getInstantCache, setCache, getCache } from '../lib/offline/db';
+import { getCachedPatientById } from './usePatients';
 import { toast } from 'sonner';
 
+const DEFAULT_MEDICAL_HISTORY_DATA = {
+    vitals: { weight: '', height: '', bp: '', sugar: '', pulse: '' },
+    conditions: [],
+    allergies: [],
+    habits: [],
+    notes: ''
+};
+
+function normalizeMedicalHistory(raw: any): any {
+    if (!raw) return [];
+    if (Array.isArray(raw)) {
+        return raw.map(item => String(item || '')).filter(Boolean);
+    }
+    if (typeof raw === 'string') {
+        const trimmed = raw.trim();
+        if (!trimmed) return [];
+        if (trimmed.startsWith('[')) {
+            try {
+                const parsed = JSON.parse(trimmed);
+                if (Array.isArray(parsed)) {
+                    return parsed.map(item => String(item || '')).filter(Boolean);
+                }
+            } catch {}
+        }
+        return trimmed.split(',').map(s => s.trim()).filter(Boolean);
+    }
+    return [];
+}
+
+function getInitialPatientSync(patientId?: string): Patient | null {
+    if (!patientId) return null;
+    const targetId = String(patientId);
+    const instantDetail = getInstantCache<Patient>('patient_detail_' + targetId);
+    if (instantDetail) {
+        return {
+            ...instantDetail,
+            medicalHistory: normalizeMedicalHistory(instantDetail.medicalHistory),
+            medicalHistoryData: instantDetail.medicalHistoryData || DEFAULT_MEDICAL_HISTORY_DATA
+        };
+    }
+
+    const fromList = getCachedPatientById(targetId);
+    if (fromList) {
+        return {
+            id: String(fromList.id),
+            name: fromList.name || 'مريض',
+            age: Number(fromList.age) || 0,
+            phone: fromList.phone || '',
+            email: fromList.email || '',
+            lastVisit: fromList.lastVisit || new Date().toISOString(),
+            totalVisits: Number(fromList.totalVisits) || 1,
+            balance: Number(fromList.balance) || 0,
+            gender: fromList.gender || 'male',
+            address: fromList.address || '',
+            notes: fromList.notes || '',
+            status: (fromList.status as any) || 'active',
+            medicalHistory: normalizeMedicalHistory(fromList.medicalHistory),
+            clinicId: fromList.clinicId,
+            patientUserId: fromList.patient_user_id,
+            medicalHistoryData: fromList.medicalHistoryData || DEFAULT_MEDICAL_HISTORY_DATA
+        };
+    }
+    return null;
+}
+
 export const usePatient = (patientId: string | undefined) => {
-    const [patient, setPatient] = useState<Patient | null>(null);
-    const [loading, setLoading] = useState(!!patientId);
+    const initialPatient = getInitialPatientSync(patientId);
+    const [patient, setPatient] = useState<Patient | null>(initialPatient);
+    const [loading, setLoading] = useState<boolean>(!initialPatient && !!patientId);
     const [error, setError] = useState<string | null>(null);
+    const mountedRef = useRef(true);
 
     useEffect(() => {
-        if (!patientId) return;
-        fetchPatient();
-    }, [patientId]);
-
-    const fetchPatient = async () => {
-        if (!patientId) return;
-
-        // إذا كان الجهاز أوفلاين، استرجع بيانات المريض محلياً فوراً
-        if (!navigator.onLine) {
-            try {
-                const local = await db.patients.get(patientId);
-                if (local) {
-                    const d = (local.data || {}) as any;
-                    const offlineMapped: Patient = {
-                        id: local.id,
-                        name: local.name || d.full_name || 'مريض محلي',
-                        age: d.age || 0,
-                        phone: local.phone || d.phone || '',
-                        email: d.email || '',
-                        lastVisit: local.updated_at || local.created_at,
-                        totalVisits: d.total_visits || 1,
-                        balance: d.balance || 0,
-                        gender: d.gender || 'male',
-                        address: d.address,
-                        notes: d.notes,
-                        status: d.status || 'active',
-                        medicalHistory: d.medical_history,
-                        clinicId: local.clinic_id,
-                        patientUserId: d.patient_user_id,
-                        medicalHistoryData: d.medical_history_data || {
-                            vitals: { weight: '', height: '', bp: '', sugar: '', pulse: '' },
-                            conditions: [],
-                            allergies: [],
-                            habits: [],
-                            notes: ''
-                        }
-                    };
-                    setPatient(offlineMapped);
-                    setLoading(false);
-                    return;
-                }
-            } catch (e) {
-                console.warn('[usePatient] Fast-path Dexie get error:', e);
-            }
+        mountedRef.current = true;
+        if (!patientId) {
             setLoading(false);
             return;
         }
+        const syncCached = getInitialPatientSync(patientId);
+        if (syncCached) {
+            setPatient(syncCached);
+            setLoading(false);
+        }
+        fetchPatient();
+        return () => { mountedRef.current = false; };
+    }, [patientId]);
 
-        setLoading(true);
+    const loadPatientFromLocalStore = async (targetId: string): Promise<Patient | null> => {
         try {
-            // محاولة التحميل من السيرفر
+            let local = await db.patients.get(targetId);
+            if (!local) {
+                const all = await db.patients.toArray();
+                local = all.find(item => String(item.id) === targetId);
+            }
+            if (local) {
+                const d = (local.data || {}) as any;
+                const mapped: Patient = {
+                    id: String(local.id),
+                    name: local.name || d.full_name || d.name || 'مريض محلي',
+                    age: Number(d.age) || 0,
+                    phone: local.phone || d.phone || '',
+                    email: d.email || '',
+                    lastVisit: d.last_visit_date || local.updated_at || local.created_at || new Date().toISOString(),
+                    totalVisits: Number(d.total_visits) || 1,
+                    balance: Number(d.balance) || 0,
+                    gender: d.gender || 'male',
+                    address: d.address || '',
+                    notes: d.notes || '',
+                    status: d.status || 'active',
+                    medicalHistory: normalizeMedicalHistory(d.medical_history),
+                    clinicId: String(local.clinic_id || d.clinic_id || ''),
+                    patientUserId: d.patient_user_id,
+                    medicalHistoryData: d.medical_history_data || DEFAULT_MEDICAL_HISTORY_DATA
+                };
+                return mapped;
+            }
+        } catch (e) {
+            console.warn('[usePatient] Dexie lookup error:', e);
+        }
+
+        try {
+            const cachedDetail = await getCache<Patient>('patient_detail_' + targetId);
+            if (cachedDetail) {
+                return {
+                    ...cachedDetail,
+                    medicalHistory: normalizeMedicalHistory(cachedDetail.medicalHistory),
+                    medicalHistoryData: cachedDetail.medicalHistoryData || DEFAULT_MEDICAL_HISTORY_DATA
+                };
+            }
+        } catch {}
+
+        return getInitialPatientSync(targetId);
+    };
+
+    const fetchPatient = async () => {
+        if (!patientId) {
+            if (mountedRef.current) setLoading(false);
+            return;
+        }
+        const targetId = String(patientId);
+
+        // 1. محاولة التحميل الفوري من التخزين المحلي أولاً لفتح الملف بدون أي تأخير
+        const localPatient = await loadPatientFromLocalStore(targetId);
+        if (localPatient && mountedRef.current) {
+            setPatient(localPatient);
+            setError(null);
+            setLoading(false);
+        }
+
+        // إذا كان الجهاز أوفلاين أو المريض محلياً غير مزامن (UUID)، لا نطلب من السيرفر
+        const isUnsyncedUuid = isNaN(Number(targetId));
+        if (!navigator.onLine || isUnsyncedUuid) {
+            if (mountedRef.current) setLoading(false);
+            return;
+        }
+
+        if (!localPatient && !patient) {
+            setLoading(true);
+        }
+
+        try {
             const { data, error } = await supabase
                 .from('patients')
                 .select('*')
-                .eq('id', patientId)
+                .eq('id', targetId)
                 .single();
 
             if (error) throw error;
 
-            if (data) {
+            if (data && mountedRef.current) {
                 const mappedPatient: Patient = {
-                    id: data.id?.toString(),
-                    name: data.full_name || data.name || 'Unknown',
-                    age: data.age,
+                    id: String(data.id),
+                    name: data.full_name || data.name || 'مريض',
+                    age: Number(data.age) || 0,
                     phone: data.phone || '',
                     email: data.email || '',
-                    lastVisit: data.last_visit_date,
-                    totalVisits: data.total_visits || 0,
-                    balance: data.balance || 0,
-                    gender: data.gender,
-                    address: data.address,
-                    notes: data.notes,
-                    status: data.status,
-                    medicalHistory: data.medical_history,
-                    clinicId: data.clinic_id,
+                    lastVisit: data.last_visit_date || data.created_at || new Date().toISOString(),
+                    totalVisits: Number(data.total_visits) || 1,
+                    balance: Number(data.balance) || 0,
+                    gender: data.gender || 'male',
+                    address: data.address || '',
+                    notes: data.notes || '',
+                    status: data.status || 'active',
+                    medicalHistory: normalizeMedicalHistory(data.medical_history),
+                    clinicId: String(data.clinic_id || ''),
                     patientUserId: data.patient_user_id,
-
-                    medicalHistoryData: data.medical_history_data || {
-                        vitals: { weight: '', height: '', bp: '', sugar: '', pulse: '' },
-                        conditions: [],
-                        allergies: [],
-                        habits: [],
-                        notes: ''
-                    }
+                    medicalHistoryData: data.medical_history_data || DEFAULT_MEDICAL_HISTORY_DATA
                 };
                 setPatient(mappedPatient);
+                setError(null);
+                setCache('patient_detail_' + targetId, mappedPatient, 86400 * 30).catch(() => {});
 
-                // حفظ في الكاش المحلي
                 try {
                     await db.patients.put({
-                        id: data.id?.toString(),
-                        clinic_id: data.clinic_id?.toString() || '',
+                        id: String(data.id),
+                        clinic_id: String(data.clinic_id || ''),
                         name: mappedPatient.name,
                         phone: mappedPatient.phone,
                         data: data,
@@ -112,95 +211,84 @@ export const usePatient = (patientId: string | undefined) => {
                 } catch {}
             }
         } catch (err: any) {
-            console.warn('[usePatient] Server fetch failed, checking Dexie offline cache:', err);
-            // في حالة الأوفلاين، استرجاع بيانات المريض من Dexie
-            try {
-                const local = await db.patients.get(patientId);
-                if (local) {
-                    const d = (local.data || {}) as any;
-                    const offlineMapped: Patient = {
-                        id: local.id,
-                        name: local.name || d.full_name || 'مريض محلي',
-                        age: d.age || 0,
-                        phone: local.phone || d.phone || '',
-                        email: d.email || '',
-                        lastVisit: local.updated_at || local.created_at,
-                        totalVisits: d.total_visits || 1,
-                        balance: d.balance || 0,
-                        gender: d.gender || 'male',
-                        address: d.address,
-                        notes: d.notes,
-                        status: d.status || 'active',
-                        medicalHistory: d.medical_history,
-                        clinicId: local.clinic_id,
-                        patientUserId: d.patient_user_id,
-                        medicalHistoryData: d.medical_history_data || {
-                            vitals: { weight: '', height: '', bp: '', sugar: '', pulse: '' },
-                            conditions: [],
-                            allergies: [],
-                            habits: [],
-                            notes: ''
-                        }
-                    };
-                    setPatient(offlineMapped);
-                    setError(null);
-                    return;
-                }
-            } catch (dexieErr) {
-                console.error('[usePatient] Error loading from Dexie:', dexieErr);
+            if (err?.name === 'AbortError' || err?.message?.includes('AbortError')) return;
+            const fallback = await loadPatientFromLocalStore(targetId);
+            if (fallback && mountedRef.current) {
+                setPatient(fallback);
+                setError(null);
+                return;
             }
-
-            console.error('Error fetching patient:', err);
-            setError(err.message);
-            toast.error('فشل تحميل بيانات المريض');
+            if (mountedRef.current && !patient) {
+                setError(err.message || 'تعذر تحميل ملف المريض');
+            }
         } finally {
-            setLoading(false);
+            if (mountedRef.current) setLoading(false);
         }
     };
 
     const updatePatientProfile = async (updates: Partial<Patient>) => {
         if (!patientId) return;
+        const targetId = String(patientId);
 
-        // Prepare DB updates (map back to snake_case if needed, but for JSONB it's direct key)
         const dbUpdates: any = {};
-        if (updates.name) dbUpdates.full_name = updates.name;
+        if (updates.name !== undefined) dbUpdates.full_name = updates.name;
+        if (updates.phone !== undefined) dbUpdates.phone = updates.phone;
+        if (updates.age !== undefined) dbUpdates.age = Number(updates.age);
+        if (updates.gender !== undefined) dbUpdates.gender = updates.gender;
+        if (updates.address !== undefined) dbUpdates.address = updates.address;
+        if (updates.email !== undefined) dbUpdates.email = updates.email;
         if (updates.medicalHistoryData) {
             dbUpdates.medical_history_data = updates.medicalHistoryData;
-
-            // Sync with legacy columns
             if (updates.medicalHistoryData.allergies) {
                 dbUpdates.allergies = updates.medicalHistoryData.allergies;
-
-                // Construct text representation for medical_history column
-                // Combine allergies and conditions or just allergies? 
-                // Legacy system used medical_history primarily for alerts/history text.
-                // We'll join allergies for now to maintain visibility in legacy views.
-                // If conditions are also important, we might need a more complex join, 
-                // but for now, syncing allergies to history text ensures "Medical Alerts" are visible.
                 const alerts = [...(updates.medicalHistoryData.allergies || [])];
-                if (updates.medicalHistoryData.conditions) {
-                    // Optionally add conditions if they were part of the history text expectation
-                    // alerts.push(...updates.medicalHistoryData.conditions);
-                }
                 dbUpdates.medical_history = alerts.join(',');
             }
         }
-        if (updates.notes) dbUpdates.notes = updates.notes;
+        if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
 
-        // Optimistic
-        setPatient(prev => prev ? { ...prev, ...updates } : null);
+        const nextPatient = patient ? { ...patient, ...updates } : null;
+        if (nextPatient) {
+            setPatient(nextPatient);
+            setCache('patient_detail_' + targetId, nextPatient, 86400 * 30).catch(() => {});
+        }
+
+        const saveToLocalDexie = async (synced: boolean) => {
+            try {
+                const existing = await db.patients.get(targetId);
+                if (existing) {
+                    const updatedData = { ...((existing.data as any) || {}), ...dbUpdates };
+                    await db.patients.update(targetId, {
+                        name: dbUpdates.full_name || existing.name,
+                        phone: dbUpdates.phone || existing.phone,
+                        data: updatedData,
+                        synced: synced ? existing.synced : false,
+                        updated_at: new Date().toISOString()
+                    });
+                }
+            } catch {}
+        };
+
+        if (!navigator.onLine) {
+            await saveToLocalDexie(false);
+            await addToSyncQueue('UPDATE', 'patients', targetId, dbUpdates);
+            toast.success('تم حفظ التغييرات محلياً (ستتم المزامنة تلقائياً عند الاتصال)');
+            return;
+        }
 
         try {
             const { error } = await supabase
                 .from('patients')
                 .update(dbUpdates)
-                .eq('id', patientId);
+                .eq('id', targetId);
 
             if (error) throw error;
+            await saveToLocalDexie(true);
             toast.success('تم تحديث البيانات بنجاح');
-        } catch (err) {
-            console.error('Error updating patient:', err);
-            toast.error('فشل حفظ التغييرات');
+        } catch {
+            await saveToLocalDexie(false);
+            await addToSyncQueue('UPDATE', 'patients', targetId, dbUpdates);
+            toast.info('تم حفظ التغييرات محلياً (ستتم المزامنة عند توفر الإنترنت)');
         }
     };
 

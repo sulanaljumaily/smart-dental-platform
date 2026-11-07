@@ -364,6 +364,10 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
 
   const handleSendReminder = async () => {
     if (!selectedAptForReminder || !selectedPatientForSettings) return;
+    if (!navigator.onLine) {
+      toast.error('إرسال التذكيرات والرسائل عبر المنصة أو الواتساب يتطلب اتصالاً بالإنترنت');
+      return;
+    }
     const phone = selectedPatientForSettings.phone;
     const recipientUserId = selectedPatientForSettings.patient_user_id || selectedPatientForSettings.user_id;
 
@@ -461,7 +465,9 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
     try {
       let patientUserId = null;
 
-      if (createPortalAccount) {
+      if (createPortalAccount && !navigator.onLine) {
+        toast.info('سيتم حفظ ملف المراجع محلياً الآن، ويمكنك إنشاء حساب بوابة له بعد الاتصال بالإنترنت');
+      } else if (createPortalAccount) {
         if (phoneCheckStatus.exists && phoneCheckStatus.profileId) {
           patientUserId = phoneCheckStatus.profileId;
           toast.info(`هذا الرقم مسجل بالمنصة بالفعل. تم ربط المريض تلقائياً بحسابه المسجل باسم "${phoneCheckStatus.profileName}".`);

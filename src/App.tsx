@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { BrowserRouter, HashRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { isNativeApp } from './lib/platform';
 import { initNativeOAuthBridge } from './lib/nativeOAuth';
+import { initSyncService } from './lib/offline/syncService';
 
 // في بيئة الويب: استخدام BrowserRouter للمسارات النظيفة وأرشفة Google SEO الكاملة
 // في بيئة التطبيقات الأصلية (أندرويد / آيفون / ويندوز): استخدام HashRouter لاستقرار نظام الملفات المحلي
@@ -442,6 +443,7 @@ import { DesktopUpdateManager } from './components/common/DesktopUpdateManager';
 function App() {
   useEffect(() => {
     initNativeOAuthBridge();
+    initSyncService();
   }, []);
   return (
     <LanguageProvider>

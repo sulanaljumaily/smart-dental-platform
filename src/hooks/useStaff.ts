@@ -1,11 +1,11 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
+import { getInstantCache, setCache, getCache, addToSyncQueue } from '../lib/offline/db';
 
 export interface StaffMember {
-    id: string; // Cast to string for frontend compatibility
+    id: string;
     clinicId: string;
     name: string;
     phone: string;
@@ -58,26 +58,71 @@ export interface StaffMember {
         showCases?: boolean;
         showWorkInfo?: boolean;
     };
-    userId?: string;           // Linked Auth User ID (user_id column)
-    isLinkedAccount?: boolean; // Is this staff linked to a platform account?
-    invitationId?: string;     // UUID of the clinic_invitation (for cancel)
-    hasPendingInvitation?: boolean; // Is there a pending clinic_invitation?
-    linkedAccountType?: 'invited' | 'direct_link' | 'created'; // How was the account linked
+    userId?: string;
+    isLinkedAccount?: boolean;
+    invitationId?: string;
+    hasPendingInvitation?: boolean;
+    linkedAccountType?: 'invited' | 'direct_link' | 'created';
     avatar?: string;
 }
 
+const staffMemoryCache = new Map<string, StaffMember[]>();
+
 export const useStaff = (clinicId?: string) => {
     const { user } = useAuth();
-    const [staff, setStaff] = useState<StaffMember[]>([]);
-    const [loading, setLoading] = useState(true);
+    const cacheKey = `clinic_staff_${clinicId || 'all'}`;
+
+    const getInitialStaff = (): StaffMember[] => {
+        const mem = staffMemoryCache.get(cacheKey);
+        if (mem && mem.length > 0) return mem;
+        const instant = getInstantCache<StaffMember[]>(cacheKey);
+        if (instant && instant.length > 0) {
+            staffMemoryCache.set(cacheKey, instant);
+            return instant;
+        }
+        return [];
+    };
+
+    const initialList = getInitialStaff();
+    const [staff, setStaff] = useState<StaffMember[]>(initialList);
+    const [loading, setLoading] = useState(initialList.length === 0);
+    const mountedRef = useRef(true);
+
+    const saveStaffToCache = (list: StaffMember[]) => {
+        staffMemoryCache.set(cacheKey, list);
+        setCache(cacheKey, list, 86400 * 30).catch(() => {});
+        if (mountedRef.current) {
+            setStaff(list);
+        }
+    };
 
     useEffect(() => {
+        mountedRef.current = true;
+        const cached = getInitialStaff();
+        if (cached.length > 0) {
+            setStaff(cached);
+            setLoading(false);
+        }
         fetchStaff();
+        return () => { mountedRef.current = false; };
     }, [clinicId]);
 
     const fetchStaff = async () => {
+        // في وضع عدم الاتصال، نستخدم البيانات المخزنة محلياً فوراً بدون إظهار أي رسائل خطأ
+        if (!navigator.onLine) {
+            try {
+                const cached = await getCache<StaffMember[]>(cacheKey);
+                if (cached && cached.length > 0 && mountedRef.current) {
+                    staffMemoryCache.set(cacheKey, cached);
+                    setStaff(cached);
+                }
+            } catch {}
+            if (mountedRef.current) setLoading(false);
+            return;
+        }
+
         try {
-            setLoading(true);
+            if (staff.length === 0) setLoading(true);
             let query = supabase
                 .from('staff')
                 .select('*')
@@ -101,8 +146,7 @@ export const useStaff = (clinicId?: string) => {
 
             let allStaff: StaffMember[] = [];
 
-            // --- FETCH AVATARS FOR STAFF ---
-            let avatarsMap: Record<string, string> = {};
+            const avatarsMap: Record<string, string> = {};
             const userIds = staffRes.data?.map((s: any) => s.user_id).filter(Boolean) || [];
             if (userIds.length > 0) {
                 const { data: profiles } = await supabase
@@ -116,8 +160,7 @@ export const useStaff = (clinicId?: string) => {
                 }
             }
 
-            // --- FETCH AVATARS FOR INVITATIONS ---
-            let inviteAvatars: Record<string, string> = {};
+            const inviteAvatars: Record<string, string> = {};
             const inviteEmails = invitationsRes.data?.map((inv: any) => inv.email).filter(Boolean) || [];
             if (inviteEmails.length > 0) {
                 const { data: inviteProfiles } = await supabase
@@ -134,7 +177,7 @@ export const useStaff = (clinicId?: string) => {
             if (staffRes.data) {
                 const mappedStaff: StaffMember[] = staffRes.data.map((s: any) => ({
                     id: s.id.toString(),
-                    clinicId: s.clinic_id?.toString() || clinicId,
+                    clinicId: s.clinic_id?.toString() || clinicId || '',
                     authUserId: s.auth_user_id,
                     name: s.full_name,
                     phone: s.phone,
@@ -147,7 +190,7 @@ export const useStaff = (clinicId?: string) => {
                     status: s.status || (s.is_active ? 'active' : 'suspended'),
                     hireDate: s.join_date,
                     username: s.username,
-                    password: s.password, // Only if allowed to read
+                    password: s.password,
                     address: s.address || '',
                     qualifications: s.qualifications || [],
                     certifications: s.certifications || [],
@@ -182,9 +225,8 @@ export const useStaff = (clinicId?: string) => {
 
             if (invitationsRes.data) {
                 const mappedInvitations: StaffMember[] = invitationsRes.data.map((inv: any) => ({
-                    // id = UUID of the invitation — used for cancelInvitation
                     id: inv.id.toString(),
-                    invitationId: inv.id.toString(), // explicit UUID for cancel
+                    invitationId: inv.id.toString(),
                     hasPendingInvitation: true,
                     clinicId: inv.clinic_id.toString(),
                     name: inv.email.split('@')[0],
@@ -214,16 +256,28 @@ export const useStaff = (clinicId?: string) => {
                 allStaff = [...allStaff, ...mappedInvitations];
             }
 
-            setStaff(allStaff);
-        } catch (error) {
-            console.error('Error fetching staff:', error);
-            toast.error('فشل تحميل بيانات الموظفين');
+            saveStaffToCache(allStaff);
+        } catch (error: any) {
+            if (error?.name === 'AbortError' || error?.message?.includes('AbortError')) return;
+            // استرجاع الكاش بصمت دون إزعاج المستخدم برسالة "فشل تحميل بيانات الموظفين"
+            try {
+                const cached = await getCache<StaffMember[]>(cacheKey);
+                if (cached && cached.length > 0 && mountedRef.current) {
+                    staffMemoryCache.set(cacheKey, cached);
+                    setStaff(cached);
+                    return;
+                }
+            } catch {}
         } finally {
-            setLoading(false);
+            if (mountedRef.current) setLoading(false);
         }
     };
 
     const addStaff = async (member: Omit<StaffMember, 'id'>) => {
+        if (!navigator.onLine) {
+            toast.error('إضافة طاقم جديد أو إنشاء حساب لطاقم يتطلب اتصالاً بالإنترنت');
+            return;
+        }
         try {
             const { data, error } = await supabase
                 .from('staff')
@@ -231,7 +285,7 @@ export const useStaff = (clinicId?: string) => {
                     clinic_id: clinicId || undefined,
                     auth_user_id: member.authUserId,
                     full_name: member.name,
-                    role_title: member.role_title || member.position, // Enhanced mapping
+                    role_title: member.role_title || member.position,
                     department: member.department,
                     salary: member.salary,
                     salary_type: member.salary_type || 'monthly',
@@ -260,7 +314,7 @@ export const useStaff = (clinicId?: string) => {
             if (error) throw error;
 
             toast.success('تمت إضافة الموظف بنجاح');
-            fetchStaff(); // Refresh list
+            fetchStaff();
             return data;
         } catch (error) {
             console.error('Error adding staff:', error);
@@ -269,31 +323,42 @@ export const useStaff = (clinicId?: string) => {
     };
 
     const updateStaff = async (id: string, updates: Partial<StaffMember>) => {
-        try {
-            const dbUpdates: any = {};
-            if (updates.name) dbUpdates.full_name = updates.name;
-            if (updates.role_title) dbUpdates.role_title = updates.role_title;
-            if (updates.position) dbUpdates.role_title = updates.position; // Fallback or override? Adjusting to favor explicit role_title if present
-            // Better logic:
-            // if (updates.role_title) dbUpdates.role_title = updates.role_title;
-            // else if (updates.position) dbUpdates.role_title = updates.position;
-            if (updates.department) dbUpdates.department = updates.department;
-            if (updates.salary !== undefined) dbUpdates.salary = updates.salary;
-            if (updates.salary_type) dbUpdates.salary_type = updates.salary_type;
-            if (updates.phone) dbUpdates.phone = updates.phone;
-            if (updates.email) dbUpdates.email = updates.email;
-            if (updates.status) {
-                dbUpdates.status = updates.status;
-                dbUpdates.is_active = updates.status === 'active';
-            }
-            if (updates.permissions) dbUpdates.permissions = updates.permissions;
-            if (updates.username) dbUpdates.username = updates.username;
-            if (updates.password) dbUpdates.password = updates.password;
-            if (updates.authUserId) dbUpdates.auth_user_id = updates.authUserId;
-            if (updates.workSchedule) dbUpdates.work_schedule = updates.workSchedule;
-            if (updates.viewPreferences) dbUpdates.view_preferences = updates.viewPreferences;
-            if (updates.userId !== undefined) dbUpdates.user_id = updates.userId;
+        if (!navigator.onLine && (updates.authUserId !== undefined || updates.userId !== undefined || updates.username !== undefined)) {
+            toast.error('ربط أو إنشاء حساب لموظف يتطلب اتصالاً بالإنترنت');
+            return;
+        }
 
+        const dbUpdates: any = {};
+        if (updates.name) dbUpdates.full_name = updates.name;
+        if (updates.role_title) dbUpdates.role_title = updates.role_title;
+        if (updates.position) dbUpdates.role_title = updates.position;
+        if (updates.department) dbUpdates.department = updates.department;
+        if (updates.salary !== undefined) dbUpdates.salary = updates.salary;
+        if (updates.salary_type) dbUpdates.salary_type = updates.salary_type;
+        if (updates.phone) dbUpdates.phone = updates.phone;
+        if (updates.email) dbUpdates.email = updates.email;
+        if (updates.status) {
+            dbUpdates.status = updates.status;
+            dbUpdates.is_active = updates.status === 'active';
+        }
+        if (updates.permissions) dbUpdates.permissions = updates.permissions;
+        if (updates.username) dbUpdates.username = updates.username;
+        if (updates.password) dbUpdates.password = updates.password;
+        if (updates.authUserId) dbUpdates.auth_user_id = updates.authUserId;
+        if (updates.workSchedule) dbUpdates.work_schedule = updates.workSchedule;
+        if (updates.viewPreferences) dbUpdates.view_preferences = updates.viewPreferences;
+        if (updates.userId !== undefined) dbUpdates.user_id = updates.userId;
+
+        const nextList = staff.map(s => String(s.id) === String(id) ? { ...s, ...updates } : s);
+        saveStaffToCache(nextList);
+
+        if (!navigator.onLine) {
+            await addToSyncQueue('UPDATE', 'staff', String(id), dbUpdates);
+            toast.success('تم حفظ التعديلات محلياً');
+            return;
+        }
+
+        try {
             const { error } = await supabase
                 .from('staff')
                 .update(dbUpdates)
@@ -303,13 +368,14 @@ export const useStaff = (clinicId?: string) => {
 
             toast.success('تم التحديث بنجاح');
             fetchStaff();
-        } catch (error) {
-            console.error('Error updating staff:', error);
-            toast.error('فشل التحديث');
+        } catch {
+            await addToSyncQueue('UPDATE', 'staff', String(id), dbUpdates);
+            toast.info('تم حفظ التعديلات محلياً (ستتم المزامنة عند الاتصال)');
         }
     };
 
     const logActivity = async (action: string, entityId: string, details: any) => {
+        if (!navigator.onLine) return;
         try {
             const { data: { user } } = await supabase.auth.getUser();
             await supabase.from('activity_logs').insert({
@@ -320,14 +386,15 @@ export const useStaff = (clinicId?: string) => {
                 entity_id: entityId,
                 details
             });
-        } catch (e) {
-            console.error('Failed to log activity', e);
-        }
+        } catch {}
     };
 
     const deleteStaff = async (id: string) => {
+        if (!navigator.onLine) {
+            toast.error('حذف الموظفين يتطلب اتصالاً بالإنترنت');
+            return;
+        }
         try {
-            // Soft delete
             const { error } = await supabase
                 .from('staff')
                 .update({ deleted_at: new Date().toISOString() })
@@ -345,6 +412,10 @@ export const useStaff = (clinicId?: string) => {
     };
 
     const sendInvitation = async (email: string, role: string, staffId?: string) => {
+        if (!navigator.onLine) {
+            toast.error('إرسال دعوات الانضمام وربط الحسابات يتطلب اتصالاً بالإنترنت');
+            return;
+        }
         if (!clinicId || !user) {
             toast.error('بيانات مفقودة (العيادة أو المستخدم)');
             return;
@@ -358,7 +429,6 @@ export const useStaff = (clinicId?: string) => {
                 status: 'pending',
                 created_by: user.id
             };
-            // If linking to an existing staff record, store its ID so accept can update instead of create
             if (staffId) {
                 row.staff_id = parseInt(staffId, 10);
             }
@@ -377,19 +447,20 @@ export const useStaff = (clinicId?: string) => {
     };
 
     const cancelInvitation = async (invitationId: string) => {
+        if (!navigator.onLine) {
+            toast.error('إلغاء الدعوة يتطلب اتصالاً بالإنترنت');
+            return;
+        }
         try {
-            // Detect whether this is a UUID (clinic_invitations) or an integer (staff record)
             const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(invitationId);
 
             if (isUuid) {
-                // Fetch details first before deleting
                 const { data: invData } = await supabase
                     .from('clinic_invitations')
                     .select('email, role')
                     .eq('id', invitationId)
                     .maybeSingle();
 
-                // clinic_invitations: RLS only allows DELETE (not UPDATE) for owners
                 const { error: inviteError } = await supabase
                     .from('clinic_invitations')
                     .delete()
@@ -404,7 +475,6 @@ export const useStaff = (clinicId?: string) => {
                 });
                 fetchStaff();
             } else {
-                // This is a staff record (integer id) — soft-cancel by setting status to terminated
                 const { error: staffError } = await supabase
                     .from('staff')
                     .update({ status: 'terminated', is_active: false })
@@ -422,8 +492,11 @@ export const useStaff = (clinicId?: string) => {
         }
     };
 
-    // Unlink a staff member's auth account from their staff record (clinic owner action)
     const unlinkStaff = async (staffId: string) => {
+        if (!navigator.onLine) {
+            toast.error('إلغاء ربط الحساب يتطلب اتصالاً بالإنترنت');
+            return;
+        }
         try {
             const { error } = await supabase
                 .from('staff')
@@ -443,8 +516,11 @@ export const useStaff = (clinicId?: string) => {
         }
     };
 
-    // Leave clinic (staff member action): terminates own staff record
     const leaveClinic = async (staffClinicId: string, userId: string) => {
+        if (!navigator.onLine) {
+            toast.error('هذه العملية تتطلب اتصالاً بالإنترنت');
+            return;
+        }
         try {
             const { error } = await supabase
                 .from('staff')
@@ -458,8 +534,6 @@ export const useStaff = (clinicId?: string) => {
             toast.error('فشل الخروج من العيادة');
         }
     };
-
-
 
     return {
         staff,

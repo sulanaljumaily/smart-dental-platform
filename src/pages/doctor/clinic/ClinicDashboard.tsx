@@ -91,8 +91,8 @@ export const ClinicDashboard: React.FC = () => {
     }
   }, [id, clinics, loading, clinic, location.search]);
 
-  // Handle loading state
-  if (loading) {
+  // Handle loading state — only show spinner if clinic is not already in cache
+  if (loading && !clinic) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-blue-50">
         <div className="text-center">

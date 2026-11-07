@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { aiService } from '../services/ai/AIService';
 import { AIAnalysisResult } from '../types/ai';
 import { toast } from 'sonner';
+import { getInstantCache, setCache, getCache } from '../lib/offline/db';
 
 export interface AIAnalysis {
     id: string;
@@ -16,11 +17,12 @@ export interface AIAnalysis {
 
 export const useAIAnalysis = (patientId?: string, clinicId?: number) => {
     const { user } = useAuth();
-    const [history, setHistory] = useState<AIAnalysis[]>([]);
+    const cacheKey = `ai_history_${patientId || 'all'}_${clinicId || 'default'}`;
+    const [history, setHistory] = useState<AIAnalysis[]>(() => getInstantCache<AIAnalysis[]>(cacheKey) || []);
     const [uploading, setUploading] = useState(false);
     const [analyzing, setAnalyzing] = useState(false);
 
-    const [credits, setCredits] = useState<string>('...');
+    const [credits, setCredits] = useState<string>(() => (typeof navigator !== 'undefined' && !navigator.onLine ? 'يتطلب إنترنت' : '...'));
 
     useEffect(() => {
         if (user) {
@@ -31,6 +33,10 @@ export const useAIAnalysis = (patientId?: string, clinicId?: number) => {
 
     const fetchCredits = async () => {
         if (!user) return;
+        if (!navigator.onLine) {
+            setCredits('يتطلب إنترنت');
+            return;
+        }
         try {
             const limitInfo = await getClinicAiLimitInfo(clinicId);
             if (limitInfo.maxAi === -1) {
@@ -160,6 +166,17 @@ export const useAIAnalysis = (patientId?: string, clinicId?: number) => {
     const fetchHistory = async () => {
         if (!user) return;
 
+        const instant = getInstantCache<AIAnalysis[]>(cacheKey);
+        if (instant && instant.length > 0 && history.length === 0) {
+            setHistory(instant);
+        }
+
+        if (!navigator.onLine || (patientId && isNaN(Number(patientId)))) {
+            const cached = await getCache<AIAnalysis[]>(cacheKey);
+            if (cached) setHistory(cached);
+            return;
+        }
+
         let query = supabase
             .from('ai_analyses')
             .select('*')
@@ -172,9 +189,12 @@ export const useAIAnalysis = (patientId?: string, clinicId?: number) => {
         const { data, error } = await query;
 
         if (error) {
-            console.error('Error fetching AI history:', error);
+            console.warn('Error fetching AI history (using cache):', error);
+            const cached = await getCache<AIAnalysis[]>(cacheKey);
+            if (cached) setHistory(cached);
         } else {
             setHistory(data || []);
+            await setCache(cacheKey, data || []);
         }
     };
 
@@ -260,6 +280,10 @@ export const useAIAnalysis = (patientId?: string, clinicId?: number) => {
 
     const analyzeImage = async (file: File, overridePatientId?: number, contextOverride?: string) => {
         if (!user) return;
+        if (!navigator.onLine) {
+            toast.error('خدمات التحليل الذكي بالذكاء الاصطناعي تتطلب اتصالاً بالإنترنت');
+            return;
+        }
 
         // Check AI usage limit first
         const limitInfo = await getClinicAiLimitInfo(clinicId);
@@ -401,6 +425,10 @@ export const useAIAnalysis = (patientId?: string, clinicId?: number) => {
 
     const analyzeExistingImage = async (url: string, contextOverride?: string) => {
         if (!user) return;
+        if (!navigator.onLine) {
+            toast.error('خدمات التحليل الذكي بالذكاء الاصطناعي تتطلب اتصالاً بالإنترنت');
+            return;
+        }
         setAnalyzing(true);
         try {
             const targetPatientId = patientId ? parseInt(patientId) : undefined;

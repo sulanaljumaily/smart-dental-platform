@@ -364,6 +364,17 @@ export const ClinicPatientProfile = () => {
   useEffect(() => {
     const fetchFiles = async () => {
       if (!patientId) return;
+      const cacheKey = `patient_files_${patientId}`;
+      try {
+        const cachedRaw = localStorage.getItem(`dental_instant_${cacheKey}`);
+        if (cachedRaw) {
+          const parsed = JSON.parse(cachedRaw);
+          if (Array.isArray(parsed.data)) setFiles(parsed.data);
+        }
+      } catch { /* ignore */ }
+
+      if (!navigator.onLine || isNaN(Number(patientId))) return;
+
       const { data } = await supabase
         .from('patient_files')
         .select('*')
@@ -371,20 +382,24 @@ export const ClinicPatientProfile = () => {
         .order('created_at', { ascending: false });
 
       if (data) {
-        setFiles(data.map(f => ({
+        const mappedFiles = data.map(f => ({
           id: f.id,
           name: f.name,
           type: f.type as any,
           date: f.date || new Date(f.created_at).toLocaleDateString(),
           size: f.size || '-',
           url: f.url
-        })));
+        }));
+        setFiles(mappedFiles);
+        try {
+          localStorage.setItem(`dental_instant_${cacheKey}`, JSON.stringify({ data: mappedFiles, timestamp: Date.now() }));
+        } catch { /* ignore */ }
       }
     };
     fetchFiles();
   }, [patientId]);
 
-  // Derived Data - with null safety for nested vitals
+  // Derived Data - with null safety for nested vitals and array fields
   const rawMedicalData = patient?.medicalHistoryData;
   const medicalData = {
     vitals: {
@@ -394,9 +409,9 @@ export const ClinicPatientProfile = () => {
       sugar: rawMedicalData?.vitals?.sugar ?? '-',
       pulse: rawMedicalData?.vitals?.pulse ?? '-'
     },
-    conditions: rawMedicalData?.conditions ?? [],
-    allergies: rawMedicalData?.allergies ?? [],
-    habits: rawMedicalData?.habits ?? [],
+    conditions: Array.isArray(rawMedicalData?.conditions) ? rawMedicalData.conditions : [],
+    allergies: Array.isArray(rawMedicalData?.allergies) ? rawMedicalData.allergies : [],
+    habits: Array.isArray(rawMedicalData?.habits) ? rawMedicalData.habits : [],
     notes: rawMedicalData?.notes ?? ''
   };
 
@@ -1066,7 +1081,7 @@ export const ClinicPatientProfile = () => {
             ? patient.medicalHistory
             : (typeof patient?.medicalHistory === 'string' ? patient.medicalHistory.split(',') : []);
 
-          const hasAlerts = history.some(h => h.includes('حساسية') || h.includes('Allergy'));
+          const hasAlerts = history.some(h => typeof h === 'string' && (h.includes('حساسية') || h.includes('Allergy')));
 
           return hasAlerts && (
             <div className="col-span-2 md:col-span-4">
@@ -1425,16 +1440,12 @@ export const ClinicPatientProfile = () => {
       // Clamp to total cost to avoid overpayment (optional, but good practice)
       const finalPaid = Math.min(newPaid, plan.cost || 0);
 
-      const { error } = await supabase
-        .from('tooth_treatment_plans')
-        .update({ paid: finalPaid })
-        .eq('id', planId);
-
-      if (error) throw error;
+      // Update plan paid amount (supports both Online & Offline with automatic sync queue)
+      await updatePlan(planId, { paid: finalPaid });
 
       const docId = plan.doctor ? getDoctorIdByName(plan.doctor) : undefined;
 
-      // Add financial transaction into the ledger
+      // Add financial transaction into the ledger (supports both Online & Offline with automatic sync queue)
       await addTransaction({
         type: 'income',
         amount: amount,
@@ -1449,9 +1460,6 @@ export const ClinicPatientProfile = () => {
       });
 
       toast.success(`تم تسجيل دفعة بقيمة ${amount.toLocaleString()} د.ع بنجاح`);
-
-      // Optimistically update local state to reflect change immediately
-      updatePlan(planId, { paid: finalPaid });
 
     } catch (error) {
       console.error('Error settling installment:', error);
@@ -2399,6 +2407,17 @@ export const ClinicPatientProfile = () => {
   useEffect(() => {
     const fetchChats = async () => {
       if (!patientId) return;
+      const cacheKey = `patient_chats_${patientId}`;
+      try {
+        const cachedRaw = localStorage.getItem(`dental_instant_${cacheKey}`);
+        if (cachedRaw) {
+          const parsed = JSON.parse(cachedRaw);
+          if (Array.isArray(parsed.data)) setChatHistory(parsed.data);
+        }
+      } catch { /* ignore */ }
+
+      if (!navigator.onLine || isNaN(Number(patientId))) return;
+
       const { data } = await supabase
         .from('smart_assistant_chats')
         .select('*')
@@ -2406,12 +2425,16 @@ export const ClinicPatientProfile = () => {
         .order('created_at', { ascending: false });
 
       if (data) {
-        setChatHistory(data.map(c => ({
+        const mappedChats = data.map(c => ({
           id: c.id,
           date: new Date(c.created_at).toLocaleDateString('ar-IQ'),
           summary: c.summary,
           messages: c.messages
-        })));
+        }));
+        setChatHistory(mappedChats);
+        try {
+          localStorage.setItem(`dental_instant_${cacheKey}`, JSON.stringify({ data: mappedChats, timestamp: Date.now() }));
+        } catch { /* ignore */ }
       }
     };
     fetchChats();
@@ -2995,15 +3018,26 @@ export const ClinicPatientProfile = () => {
 
 
   const renderSmartServicesTab = () => (
-    <div className="animate-in fade-in space-y-8">
-      {/* Header Banner Removed */}
-      <div className="hidden"></div>
+    <div className="animate-in fade-in space-y-6">
+      {!navigator.onLine && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3 text-amber-800 shadow-xs">
+          <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+          <div className="text-xs sm:text-sm">
+            <p className="font-bold">خدمات التحليل الذكي بالذكاء الاصطناعي تتطلب اتصالاً بالإنترنت</p>
+            <p className="text-amber-700 mt-0.5">يمكنك تصفح التحليلات المحفوظة مسبقاً أدناه، وسيتم تفعيل الفحص الجديد فور عودة الاتصال بالإنترنت.</p>
+          </div>
+        </div>
+      )}
 
       {/* Service Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6">
         {/* Radiography Analysis Card */}
         <div
           onClick={() => {
+            if (!navigator.onLine) {
+              toast.info('خدمات التحليل الذكي بالذكاء الاصطناعي تتطلب اتصالاً بالإنترنت');
+              return;
+            }
             setAnalysisContext('xray');
             setSelectedAnalysis(null); // Reset for new upload
             setIsAnalysisModalOpen(true);
@@ -3027,6 +3061,10 @@ export const ClinicPatientProfile = () => {
         {/* Clinical Image Analysis Card */}
         <div
           onClick={() => {
+            if (!navigator.onLine) {
+              toast.info('خدمات التحليل الذكي بالذكاء الاصطناعي تتطلب اتصالاً بالإنترنت');
+              return;
+            }
             setAnalysisContext('clinical');
             setSelectedAnalysis(null); // Reset for new upload
             setIsAnalysisModalOpen(true);
@@ -3049,7 +3087,13 @@ export const ClinicPatientProfile = () => {
 
         {/* Smart Assistant Card */}
         <div
-          onClick={() => setIsChatModalOpen(true)}
+          onClick={() => {
+            if (!navigator.onLine) {
+              toast.info('المساعد الطبي الذكي يتطلب اتصالاً بالإنترنت');
+              return;
+            }
+            setIsChatModalOpen(true);
+          }}
           className="group cursor-pointer bg-white rounded-2xl p-1 border border-transparent hover:border-purple-200 shadow-sm hover:shadow-xl transition-all duration-300"
         >
           <div className="relative h-28 sm:h-40 bg-gradient-to-br from-purple-50 to-fuchsia-50 rounded-xl overflow-hidden mb-3 sm:mb-4 flex items-center justify-center group-hover:scale-[0.98] transition-transform">
@@ -3068,7 +3112,13 @@ export const ClinicPatientProfile = () => {
 
         {/* Voice Exam Dictator Card */}
         <div
-          onClick={() => setIsVoiceExamModalOpen(true)}
+          onClick={() => {
+            if (!navigator.onLine) {
+              toast.info('الفحص الصوتي الذكي يتطلب اتصالاً بالإنترنت');
+              return;
+            }
+            setIsVoiceExamModalOpen(true);
+          }}
           className="group cursor-pointer bg-white rounded-2xl p-1 border border-transparent hover:border-orange-200 shadow-sm hover:shadow-xl transition-all duration-300"
         >
           <div className="relative h-28 sm:h-40 bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl overflow-hidden mb-3 sm:mb-4 flex items-center justify-center group-hover:scale-[0.98] transition-transform">
@@ -3087,7 +3137,13 @@ export const ClinicPatientProfile = () => {
 
         {/* Smile Design (DSD) Card */}
         <div
-          onClick={() => setIsSmileDesignModalOpen(true)}
+          onClick={() => {
+            if (!navigator.onLine) {
+              toast.info('تصميم الابتسامة بالذكاء الاصطناعي يتطلب اتصالاً بالإنترنت');
+              return;
+            }
+            setIsSmileDesignModalOpen(true);
+          }}
           className="group cursor-pointer bg-white rounded-2xl p-1 border border-transparent hover:border-emerald-200 shadow-sm hover:shadow-xl transition-all duration-300"
         >
           <div className="relative h-28 sm:h-40 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl overflow-hidden mb-3 sm:mb-4 flex items-center justify-center group-hover:scale-[0.98] transition-transform">
@@ -3106,7 +3162,13 @@ export const ClinicPatientProfile = () => {
 
         {/* Smart AI Treatment Plan Card */}
         <div
-          onClick={() => setIsSmartPlanModalOpen(true)}
+          onClick={() => {
+            if (!navigator.onLine) {
+              toast.info('توليد الخطط العلاجية بالذكاء الاصطناعي يتطلب اتصالاً بالإنترنت');
+              return;
+            }
+            setIsSmartPlanModalOpen(true);
+          }}
           className="group cursor-pointer bg-white rounded-2xl p-1 border border-transparent hover:border-violet-200 shadow-sm hover:shadow-xl transition-all duration-300"
         >
           <div className="relative h-28 sm:h-40 bg-gradient-to-br from-violet-50 to-indigo-50 rounded-xl overflow-hidden mb-3 sm:mb-4 flex items-center justify-center group-hover:scale-[0.98] transition-transform">
@@ -3580,7 +3642,7 @@ export const ClinicPatientProfile = () => {
     </div>
   );
 
-  if (patientLoading) {
+  if (patientLoading && !patient) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -3669,6 +3731,7 @@ export const ClinicPatientProfile = () => {
                         <span>{(() => {
                           if (!patient?.lastVisit) return '-';
                           const date = new Date(patient.lastVisit);
+                          if (isNaN(date.getTime())) return patient.lastVisit;
                           const day = String(date.getDate()).padStart(2, '0');
                           const month = String(date.getMonth() + 1).padStart(2, '0');
                           return `${day}/${month}`;

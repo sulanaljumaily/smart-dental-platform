@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
+import { getInstantCache, setCache, getCache } from '../lib/offline/db';
 
 export interface Laboratory {
-    id: string; // UUID from Supabase
+    id: string;
     lab_name: string;
     owner_name?: string;
     address: string;
@@ -28,19 +28,32 @@ export interface Laboratory {
 
 export const useLabs = (options?: { clinicId?: string }) => {
     const { user } = useAuth();
-    const [labs, setLabs] = useState<Laboratory[]>([]);
-    const [savedLabs, setSavedLabs] = useState<Laboratory[]>([]);
-    const [loading, setLoading] = useState(true);
+    const cacheKey = `clinic_labs_${options?.clinicId || user?.id || 'all'}`;
+    const initialCached = getInstantCache<{ labs: Laboratory[]; savedLabs: Laboratory[] }>(cacheKey);
+    const [labs, setLabs] = useState<Laboratory[]>(initialCached?.labs || []);
+    const [savedLabs, setSavedLabs] = useState<Laboratory[]>(initialCached?.savedLabs || []);
+    const [loading, setLoading] = useState(!initialCached);
+    const mountedRef = useRef(true);
 
     const fetchLabs = async (searchQuery: string = '', specialty?: string) => {
+        if (!navigator.onLine) {
+            const cached = await getCache<{ labs: Laboratory[]; savedLabs: Laboratory[] }>(cacheKey);
+            if (cached && mountedRef.current) {
+                setLabs(cached.labs || []);
+                setSavedLabs(cached.savedLabs || []);
+            }
+            if (mountedRef.current) setLoading(false);
+            return;
+        }
+
         try {
-            setLoading(true);
+            if (labs.length === 0 && savedLabs.length === 0) setLoading(true);
 
             // 1. Fetch Platform Labs
             let platformQuery = supabase
                 .from('dental_laboratories')
                 .select('*')
-                .eq('account_status', 'active') // Only Active Labs
+                .eq('account_status', 'active')
                 .limit(50);
 
             if (searchQuery) platformQuery = platformQuery.ilike('lab_name', `%${searchQuery}%`);
@@ -50,16 +63,16 @@ export const useLabs = (options?: { clinicId?: string }) => {
             if (platformError) throw platformError;
 
             // 2. Fetch Custom Labs
-            let customLabsData: any[] = [];
+            let customLabsData: Laboratory[] = [];
             let targetClinicId = options?.clinicId;
 
-            // If no clinicId provided, try to find it from user context
             if (!targetClinicId && user) {
                 const { data: clinic } = await supabase
                     .from('clinics')
                     .select('id')
                     .eq('owner_id', user.id)
-                    .single();
+                    .limit(1)
+                    .maybeSingle();
                 if (clinic) targetClinicId = clinic.id;
             }
 
@@ -77,39 +90,49 @@ export const useLabs = (options?: { clinicId?: string }) => {
                         phone: l.phone,
                         governorate: 'Local',
                         rating: 0,
-                        is_custom: true, // Marker for UI
+                        is_custom: true,
                         specialties: l.specialties || []
                     }));
                 }
             }
 
-            setLabs(platformData || []);
-            setSavedLabs(customLabsData);
-
-        } catch (error) {
-            console.error('Error fetching labs:', error);
+            if (mountedRef.current) {
+                setLabs(platformData || []);
+                setSavedLabs(customLabsData);
+                if (!searchQuery && !specialty) {
+                    setCache(cacheKey, { labs: platformData || [], savedLabs: customLabsData }, 86400 * 30).catch(() => {});
+                }
+            }
+        } catch {
+            const cached = await getCache<{ labs: Laboratory[]; savedLabs: Laboratory[] }>(cacheKey);
+            if (cached && mountedRef.current) {
+                setLabs(cached.labs || []);
+                setSavedLabs(cached.savedLabs || []);
+            }
         } finally {
-            setLoading(false);
+            if (mountedRef.current) setLoading(false);
         }
     };
 
     const getLabById = async (id: string) => {
+        const localFound = [...labs, ...savedLabs].find(l => String(l.id) === String(id));
+        if (!navigator.onLine) {
+            return localFound || null;
+        }
         try {
-            // Check platform first
-            const { data, error } = await supabase
+            const { data } = await supabase
                 .from('dental_laboratories')
                 .select('*')
                 .eq('id', id)
-                .single();
+                .maybeSingle();
 
             if (data) return data as Laboratory;
 
-            // Check custom
             const { data: customData } = await supabase
                 .from('clinic_custom_labs')
                 .select('*')
                 .eq('id', id)
-                .single();
+                .maybeSingle();
 
             if (customData) {
                 return {
@@ -119,25 +142,26 @@ export const useLabs = (options?: { clinicId?: string }) => {
                     phone: customData.phone,
                     governorate: 'Local',
                     rating: 0,
-                    is_custom: true, // Marker
+                    is_custom: true,
                     specialties: customData.specialties || []
                 } as Laboratory;
             }
 
-            return null;
-        } catch (error) {
-            console.error('Error fetching lab details:', error);
-            return null;
+            return localFound || null;
+        } catch {
+            return localFound || null;
         }
     };
 
     useEffect(() => {
+        mountedRef.current = true;
         fetchLabs();
+        return () => { mountedRef.current = false; };
     }, [options?.clinicId]);
 
     return {
-        labs,        // Platform Labs
-        savedLabs,   // Custom/Saved Labs
+        labs,
+        savedLabs,
         loading,
         fetchLabs,
         getLabById

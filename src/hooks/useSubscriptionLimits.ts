@@ -2,30 +2,37 @@ import { useDoctorSubscription } from './useDoctorSubscription';
 import { useAuth } from '../contexts/AuthContext';
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { getInstantCache, setCache } from '../lib/offline/db';
 
 export const useSubscriptionLimits = (currentClinicId?: string) => {
     const { subscription, loading: subLoading } = useDoctorSubscription();
     const { user } = useAuth();
-    const [counts, setCounts] = useState({
+    const cacheKey = user?.id ? `sub_counts_${user.id}_${currentClinicId || 'default'}` : '';
+    const initialCounts = (cacheKey ? getInstantCache<any>(cacheKey) : null) || {
         clinics: 0,
         patients: 0,
         services: 0,
         aiUsedToday: 0
-    });
-    const [loadingCounts, setLoadingCounts] = useState(true);
+    };
+    const [counts, setCounts] = useState(initialCounts);
+    const [loadingCounts, setLoadingCounts] = useState(false);
 
-    const limits = subscription?.plan?.limits || { max_clinics: 1, max_patients: 2, max_services: 2, max_ai: 0 };
+    const limits = subscription?.plan?.limits || { max_clinics: 1, max_patients: -1, max_services: -1, max_ai: 0 };
     const features = subscription?.plan?.gatedFeatures || { map: false, booking: false, featured: false, articles: false };
 
     useEffect(() => {
-        if (user) {
+        if (user && navigator.onLine) {
             fetchCounts();
+        } else {
+            setLoadingCounts(false);
         }
-    }, [user, currentClinicId, subscription]);
+    }, [user?.id, currentClinicId, subscription?.id]);
 
     const fetchCounts = async () => {
-        if (!user) return;
-        setLoadingCounts(true);
+        if (!user || !navigator.onLine) {
+            setLoadingCounts(false);
+            return;
+        }
         try {
             // 1. Global Clinics Count (Always per owner)
             const { count: clinicsCount } = await supabase
@@ -42,7 +49,6 @@ export const useSubscriptionLimits = (currentClinicId?: string) => {
                     .eq('clinic_id', currentClinicId);
                 patientsCount = count || 0;
             } else {
-                // If no specific clinic is selected, get count for the doctor's primary/first clinic
                 const { data: firstClinic } = await supabase
                     .from('clinics')
                     .select('id')
@@ -79,21 +85,35 @@ export const useSubscriptionLimits = (currentClinicId?: string) => {
                 .select('*', { count: 'exact', head: true })
                 .gte('created_at', startOfDay.toISOString());
 
-            setCounts({
+            const newCounts = {
                 clinics: clinicsCount || 0,
                 patients: patientsCount,
                 services: servicesCount,
                 aiUsedToday: aiCount || 0
-            });
-
-        } catch (err) {
-            console.error("Error fetching usage counts", err);
+            };
+            setCounts(newCounts);
+            if (cacheKey) {
+                setCache(cacheKey, newCounts, 86400 * 30).catch(() => {});
+            }
+        } catch {
+            // Ignore count errors when offline
         } finally {
             setLoadingCounts(false);
         }
     };
 
     const checkLimit = (type: 'clinics' | 'patients' | 'services' | 'ai', currentOverrideCount?: number): { allowed: boolean, message?: string } => {
+        // في وضع عدم الاتصال، لا نمنع الطبيب من إضافة مرضى أو خدمات محلياً بسبب عدم توفر بيانات الباقة
+        if (!navigator.onLine && (type === 'patients' || type === 'services')) {
+            return { allowed: true };
+        }
+        if (!navigator.onLine && type === 'ai') {
+            return {
+                allowed: false,
+                message: 'ميزة التحليل بالذكاء الاصطناعي تتطلب اتصالاً بالإنترنت.'
+            };
+        }
+
         const labels = {
             clinics: 'العيادات',
             patients: 'المرضى',
@@ -154,7 +174,6 @@ export const useSubscriptionLimits = (currentClinicId?: string) => {
 
     const hasFeature = (feature: keyof typeof features): boolean => {
         if (subscription?.isExpired) {
-            // When expired, feature is only available if the free plan explicitly grants it
             return !!features[feature];
         }
         return !!features[feature];

@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
+import { getInstantCache, setCache, getCache, addToSyncQueue } from '../lib/offline/db';
 
 export interface Task {
     id: string;
@@ -29,15 +30,33 @@ export interface Task {
 
 export const useTasks = (clinicId?: string) => {
     const { user } = useAuth();
-    const [tasks, setTasks] = useState<Task[]>([]);
-    const [loading, setLoading] = useState(true);
+    const cacheKey = `clinic_tasks_${clinicId || 'all'}_${user?.id || ''}`;
+    const initial = getInstantCache<Task[]>(cacheKey) || [];
+    const [tasks, setTasks] = useState<Task[]>(initial);
+    const [loading, setLoading] = useState(initial.length === 0);
+    const mountedRef = useRef(true);
+
+    const saveTasksCache = (list: Task[]) => {
+        setCache(cacheKey, list, 86400 * 30).catch(() => {});
+        if (mountedRef.current) {
+            setTasks(list);
+        }
+    };
 
     useEffect(() => {
+        mountedRef.current = true;
         if (user && clinicId) {
+            const cached = getInstantCache<Task[]>(cacheKey);
+            if (cached && cached.length > 0) {
+                setTasks(cached);
+                setLoading(false);
+            }
             fetchTasks();
 
+            if (!navigator.onLine) return;
+
             const subscription = supabase
-                .channel('clinic_tasks_changes')
+                .channel(`clinic_tasks_changes_${clinicId}`)
                 .on(
                     'postgres_changes',
                     {
@@ -46,20 +65,33 @@ export const useTasks = (clinicId?: string) => {
                         table: 'clinic_tasks',
                         filter: clinicId !== 'all' ? `clinic_id=eq.${clinicId}` : undefined
                     },
-                    (payload) => {
-                        fetchTasks();
+                    () => {
+                        if (navigator.onLine) fetchTasks();
                     }
                 )
                 .subscribe();
 
             return () => {
+                mountedRef.current = false;
                 subscription.unsubscribe();
             };
+        } else {
+            setLoading(false);
         }
-    }, [user, clinicId]);
+        return () => { mountedRef.current = false; };
+    }, [user?.id, clinicId]);
 
     const fetchTasks = async () => {
-        setLoading(true);
+        if (!navigator.onLine) {
+            const cached = await getCache<Task[]>(cacheKey);
+            if (cached && mountedRef.current) {
+                setTasks(cached);
+            }
+            if (mountedRef.current) setLoading(false);
+            return;
+        }
+
+        if (tasks.length === 0) setLoading(true);
         try {
             let query = supabase
                 .from('clinic_tasks')
@@ -74,18 +106,17 @@ export const useTasks = (clinicId?: string) => {
             }
 
             const { data, error } = await query;
-
             if (error) throw error;
 
             if (data) {
                 const mapped: Task[] = data.map((t: any) => ({
-                    id: t.id,
-                    type: 'task', // Default as schema doesn't have type yet, or we can use description/title conventions
+                    id: String(t.id),
+                    type: 'task',
                     title: t.title,
                     description: t.description || '',
                     status: t.status as any,
                     priority: t.priority as any,
-                    category: 'إدارية', // Default
+                    category: 'إدارية',
                     date: t.due_date ? t.due_date.split('T')[0] : '',
                     time: t.due_date ? new Date(t.due_date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '00:00',
                     duration: 30,
@@ -101,91 +132,146 @@ export const useTasks = (clinicId?: string) => {
                     tags: [],
                     lastUpdated: t.updated_at
                 }));
-                setTasks(mapped);
+                const currentCached = getInstantCache<Task[]>(cacheKey) || [];
+                const unsyncedOffline = currentCached.filter(item => String(item.id).startsWith('offline_'));
+                saveTasksCache([...unsyncedOffline, ...mapped]);
             }
-        } catch (error) {
-            console.error('Error fetching tasks:', error);
-            toast.error('فشل تحميل المهام');
+        } catch {
+            // في حالة الأوفلاين أو خطأ الشبكة، نستخدم الكاش بدون إظهار رسالة خطأ مزعجة
+            const cached = await getCache<Task[]>(cacheKey);
+            if (cached && mountedRef.current) {
+                setTasks(cached);
+            }
         } finally {
-            setLoading(false);
+            if (mountedRef.current) setLoading(false);
         }
     };
 
     const addTask = async (task: Partial<Task>) => {
+        const assignedToId = task.assignedScope?.type === 'specific' && task.assignedScope.ids?.[0]
+            ? parseInt(task.assignedScope.ids[0])
+            : null;
+
+        let targetClinicId: number | null = null;
+        if (clinicId && clinicId !== 'all') {
+            targetClinicId = parseInt(clinicId);
+        } else if (task.clinicScope?.type === 'specific' && task.clinicScope.ids?.[0]) {
+            targetClinicId = parseInt(task.clinicScope.ids[0]);
+        }
+
+        const dbPayload = {
+            clinic_id: targetClinicId,
+            title: task.title,
+            description: task.description,
+            assigned_to: assignedToId,
+            status: task.status || 'pending',
+            priority: task.priority || 'medium',
+            due_date: task.date ? `${task.date}T${task.time || '00:00'}:00` : null,
+            created_by: user?.id
+        };
+
+        const addLocally = async () => {
+            const localId = `offline_task_${Date.now()}`;
+            const localTask: Task = {
+                id: localId,
+                type: task.type || 'task',
+                title: task.title || 'مهمة جديدة',
+                description: task.description || '',
+                status: (task.status as any) || 'pending',
+                priority: (task.priority as any) || 'medium',
+                category: task.category || 'إدارية',
+                date: task.date || new Date().toISOString().split('T')[0],
+                time: task.time || '09:00',
+                duration: task.duration || 30,
+                creatorId: user?.id || '',
+                creatorName: user?.name || 'الطبيب',
+                creatorRole: 'doctor',
+                clinicScope: task.clinicScope || { type: 'all' },
+                assignedScope: task.assignedScope || { type: 'all' },
+                subtasks: task.subtasks || [],
+                progress: 0,
+                tags: task.tags || [],
+                lastUpdated: new Date().toISOString()
+            };
+            saveTasksCache([localTask, ...tasks]);
+            await addToSyncQueue('INSERT', 'clinic_tasks', localId, dbPayload);
+        };
+
+        if (!navigator.onLine) {
+            await addLocally();
+            toast.success('تم إضافة المهمة محلياً (ستتم المزامنة تلقائياً عند الاتصال)');
+            return;
+        }
+
         try {
-            // Map frontend Task to DB
-            const assignedToId = task.assignedScope?.type === 'specific' && task.assignedScope.ids?.[0]
-                ? parseInt(task.assignedScope.ids[0])
-                : null;
-
-            // Determine Clinic ID: Context takes precedence unless 'all', then look at task scope
-            let targetClinicId: number | null = null;
-            if (clinicId && clinicId !== 'all') {
-                targetClinicId = parseInt(clinicId);
-            } else if (task.clinicScope?.type === 'specific' && task.clinicScope.ids?.[0]) {
-                targetClinicId = parseInt(task.clinicScope.ids[0]);
-            }
-
-            const { error } = await supabase.from('clinic_tasks').insert({
-                clinic_id: targetClinicId,
-                title: task.title,
-                description: task.description,
-                assigned_to: assignedToId,
-                status: task.status || 'pending',
-                priority: task.priority || 'medium',
-                due_date: task.date ? `${task.date}T${task.time || '00:00'}:00` : null,
-                created_by: user?.id
-            });
-
+            const { error } = await supabase.from('clinic_tasks').insert(dbPayload);
             if (error) throw error;
             toast.success('تم إضافة المهمة بنجاح');
             fetchTasks();
-        } catch (err) {
-            console.error('Error adding task:', err);
-            toast.error('فشل إضافة المهمة');
+        } catch {
+            await addLocally();
+            toast.info('تم حفظ المهمة محلياً (ستتم المزامنة عند الاتصال)');
         }
     };
 
     const updateTask = async (id: string, updates: Partial<Task>) => {
+        const targetId = String(id);
+        const nextList = tasks.map(t =>
+            String(t.id) === targetId
+                ? {
+                    ...t,
+                    ...updates,
+                    progress: updates.status === 'completed' ? 100 : (updates.progress ?? t.progress)
+                }
+                : t
+        );
+        saveTasksCache(nextList);
+
+        const dbUpdates: any = {
+            updated_at: new Date().toISOString()
+        };
+        if (updates.status !== undefined) dbUpdates.status = updates.status;
+        if (updates.title !== undefined) dbUpdates.title = updates.title;
+        if (updates.description !== undefined) dbUpdates.description = updates.description;
+        if (updates.priority !== undefined) dbUpdates.priority = updates.priority;
+
+        if (!navigator.onLine || targetId.startsWith('offline_')) {
+            await addToSyncQueue('UPDATE', 'clinic_tasks', targetId, dbUpdates);
+            return;
+        }
+
         try {
-            const dbUpdates: any = {};
-            if (updates.status) dbUpdates.status = updates.status;
-            if (updates.title) dbUpdates.title = updates.title;
-            if (updates.description) dbUpdates.description = updates.description;
-            if (updates.priority) dbUpdates.priority = updates.priority;
-
-            if (updates.date || updates.time) {
-                // Would need to merge date/time if only one provided, for now assume simple update
-                // This might need more robust handling if only updating time
-            }
-
             const { error } = await supabase
                 .from('clinic_tasks')
-                .update({
-                    ...dbUpdates,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', id);
+                .update(dbUpdates)
+                .eq('id', targetId);
 
             if (error) throw error;
             fetchTasks();
-        } catch (err) {
-            console.error('Error updating task:', err);
-            toast.error('فشل تحديث المهمة');
+        } catch {
+            await addToSyncQueue('UPDATE', 'clinic_tasks', targetId, dbUpdates);
         }
     };
 
     const deleteTask = async (id: string) => {
+        const targetId = String(id);
+        saveTasksCache(tasks.filter(t => String(t.id) !== targetId));
+
+        if (!navigator.onLine || targetId.startsWith('offline_')) {
+            await addToSyncQueue('DELETE', 'clinic_tasks', targetId, {});
+            toast.success('تم حذف المهمة محلياً');
+            return;
+        }
+
         try {
-            const { error } = await supabase.from('clinic_tasks').delete().eq('id', id);
+            const { error } = await supabase.from('clinic_tasks').delete().eq('id', targetId);
             if (error) throw error;
             toast.success('تم حذف المهمة');
-            fetchTasks();
-        } catch (err) {
-            console.error('Error deleting task:', err);
-            toast.error('فشل حذف المهمة');
+        } catch {
+            await addToSyncQueue('DELETE', 'clinic_tasks', targetId, {});
+            toast.info('تم حذف المهمة محلياً (ستتم المزامنة عند الاتصال)');
         }
-    }
+    };
 
     return { tasks, loading, addTask, updateTask, deleteTask, refresh: fetchTasks };
 };

@@ -34,7 +34,7 @@ const DoctorDashboardContent: React.FC = () => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isClinicMenuOpen, setIsClinicMenuOpen] = useState(false);
 
-  if (loading) {
+  if (loading && clinics.length === 0 && navigator.onLine) {
     return <LoadingState fullScreen message={t('loading')} size="lg" />;
   }
 
