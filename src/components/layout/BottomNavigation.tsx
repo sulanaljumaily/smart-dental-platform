@@ -10,32 +10,30 @@ import {
   Package,
   TestTube,
   Home,
-  HeartPulse
+  HeartPulse,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePlatform, NavRoleKey } from '../../contexts/PlatformContext';
+import { isDesktopApp, isMobileApp } from '../../lib/platform';
 
 export const BottomNavigation: React.FC = () => {
   const location = useLocation();
-  const { isAuthenticated, user } = useAuth(); // Get user to access role
+  const { isAuthenticated, user } = useAuth();
+  const { sectionsConfig } = usePlatform();
 
   // Check if current path is in excluded pages
   const isExcludedPage = (path: string) => {
     const excludedPages = [
-      '/doctor-welcome', // صفحة استقبال الأطباء
-      '/supplier-welcome', // صفحة استقبال الموردين
-      // '/services', // Removed: we want to show bottom nav on services
+      '/doctor-welcome',
+      '/supplier-welcome',
       '/login',
+      '/patient-login',
       '/register',
       '/forgot-password',
       '/privacy-policy',
       '/terms-of-service',
-      '/diagnosis/ai'
+      '/diagnosis/ai',
     ];
-
-    // Add services sub-paths (if there are specific service detail pages we want to hide it on, we can check here, but normally we want it)
-    // if (path.startsWith('/services/')) {
-    //   return true;
-    // }
 
     // Hide bottom navigation in Clinic Dashboard to prevent modal overlap
     if (path.includes('/doctor/clinic/')) {
@@ -45,12 +43,25 @@ export const BottomNavigation: React.FC = () => {
     return excludedPages.includes(path);
   };
 
-  // Don't show bottom navigation if user is on excluded pages
   if (isExcludedPage(location.pathname)) {
     return null;
   }
 
-  // --- Menu Variants ---
+  // Determine active device configuration (Unified 'all' vs separate 'web' | 'mobile' | 'desktop')
+  const deviceKey = sectionsConfig.separateByDevice
+    ? isDesktopApp()
+      ? 'desktop'
+      : isMobileApp()
+      ? 'mobile'
+      : 'web'
+    : 'all';
+
+  const deviceConfig = sectionsConfig.devices?.[deviceKey] || sectionsConfig.devices?.all;
+  if (deviceConfig && !deviceConfig.barEnabled) {
+    return null;
+  }
+
+  // --- Full Catalog of Menu Items per Role ---
 
   // 1. Generic Menu (Staff / Clinic Owner - fallback)
   const genericMenu = [
@@ -59,15 +70,17 @@ export const BottomNavigation: React.FC = () => {
     { id: 'doctor', label: 'مركز الأطباء', icon: Stethoscope, path: '/doctor', activeOn: ['/doctor-welcome', '/doctor'] },
     { id: 'jobs', label: 'التوظيف', icon: Briefcase, path: '/jobs', activeOn: ['/jobs'] },
     { id: 'store', label: 'المتجر', icon: ShoppingBag, path: '/store', activeOn: ['/store'] },
+    { id: 'services', label: 'الخدمات الطبية', icon: Stethoscope, path: '/services', activeOn: ['/services'] },
   ];
 
   // 1.1 Doctor Specific Menu
   const doctorMenu = [
-    { id: 'home', label: 'الرئيسية', icon: Building2, path: '/', activeOn: ['/', '/services'] },
+    { id: 'home', label: 'الرئيسية', icon: Building2, path: '/', activeOn: ['/'] },
     { id: 'community', label: 'المجتمع', icon: Users, path: '/doctor/community', activeOn: ['/doctor/community', '/community'] },
     { id: 'doctor', label: 'مركز الأطباء', icon: Stethoscope, path: '/doctor', activeOn: ['/doctor', '/doctor/overview'] },
     { id: 'jobs', label: 'التوظيف', icon: Briefcase, path: '/doctor/jobs', activeOn: ['/doctor/jobs', '/jobs'] },
     { id: 'store', label: 'المتجر', icon: ShoppingBag, path: '/store', activeOn: ['/store'] },
+    { id: 'services', label: 'الخدمات الطبية', icon: Stethoscope, path: '/services', activeOn: ['/services'] },
   ];
 
   // 2. Supplier Menu
@@ -75,6 +88,8 @@ export const BottomNavigation: React.FC = () => {
     { id: 'store', label: 'المتجر', icon: ShoppingBag, path: '/store', activeOn: ['/store'] },
     { id: 'supplier', label: 'مركز الموردين', icon: Package, path: '/supplier', activeOn: ['/supplier'] },
     { id: 'jobs', label: 'التوظيف', icon: Briefcase, path: '/jobs', activeOn: ['/jobs'] },
+    { id: 'community', label: 'المجتمع', icon: Users, path: '/community', activeOn: ['/community'] },
+    { id: 'home', label: 'الرئيسية', icon: Home, path: '/', activeOn: ['/'] },
   ];
 
   // 3. Lab Menu
@@ -82,6 +97,8 @@ export const BottomNavigation: React.FC = () => {
     { id: 'store', label: 'المتجر', icon: ShoppingBag, path: '/store', activeOn: ['/store'] },
     { id: 'lab', label: 'مركز المعامل', icon: TestTube, path: '/laboratory', activeOn: ['/laboratory'] },
     { id: 'jobs', label: 'التوظيف', icon: Briefcase, path: '/laboratory/jobs', activeOn: ['/laboratory/jobs', '/jobs'] },
+    { id: 'community', label: 'المجتمع', icon: Users, path: '/community', activeOn: ['/community'] },
+    { id: 'home', label: 'الرئيسية', icon: Home, path: '/', activeOn: ['/'] },
   ];
 
   // 4. Admin Menu
@@ -98,6 +115,7 @@ export const BottomNavigation: React.FC = () => {
     { id: 'store', label: 'المتجر', icon: ShoppingBag, path: '/patient/store', activeOn: ['/patient/store'] },
     { id: 'patient', label: 'مركز المراجعين', icon: HeartPulse, path: '/patient', activeOn: ['/patient'] },
     { id: 'services', label: 'الخدمات الطبية', icon: Stethoscope, path: '/services', activeOn: ['/services'] },
+    { id: 'home', label: 'الرئيسية', icon: Home, path: '/', activeOn: ['/'] },
   ];
 
   // 6. Public Menu (الزوار) - Unauthenticated
@@ -105,6 +123,8 @@ export const BottomNavigation: React.FC = () => {
     { id: 'store', label: 'المتجر', icon: ShoppingBag, path: '/patient/store', activeOn: ['/patient/store'] },
     { id: 'home', label: 'الرئيسية', icon: Home, path: '/', activeOn: ['/', '/article'] },
     { id: 'services', label: 'الخدمات الطبية', icon: Stethoscope, path: '/services', activeOn: ['/services'] },
+    { id: 'community', label: 'المجتمع', icon: Users, path: '/community', activeOn: ['/community'] },
+    { id: 'jobs', label: 'التوظيف', icon: Briefcase, path: '/jobs', activeOn: ['/jobs'] },
   ];
 
   const isPatientApp = import.meta.env.VITE_BUILD_TARGET === 'patient';
@@ -115,37 +135,60 @@ export const BottomNavigation: React.FC = () => {
     return null;
   }
 
-  // --- Select Menu Based on Role ---
-  let navItems = publicMenu; // Default for unauthenticated
+  // --- Select Menu & Role Key ---
+  let navItems = publicMenu;
+  let activeRoleKey: NavRoleKey | 'admin' = 'public';
 
   if (isPatientApp) {
-    // في تطبيق المرضى: القائمة دائماً مخصصة للمراجعين مع منع أي زر للأطباء
     navItems = isAuthenticated ? patientMenu : publicMenu;
+    activeRoleKey = isAuthenticated ? 'patient' : 'public';
   } else if (isAuthenticated) {
     if (user?.role === 'doctor') {
       navItems = doctorMenu;
+      activeRoleKey = 'doctor';
     } else if (user?.role === 'supplier') {
       navItems = supplierMenu;
+      activeRoleKey = 'supplier';
     } else if (user?.role === 'laboratory') {
       navItems = labMenu;
+      activeRoleKey = 'laboratory';
     } else if (user?.role === 'admin') {
       navItems = adminMenu;
+      activeRoleKey = 'admin';
     } else if (user?.role === 'patient') {
       navItems = patientMenu;
+      activeRoleKey = 'patient';
     } else {
-      navItems = genericMenu; // Fallback for other auth roles if needed
+      navItems = genericMenu;
+      activeRoleKey = 'doctor';
     }
+  }
+
+  // Apply Admin Sections Visibility Filter
+  if (activeRoleKey !== 'admin' && deviceConfig?.roles?.[activeRoleKey]) {
+    const roleVisibility = deviceConfig.roles[activeRoleKey];
+    navItems = navItems.filter((item) => roleVisibility[item.id] !== false);
   }
 
   // فلترة صارمة لمنع ظهور زر مركز الأطباء للمراجعين في تطبيق المرضى
   if (isPatientApp) {
-    navItems = navItems.filter(item => item.id !== 'doctor' && item.id !== 'supplier' && item.id !== 'lab' && item.id !== 'admin');
+    navItems = navItems.filter(
+      (item) =>
+        item.id !== 'doctor' &&
+        item.id !== 'supplier' &&
+        item.id !== 'lab' &&
+        item.id !== 'admin'
+    );
+  }
+
+  if (navItems.length === 0) {
+    return null;
   }
 
   const isActive = (activeOn: string[]) => {
-    return activeOn.some(path => {
+    return activeOn.some((path) => {
       if (path === '/') {
-        return location.pathname === '/' || location.pathname === '/services' || location.pathname.startsWith('/article');
+        return location.pathname === '/' || location.pathname.startsWith('/article');
       }
       return location.pathname.startsWith(path);
     });
@@ -167,13 +210,19 @@ export const BottomNavigation: React.FC = () => {
               <Link
                 key={item.id}
                 to={item.path}
-                className={`flex flex-col items-center justify-center px-2 py-1 rounded-xl transition-all min-w-[58px] no-underline duration-200 ${active
-                  ? 'text-blue-600 bg-blue-50/80 -translate-y-0.5'
-                  : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
+                className={`flex flex-col items-center justify-center px-2 py-1 rounded-xl transition-all min-w-[58px] no-underline duration-200 ${
+                  active
+                    ? 'text-blue-600 bg-blue-50/80 -translate-y-0.5'
+                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+                }`}
                 aria-label={item.label}
               >
-                <Icon className={`w-5 h-5 mb-0.5 transition-colors ${active ? 'text-blue-600 fill-blue-600/10' : 'text-gray-500'}`} strokeWidth={active ? 2.5 : 2} />
+                <Icon
+                  className={`w-5 h-5 mb-0.5 transition-colors ${
+                    active ? 'text-blue-600 fill-blue-600/10' : 'text-gray-500'
+                  }`}
+                  strokeWidth={active ? 2.5 : 2}
+                />
                 <span className={`text-[10px] font-bold ${active ? 'text-blue-600' : 'text-gray-500'}`}>
                   {item.label}
                 </span>

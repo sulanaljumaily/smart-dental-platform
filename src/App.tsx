@@ -437,6 +437,7 @@ import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from 'sonner';
 import { SplashScreen } from './components/SplashScreen';
 import { OfflineConnectionNotice } from './components/common/OfflineConnectionNotice';
+import { DesktopUpdateManager } from './components/common/DesktopUpdateManager';
 
 function App() {
   useEffect(() => {
@@ -459,6 +460,7 @@ function App() {
           <StoreProvider>
             <CommunityProvider>
               <PlatformProvider>
+                <DesktopUpdateManager />
                 <AppContent />
               </PlatformProvider>
             </CommunityProvider>

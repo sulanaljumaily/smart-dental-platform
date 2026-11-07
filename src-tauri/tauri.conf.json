@@ -30,6 +30,7 @@
   "bundle": {
     "active": true,
     "targets": ["nsis", "msi"],
+    "publisher": "Dental Platform",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -37,9 +38,9 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "category": "Business",
+    "category": "Medical",
     "shortDescription": "نظام إدارة العيادات - Dental Platform",
-    "longDescription": "برنامج سطح المكتب لإدارة عيادات الأسنان، المواعيد، سجلات المرضى، الإيرادات والربط مع المعامل والموردين",
+    "longDescription": "نظام إدارة العيادات الذكي من منصة طب الأسنان (Dental Platform) — تنظيم المواعيد، ملفات المراجعين، الحسابات، الطابعات الحرارية، والعمل بدون إنترنت",
     "copyright": "Dental Platform © 2026",
     "windows": {
       "certificateThumbprint": null,
@@ -47,7 +48,15 @@
       "timestampUrl": "",
       "nsis": {
         "installerIcon": "icons/icon.ico",
-        "installMode": "currentUser"
+        "headerImage": "icons/nsis-header.bmp",
+        "sidebarImage": "icons/nsis-sidebar.bmp",
+        "installMode": "currentUser",
+        "languages": ["Arabic", "English"],
+        "displayLanguageSelector": false
+      },
+      "wix": {
+        "bannerPath": "icons/wix-banner.bmp",
+        "dialogImagePath": "icons/wix-dialog.bmp"
       }
     }
   },

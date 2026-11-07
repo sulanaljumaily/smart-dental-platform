@@ -31,13 +31,17 @@ import { AgentDetailsModal } from '../components/AgentDetailsModal'; // Import n
 import { PendingRequestsManager } from './platform/PendingRequestsManager';
 import { RecentActivitiesManager } from './platform/RecentActivitiesManager';
 import { DentalChartManager } from './platform/DentalChartManager';
+import { AppsManager } from './platform/AppsManager';
+import { SectionsVisibilityManager } from './platform/SectionsVisibilityManager';
+import { Smartphone, LayoutGrid } from 'lucide-react';
 
 interface PlatformManagementSectionProps {
-  initialTab?: 'settings' | 'agents' | 'payment' | 'users' | 'pending_requests' | 'activities' | 'odontogram';
+  initialTab?: 'settings' | 'agents' | 'payment' | 'users' | 'pending_requests' | 'activities' | 'odontogram' | 'apps' | 'sections';
 }
 
 export const PlatformManagementSection: React.FC<PlatformManagementSectionProps> = ({ initialTab = 'users' }) => {
-  const [activeTab, setActiveTab] = useState<'settings' | 'agents' | 'payment' | 'users' | 'pending_requests' | 'activities' | 'odontogram'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'settings' | 'agents' | 'payment' | 'users' | 'pending_requests' | 'activities' | 'odontogram' | 'apps' | 'sections'>(initialTab);
+  const [settingsSubTab, setSettingsSubTab] = useState<'general' | 'sections' | 'apps'>('general');
   const [showAgentModal, setShowAgentModal] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
 
@@ -310,6 +314,52 @@ export const PlatformManagementSection: React.FC<PlatformManagementSectionProps>
 
   const renderSettingsTab = () => (
     <div className="max-w-5xl mx-auto space-y-6">
+      {/* Sub-navigation inside Settings */}
+      <div className="flex flex-wrap items-center gap-2 bg-white p-1.5 rounded-2xl border border-gray-200 shadow-xs w-fit">
+        <button
+          type="button"
+          onClick={() => setSettingsSubTab('general')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            settingsSubTab === 'general'
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          <Settings className="w-4 h-4" />
+          <span>الإعدادات العامة</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setSettingsSubTab('sections')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            settingsSubTab === 'sections'
+              ? 'bg-indigo-600 text-white shadow-xs'
+              : 'text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          <LayoutGrid className="w-4 h-4" />
+          <span>إعدادات الأقسام والشريط السفلي</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setSettingsSubTab('apps')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            settingsSubTab === 'apps'
+              ? 'bg-[#0D8ABC] text-white shadow-xs'
+              : 'text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          <Smartphone className="w-4 h-4" />
+          <span>إعدادات التطبيقات والتحديثات</span>
+        </button>
+      </div>
+
+      {settingsSubTab === 'sections' ? (
+        <SectionsVisibilityManager />
+      ) : settingsSubTab === 'apps' ? (
+        <AppsManager />
+      ) : (
+        <>
       <div className="bg-white rounded-2xl sm:rounded-[2rem] p-4 sm:p-8 border border-gray-100 shadow-sm">
         <div className="flex items-center gap-4 mb-8 pb-6 border-b border-gray-100">
           <div className="p-3.5 bg-blue-50 text-blue-600 rounded-2xl border border-blue-100">
@@ -523,6 +573,8 @@ export const PlatformManagementSection: React.FC<PlatformManagementSectionProps>
           </button>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 
@@ -741,6 +793,20 @@ export const PlatformManagementSection: React.FC<PlatformManagementSectionProps>
             </svg>
             مخطط الأسنان
           </button>
+          <button
+            onClick={() => setActiveTab('sections')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap shrink-0 ${activeTab === 'sections' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-600 hover:bg-gray-50'}`}
+          >
+            <LayoutGrid className="w-4 h-4" />
+            إدارة الأقسام
+          </button>
+          <button
+            onClick={() => setActiveTab('apps')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap shrink-0 ${activeTab === 'apps' ? 'bg-blue-50 text-[#0D8ABC]' : 'text-gray-600 hover:bg-gray-50'}`}
+          >
+            <Smartphone className="w-4 h-4" />
+            إدارة التطبيقات
+          </button>
         </div>
       </div>
 
@@ -796,6 +862,8 @@ export const PlatformManagementSection: React.FC<PlatformManagementSectionProps>
         {activeTab === 'payment' && renderPaymentTab()}
         {activeTab === 'agents' && renderAgentsTab()}
         {activeTab === 'odontogram' && <DentalChartManager />}
+        {activeTab === 'sections' && <SectionsVisibilityManager />}
+        {activeTab === 'apps' && <AppsManager />}
       </div>
 
       <FormModal
