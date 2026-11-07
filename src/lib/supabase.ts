@@ -12,11 +12,25 @@ const GLOBAL_KEY = '__supabase_client__' as const
 
 // Short circuit-breaker for dead Wi-Fi connections (where navigator.onLine is still true)
 let lastNetworkTimeoutAt = 0
-const CIRCUIT_BREAKER_MS = 4500
+const CIRCUIT_BREAKER_MS = 30000
+const activeControllers = new Set<AbortController>()
+
+function tripOfflineCircuitBreaker() {
+  lastNetworkTimeoutAt = Date.now()
+  for (const ctrl of activeControllers) {
+    try {
+      ctrl.abort()
+    } catch {}
+  }
+  activeControllers.clear()
+}
 
 if (typeof window !== 'undefined') {
   window.addEventListener('online', () => {
     lastNetworkTimeoutAt = 0
+  })
+  window.addEventListener('offline', () => {
+    tripOfflineCircuitBreaker()
   })
 }
 
@@ -85,11 +99,12 @@ const offlineAwareFetch: typeof fetch = async (input, init) => {
     throw new TypeError('Failed to fetch (Network Unreachable)')
   }
 
-  // 3. Enforce a fast timeout so Android/Windows/iOS never hang for 60s on weak/dead connections
+  // 3. Enforce a fast timeout so Android/Windows/iOS never hang on weak/dead connections
   const isHeavyRequest = urlStr.includes('/storage/v1/') || urlStr.includes('/functions/v1/')
-  const timeoutMs = isHeavyRequest ? 15000 : 6500
+  const timeoutMs = isHeavyRequest ? 8000 : 2200
 
   const controller = new AbortController()
+  activeControllers.add(controller)
   const existingSignal = init?.signal
   let timedOut = false
 
@@ -104,7 +119,7 @@ const offlineAwareFetch: typeof fetch = async (input, init) => {
 
   const timer = setTimeout(() => {
     timedOut = true
-    controller.abort()
+    tripOfflineCircuitBreaker()
   }, timeoutMs)
 
   try {
@@ -116,18 +131,22 @@ const offlineAwareFetch: typeof fetch = async (input, init) => {
     return response
   } catch (err: any) {
     if (timedOut || (err?.name !== 'AbortError' && !existingSignal?.aborted)) {
-      if (timedOut) {
-        lastNetworkTimeoutAt = Date.now()
-      }
+      tripOfflineCircuitBreaker()
       const authFallback = buildOfflineAuthResponse(urlStr)
       if (authFallback) return authFallback
       if (timedOut) {
         throw new TypeError('Failed to fetch (Network Timeout)')
       }
+    } else if (lastNetworkTimeoutAt > 0 && !existingSignal?.aborted) {
+      // Aborted by circuit breaker from another parallel request timing out
+      const authFallback = buildOfflineAuthResponse(urlStr)
+      if (authFallback) return authFallback
+      throw new TypeError('Failed to fetch (Network Unreachable)')
     }
     throw err
   } finally {
     clearTimeout(timer)
+    activeControllers.delete(controller)
     if (existingSignal) {
       existingSignal.removeEventListener('abort', onExistingAbort)
     }

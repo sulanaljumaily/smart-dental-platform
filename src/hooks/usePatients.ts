@@ -42,8 +42,9 @@ export function getCachedPatientById(patientId?: string): PatientData | null {
                 const raw = localStorage.getItem(key);
                 if (raw) {
                     const parsed = JSON.parse(raw);
-                    if (Array.isArray(parsed?.data)) {
-                        const found = parsed.data.find((p: any) => String(p.id) === target);
+                    const list = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.data) ? parsed.data : null);
+                    if (list) {
+                        const found = list.find((p: any) => p && String(p.id) === target);
                         if (found) return found as PatientData;
                     }
                 }
@@ -91,6 +92,36 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
         if (instant && instant.length > 0) {
             patientsCache.set(cacheKey, instant);
             return instant;
+        }
+        // aggregated multi-clinic offline fallback
+        // يُستخدم فقط عند تمرير قائمة عيادات محددة (مالك متعدد العيادات) ويُفلتر حسبها حصراً
+        // حتى لا تظهر مرضى حسابات أخرى مخزنة على نفس الجهاز
+        if (!clinicId && clinicIds && clinicIds.length > 0 && typeof localStorage !== 'undefined') {
+            try {
+                const allowed = new Set(clinicIds.map(String));
+                const aggregated: PatientData[] = [];
+                const seen = new Set<string>();
+                for (let i = 0; i < localStorage.length; i++) {
+                    const k = localStorage.key(i);
+                    if (k && k.startsWith('dental_instant_cache_v1_patients_')) {
+                        const raw = localStorage.getItem(k);
+                        if (raw) {
+                            const parsed = JSON.parse(raw);
+                            const list = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.data) ? parsed.data : []);
+                            for (const p of list) {
+                                if (!p || !p.id || seen.has(String(p.id))) continue;
+                                if (!allowed.has(String(p.clinicId ?? p.clinic_id))) continue;
+                                seen.add(String(p.id));
+                                aggregated.push(p);
+                            }
+                        }
+                    }
+                }
+                if (aggregated.length > 0) {
+                    patientsCache.set(cacheKey, aggregated);
+                    return aggregated;
+                }
+            } catch {}
         }
         return [];
     };

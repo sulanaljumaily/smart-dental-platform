@@ -1,3 +1,4 @@
+import { getInstantCache, setCache } from '../lib/offline/db';
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -28,7 +29,8 @@ export interface ActivityItem {
 export const useRecentActivities = (clinicId?: string, limit = 10) => {
     const { user } = useAuth();
     const { clinics } = useClinics();
-    const [activities, setActivities] = useState<ActivityItem[]>([]);
+    const actCacheKey = 'recent_activities_' + (clinicId || 'all');
+    const [activities, setActivities] = useState<ActivityItem[]>(() => getInstantCache<ActivityItem[]>(actCacheKey) || []);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -38,6 +40,7 @@ export const useRecentActivities = (clinicId?: string, limit = 10) => {
     }, [user, clinicId, clinics]);
 
     const fetchActivities = async () => {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) { setLoading(false); return; }
         setLoading(true);
         const allActivities: ActivityItem[] = [];
 

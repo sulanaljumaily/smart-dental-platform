@@ -1,3 +1,4 @@
+import { getInstantCache, setCache } from '../lib/offline/db';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -23,9 +24,10 @@ export interface Notification {
 export const useNotifications = () => {
     const { user } = useAuth();
     const { clinics } = useClinics();
-    const [notifications, setNotifications] = useState<Notification[]>([]);
+    const notifCacheKey = 'notifications_' + (user?.id || 'guest');
+    const [notifications, setNotifications] = useState<Notification[]>(() => getInstantCache<Notification[]>(notifCacheKey) || []);
     const [loading, setLoading] = useState(true);
-    const [updates, setUpdates] = useState<any[]>([]);
+    const [updates, setUpdates] = useState<any[]>(() => getInstantCache<any[]>('system_updates_list') || []);
     const mountedRef = useRef(true);
 
     // Fetch data whenever user or clinics change
@@ -87,6 +89,7 @@ export const useNotifications = () => {
     };
 
     const fetchUpdates = async () => {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) { return; }
         try {
             const { data, error } = await supabase
                 .from('system_updates')
@@ -100,6 +103,7 @@ export const useNotifications = () => {
                 return;
             }
             setUpdates(data || []);
+            setCache('system_updates_list', data || [], 86400 * 30).catch(() => {});
         } catch (err: any) {
             if (err?.name === 'AbortError' || err?.message?.includes('AbortError')) return;
             console.warn('Error fetching updates:', err);
@@ -107,6 +111,7 @@ export const useNotifications = () => {
     };
 
     const fetchNotifications = async () => {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) { setLoading(false); return; }
         try {
             setLoading(true);
 
@@ -157,6 +162,7 @@ export const useNotifications = () => {
                     clinicName: record.clinic?.name
                 }));
                 setNotifications(mapped);
+            setCache(notifCacheKey, mapped, 86400 * 14).catch(() => {});
                 return;
             }
 

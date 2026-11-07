@@ -182,7 +182,8 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
         let notificationsChannelRef: any = null;
 
         const loadData = async () => {
-            setLoading(true);
+        if (typeof navigator !== 'undefined' && !navigator.onLine) { setLoading(false); return; }
+        setLoading(true);
             try {
                 // Get Current User
                 const { data: { session } } = await supabase.auth.getSession();
@@ -447,7 +448,9 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
                 if (error?.name === 'AbortError' || error?.message?.includes('AbortError')) return;
                 if (mountedRef.current) {
                     console.error('Failed to load community data', error);
-                    toast.error('فشل تحميل بيانات المجتمع');
+                    if (typeof navigator === 'undefined' || navigator.onLine) {
+                        toast.error('فشل تحميل بيانات المجتمع');
+                    }
                 }
             } finally {
                 if (mountedRef.current) setLoading(false);

@@ -255,11 +255,10 @@ export const UpgradePlanPage: React.FC = () => {
 
                     {/* Quick Horizontal Plan Switcher Bar (for instant side-by-side comparison & horizontal auto-scroll) */}
                     {plans.length > 0 && (
-                        <div className="flex justify-center mb-4">
+                        <div className="flex justify-center mb-3">
                             <div className="inline-flex items-center gap-1.5 bg-slate-200/70 p-1 rounded-xl max-w-full overflow-x-auto no-scrollbar">
                                 {plans.map(plan => {
                                     const isFocused = activeComparePlanId === plan.id || selectedPlanId === plan.id;
-                                    const price = getPlanPrice(plan);
                                     return (
                                         <button
                                             key={plan.id}
@@ -279,11 +278,6 @@ export const UpgradePlanPage: React.FC = () => {
                                             }`}
                                         >
                                             <span>{plan.name}</span>
-                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${
-                                                isFocused ? 'bg-blue-50 text-blue-700' : 'bg-gray-200/80 text-gray-600'
-                                            }`}>
-                                                {price === 0 ? 'مجانية' : `${price.toLocaleString()} د.ع`}
-                                            </span>
                                         </button>
                                     );
                                 })}
@@ -318,6 +312,7 @@ export const UpgradePlanPage: React.FC = () => {
                                 >
                                     <Card
                                         onClick={() => {
+                                            scrollToPlanCard(plan.id);
                                             setActiveComparePlanId(plan.id);
                                             if (!isCurrent) setSelectedPlanId(plan.id);
                                         }}
@@ -420,6 +415,7 @@ export const UpgradePlanPage: React.FC = () => {
                                                     onClick={() => {
                                                         setSelectedPlanId(plan.id);
                                                         setActiveComparePlanId(plan.id);
+                                                        scrollToPlanCard(plan.id);
                                                     }}
                                                 >
                                                     ترقية لهذه الباقة
@@ -822,70 +818,71 @@ export const UpgradePlanPage: React.FC = () => {
                 </div>
 
                 {/* 1. Order Summary & Discount Code Card (Always at the TOP on Mobile & Desktop) */}
-                <Card className="p-4 sm:p-6 bg-white border border-blue-100 shadow-xs">
-                    <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-3.5">
-                        <h3 className="font-bold text-gray-900 text-sm sm:text-base flex items-center gap-2">
+                <Card className="p-3.5 sm:p-4 bg-white border border-blue-100 shadow-xs space-y-3">
+                    <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
+                        <h3 className="font-bold text-gray-900 text-xs sm:text-sm flex items-center gap-1.5">
                             <Sparkles className="w-4 h-4 text-blue-600" />
                             <span>ملخص الطلب</span>
                         </h3>
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-100">
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-100">
                             {billingPeriod === 'yearly' ? 'اشتراك سنوي' : billingPeriod === 'semi_annual' ? 'اشتراك 6 أشهر' : 'اشتراك شهري'}
                         </span>
                     </div>
 
-                    {/* Plan Name Opposite to Price */}
-                    <div className="space-y-2.5 mb-4">
-                        <div className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    {/* Plan Summary Row */}
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between bg-slate-50 p-2.5 sm:p-3 rounded-xl border border-slate-100">
                             <div>
-                                <span className="text-xs text-gray-500 block">الباقة المختارة</span>
-                                <span className="font-bold text-gray-900 text-sm sm:text-base">{selectedPlan?.name || 'غير محدد'}</span>
+                                <span className="text-[11px] text-gray-500 block">الباقة المختارة</span>
+                                <span className="font-bold text-gray-900 text-xs sm:text-sm">{selectedPlan?.name || 'غير محدد'}</span>
                             </div>
                             <div className="text-left">
-                                <span className="text-xs text-gray-500 block">سعر الباقة</span>
-                                <span className="font-extrabold text-gray-900 text-base sm:text-lg">
-                                    {selectedPlanPrice.toLocaleString()} <span className="text-xs font-normal text-gray-500">د.ع</span>
+                                <span className="text-[11px] text-gray-500 block">
+                                    {discount > 0 ? 'سعر الباقة الأساسي' : 'المبلغ الصافي للدفع'}
+                                </span>
+                                <span className={`font-extrabold text-sm sm:text-base ${discount > 0 ? 'text-gray-700' : 'text-blue-600'}`}>
+                                    {selectedPlanPrice.toLocaleString()} <span className="text-[11px] font-normal text-gray-500">د.ع</span>
                                 </span>
                             </div>
                         </div>
 
                         {discount > 0 && (
-                            <div className="flex items-center justify-between text-xs sm:text-sm text-emerald-700 bg-emerald-50/80 px-3 py-2 rounded-xl border border-emerald-200 font-bold">
-                                <span className="flex items-center gap-1.5">
-                                    <Ticket className="w-4 h-4 text-emerald-600" />
-                                    <span>قيمة الخصم ({appliedCouponCode})</span>
-                                </span>
-                                <div className="flex items-center gap-2">
-                                    <span dir="ltr">- {discount.toLocaleString()} د.ع</span>
-                                    <button
-                                        type="button"
-                                        onClick={handleRemoveCoupon}
-                                        className="text-red-500 hover:text-red-700 p-0.5 rounded-full hover:bg-red-50 transition-colors"
-                                        title="إزالة الكوبون"
-                                    >
-                                        <X className="w-3.5 h-3.5" />
-                                    </button>
+                            <>
+                                <div className="flex items-center justify-between text-xs text-emerald-700 bg-emerald-50/80 px-2.5 py-1.5 rounded-xl border border-emerald-200 font-bold">
+                                    <span className="flex items-center gap-1">
+                                        <Ticket className="w-3.5 h-3.5 text-emerald-600" />
+                                        <span>قيمة الخصم ({appliedCouponCode})</span>
+                                    </span>
+                                    <div className="flex items-center gap-1.5">
+                                        <span dir="ltr">- {discount.toLocaleString()} د.ع</span>
+                                        <button
+                                            type="button"
+                                            onClick={handleRemoveCoupon}
+                                            className="text-red-500 hover:text-red-700 p-0.5 rounded-full hover:bg-red-50 transition-colors"
+                                            title="إزالة الكوبون"
+                                        >
+                                            <X className="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                        )}
 
-                        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                            <span className="font-bold text-gray-900 text-sm sm:text-base">المبلغ الصافي للدفع</span>
-                            <span className={`font-extrabold text-lg sm:text-xl ${isFullDiscount ? 'text-emerald-600' : 'text-blue-600'}`}>
-                                {isFullDiscount ? '0 د.ع (مجاني 100%)' : `${finalPrice.toLocaleString()} د.ع`}
-                            </span>
-                        </div>
+                                <div className="flex items-center justify-between pt-1.5 border-t border-gray-100">
+                                    <span className="font-bold text-gray-900 text-xs sm:text-sm">المبلغ الصافي للدفع</span>
+                                    <span className={`font-extrabold text-base sm:text-lg ${isFullDiscount ? 'text-emerald-600' : 'text-blue-600'}`}>
+                                        {isFullDiscount ? '0 د.ع (مجاني 100%)' : `${finalPrice.toLocaleString()} د.ع`}
+                                    </span>
+                                </div>
+                            </>
+                        )}
                     </div>
 
-                    {/* Discount Coupon Input (Before choosing payment method) */}
-                    <div className="pt-3 border-t border-gray-100">
-                        <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                            هل لديك كود خصم؟ (أدخله قبل اختيار طريقة الدفع)
-                        </label>
+                    {/* Discount Coupon Input */}
+                    <div className="pt-2 border-t border-gray-100">
                         <div className="flex gap-2">
                             <input
                                 type="text"
-                                placeholder="أدخل كود الخصم هنا..."
-                                className="input-field text-sm h-10 flex-1 font-mono uppercase"
+                                placeholder="كود الخصم (إن وجد)..."
+                                className="input-field text-xs sm:text-sm h-9 flex-1 font-mono uppercase"
                                 value={couponCode}
                                 onChange={(e) => setCouponCode(e.target.value)}
                             />
@@ -893,7 +890,7 @@ export const UpgradePlanPage: React.FC = () => {
                                 variant="outline"
                                 size="sm"
                                 onClick={handleApplyCoupon}
-                                className="h-10 px-4 font-bold border-blue-200 text-blue-700 hover:bg-blue-50 shrink-0"
+                                className="h-9 px-3.5 text-xs font-bold border-blue-200 text-blue-700 hover:bg-blue-50 shrink-0"
                             >
                                 تطبيق الخصم
                             </Button>

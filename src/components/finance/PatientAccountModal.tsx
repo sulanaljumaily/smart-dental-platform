@@ -30,8 +30,13 @@ import {
   printIncomeReceipt,
   printExpenseVoucher,
   printTreatmentPlanReport,
-  printPatientFullStatement
+  printPatientFullStatement,
+  cacheClinicLogoAsBase64,
+  resolveOfflineClinic
 } from '../../lib/printReceipt';
+import { getCachedClinicsForUser } from '../../hooks/useClinics';
+import { getCachedPatientById } from '../../hooks/usePatients';
+import { getInstantCache, db } from '../../lib/offline/db';
 
 interface PatientAccountModalProps {
   isOpen: boolean;
@@ -61,7 +66,7 @@ export const PatientAccountModal: React.FC<PatientAccountModalProps> = ({
   const [activeSubTab, setActiveSubTab] = useState<'overview' | 'treatments' | 'expenses'>('overview');
   const [loading, setLoading] = useState(false);
   const [patient, setPatient] = useState<any>(null);
-  const [clinicInfo, setClinicInfo] = useState<any>(null);
+  const [clinicInfo, setClinicInfo] = useState<any>(() => resolveOfflineClinic(getCachedClinicsForUser().find(c => String(c.id) === String(clinicId)), clinicId));
   const [treatmentPlans, setTreatmentPlans] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [labOrders, setLabOrders] = useState<any[]>([]);
@@ -69,7 +74,66 @@ export const PatientAccountModal: React.FC<PatientAccountModalProps> = ({
   useEffect(() => {
     if (!isOpen || !patientId || !clinicId) return;
 
+    const loadOfflineFallback = async () => {
+      const cachedClinic = getCachedClinicsForUser().find(c => String(c.id) === String(clinicId));
+      setClinicInfo(resolveOfflineClinic(cachedClinic, clinicId));
+
+      // ملاحظة: المفاتيح هنا يجب أن تطابق المفاتيح التي تكتبها الـ hooks فعلياً:
+      // usePatient -> 'patient_detail_' | usePatientTreatments -> 'patient_plans_' | useFinance -> 'finance_<clinic>_<patient>_' و 'finance_manual_tx_<clinic>'
+      const cachedPatient: any =
+        getInstantCache<any>('patient_detail_' + patientId) ||
+        getCachedPatientById(String(patientId)) ||
+        await db.patients.get(String(patientId)).then((lp: any) => (lp ? { ...(lp.data || {}), ...lp } : null)).catch(() => null);
+      if (cachedPatient) {
+        setPatient({
+          ...cachedPatient,
+          full_name: cachedPatient.full_name || cachedPatient.name
+        });
+      }
+
+      const cachedPlans = getInstantCache<any[]>('patient_plans_' + patientId);
+      if (Array.isArray(cachedPlans) && cachedPlans.length > 0) {
+        setTreatmentPlans(cachedPlans.map((p: any) => ({
+          ...p,
+          estimated_cost: p.estimated_cost ?? p.cost ?? 0,
+          paid: p.paid ?? 0,
+          treatment_description: p.treatment_description || p.notes || p.type,
+          treatment_name: p.treatment_name || p.type,
+          session_count: p.session_count || p.totalSessions || 1,
+          tooth_number: p.tooth_number ?? p.toothNumber,
+          tooth_numbers: p.tooth_numbers ?? p.toothNumbers,
+          created_at: p.created_at || p.startDate
+        })));
+      }
+
+      const patientFinance = getInstantCache<{ transactions: any[] }>(`finance_${clinicId}_${patientId}_`);
+      const clinicFinance = getInstantCache<{ transactions: any[] }>(`finance_${clinicId}__`);
+      const clinicManual = getInstantCache<any[]>(`finance_manual_tx_${clinicId}`);
+      const sourceTx: any[] =
+        (patientFinance?.transactions && patientFinance.transactions.length > 0 && patientFinance.transactions) ||
+        (clinicFinance?.transactions && clinicFinance.transactions.length > 0 && clinicFinance.transactions) ||
+        clinicManual || [];
+      const filteredTx = sourceTx
+        .filter((t: any) => String(t.patientId ?? t.patient_id) === String(patientId))
+        .map((t: any) => ({
+          ...t,
+          patient_id: t.patient_id ?? t.patientId,
+          transaction_date: t.transaction_date || t.date,
+          doctor_name: t.doctor_name || t.doctorName,
+          recorded_by_name: t.recorded_by_name || t.recorderName
+        }));
+      if (filteredTx.length > 0) {
+        setTransactions(filteredTx);
+      }
+    };
+
     const fetchPatientFinancialData = async () => {
+      await loadOfflineFallback();
+      if (!navigator.onLine) {
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       try {
         // 0. Fetch Clinic Info for Print Headers
@@ -78,7 +142,12 @@ export const PatientAccountModal: React.FC<PatientAccountModalProps> = ({
           .select('id, name, phone, address, image_url')
           .eq('id', clinicId)
           .maybeSingle();
-        if (cData) setClinicInfo(cData);
+        if (cData) {
+          if (cData.image_url) {
+            cacheClinicLogoAsBase64(cData.id, cData.image_url).catch(() => {});
+          }
+          setClinicInfo(resolveOfflineClinic(cData, clinicId));
+        }
 
         // 1. Fetch Patient Basic Info
         const { data: pData, error: pError } = await supabase
@@ -88,7 +157,7 @@ export const PatientAccountModal: React.FC<PatientAccountModalProps> = ({
           .maybeSingle();
 
         if (pError) throw pError;
-        setPatient(pData);
+        if (pData) setPatient(pData);
 
         // 2. Fetch Treatment Plans
         const { data: plansData, error: plansError } = await supabase
@@ -98,7 +167,7 @@ export const PatientAccountModal: React.FC<PatientAccountModalProps> = ({
           .order('created_at', { ascending: false });
 
         if (plansError) console.error('Error fetching plans:', plansError);
-        setTreatmentPlans(plansData || []);
+        if (plansData) setTreatmentPlans(plansData);
 
         // 3. Fetch Financial Transactions (Income + Expenses related to patient)
         const { data: txData, error: txError } = await supabase
@@ -112,7 +181,7 @@ export const PatientAccountModal: React.FC<PatientAccountModalProps> = ({
           .order('transaction_date', { ascending: false });
 
         if (txError) console.error('Error fetching transactions:', txError);
-        setTransactions(txData || []);
+        if (txData) setTransactions(txData);
 
         // 4. Fetch Lab Orders related to patient (Expenses)
         const { data: labData, error: labError } = await supabase
@@ -122,9 +191,12 @@ export const PatientAccountModal: React.FC<PatientAccountModalProps> = ({
           .order('created_at', { ascending: false });
 
         if (labError) console.error('Error fetching lab orders:', labError);
-        setLabOrders(labData || []);
+        if (labData) setLabOrders(labData);
 
       } catch (err: any) {
+        if (!navigator.onLine || err?.name === 'AbortError' || err?.message?.includes('Failed to fetch')) {
+          return;
+        }
         console.error('Error loading patient finance modal:', err);
         toast.error('حدث خطأ أثناء تحميل بيانات كشف الحساب');
       } finally {

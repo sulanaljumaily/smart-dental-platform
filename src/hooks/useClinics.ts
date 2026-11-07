@@ -3,23 +3,39 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Clinic } from '../types';
 import { setCache, getCache, getInstantCache } from '../lib/offline/db';
+import { cacheClinicLogoAsBase64, isRealClinicLogoUrl } from '../lib/printReceipt';
 
 const clinicsMemoryCache: Record<string, Clinic[]> = {};
 
 export function getCachedClinicsForUser(userId?: string): Clinic[] {
-    if (!userId) {
-        const keys = Object.keys(clinicsMemoryCache);
-        if (keys.length > 0) return clinicsMemoryCache[keys[0]];
-        return [];
+    if (userId) {
+        if (clinicsMemoryCache[userId]?.length) {
+            return clinicsMemoryCache[userId];
+        }
+        const instant = getInstantCache<Clinic[]>('user_clinics_' + userId);
+        if (instant && instant.length > 0) {
+            clinicsMemoryCache[userId] = instant;
+            return instant;
+        }
     }
-    if (clinicsMemoryCache[userId]?.length) {
-        return clinicsMemoryCache[userId];
+    const keys = Object.keys(clinicsMemoryCache);
+    if (keys.length > 0 && clinicsMemoryCache[keys[0]]?.length) {
+        return clinicsMemoryCache[keys[0]];
     }
-    const instant = getInstantCache<Clinic[]>('user_clinics_' + userId);
-    if (instant && instant.length > 0) {
-        clinicsMemoryCache[userId] = instant;
-        return instant;
-    }
+    try {
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('dental_instant_cache_v1_user_clinics_')) {
+                const raw = localStorage.getItem(k);
+                if (!raw) continue;
+                const parsed = JSON.parse(raw);
+                const list = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.value) ? parsed.value : []);
+                if (list.length > 0) {
+                    return list;
+                }
+            }
+        }
+    } catch {}
     return [];
 }
 
@@ -103,28 +119,36 @@ export const useClinics = () => {
             );
 
             // Map to Interface
-            const mappedClinics: Clinic[] = allClinics.map((c: any) => ({
-                id: c.id.toString(),
-                name: c.name,
-                phone: c.phone || '',
-                location: (c.latitude && c.longitude)
-                    ? { lat: c.latitude, lng: c.longitude }
-                    : { lat: 33.3152, lng: 44.3661 },
-                rating: 4.8,
-                specialties: c.specialties || ['طب أسنان عام'],
-                services: c.services || [],
-                workingHours: (typeof c.working_hours === 'string' ? c.working_hours : '09:00 - 21:00'),
-                image: c.image_url || c.image || 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=800&auto=format&fit=crop&q=60',
-                coverImage: c.cover_url || 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80',
-                description: c.description,
-                email: c.email,
-                owner_id: c.owner_id,
-                settings: c.settings || {},
-                isFeatured: c.is_featured || false,
-                isDigitalBookingEnabled: c.is_digital_booking || false,
-                governorate: c.governorate || '',
-                address: c.address || '',
-            }));
+            const mappedClinics: Clinic[] = allClinics.map((c: any) => {
+                const rawLogo = c.image_url || c.image || '';
+                const realLogo = isRealClinicLogoUrl(rawLogo) ? rawLogo : '';
+                if (realLogo) {
+                    cacheClinicLogoAsBase64(c.id, realLogo).catch(() => {});
+                }
+                return {
+                    id: c.id.toString(),
+                    name: c.name,
+                    phone: c.phone || '',
+                    location: (c.latitude && c.longitude)
+                        ? { lat: c.latitude, lng: c.longitude }
+                        : { lat: 33.3152, lng: 44.3661 },
+                    rating: 4.8,
+                    specialties: c.specialties || ['طب أسنان عام'],
+                    services: c.services || [],
+                    workingHours: (typeof c.working_hours === 'string' ? c.working_hours : '09:00 - 21:00'),
+                    image: c.image_url || c.image || 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=800&auto=format&fit=crop&q=60',
+                    logo: realLogo || undefined,
+                    coverImage: c.cover_url || 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80',
+                    description: c.description,
+                    email: c.email,
+                    owner_id: c.owner_id,
+                    settings: c.settings || {},
+                    isFeatured: c.is_featured || false,
+                    isDigitalBookingEnabled: c.is_digital_booking || false,
+                    governorate: c.governorate || '',
+                    address: c.address || '',
+                };
+            });
 
             if (mountedRef.current) {
                 clinicsMemoryCache[user.id] = mappedClinics;

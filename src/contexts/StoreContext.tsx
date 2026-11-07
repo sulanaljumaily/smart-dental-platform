@@ -90,6 +90,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     // 1. Fetch Store Data
     const fetchStoreData = async () => {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) { setState(prev => ({ ...prev, loading: false })); return; }
         try {
             setState(prev => ({ ...prev, loading: true }));
 
@@ -303,6 +304,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     });
 
     const fetchShippingConfig = async () => {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) { return; }
         try {
             const { data, error } = await supabase
                 .from('platform_settings')

@@ -80,6 +80,34 @@ export const useStaff = (clinicId?: string) => {
             staffMemoryCache.set(cacheKey, instant);
             return instant;
         }
+        // Fallback: if querying all staff ('clinic_staff_all'), aggregate per-clinic staff from localStorage
+        if (!clinicId && typeof localStorage !== 'undefined') {
+            try {
+                const aggregated: StaffMember[] = [];
+                const seenIds = new Set<string>();
+                for (let i = 0; i < localStorage.length; i++) {
+                    const k = localStorage.key(i);
+                    if (k && k.startsWith('dental_instant_cache_v1_clinic_staff_') && k !== 'dental_instant_cache_v1_clinic_staff_all') {
+                        const raw = localStorage.getItem(k);
+                        if (raw) {
+                            const parsed = JSON.parse(raw);
+                            if (Array.isArray(parsed)) {
+                                for (const s of parsed) {
+                                    if (s && s.id && !seenIds.has(String(s.id))) {
+                                        seenIds.add(String(s.id));
+                                        aggregated.push(s);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if (aggregated.length > 0) {
+                    staffMemoryCache.set(cacheKey, aggregated);
+                    return aggregated;
+                }
+            } catch {}
+        }
         return [];
     };
 
@@ -274,40 +302,57 @@ export const useStaff = (clinicId?: string) => {
     };
 
     const addStaff = async (member: Omit<StaffMember, 'id'>) => {
+        const dbPayload: Record<string, any> = {
+            clinic_id: clinicId || undefined,
+            auth_user_id: member.authUserId,
+            full_name: member.name,
+            role_title: member.role_title || member.position,
+            department: member.department,
+            salary: member.salary,
+            salary_type: member.salary_type || 'monthly',
+            phone: member.phone,
+            email: member.email,
+            join_date: member.hireDate || new Date().toISOString().split('T')[0],
+            is_active: member.status === 'active',
+            status: member.status || 'active',
+            username: member.username,
+            password: member.password,
+            address: member.address,
+            notes: member.notes,
+            work_schedule: member.workSchedule,
+            attendance_stats: member.attendance,
+            performance_stats: member.performance,
+            skills: member.skills,
+            languages: member.languages,
+            qualifications: member.qualifications,
+            certifications: member.certifications,
+            permissions: member.permissions,
+            user_id: member.userId
+        };
+
         if (!navigator.onLine) {
-            toast.error('إضافة طاقم جديد أو إنشاء حساب لطاقم يتطلب اتصالاً بالإنترنت');
-            return;
+            const tempId = String(Date.now());
+            const localMember: StaffMember = {
+                ...member,
+                id: tempId,
+                clinicId: clinicId || member.clinicId || '',
+                hireDate: member.hireDate || new Date().toISOString().split('T')[0],
+                status: member.status || 'active',
+            };
+            const updatedList = [localMember, ...staff];
+            saveStaffToCache(updatedList);
+            try {
+                await addToSyncQueue('INSERT', 'staff', tempId, dbPayload);
+            } catch (e) {
+                console.warn('Failed to queue offline staff insert:', e);
+            }
+            toast.success('تم حفظ الموظف محلياً وسيتم مزامنته عند عودة الإنترنت');
+            return localMember;
         }
         try {
             const { data, error } = await supabase
                 .from('staff')
-                .insert({
-                    clinic_id: clinicId || undefined,
-                    auth_user_id: member.authUserId,
-                    full_name: member.name,
-                    role_title: member.role_title || member.position,
-                    department: member.department,
-                    salary: member.salary,
-                    salary_type: member.salary_type || 'monthly',
-                    phone: member.phone,
-                    email: member.email,
-                    join_date: member.hireDate,
-                    is_active: member.status === 'active',
-                    status: member.status,
-                    username: member.username,
-                    password: member.password,
-                    address: member.address,
-                    notes: member.notes,
-                    work_schedule: member.workSchedule,
-                    attendance_stats: member.attendance,
-                    performance_stats: member.performance,
-                    skills: member.skills,
-                    languages: member.languages,
-                    qualifications: member.qualifications,
-                    certifications: member.certifications,
-                    permissions: member.permissions,
-                    user_id: member.userId
-                })
+                .insert(dbPayload)
                 .select()
                 .single();
 

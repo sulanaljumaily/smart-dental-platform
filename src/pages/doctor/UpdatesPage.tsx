@@ -1,3 +1,4 @@
+import { getInstantCache, setCache } from '../../lib/offline/db';
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { RefreshCw, Calendar, Shield, Zap, Star, ChevronRight } from 'lucide-react';
@@ -14,7 +15,7 @@ interface Update {
 }
 
 export const UpdatesPage: React.FC = () => {
-    const [updates, setUpdates] = useState<Update[]>([]);
+    const [updates, setUpdates] = useState<Update[]>(() => getInstantCache<Update[]>('system_updates_list') || []);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -22,6 +23,7 @@ export const UpdatesPage: React.FC = () => {
     }, []);
 
     const fetchUpdates = async () => {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) { setLoading(false); return; }
         try {
             const { data, error } = await supabase
                 .from('system_updates')
@@ -31,6 +33,7 @@ export const UpdatesPage: React.FC = () => {
 
             if (error) throw error;
             setUpdates(data || []);
+            setCache('system_updates_list', data || [], 86400 * 30).catch(() => {});
         } catch (error) {
             console.error('Error fetching updates:', error);
         } finally {

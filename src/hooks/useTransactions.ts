@@ -14,10 +14,61 @@ export interface Transaction {
     patientId?: string;
 }
 
+/**
+ * تجميع المعاملات المخزنة محلياً (للعمل بدون إنترنت) من كاش useFinance وكاش هذا الـ hook.
+ * - يُفلتر حسب العيادة عند تمريرها حتى لا تختلط معاملات العيادات الأخرى.
+ * - يُزيل التكرار حسب المعرف.
+ */
+function aggregateCachedTransactions(clinicId?: string): Transaction[] {
+    if (typeof localStorage === 'undefined') return [];
+    const result: Transaction[] = [];
+    const seen = new Set<string>();
+    const PREFIX = 'dental_instant_cache_v1_';
+    try {
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (!k || !k.startsWith(PREFIX)) continue;
+            const shortKey = k.slice(PREFIX.length);
+            const isFinance = shortKey.startsWith('finance_');
+            const isOwnList = shortKey.startsWith('transactions_list_');
+            if (!isFinance && !isOwnList) continue;
+            const raw = localStorage.getItem(k);
+            if (!raw) continue;
+            const parsed = JSON.parse(raw);
+            const list: any[] = Array.isArray(parsed)
+                ? parsed
+                : (Array.isArray(parsed?.transactions) ? parsed.transactions : []);
+            for (const item of list) {
+                if (!item || item.id === undefined || item.id === null) continue;
+                const tid = String(item.id);
+                if (seen.has(tid)) continue;
+                const txClinic = String(item.clinicId ?? item.clinic_id ?? '');
+                if (clinicId && txClinic !== String(clinicId)) continue;
+                seen.add(tid);
+                result.push({
+                    id: tid,
+                    clinicId: txClinic,
+                    amount: parseFloat(item.amount) || 0,
+                    type: item.type === 'expense' ? 'expense' : 'income',
+                    category: item.category || 'عام',
+                    description: item.description || '',
+                    date: item.date || item.transaction_date || item.created_at || '',
+                    status: item.status || 'completed',
+                    patientId: item.patientId ?? item.patient_id
+                });
+            }
+        }
+    } catch {}
+    return result;
+}
+
 export const useTransactions = (clinicId?: string) => {
     const cacheKey = `transactions_list_${clinicId || 'all'}`;
-    const initial = getInstantCache<Transaction[]>(cacheKey) || [];
-    const [transactions, setTransactions] = useState<Transaction[]>(initial);
+    const [transactions, setTransactions] = useState<Transaction[]>(() => {
+        const cached = getInstantCache<Transaction[]>(cacheKey);
+        if (cached && cached.length > 0) return cached;
+        return aggregateCachedTransactions(clinicId);
+    });
     const [loading, setLoading] = useState(false);
     const mountedRef = useRef(true);
 

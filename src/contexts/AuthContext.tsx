@@ -10,10 +10,35 @@ const OFFLINE_AUTH_USER_KEY = 'dental_offline_auth_user_v1';
 function getInstantCachedUser(): User | null {
   try {
     const raw = localStorage.getItem(OFFLINE_AUTH_USER_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (parsed && parsed.id && parsed.email) {
-      return parsed as User;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.id && parsed.email) {
+        return parsed as User;
+      }
+    }
+    // sb-*-auth-token fallback
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('sb-') && k.endsWith('-auth-token')) {
+        const rawSb = localStorage.getItem(k);
+        if (rawSb) {
+          const parsed = JSON.parse(rawSb);
+          if (parsed?.user?.id && parsed?.user?.email) {
+            const u = parsed.user;
+            const meta = u.user_metadata || {};
+            const role = (meta.role || u.role || 'doctor') as UserRole;
+            const fallbackUser: User = {
+              id: u.id,
+              email: u.email,
+              name: meta.full_name || meta.name || u.email.split('@')[0],
+              role,
+              phone: meta.phone || u.phone || '',
+              active: true,
+            };
+            return fallbackUser;
+          }
+        }
+      }
     }
   } catch {}
   return null;

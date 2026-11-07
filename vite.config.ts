@@ -42,6 +42,9 @@ export default defineConfig(({ mode }) => {
           ],
         },
         workbox: {
+          skipWaiting: true,
+          clientsClaim: true,
+          cleanupOutdatedCaches: true,
           // Don't precache JS chunks (they're large and cause Vercel build errors)
           // They will be cached at runtime via runtimeCaching instead
           globPatterns: ['**/*.{css,html,png,jpg,jpeg,svg,gif,webp,ico,woff,woff2}'],
@@ -50,10 +53,11 @@ export default defineConfig(({ mode }) => {
             // Cache JS files at runtime (avoids 2MB precache limit)
             {
               urlPattern: /\.(?:js|mjs)$/i,
-              handler: 'StaleWhileRevalidate',
+              handler: 'NetworkFirst',
               options: {
                 cacheName: 'js-cache',
-                expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 7 },
+                networkTimeoutSeconds: 2,
+                expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 30 },
               },
             },
             // Cache Supabase API responses
@@ -62,8 +66,8 @@ export default defineConfig(({ mode }) => {
               handler: 'NetworkFirst',
               options: {
                 cacheName: 'supabase-api-cache',
-                networkTimeoutSeconds: 10,
-                expiration: { maxEntries: 50, maxAgeSeconds: 300 },
+                networkTimeoutSeconds: 2,
+                expiration: { maxEntries: 150, maxAgeSeconds: 60 * 60 * 24 * 30 },
               },
             },
             // Cache images

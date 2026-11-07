@@ -3,6 +3,189 @@ import QRCode from 'qrcode';
 import { formatCategoryName } from './utils';
 import { getPublicOrigin, isMobileApp } from './platform';
 
+const UNSPLASH_PLACEHOLDER_FRAGMENT = 'images.unsplash.com';
+
+export const isRealClinicLogoUrl = (url?: string | null): boolean => {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  if (trimmed.includes(UNSPLASH_PLACEHOLDER_FRAGMENT)) return false;
+  return true;
+};
+
+/**
+ * Downloads and caches the clinic logo locally as a Base64 Data URL in localStorage
+ * so financial receipts can print the clinic logo even when completely offline.
+ */
+export const cacheClinicLogoAsBase64 = async (clinicId?: string | number | null, logoUrl?: string | null): Promise<string | null> => {
+  if (!clinicId || !isRealClinicLogoUrl(logoUrl)) return null;
+  const rawUrl = logoUrl!.trim();
+  const storageKey = `dental_clinic_logo_b64_${clinicId}`;
+
+  // If already a data URL, store directly
+  if (rawUrl.startsWith('data:image/')) {
+    try {
+      localStorage.setItem(storageKey, rawUrl);
+      localStorage.setItem('dental_clinic_logo_b64_last', rawUrl);
+    } catch {}
+    return rawUrl;
+  }
+
+  // If offline, return existing cached Base64 if any
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    try {
+      return localStorage.getItem(storageKey) || localStorage.getItem('dental_clinic_logo_b64_last');
+    } catch {
+      return null;
+    }
+  }
+
+  try {
+    // Check if we already cached this exact source URL
+    const cachedUrlKey = `dental_clinic_logo_src_${clinicId}`;
+    const existingB64 = localStorage.getItem(storageKey);
+    if (existingB64 && existingB64.startsWith('data:image/') && localStorage.getItem(cachedUrlKey) === rawUrl) {
+      return existingB64;
+    }
+
+    const response = await fetch(rawUrl, { mode: 'cors', credentials: 'omit' });
+    if (!response.ok) return existingB64 || null;
+    const blob = await response.blob();
+
+    // Compress/resize via canvas if possible to keep localStorage footprint small (<20KB)
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const baseResult = typeof reader.result === 'string' ? reader.result : '';
+        if (!baseResult) {
+          reject(new Error('Empty reader result'));
+          return;
+        }
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const maxDim = 220;
+            let w = img.width || 180;
+            let h = img.height || 180;
+            if (w > maxDim || h > maxDim) {
+              if (w > h) {
+                h = Math.round((h * maxDim) / w);
+                w = maxDim;
+              } else {
+                w = Math.round((w * maxDim) / h);
+                h = maxDim;
+              }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, w, h);
+              resolve(canvas.toDataURL('image/png'));
+              return;
+            }
+          } catch {}
+          resolve(baseResult);
+        };
+        img.onerror = () => resolve(baseResult);
+        img.src = baseResult;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+
+    if (dataUrl && dataUrl.startsWith('data:image/')) {
+      try {
+        localStorage.setItem(storageKey, dataUrl);
+        localStorage.setItem(cachedUrlKey, rawUrl);
+        localStorage.setItem('dental_clinic_logo_b64_last', dataUrl);
+      } catch {}
+      return dataUrl;
+    }
+  } catch {
+    try {
+      return localStorage.getItem(storageKey) || null;
+    } catch {}
+  }
+  return null;
+};
+
+/**
+ * Resolves clinic profile data (name, phone, address, logo) from local cache if missing in offline mode.
+ */
+export const resolveOfflineClinic = (clinic?: any, fallbackClinicId?: string | number | null): any => {
+  const targetId = clinic?.id || fallbackClinicId;
+  let cachedClinic: any = null;
+
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      if (key.startsWith('dental_instant_cache_v1_user_clinics_')) {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        const parsed = JSON.parse(raw);
+        const list = Array.isArray(parsed?.value) ? parsed.value : [];
+        if (list.length > 0) {
+          const found = targetId
+            ? list.find((c: any) => String(c.id) === String(targetId))
+            : list[0];
+          if (found) {
+            cachedClinic = found;
+            break;
+          }
+          if (!cachedClinic) cachedClinic = list[0];
+        }
+      } else if (!cachedClinic && key.startsWith('dental_instant_cache_v1_current_clinic_')) {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        const parsed = JSON.parse(raw);
+        if (parsed?.value && (!targetId || String(parsed.value.id) === String(targetId))) {
+          cachedClinic = parsed.value;
+        }
+      }
+    }
+  } catch {}
+
+  const merged = {
+    ...(cachedClinic || {}),
+    ...(clinic || {}),
+  };
+
+  const resolvedId = merged.id || targetId;
+  const resolvedName = merged.name || cachedClinic?.name || '';
+  const resolvedPhone = merged.phone || cachedClinic?.phone || '';
+  const resolvedAddress = merged.address || cachedClinic?.address || '';
+
+  // Prefer locally cached Base64 logo so offline printing always renders the logo immediately
+  let b64Logo: string | null = null;
+  try {
+    if (resolvedId) {
+      b64Logo = localStorage.getItem(`dental_clinic_logo_b64_${resolvedId}`);
+    }
+    if (!b64Logo) {
+      b64Logo = localStorage.getItem('dental_clinic_logo_b64_last');
+    }
+  } catch {}
+
+  const candidateUrl = merged.logo_url || merged.image_url || merged.logo || merged.image || cachedClinic?.logo_url || cachedClinic?.image_url || cachedClinic?.image || '';
+  const cleanCandidateUrl = isRealClinicLogoUrl(candidateUrl) ? candidateUrl : '';
+
+  if (resolvedId && cleanCandidateUrl && !cleanCandidateUrl.startsWith('data:image/') && typeof navigator !== 'undefined' && navigator.onLine) {
+    cacheClinicLogoAsBase64(resolvedId, cleanCandidateUrl).catch(() => {});
+  }
+
+  return {
+    ...merged,
+    id: resolvedId,
+    name: resolvedName,
+    phone: resolvedPhone,
+    address: resolvedAddress,
+    logo_url: b64Logo || cleanCandidateUrl || ''
+  };
+};
+
 // Helper to generate standalone QR SVG string synchronously without react-dom/server
 const generateQrSvgString = (url: string, size = 84): string => {
   try {
@@ -61,7 +244,7 @@ const generateBarcodeSvg = (code: string) => {
 };
 
 const getThermalPrintStyles = () => `
-  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Tajawal:wght@500;700;800;900&display=swap');
+  ${typeof navigator !== 'undefined' && navigator.onLine ? "@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Tajawal:wght@500;700;800;900&display=swap');" : ''}
   
   @page {
     size: 80mm auto;
@@ -75,7 +258,7 @@ const getThermalPrintStyles = () => `
   }
   
   body {
-    font-family: 'Cairo', 'Tajawal', sans-serif !important;
+    font-family: 'Cairo', 'Tajawal', 'Segoe UI', Tahoma, Arial, sans-serif !important;
     direction: rtl !important;
     text-align: right !important;
     background: #ffffff !important;
@@ -744,33 +927,26 @@ export const printRawHtmlDocument = (fullHtml: string, title = 'طباعة ال�
   printViaIframe(fullHtml, title);
 };
 
-// Luxury Clinic Header Component with actual clinic logo support
-const renderLuxuryClinicHeader = (clinic: any, clinicName: string, clinicPhone: string, clinicAddress: string) => {
-  const logoSrc = clinic?.logo_url || clinic?.image_url || clinic?.image || clinic?.logo;
+// Luxury Clinic Header Component with actual clinic logo support (attached only for financial transactions)
+const renderLuxuryClinicHeader = (clinic: any, clinicName: string, clinicPhone: string, clinicAddress: string, includeLogo = true) => {
+  const resolved = resolveOfflineClinic(clinic);
+  const logoSrc = includeLogo ? (resolved?.logo_url || '') : '';
   const logoHtml = logoSrc ? `
     <div class="logo-frame">
       <img src="${logoSrc}" class="clinic-logo-img" alt="شعار العيادة" />
     </div>
-  ` : `
-    <div class="logo-frame">
-      <div class="clinic-logo-svg">
-        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2C7.5 2 4 4.5 4 8c0 3 1.5 6 3 9.5 1 2.3 2 4.5 3 4.5s2-2.2 3-4.5c1.5-3.5 3-6.5 3-9.5 0-3.5-3.5-6-8-6z" />
-          <path d="M9 9.5c0-.8 1.3-1.5 3-1.5s3 .7 3 1.5-1 1.5-3 1.5-3-.7-3-1.5z" fill="#fff" />
-        </svg>
-      </div>
-    </div>
-  `;
+  ` : '';
 
   return `
     <div class="receipt-header">
       ${logoHtml}
-      <h1 class="clinic-title">${clinicName}</h1>
-      <p class="clinic-subtitle">مركز طب وجراحة الفم وتجميل الأسنان</p>
-      <div class="clinic-meta-row">
-        ${clinicAddress ? `<span>📍 ${clinicAddress}</span>` : ''}
-        ${clinicPhone ? `<span dir="ltr">📞 ${clinicPhone}</span>` : ''}
-      </div>
+      ${clinicName ? `<h1 class="clinic-title">${clinicName}</h1>` : ''}
+      ${(clinicAddress || clinicPhone) ? `
+        <div class="clinic-meta-row">
+          ${clinicAddress ? `<span>📍 ${clinicAddress}</span>` : ''}
+          ${clinicPhone ? `<span dir="ltr">📞 ${clinicPhone}</span>` : ''}
+        </div>
+      ` : ''}
     </div>
   `;
 };
@@ -804,9 +980,11 @@ export const printIncomeReceipt = ({
   doctorName,
   recorderName
 }: IncomeReceiptParams) => {
-  const clinicName = clinic?.name || 'العيادة التخصصية لطب الأسنان';
-  const clinicPhone = clinic?.phone || '';
-  const clinicAddress = clinic?.address || '';
+  const clinicId = clinic?.id || transaction?.clinicId || transaction?.clinic_id || '0';
+  const resolvedClinic = resolveOfflineClinic(clinic, clinicId);
+  const clinicName = resolvedClinic?.name || '';
+  const clinicPhone = resolvedClinic?.phone || '';
+  const clinicAddress = resolvedClinic?.address || '';
   const receiptNo = transaction?.id ? `REC-${transaction.id.slice(-6).toUpperCase()}` : 'REC-000000';
   
   const rawDate = transaction?.date || transaction?.transaction_date || transaction?.created_at;
@@ -816,7 +994,6 @@ export const printIncomeReceipt = ({
   const patientName = patient?.full_name || transaction?.patientName || transaction?.relatedPerson || 'مراجع العيادة';
   const patientPhone = patient?.phone || transaction?.patientPhone || '';
   const patientId = patient?.id || transaction?.patientId || transaction?.patient_id || '';
-  const clinicId = clinic?.id || transaction?.clinicId || transaction?.clinic_id || '0';
 
   const doctor = doctorName || transaction?.doctorName || transaction?.assigned_doctor || 'العيادة';
   const recorder = recorderName || transaction?.recorderName || transaction?.recorder_staff?.full_name || 'المحاسب';
@@ -832,7 +1009,7 @@ export const printIncomeReceipt = ({
   const html = `
     <div class="thermal-receipt">
       <!-- Clinic Header & Logo -->
-      ${renderLuxuryClinicHeader(clinic, clinicName, clinicPhone, clinicAddress)}
+      ${renderLuxuryClinicHeader(resolvedClinic, clinicName, clinicPhone, clinicAddress, true)}
 
       <div class="divider-double"></div>
 
@@ -1002,9 +1179,11 @@ export const printExpenseVoucher = ({
   clinic,
   recorderName
 }: ExpenseVoucherParams) => {
-  const clinicName = clinic?.name || 'العيادة التخصصية لطب الأسنان';
-  const clinicPhone = clinic?.phone || '';
-  const clinicAddress = clinic?.address || '';
+  const clinicId = clinic?.id || transaction?.clinicId || transaction?.clinic_id || '0';
+  const resolvedClinic = resolveOfflineClinic(clinic, clinicId);
+  const clinicName = resolvedClinic?.name || '';
+  const clinicPhone = resolvedClinic?.phone || '';
+  const clinicAddress = resolvedClinic?.address || '';
   const voucherNo = transaction?.id ? `EXP-${transaction.id.slice(-6).toUpperCase()}` : 'EXP-000000';
   
   const rawDate = transaction?.date || transaction?.transaction_date || transaction?.created_at;
@@ -1024,7 +1203,7 @@ export const printExpenseVoucher = ({
   const html = `
     <div class="thermal-receipt">
       <!-- Clinic Header & Logo -->
-      ${renderLuxuryClinicHeader(clinic, clinicName, clinicPhone, clinicAddress)}
+      ${renderLuxuryClinicHeader(resolvedClinic, clinicName, clinicPhone, clinicAddress, true)}
 
       <div class="divider-double"></div>
 
@@ -1116,13 +1295,14 @@ export const printTreatmentPlanReport = ({
   patient,
   clinic
 }: TreatmentPlanReportParams) => {
-  const clinicName = clinic?.name || 'العيادة التخصصية لطب الأسنان';
-  const clinicPhone = clinic?.phone || '';
-  const clinicAddress = clinic?.address || '';
+  const clinicId = clinic?.id || plan?.clinic_id || '0';
+  const resolvedClinic = resolveOfflineClinic(clinic, clinicId);
+  const clinicName = resolvedClinic?.name || '';
+  const clinicPhone = resolvedClinic?.phone || '';
+  const clinicAddress = resolvedClinic?.address || '';
   const patientName = patient?.full_name || plan?.patientName || 'المراجع';
   const patientPhone = patient?.phone || plan?.patientPhone || '';
   const patientId = patient?.id || plan?.patient_id || '';
-  const clinicId = clinic?.id || plan?.clinic_id || '0';
   const treatmentName = plan?.treatment_description || plan?.treatment_name || 'خطة علاجية';
   const tooth = plan?.tooth_numbers?.join(', ') || plan?.tooth_number || 'عام';
   const totalSessions = Math.max(1, plan?.session_count || 1);
@@ -1146,7 +1326,7 @@ export const printTreatmentPlanReport = ({
   const html = `
     <div class="thermal-receipt">
       <!-- Clinic Header & Logo -->
-      ${renderLuxuryClinicHeader(clinic, clinicName, clinicPhone, clinicAddress)}
+      ${renderLuxuryClinicHeader(resolvedClinic, clinicName, clinicPhone, clinicAddress, true)}
 
       <div class="divider-double"></div>
 
@@ -1269,13 +1449,14 @@ export const printPatientFullStatement = ({
   labOrders = [],
   clinic
 }: PatientStatementData) => {
-  const clinicName = clinic?.name || 'العيادة التخصصية لطب الأسنان';
-  const clinicPhone = clinic?.phone || '';
-  const clinicAddress = clinic?.address || '';
+  const clinicId = clinic?.id || patient?.clinic_id || '0';
+  const resolvedClinic = resolveOfflineClinic(clinic, clinicId);
+  const clinicName = resolvedClinic?.name || '';
+  const clinicPhone = resolvedClinic?.phone || '';
+  const clinicAddress = resolvedClinic?.address || '';
   const patientName = patient?.full_name || 'المراجع';
   const patientPhone = patient?.phone || '';
   const patientId = patient?.id || '';
-  const clinicId = clinic?.id || patient?.clinic_id || '0';
 
   const totalCost = plans.reduce((sum, p) => sum + (Number(p.estimated_cost) || 0), 0);
   const totalPaid = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
@@ -1287,7 +1468,7 @@ export const printPatientFullStatement = ({
   const html = `
     <div class="thermal-receipt">
       <!-- Clinic Header & Logo -->
-      ${renderLuxuryClinicHeader(clinic, clinicName, clinicPhone, clinicAddress)}
+      ${renderLuxuryClinicHeader(resolvedClinic, clinicName, clinicPhone, clinicAddress, true)}
 
       <div class="divider-double"></div>
 
@@ -1405,7 +1586,8 @@ export const printExecutiveReport = ({
   reportTypeLabel,
   selectedType = 'all'
 }: PrintExecutiveReportParams) => {
-  const clinicLogoUrl = clinic?.logo_url || clinic?.image_url || clinic?.image || clinic?.logo || '';
+  const resolvedClinic = resolveOfflineClinic(clinic, clinic?.id);
+  const clinicLogoUrl = resolvedClinic?.logo_url || '';
   const now = new Date();
   const dateStr = now.toLocaleDateString('ar-IQ', { year: 'numeric', month: 'long', day: 'numeric' });
   const timeStr = now.toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' });
@@ -1418,9 +1600,9 @@ export const printExecutiveReport = ({
     <html dir="rtl" lang="ar">
     <head>
       <meta charset="UTF-8">
-      <title>${reportTypeLabel} - ${clinic?.name || 'العيادة'}</title>
+      <title>${reportTypeLabel}${resolvedClinic?.name ? ` - ${resolvedClinic.name}` : ''}</title>
       <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap');
+        ${typeof navigator !== 'undefined' && navigator.onLine ? "@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap');" : ''}
         
         @page {
           size: A4 portrait;
@@ -1437,7 +1619,7 @@ export const printExecutiveReport = ({
         }
 
         body {
-          font-family: 'Cairo', sans-serif !important;
+          font-family: 'Cairo', 'Tajawal', 'Segoe UI', Tahoma, Arial, sans-serif !important;
           direction: rtl !important;
           text-align: right !important;
           background: #ffffff !important;
@@ -1811,12 +1993,12 @@ export const printExecutiveReport = ({
               ? `<img src="${clinicLogoUrl}" class="clinic-logo-img" />` 
               : ''
             }
-            ${clinic?.name ? `<div class="clinic-name-title">${clinic.name}</div>` : ''}
-            ${(clinic?.address || clinic?.phone) ? `
+            ${resolvedClinic?.name ? `<div class="clinic-name-title">${resolvedClinic.name}</div>` : ''}
+            ${(resolvedClinic?.address || resolvedClinic?.phone) ? `
               <div class="clinic-sub-info">
-                ${clinic?.phone ? `<span>📞 ${clinic.phone}</span>` : ''}
-                ${(clinic?.phone && clinic?.address) ? `<span> • </span>` : ''}
-                ${clinic?.address ? `<span>📍 ${clinic.address}</span>` : ''}
+                ${resolvedClinic?.phone ? `<span>📞 ${resolvedClinic.phone}</span>` : ''}
+                ${(resolvedClinic?.phone && resolvedClinic?.address) ? `<span> • </span>` : ''}
+                ${resolvedClinic?.address ? `<span>📍 ${resolvedClinic.address}</span>` : ''}
               </div>
             ` : ''}
           </div>
@@ -2200,18 +2382,19 @@ export const printPatientQRCard = ({
   patientName = 'المراجع',
   patientPhone = '',
   clinicId,
-  clinicName = 'عيادة طب الأسنان',
+  clinicName = '',
   clinic
 }: PrintPatientQRCardParams) => {
-  const effectiveClinicName = clinic?.name || clinicName;
-  const clinicPhone = clinic?.phone || '';
-  const clinicAddress = clinic?.address || '';
+  const resolvedClinic = resolveOfflineClinic(clinic, clinicId);
+  const effectiveClinicName = resolvedClinic?.name || clinicName;
+  const clinicPhone = resolvedClinic?.phone || '';
+  const clinicAddress = resolvedClinic?.address || '';
   const portalUrl = `${getPublicOrigin()}/patient-portal/${clinicId}/${patientId}`;
   const qrSvgString = generateQrSvgString(portalUrl, 148);
 
   const html = `
     <div class="thermal-receipt">
-      ${renderLuxuryClinicHeader(clinic, effectiveClinicName, clinicPhone, clinicAddress)}
+      ${renderLuxuryClinicHeader(resolvedClinic, effectiveClinicName, clinicPhone, clinicAddress, false)}
 
       <div class="divider-double"></div>
 

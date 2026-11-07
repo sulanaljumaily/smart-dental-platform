@@ -216,7 +216,13 @@ export const PlatformProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
     return {};
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => {
+    try {
+      return !localStorage.getItem(LOCAL_CACHE_KEY);
+    } catch {
+      return true;
+    }
+  });
 
   const applyAndCacheSettings = useCallback((val: PlatformSettings) => {
     setSettings(val);
@@ -228,6 +234,7 @@ export const PlatformProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   const fetchSettings = useCallback(async () => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) { setLoading(false); return; }
     try {
       const { data } = await supabase
         .from('admin_settings')

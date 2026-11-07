@@ -147,10 +147,28 @@ const INSTANT_CACHE_PREFIX = 'dental_instant_cache_v1_';
 /** حفظ فوري متزامن في localStorage للتحميل اللحظي (0ms) عند فتح الصفحات */
 export function setInstantCache(key: string, data: unknown) {
   if (typeof localStorage === 'undefined') return;
+  const fullKey = INSTANT_CACHE_PREFIX + key;
   try {
-    localStorage.setItem(INSTANT_CACHE_PREFIX + key, JSON.stringify(data));
+    const serialized = JSON.stringify(data);
+    localStorage.setItem(fullKey, serialized);
   } catch {
-    // Ignore quota errors
+    // في حال امتلاء localStorage، نحذف بعض عناصر الكاش غير الحرجة لتوفير مساحة
+    try {
+      const nonCriticalPrefixes = [
+        INSTANT_CACHE_PREFIX + 'recent_activities_',
+        INSTANT_CACHE_PREFIX + 'low_stock_',
+        INSTANT_CACHE_PREFIX + 'system_updates_',
+      ];
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && nonCriticalPrefixes.some((p) => k.startsWith(p))) {
+          localStorage.removeItem(k);
+        }
+      }
+      localStorage.setItem(fullKey, JSON.stringify(data));
+    } catch {
+      // Ignore quota errors if still full
+    }
   }
 }
 

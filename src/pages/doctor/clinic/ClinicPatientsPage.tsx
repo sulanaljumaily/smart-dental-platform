@@ -42,6 +42,21 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
   });
   const [createPortalAccount, setCreatePortalAccount] = useState(false);
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+  const [isOnline, setIsOnline] = useState<boolean>(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => {
+      setIsOnline(false);
+      setCreatePortalAccount(false);
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
   
   const [phoneCheckStatus, setPhoneCheckStatus] = useState<{
     checked: boolean;
@@ -932,14 +947,14 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
 
       {/* Add Patient Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95">
-            <div className="px-6 py-4 border-b flex justify-between items-center bg-blue-50">
-              <h3 className="font-bold text-lg text-blue-800">إضافة مريض جديد</h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[85dvh] sm:max-h-[88vh] flex flex-col overflow-hidden animate-in zoom-in-95 my-auto">
+            <div className="px-5 py-3.5 border-b flex justify-between items-center bg-blue-50 shrink-0">
+              <h3 className="font-bold text-base sm:text-lg text-blue-800">إضافة مريض جديد</h3>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none p-1">&times;</button>
             </div>
 
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4 overflow-y-auto flex-1 min-h-0 overscroll-contain">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">الاسم الكامل</label>
                 <input
@@ -960,7 +975,7 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
                   className="w-full border rounded-lg p-2.5"
                   placeholder="077..."
                 />
-                {createPortalAccount && (
+                {createPortalAccount && isOnline && (
                   <div className="mt-1.5 transition-all duration-300">
                     {phoneCheckStatus.checking ? (
                       <div className="flex items-center gap-1.5 text-xs text-blue-600">
@@ -1025,38 +1040,47 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
                   value={newPatient.notes}
                   onChange={e => setNewPatient({ ...newPatient, notes: e.target.value })}
                   className="w-full border rounded-lg p-2.5"
-                  rows={3}
+                  rows={2}
                 />
               </div>
 
               {/* SMS & Portal Account Checkbox */}
-              <div className="pt-4 border-t border-gray-100 col-span-2">
-                <label className="flex items-start gap-3 cursor-pointer group">
-                  <div className="relative flex items-center justify-center mt-1">
+              <div className="pt-3 border-t border-gray-100 md:col-span-2">
+                <label className={`flex items-start gap-3 ${isOnline ? 'cursor-pointer group' : 'cursor-not-allowed opacity-60'}`}>
+                  <div className="relative flex items-center justify-center mt-1 shrink-0">
                     <input
                       type="checkbox"
-                      checked={createPortalAccount}
-                      onChange={(e) => setCreatePortalAccount(e.target.checked)}
-                      className="w-5 h-5 border-2 border-gray-300 rounded text-blue-600 focus:ring-blue-500 transition-all cursor-pointer peer appearance-none checked:bg-blue-600 checked:border-blue-600"
+                      disabled={!isOnline}
+                      checked={isOnline && createPortalAccount}
+                      onChange={(e) => {
+                        if (!isOnline) return;
+                        setCreatePortalAccount(e.target.checked);
+                      }}
+                      className="w-5 h-5 border-2 border-gray-300 rounded text-blue-600 focus:ring-blue-500 transition-all cursor-pointer disabled:cursor-not-allowed peer appearance-none checked:bg-blue-600 checked:border-blue-600"
                     />
                     <CheckCircle className="w-3.5 h-3.5 text-white absolute opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-sm font-bold text-gray-900 group-hover:text-blue-700 transition-colors">
                       إنشاء حساب بوابة المراجع وإرسال بيانات الدخول تلقائياً (SMS و WhatsApp)
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
                       سيتم إنشاء حساب للمراجع على منصة سمارت دنتال وإرسال رسالة نصية وواتساب تحتوي على كلمة المرور عبر Twilio.
                     </p>
+                    {!isOnline && (
+                      <p className="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1 mt-1.5 inline-block">
+                        غير متاح في وضع عدم الاتصال بالإنترنت (يتطلب اتصالاً بالإنترنت)
+                      </p>
+                    )}
                   </div>
                 </label>
               </div>
             </div>
 
-            <div className="p-6 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-end gap-3">
+            <div className="px-5 py-3.5 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-end gap-3 shrink-0">
               <button
                 onClick={() => setShowModal(false)}
-                className="px-6 py-2.5 text-gray-700 font-medium hover:bg-gray-200 bg-gray-100 rounded-xl transition-colors"
+                className="px-5 py-2.5 text-gray-700 font-medium hover:bg-gray-200 bg-gray-100 rounded-xl transition-colors"
                 disabled={isCreatingAccount}
               >
                 إلغاء
@@ -1064,7 +1088,7 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
               <button
                 onClick={handleCreatePatient}
                 disabled={isCreatingAccount}
-                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl shadow-lg shadow-blue-200 transition-all active:scale-95 flex items-center gap-2"
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl shadow-lg shadow-blue-200 transition-all active:scale-95 flex items-center gap-2"
               >
                 {isCreatingAccount ? (
                   <>
@@ -1175,6 +1199,10 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
                   ) : !(selectedPatientForSettings.patient_user_id || selectedPatientForSettings.user_id) ? (
                     <button
                       onClick={async () => {
+                        if (!isOnline) {
+                          toast.error('تنشيط حساب البوابة يتطلب اتصالاً بالإنترنت');
+                          return;
+                        }
                         setIsActivatingPortalForSettings(true);
                         try {
                           const { data: edgeData, error: edgeError } = await supabase.functions.invoke('send-patient-credentials', {
@@ -1208,14 +1236,16 @@ export const ClinicPatientsPage: React.FC<ClinicPatientsPageProps> = ({ clinicId
                           setIsActivatingPortalForSettings(false);
                         }
                       }}
-                      className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-blue-100 flex items-center justify-center gap-1.5 transition-all"
-                      disabled={isActivatingPortalForSettings}
+                      className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold shadow-md shadow-blue-100 flex items-center justify-center gap-1.5 transition-all"
+                      disabled={isActivatingPortalForSettings || !isOnline}
                     >
                       {isActivatingPortalForSettings ? (
                         <>
                           <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                           <span>جاري إنشاء وتنشيط البوابة...</span>
                         </>
+                      ) : !isOnline ? (
+                        <span>تنشيط حساب البوابة غير متاح بدون إنترنت</span>
                       ) : (
                         <>
                           <User className="w-4 h-4" />

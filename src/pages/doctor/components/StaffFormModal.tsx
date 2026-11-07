@@ -256,6 +256,21 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
     const { user: currentUser } = useAuth();
     const [isOwnerAccount, setIsOwnerAccount] = useState(false);
     const [isLoggedInUserOwner, setIsLoggedInUserOwner] = useState(false);
+    const [isOnline, setIsOnline] = useState<boolean>(() => typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+    useEffect(() => {
+        const handleOnline = () => setIsOnline(true);
+        const handleOffline = () => {
+            setIsOnline(false);
+            setMode('create');
+        };
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
     
     const isSelfEditing = initialData && (currentUser && (initialData.authUserId === currentUser.id || initialData.userId === currentUser.id));
 
@@ -308,6 +323,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
 
             // Check if this is the clinic owner
             const checkOwner = async () => {
+                if (typeof navigator !== 'undefined' && !navigator.onLine) return;
                 if (clinicId && (initialData?.authUserId || initialData?.userId)) {
                     const { data: clinic } = await supabase
                         .from('clinics')
@@ -415,19 +431,36 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
             size={mode === 'invite' ? 'md' : 'lg'}
         >
             {!initialData && (
-                <div className="flex bg-gray-100 p-1 rounded-lg mb-6 mx-1">
-                    <button
+                <div className="space-y-2 mb-4 mx-1">
+                    <div className="flex bg-gray-100 p-1 rounded-lg">
+                        <button
+                        type="button"
                         onClick={() => setMode('create')}
                         className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${mode === 'create' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
                     >
                         إضافة مباشرة
                     </button>
                     <button
-                        onClick={() => setMode('invite')}
-                        className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${mode === 'invite' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                        type="button"
+                        disabled={!isOnline}
+                        onClick={() => {
+                            if (!isOnline) {
+                                toast.error('دعوة الموظفين عبر البريد تتطلب اتصالاً بالإنترنت');
+                                return;
+                            }
+                            setMode('invite');
+                        }}
+                        className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${!isOnline ? 'opacity-50 cursor-not-allowed text-gray-400' : mode === 'invite' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
                     >
-                        دعوة عبر البريد
+                        {isOnline ? 'دعوة عبر البريد' : 'دعوة عبر البريد (يتطلب إنترنت)'}
                     </button>
+                    </div>
+                    {!isOnline && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800 flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                            <span>أنت في وضع عدم الاتصال: يمكنك إضافة الموظف مباشرة وسيتم حفظه محلياً ومزامنته عند عودة الإنترنت.</span>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -447,7 +480,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
                     onClose={onClose}
                 />
             ) : (
-                <form onSubmit={handleSubmit} className="flex flex-col h-[500px]">
+                <form onSubmit={handleSubmit} className="flex flex-col max-h-[65dvh] sm:max-h-[68vh] min-h-[300px]">
                     {/* Tabs */}
                     <div className="flex border-b border-gray-200 mb-6 shrink-0">
                         <button

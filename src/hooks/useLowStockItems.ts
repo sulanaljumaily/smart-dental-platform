@@ -1,16 +1,19 @@
+import { getInstantCache, setCache } from '../lib/offline/db';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { InventoryItem } from './useInventory';
 import { useClinics } from './useClinics';
 
 export const useLowStockItems = () => {
-    const [items, setItems] = useState<InventoryItem[]>([]);
+    const stockCacheKey = 'low_stock_items_list';
+    const [items, setItems] = useState<InventoryItem[]>(() => getInstantCache<InventoryItem[]>(stockCacheKey) || []);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const { clinics } = useClinics();
     const mountedRef = useRef(true);
 
     const fetchLowStock = async () => {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) { setLoading(false); return; }
         try {
             let query = supabase
                 .from('inventory')
@@ -54,6 +57,7 @@ export const useLowStockItems = () => {
                 setItems([]);
             } else {
                 setItems(lowStock);
+            setCache(stockCacheKey, lowStock, 86400 * 7).catch(() => {});
             }
         } catch (err: any) {
             if (err?.name === 'AbortError' || err?.message?.includes('AbortError')) return;

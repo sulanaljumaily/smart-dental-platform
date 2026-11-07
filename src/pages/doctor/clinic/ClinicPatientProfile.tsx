@@ -217,7 +217,7 @@ export const ClinicPatientProfile = () => {
 
   // --- HOOKS & DATA ---
   const { user } = useAuth();
-  const { clinic: currentClinic } = useCurrentClinic();
+  const { clinic: currentClinic } = useCurrentClinic(clinicId);
 
   // Use param ID (preferred) or found clinic ID
   const effectiveClinicId = clinicId || currentClinic?.id || '';

@@ -56,6 +56,7 @@ import { useAssets, Asset } from '../../../hooks/useAssets';
 import { useStaff } from '../../../hooks/useStaff';
 import { useWarehousePurchases } from '../../../hooks/useWarehousePurchases';
 import { useCurrentClinic } from '../../../hooks/useCurrentClinic';
+import { getCachedClinicsForUser } from '../../../hooks/useClinics';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../contexts/AuthContext';
 import { Modal } from '../../../components/common/Modal';
@@ -357,34 +358,48 @@ export const ClinicFinancePage: React.FC<DoctorFinancePageProps> = ({ clinicId }
   };
 
   const [isOwner, setIsOwner] = useState(false);
-  const [clinicInfo, setClinicInfo] = useState<any>(null);
+  const [clinicInfo, setClinicInfo] = useState<any>(() => {
+    const cached = getCachedClinicsForUser(user?.id).find(c => String(c.id) === String(clinicId));
+    return cached || null;
+  });
 
   useEffect(() => {
     const checkOwnerAndClinic = async () => {
       if (!clinicId) return;
-      const { data } = await supabase
-        .from('clinics')
-        .select('*')
-        .eq('id', clinicId)
-        .maybeSingle();
-
-      if (data) {
-        setClinicInfo(data);
-        if (user?.id && data.owner_id === user.id) {
+      const cached = getCachedClinicsForUser(user?.id).find(c => String(c.id) === String(clinicId));
+      if (cached) {
+        setClinicInfo((prev: any) => prev || cached);
+        if (user?.id && cached.owner_id === user.id) {
           setIsOwner(true);
         }
       }
+      if (!navigator.onLine) return;
+      try {
+        const { data } = await supabase
+          .from('clinics')
+          .select('*')
+          .eq('id', clinicId)
+          .maybeSingle();
+
+        if (data) {
+          setClinicInfo(data);
+          if (user?.id && data.owner_id === user.id) {
+            setIsOwner(true);
+          }
+        }
+      } catch {}
     };
     checkOwnerAndClinic();
   }, [clinicId, user?.id]);
 
   // Data Contexts
-  const { clinic: currentClinic } = useCurrentClinic();
+  const { clinic: currentClinic } = useCurrentClinic(clinicId);
   const effectiveClinic = {
     ...currentClinic,
     ...clinicInfo,
-    logo_url: clinicInfo?.logo_url || clinicInfo?.image_url || clinicInfo?.image || clinicInfo?.logo || currentClinic?.logo_url || currentClinic?.image_url || currentClinic?.image || currentClinic?.logo,
-    name: clinicInfo?.name || currentClinic?.name || 'العيادة',
+    id: clinicId || clinicInfo?.id || currentClinic?.id,
+    logo_url: clinicInfo?.logo_url || clinicInfo?.image_url || clinicInfo?.logo || currentClinic?.logo_url || currentClinic?.image_url || currentClinic?.logo,
+    name: clinicInfo?.name || currentClinic?.name || '',
     phone: clinicInfo?.phone || currentClinic?.phone || '',
     address: clinicInfo?.address || currentClinic?.address || ''
   };
