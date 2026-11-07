@@ -71,35 +71,35 @@ const FirstAidCard: React.FC<FirstAidCardProps> = ({
   const currentStyle = severityStyles[severity];
 
   return (
-    <div className={`group relative bg-white rounded-3xl border ${isExpanded ? 'border-blue-200 ring-4 ring-blue-50' : 'border-gray-200'} transition-all duration-300 hover:shadow-xl overflow-hidden`}>
+    <div className={`group relative bg-white rounded-2xl border ${isExpanded ? 'border-blue-200 ring-2 ring-blue-50' : 'border-gray-200'} transition-all duration-300 hover:shadow-md overflow-hidden`}>
       <div
-        className="p-6 cursor-pointer"
+        className="p-3.5 cursor-pointer"
         onClick={onToggle}
       >
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${currentStyle.iconBg} ${currentStyle.iconColor} transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3`}>
-              {React.cloneElement(icon as React.ReactElement, { className: "w-8 h-8" })}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${currentStyle.iconBg} ${currentStyle.iconColor} transition-transform duration-300 group-hover:scale-105`}>
+              {React.cloneElement(icon as React.ReactElement, { className: "w-5 h-5" })}
             </div>
             <div>
-              <h3 className="text-xl font-bold text-gray-900 mb-1 group-hover:text-blue-600 transition-colors">{title}</h3>
-              <p className="text-gray-500 text-sm mb-3 font-medium">{description}</p>
+              <h3 className="text-sm font-bold text-gray-900 mb-0.5 group-hover:text-blue-600 transition-colors">{title}</h3>
+              <p className="text-gray-500 text-xs mb-1.5 font-medium">{description}</p>
 
               {/* Progress Status */}
               <div className="flex items-center gap-2">
-                <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${currentStyle.progress}`}
                     style={{ width: `${completionPercentage}%` }}
                   />
                 </div>
-                <span className="text-xs font-bold text-gray-500">{completionPercentage}% مكتمل</span>
+                <span className="text-[11px] font-bold text-gray-500">{completionPercentage}% مكتمل</span>
               </div>
             </div>
           </div>
 
-          <button className={`w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-colors ${isExpanded ? 'rotate-180 bg-gray-50' : ''}`}>
-            <ChevronDown className="w-5 h-5" />
+          <button className={`w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-colors ${isExpanded ? 'rotate-180 bg-gray-50' : ''}`}>
+            <ChevronDown className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -107,42 +107,42 @@ const FirstAidCard: React.FC<FirstAidCardProps> = ({
       {/* Expanded Content */}
       <div className={`grid transition-all duration-300 ${isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
         <div className="overflow-hidden">
-          <div className="px-6 pb-6 pt-0">
-            <div className="h-px w-full bg-gray-100 mb-6"></div>
+          <div className="px-3.5 pb-3.5 pt-0">
+            <div className="h-px w-full bg-gray-100 mb-3"></div>
 
-            <h4 className="flex items-center gap-2 text-sm font-bold text-gray-900 uppercase tracking-wider mb-4">
-              <CheckCircle className="w-4 h-4 text-green-500" />
+            <h4 className="flex items-center gap-1.5 text-xs font-bold text-gray-900 uppercase tracking-wider mb-2.5">
+              <CheckCircle className="w-3.5 h-3.5 text-green-500" />
               خطوات التعامل
             </h4>
 
-            <div className="space-y-3">
+            <div className="space-y-2">
               {steps.map((step, index) => (
                 <div
                   key={step.id}
                   onClick={() => handleStepToggle(step.id)}
-                  className={`flex items-start gap-4 p-4 rounded-xl border transition-all duration-200 cursor-pointer ${step.completed
+                  className={`flex items-start gap-3 p-2.5 rounded-lg border transition-all duration-200 cursor-pointer ${step.completed
                     ? 'bg-green-50 border-green-200'
                     : 'bg-white border-gray-100 hover:border-blue-200 hover:bg-blue-50/30'
                     }`}
                 >
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 border-2 transition-colors ${step.completed
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 border-2 transition-colors ${step.completed
                     ? 'bg-green-500 border-green-500 text-white'
                     : 'bg-transparent border-gray-300 text-gray-400'
                     }`}>
-                    {step.completed ? <CheckCircle className="w-3.5 h-3.5" /> : <span className="text-[10px] font-bold">{index + 1}</span>}
+                    {step.completed ? <CheckCircle className="w-3 h-3" /> : <span className="text-[10px] font-bold">{index + 1}</span>}
                   </div>
-                  <p className={`text-sm font-medium transition-colors ${step.completed ? 'text-green-800 line-through opacity-75' : 'text-gray-700'}`}>
+                  <p className={`text-xs font-medium transition-colors ${step.completed ? 'text-green-800 line-through opacity-75' : 'text-gray-700'}`}>
                     {step.text}
                   </p>
                 </div>
               ))}
             </div>
 
-            <div className={`mt-6 p-4 rounded-xl flex items-start gap-3 ${currentStyle.bg} border ${currentStyle.border}`}>
-              <Info className={`w-5 h-5 flex-shrink-0 ${currentStyle.iconColor}`} />
+            <div className={`mt-3 p-2.5 rounded-lg flex items-start gap-2.5 ${currentStyle.bg} border ${currentStyle.border}`}>
+              <Info className={`w-4 h-4 flex-shrink-0 mt-0.5 ${currentStyle.iconColor}`} />
               <div>
-                <p className={`text-sm font-bold ${currentStyle.iconColor} mb-1`}>نصيحة طبية</p>
-                <p className="text-xs text-gray-600 leading-relaxed">
+                <p className={`text-xs font-bold ${currentStyle.iconColor} mb-0.5`}>نصيحة طبية</p>
+                <p className="text-[11px] text-gray-600 leading-relaxed">
                   هذه الخطوات للإسعاف الأولي فقط. يجب زيارة الطبيب في أقرب وقت لتقييم الحالة بشكل كامل وتلقي العلاج المناسب.
                 </p>
               </div>
@@ -271,49 +271,51 @@ export const FirstAidGuidePage: React.FC = () => {
 
       {/* Hero Section */}
       <div className="bg-white border-b border-gray-200">
-        <div className="container mx-auto px-4 py-8 md:py-12">
+        <div className="container mx-auto px-4 py-4 md:py-5">
           <div className="max-w-4xl mx-auto">
-            <div className="flex items-center gap-2 mb-6">
-              <Button variant="ghost" size="sm" onClick={() => navigate('/services#tab-emergency')} className="text-gray-500 hover:text-gray-900">
-                <ArrowRight className="w-4 h-4 ml-1" />
+            <div className="flex items-center gap-2 mb-2">
+              <Button variant="ghost" size="sm" onClick={() => navigate('/services#tab-emergency')} className="text-gray-500 hover:text-gray-900 h-7 px-2 text-xs">
+                <ArrowRight className="w-3.5 h-3.5 ml-1" />
                 عودة
               </Button>
-              <div className="h-4 w-px bg-gray-200"></div>
-              <span className="text-sm font-medium text-blue-600">مركز الطوارئ</span>
+              <div className="h-3.5 w-px bg-gray-200"></div>
+              <span className="text-xs font-medium text-blue-600">مركز الطوارئ</span>
             </div>
 
-            <div className="flex flex-col md:flex-row gap-8 items-start">
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
               <div className="flex-1">
-                <h1 className="text-3xl md:text-5xl font-black text-gray-900 mb-6 leading-tight">
+                <h1 className="text-xl md:text-2xl font-black text-gray-900 mb-1 leading-tight">
                   دليل <span className="text-transparent bg-clip-text bg-gradient-to-l from-blue-600 to-cyan-500">الإسعافات الأولية</span>
                 </h1>
-                <p className="text-lg text-gray-600 leading-relaxed mb-8">
+                <p className="text-sm text-gray-600 leading-relaxed mb-3">
                   دليل تفاعلي وسريع لمساعدتك في التعامل مع حالات طوارئ الأسنان الشائعة خطوة بخطوة حتى وصولك للطبيب.
                 </p>
 
-                <div className="flex gap-4">
-                  <Button onClick={() => window.scrollTo({ top: 400, behavior: 'smooth' })} className="rounded-xl px-6 py-3">
+                <div className="flex gap-2">
+                  <Button onClick={() => window.scrollTo({ top: 300, behavior: 'smooth' })} className="rounded-lg px-4 py-1.5 text-xs h-8">
                     بدء الدليل
                   </Button>
-                  <Button variant="outline" className="rounded-xl px-6 py-3" onClick={() => navigate('/emergency/centers')}>
+                  <Button variant="outline" className="rounded-lg px-4 py-1.5 text-xs h-8" onClick={() => navigate('/emergency/centers')}>
                     أقرب مركز طوارئ
                   </Button>
                 </div>
               </div>
 
               {/* Quick Stats/Tip */}
-              <div className="w-full md:w-72 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-3xl p-6 border border-blue-100">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
-                    <Phone className="w-5 h-5" />
+              <div className="w-full md:w-56 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-3 border border-blue-100 flex items-center justify-between md:block">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                      <Phone className="w-3.5 h-3.5" />
+                    </div>
+                    <h3 className="font-bold text-gray-900 text-xs">طوارئ 24/7</h3>
                   </div>
-                  <h3 className="font-bold text-gray-900">طوارئ 24/7</h3>
+                  <p className="text-[11px] text-gray-600 md:mb-2">
+                    في الحالات الحرجة اتصل بالإسعاف فوراً
+                  </p>
                 </div>
-                <p className="text-sm text-gray-600 mb-4">
-                  في الحالات الحرجة جداً (مثل صعوبة التنفس)، اتصل بالإسعاف فوراً.
-                </p>
                 <a href={`tel:${hotline}`} className="block">
-                  <div className="text-2xl font-black text-blue-600 hover:text-blue-700 transition-colors">{hotline}</div>
+                  <div className="text-lg font-black text-blue-600 hover:text-blue-700 transition-colors">{hotline}</div>
                 </a>
               </div>
             </div>
@@ -321,16 +323,16 @@ export const FirstAidGuidePage: React.FC = () => {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto space-y-10">
+      <div className="container mx-auto px-4 py-4">
+        <div className="max-w-4xl mx-auto space-y-5">
           {categories.map((category) => (
             <section key={category}>
-              <div className="flex items-center gap-3 mb-6">
-                <span className="w-1.5 h-8 bg-blue-500 rounded-full"></span>
-                <h2 className="text-2xl font-bold text-gray-900">{category}</h2>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-1 h-5 bg-blue-500 rounded-full"></span>
+                <h2 className="text-lg font-bold text-gray-900">{category}</h2>
               </div>
 
-              <div className="grid grid-cols-1 gap-6">
+              <div className="grid grid-cols-1 gap-3">
                 {firstAidCases.filter(item => item.category === category).map((caseItem) => (
                   <FirstAidCard
                     key={caseItem.id}
@@ -349,17 +351,17 @@ export const FirstAidGuidePage: React.FC = () => {
           ))}
 
           {/* Disclaimer Card */}
-          <div className="bg-gray-900 rounded-3xl p-8 md:p-12 text-center text-white relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500 rounded-full blur-[100px] opacity-20 -translate-y-1/2 translate-x-1/2"></div>
+          <div className="bg-gray-900 rounded-2xl p-5 md:p-6 text-center text-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-blue-500 rounded-full blur-[80px] opacity-20 -translate-y-1/2 translate-x-1/2"></div>
             <div className="relative z-10">
-              <AlertTriangle className="w-12 h-12 text-yellow-400 mx-auto mb-6" />
-              <h3 className="text-2xl font-bold mb-4">إخلاء مسؤولية</h3>
-              <p className="text-gray-300 max-w-2xl mx-auto mb-8 leading-relaxed">
+              <AlertTriangle className="w-8 h-8 text-yellow-400 mx-auto mb-2" />
+              <h3 className="text-base font-bold mb-1.5">إخلاء مسؤولية</h3>
+              <p className="text-gray-300 text-xs max-w-2xl mx-auto mb-4 leading-relaxed">
                 المعلومات الواردة في هذا الدليل هي للإرشاد الأولي فقط ولا تغني بأي حال من الأحوال عن استشارة طبيب الأسنان المختص. نحن لسنا مسؤولين عن أي مضاعفات قد تنتج عن اتباع هذه النصائح.
               </p>
               <Button
                 onClick={() => navigate('/emergency/centers')}
-                className="bg-white text-gray-900 hover:bg-gray-100 border-none font-bold px-8 py-3 rounded-xl show-lg"
+                className="bg-white text-gray-900 hover:bg-gray-100 border-none font-bold px-5 py-2 text-xs h-8 rounded-lg"
               >
                 البحث عن طبيب الآن
               </Button>

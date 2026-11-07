@@ -44,30 +44,30 @@ const ExpandableCard: React.FC<ExpandableCardProps> = ({ title, icon, children, 
   const style = severityStyles[severity];
 
   return (
-    <div className={`transition-all duration-300 rounded-2xl border ${isExpanded ? style.border : 'border-transparent'} ${isExpanded ? style.bg : 'bg-white'} hover:shadow-lg hover:bg-gray-50/80 group overflow-hidden shadow-sm`}>
+    <div className={`transition-all duration-300 rounded-xl border ${isExpanded ? style.border : 'border-transparent'} ${isExpanded ? style.bg : 'bg-white'} hover:shadow-md hover:bg-gray-50/80 group overflow-hidden shadow-sm`}>
       <div
-        className="p-6 cursor-pointer"
+        className="p-3.5 cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-5">
-            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${style.iconBg} ${style.iconColor} shadow-sm group-hover:scale-110 transition-transform duration-300`}>
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${style.iconBg} ${style.iconColor} shadow-sm group-hover:scale-105 transition-transform duration-300`}>
               {icon}
             </div>
             <div>
-              <h3 className={`text-lg font-bold ${style.text} mb-1`}>{title}</h3>
-              <p className="text-gray-500 text-sm">{description}</p>
+              <h3 className={`text-sm font-bold ${style.text} mb-0.5`}>{title}</h3>
+              <p className="text-gray-500 text-xs">{description}</p>
             </div>
           </div>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${isExpanded ? 'bg-white shadow-sm rotate-180' : 'bg-gray-100 group-hover:bg-white group-hover:shadow-sm'}`}>
-            <ChevronDown className="w-5 h-5 text-gray-500" />
+          <div className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 ${isExpanded ? 'bg-white shadow-sm rotate-180' : 'bg-gray-100 group-hover:bg-white group-hover:shadow-sm'}`}>
+            <ChevronDown className="w-4 h-4 text-gray-500" />
           </div>
         </div>
       </div>
 
       {isExpanded && (
-        <div className="px-6 pb-8 animate-in slide-in-from-top-2">
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100/50">
+        <div className="px-3.5 pb-4 animate-in slide-in-from-top-2">
+          <div className="bg-white rounded-lg p-3 shadow-sm border border-gray-100/50">
             {children}
           </div>
         </div>
@@ -244,32 +244,27 @@ export const DentalEmergencyPage: React.FC = () => {
       </Helmet>
 
       {/* Header - White Theme */}
-      <div className="bg-white border-b border-gray-200 py-8 px-4 relative overflow-hidden">
-        {/* Simple background pattern */}
-        <div className="absolute top-0 left-0 w-full h-full opacity-5 pointer-events-none">
-          <div className="absolute right-0 top-0 w-64 h-64 bg-red-500 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-        </div>
-
+      <div className="bg-white border-b border-gray-200 py-4 px-4 relative overflow-hidden">
         <div className="container mx-auto relative z-10">
-          <div className="flex items-center gap-4 mb-6">
+          <div className="flex items-center gap-3 mb-3">
             <Button
               variant="outline"
               size="sm"
               onClick={() => navigate('/services#tab-emergency')}
-              className="border-gray-200 text-gray-600 hover:bg-gray-50"
+              className="border-gray-200 text-gray-600 hover:bg-gray-50 h-8 px-3 text-xs"
             >
-              <ArrowRight className="w-4 h-4 ml-2" />
+              <ArrowRight className="w-3 h-3 ml-1" />
               العودة
             </Button>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-50 text-red-600 border border-red-100">
-              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-50 text-red-600 border border-red-100">
+              <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></div>
               طوارئ 24/7
             </span>
           </div>
 
           <div className="max-w-3xl">
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">طوارئ الأسنان والإسعافات الأولية</h1>
-            <p className="text-xl text-gray-500 leading-relaxed">
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-1">طوارئ الأسنان والإسعافات الأولية</h1>
+            <p className="text-sm text-gray-500">
               دليل شامل للتعامل مع الحالات الطارئة، إدارة الألم، والإجراءات الفورية لحماية صحة الفم والأسنان.
             </p>
           </div>
@@ -277,21 +272,21 @@ export const DentalEmergencyPage: React.FC = () => {
       </div>
 
       {/* Emergency Contact Banner */}
-      <div className="container mx-auto px-4 -mt-6 relative z-20">
-        <div className="bg-white rounded-2xl shadow-lg border border-red-100 p-6 flex flex-col md:flex-row items-center justify-between gap-6 hover:shadow-xl transition-shadow">
-          <div className="flex items-center gap-5">
-            <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center border border-red-100 shadow-inner">
-              <Phone className="w-8 h-8 text-red-600" />
+      <div className="container mx-auto px-4 py-3 relative z-20">
+        <div className="bg-white rounded-xl shadow-md border border-red-100 p-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center border border-red-100">
+              <Phone className="w-5 h-5 text-red-600" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-gray-900">هل تحتاج لمساعدة فورية؟</h3>
-              <p className="text-gray-500">فريق الطوارئ متاح على مدار الساعة لتقديم الدعم</p>
+              <h3 className="text-sm font-bold text-gray-900">هل تحتاج لمساعدة فورية؟</h3>
+              <p className="text-xs text-gray-500">فريق الطوارئ متاح على مدار الساعة</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <a href={`tel:${hotline}`} className="w-full md:w-auto">
-              <Button className="bg-red-600 hover:bg-red-700 text-white w-full md:w-auto shadow-lg shadow-red-200 h-12 px-6 text-lg" size="lg">
-                <Phone className="w-5 h-5 ml-2" />
+          <div className="flex items-center gap-2 w-auto">
+            <a href={`tel:${hotline}`} className="w-auto">
+              <Button className="bg-red-600 hover:bg-red-700 text-white shadow-md shadow-red-200 h-9 px-4 text-sm font-bold" size="sm">
+                <Phone className="w-4 h-4 ml-1.5" />
                 طوارئ {hotline}
               </Button>
             </a>
@@ -300,30 +295,30 @@ export const DentalEmergencyPage: React.FC = () => {
       </div>
 
       {/* Main Content */}
-      <div className="container mx-auto max-w-6xl px-4 py-12">
+      <div className="container mx-auto max-w-6xl px-4 pb-8">
         {/* Section Navigation */}
-        <div className="mb-12">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="mb-5">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {sections.map((section) => (
               <button
                 key={section.id}
                 onClick={() => setActiveSection(section.id)}
-                className={`p-6 rounded-2xl border transition-all duration-300 flex flex-col items-center text-center gap-4 group ${activeSection === section.id
-                  ? `border-${section.color}-100 bg-white ring-4 ring-${section.color}-50 shadow-lg scale-105`
-                  : 'border-transparent bg-white shadow-sm hover:shadow-md hover:-translate-y-1'
+                className={`p-3 rounded-xl border transition-all duration-300 flex flex-col items-center text-center gap-2 group ${activeSection === section.id
+                  ? `border-${section.color}-100 bg-white ring-2 ring-${section.color}-50 shadow-md`
+                  : 'border-transparent bg-white shadow-sm hover:shadow-md'
                   }`}
               >
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 ${activeSection === section.id ? `bg-${section.color}-100 text-${section.color}-600 scale-110` : 'bg-gray-50 text-gray-400 group-hover:bg-gray-100'
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${activeSection === section.id ? `bg-${section.color}-100 text-${section.color}-600` : 'bg-gray-50 text-gray-400 group-hover:bg-gray-100'
                   }`}>
                   {React.cloneElement(section.icon as React.ReactElement, {
-                    className: `w-7 h-7 ${activeSection === section.id ? '' : 'text-gray-400 group-hover:text-gray-600'}`
+                    className: `w-5 h-5 ${activeSection === section.id ? '' : 'text-gray-400 group-hover:text-gray-600'}`
                   })}
                 </div>
                 <div>
-                  <h3 className={`font-bold text-lg mb-1 transition-colors ${activeSection === section.id ? 'text-gray-900' : 'text-gray-600'}`}>
+                  <h3 className={`font-bold text-sm transition-colors ${activeSection === section.id ? 'text-gray-900' : 'text-gray-600'}`}>
                     {section.title}
                   </h3>
-                  <div className={`h-1 w-8 mx-auto rounded-full transition-all duration-300 ${activeSection === section.id ? `bg-${section.color}-500 w-16` : 'bg-transparent'}`}></div>
+                  <div className={`h-0.5 w-6 mx-auto rounded-full transition-all duration-300 mt-1 ${activeSection === section.id ? `bg-${section.color}-500 w-10` : 'bg-transparent'}`}></div>
                 </div>
               </button>
             ))}
@@ -331,16 +326,16 @@ export const DentalEmergencyPage: React.FC = () => {
         </div>
 
         {/* Section Content */}
-        <div className="max-w-6xl mx-auto min-h-[400px]">
+        <div className="max-w-6xl mx-auto min-h-[300px]">
           {activeSection === 'pain' && (
             <div className="animate-in fade-in zoom-in-95 duration-500">
-              <div className="mb-8 flex items-end gap-4 pb-6 border-b border-gray-100">
-                <div className="w-16 h-16 rounded-2xl bg-red-100 flex items-center justify-center shadow-inner">
-                  <Zap className="w-8 h-8 text-red-600" />
+              <div className="mb-4 flex items-center gap-3 pb-4 border-b border-gray-100">
+                <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
+                  <Zap className="w-5 h-5 text-red-600" />
                 </div>
                 <div>
-                  <h2 className="text-3xl font-black text-gray-900 mb-2">إدارة الألم</h2>
-                  <p className="text-xl text-gray-500">بروتوكولات التعامل مع آلام الأسنان الحادة</p>
+                  <h2 className="text-lg font-black text-gray-900">إدارة الألم</h2>
+                  <p className="text-xs text-gray-500">بروتوكولات التعامل مع آلام الأسنان الحادة</p>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -372,32 +367,32 @@ export const DentalEmergencyPage: React.FC = () => {
 
           {activeSection === 'trauma' && (
             <div className="animate-in fade-in zoom-in-95 duration-500">
-              <div className="mb-8 flex items-end gap-4 pb-6 border-b border-gray-100">
-                <div className="w-16 h-16 rounded-2xl bg-orange-100 flex items-center justify-center shadow-inner">
-                  <AlertCircle className="w-8 h-8 text-orange-600" />
+              <div className="mb-4 flex items-center gap-3 pb-4 border-b border-gray-100">
+                <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+                  <AlertCircle className="w-5 h-5 text-orange-600" />
                 </div>
                 <div>
-                  <h2 className="text-3xl font-black text-gray-900 mb-2">الحوادث والكسور</h2>
-                  <p className="text-xl text-gray-500">الإسعافات الأولية لحوادث الأسنان والفكين</p>
+                  <h2 className="text-lg font-black text-gray-900">الحوادث والكسور</h2>
+                  <p className="text-xs text-gray-500">الإسعافات الأولية لحوادث الأسنان والفكين</p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {traumaProcedures.map((item, index) => (
                   <ExpandableCard
                     key={index}
                     title={item.title}
-                    icon={<AlertCircle className="w-6 h-6 text-orange-600" />}
+                    icon={<AlertCircle className="w-5 h-5 text-orange-600" />}
                     description="إجراءات فورية للحد من الضرر"
                     severity="high"
                   >
-                    <div className="pt-2">
-                      <ol className="space-y-3">
+                    <div className="pt-1">
+                      <ol className="space-y-2">
                         {item.steps.map((step, stepIndex) => (
-                          <li key={stepIndex} className="flex items-start gap-4 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors border border-gray-100/50">
-                            <span className="flex-shrink-0 w-6 h-6 bg-white border border-gray-200 text-gray-500 rounded-lg flex items-center justify-center text-xs font-bold shadow-sm mt-1">
+                          <li key={stepIndex} className="flex items-start gap-3 p-2.5 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors border border-gray-100/50">
+                            <span className="flex-shrink-0 w-5 h-5 bg-white border border-gray-200 text-gray-500 rounded-md flex items-center justify-center text-xs font-bold shadow-sm mt-0.5">
                               {stepIndex + 1}
                             </span>
-                            <span className="text-gray-700 leading-relaxed font-medium text-sm">{step}</span>
+                            <span className="text-gray-700 leading-relaxed font-medium text-xs">{step}</span>
                           </li>
                         ))}
                       </ol>
@@ -410,32 +405,32 @@ export const DentalEmergencyPage: React.FC = () => {
 
           {activeSection === 'infections' && (
             <div className="animate-in fade-in zoom-in-95 duration-500">
-              <div className="mb-8 flex items-end gap-4 pb-6 border-b border-gray-100">
-                <div className="w-16 h-16 rounded-2xl bg-yellow-100 flex items-center justify-center shadow-inner">
-                  <Shield className="w-8 h-8 text-yellow-600" />
+              <div className="mb-4 flex items-center gap-3 pb-4 border-b border-gray-100">
+                <div className="w-10 h-10 rounded-xl bg-yellow-100 flex items-center justify-center">
+                  <Shield className="w-5 h-5 text-yellow-600" />
                 </div>
                 <div>
-                  <h2 className="text-3xl font-black text-gray-900 mb-2">العدوى والالتهابات</h2>
-                  <p className="text-xl text-gray-500">علامات وإجراءات التعامل مع الالتهابات</p>
+                  <h2 className="text-lg font-black text-gray-900">العدوى والالتهابات</h2>
+                  <p className="text-xs text-gray-500">علامات وإجراءات التعامل مع الالتهابات</p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {infectionSteps.map((item, index) => (
                   <ExpandableCard
                     key={index}
                     title={item.title}
-                    icon={<Shield className="w-6 h-6 text-yellow-600" />}
+                    icon={<Shield className="w-5 h-5 text-yellow-600" />}
                     description="التعامل مع التورم والخراجات"
                     severity="high"
                   >
-                    <div className="pt-2">
-                      <ol className="space-y-3">
+                    <div className="pt-1">
+                      <ol className="space-y-2">
                         {item.steps.map((step, stepIndex) => (
-                          <li key={stepIndex} className="flex items-start gap-4 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors border border-gray-100/50">
-                            <span className="flex-shrink-0 w-6 h-6 bg-white border border-gray-200 text-gray-500 rounded-lg flex items-center justify-center text-xs font-bold shadow-sm mt-1">
+                          <li key={stepIndex} className="flex items-start gap-3 p-2.5 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors border border-gray-100/50">
+                            <span className="flex-shrink-0 w-5 h-5 bg-white border border-gray-200 text-gray-500 rounded-md flex items-center justify-center text-xs font-bold shadow-sm mt-0.5">
                               {stepIndex + 1}
                             </span>
-                            <span className="text-gray-700 leading-relaxed font-medium text-sm">{step}</span>
+                            <span className="text-gray-700 leading-relaxed font-medium text-xs">{step}</span>
                           </li>
                         ))}
                       </ol>
@@ -448,16 +443,16 @@ export const DentalEmergencyPage: React.FC = () => {
 
           {activeSection === 'procedures' && (
             <div className="animate-in fade-in zoom-in-95 duration-500">
-              <div className="mb-8 flex items-end gap-4 pb-6 border-b border-gray-100">
-                <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center shadow-inner">
-                  <Stethoscope className="w-8 h-8 text-blue-600" />
+              <div className="mb-4 flex items-center gap-3 pb-4 border-b border-gray-100">
+                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                  <Stethoscope className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <h2 className="text-3xl font-black text-gray-900 mb-2">إجراءات متقدمة</h2>
-                  <p className="text-xl text-gray-500">خطوات تخصصية للحفاظ على الأسنان</p>
+                  <h2 className="text-lg font-black text-gray-900">إجراءات متقدمة</h2>
+                  <p className="text-xs text-gray-500">خطوات تخصصية للحفاظ على الأسنان</p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {advancedProcedures.map((item, index) => (
                   <ExpandableCard
                     key={index}

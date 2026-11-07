@@ -74,23 +74,26 @@ export const DoctorWelcomePage: React.FC = () => {
         />
         <meta property="og:url" content="https://dental-platform.com/doctor-welcome" />
         <meta property="og:type" content="website" />
-        <script type="application/ld+json">
-          {JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "SoftwareApplication",
-            "name": "برنامج ونظام إدارة العيادة من منصة طب الأسنان",
-            "alternateName": "Dental Clinic Management App from Dental Platform",
-            "applicationCategory": "HealthApplication",
-            "operatingSystem": "Web, Android, Windows, iOS",
-            "url": "https://dental-platform.com/doctor-welcome",
-            "description": "برنامج ونظام إدارة العيادة وتطبيق شامل لإدارة عيادات ومراكز طب الأسنان يشمل تنظيم المواعيد، السجلات الطبية الإلكترونية، الحسابات، والمعامل.",
-            "offers": {
-              "@type": "Offer",
-              "price": "0",
-              "priceCurrency": "IQD"
-            }
-          })}
-        </script>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "SoftwareApplication",
+              "name": "برنامج ونظام إدارة العيادة من منصة طب الأسنان",
+              "alternateName": "Dental Clinic Management App from Dental Platform",
+              "applicationCategory": "HealthApplication",
+              "operatingSystem": "Web, Android, Windows, iOS",
+              "url": "https://dental-platform.com/doctor-welcome",
+              "description": "برنامج ونظام إدارة العيادة وتطبيق شامل لإدارة عيادات ومراكز طب الأسنان يشمل تنظيم المواعيد، السجلات الطبية الإلكترونية، الحسابات، والمعامل.",
+              "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "IQD"
+              }
+            })
+          }}
+        />
       </Helmet>
       <div className="container mx-auto px-4 py-8 max-w-7xl">
 

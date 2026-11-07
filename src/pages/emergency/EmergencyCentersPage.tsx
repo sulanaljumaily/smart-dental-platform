@@ -167,162 +167,143 @@ export const EmergencyCentersPage: React.FC = () => {
       </Helmet>
 
       {/* Header */}
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 py-8 px-4 relative overflow-hidden">
-        {/* Simple background pattern */}
-        <div className="absolute top-0 left-0 w-full h-full opacity-5 pointer-events-none">
-          <div className="absolute right-0 top-0 w-64 h-64 bg-green-500 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-        </div>
-
+      <div className="bg-white border-b border-gray-200 py-4 px-4 relative overflow-hidden">
         <div className="container mx-auto max-w-6xl relative z-10">
-          <div className="flex items-center gap-4 mb-6">
+          <div className="flex items-center gap-3 mb-3">
             <Button
               variant="outline"
               size="sm"
               onClick={() => navigate('/services#tab-emergency')}
-              className="border-gray-200 text-gray-600 hover:bg-gray-50"
+              className="border-gray-200 text-gray-600 hover:bg-gray-50 h-8 px-3 text-xs"
             >
-              <ArrowRight className="w-4 h-4 ml-2" />
+              <ArrowRight className="w-3 h-3 ml-1" />
               العودة
             </Button>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-green-50 text-green-600 border border-green-100">
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-50 text-green-600 border border-green-100">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
               شبكة الطوارئ
             </span>
           </div>
 
-          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-            <div className="max-w-2xl">
-              <h1 className="text-3xl md:text-4xl font-black text-gray-900 mb-4 tracking-tight">مراكز الطوارئ</h1>
-              <p className="text-xl text-gray-500 leading-relaxed">
-                اعثر على أقرب مراكز طوارئ الأسنان والمستشفيات في العراق مع معلومات التواصل المباشر على مدار الساعة.
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h1 className="text-xl md:text-2xl font-black text-gray-900 leading-tight">مراكز الطوارئ</h1>
+              <p className="text-sm text-gray-500 mt-1">
+                أقرب مراكز طوارئ الأسنان والمستشفيات في العراق مع معلومات التواصل المباشر.
               </p>
             </div>
-            <div>
-              <div className="flex -space-x-4 rtl:space-x-reverse">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="w-12 h-12 rounded-full border-4 border-white bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 shadow-sm relative z-0 hover:z-10 transition-all hover:scale-110">
-                    H+
-                  </div>
-                ))}
-                <div className="w-12 h-12 rounded-full border-4 border-white bg-green-100 flex items-center justify-center text-xs font-bold text-green-600 relative z-10">
-                  +50
-                </div>
-              </div>
-              <div className="text-center mt-2 text-sm text-gray-500 font-medium">مركز متاح</div>
+            <div className="hidden md:flex items-center gap-1">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500 shadow-sm -ml-2">H+</div>
+              ))}
+              <div className="w-8 h-8 rounded-full border-2 border-white bg-green-100 flex items-center justify-center text-[10px] font-bold text-green-600 -ml-2">+50</div>
+              <span className="text-xs text-gray-500 mr-3">مركز متاح</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Emergency Contact Banner */}
-      <div className="container mx-auto max-w-6xl px-4 -mt-8 relative z-20">
-        <div className="bg-white rounded-2xl shadow-xl border border-green-100 p-6 flex flex-col md:flex-row items-center justify-between gap-6 hover:shadow-2xl transition-all duration-300">
-          <div className="flex items-center gap-5">
-            <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center border border-green-100 shadow-inner">
-              <Phone className="w-8 h-8 text-green-600" />
+      <div className="container mx-auto max-w-6xl px-4 py-3 relative z-20">
+        <div className="bg-white rounded-xl shadow-md border border-green-100 p-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center border border-green-100">
+              <Phone className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-gray-900 mb-1">خدمة طوارئ 24 ساعة</h3>
-              <p className="text-gray-500">للحالات العاجلة المتخصصة - فريق جاهز</p>
+              <h3 className="text-sm font-bold text-gray-900">خدمة طوارئ 24 ساعة</h3>
+              <p className="text-xs text-gray-500">للحالات العاجلة المتخصصة - فريق جاهز</p>
             </div>
           </div>
           <a href={`tel:${hotline}`}>
-            <Button className="bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-200 rounded-xl px-8 py-4 h-auto text-lg" size="lg">
-              <span className="ml-3 font-bold" dir="ltr">{hotline.replace(/(\d{4})(\d{3})(\d{4})/, '$1 $2 $3')}</span>
-              <Phone className="w-5 h-5" />
+            <Button className="bg-green-600 hover:bg-green-700 text-white rounded-lg px-4 py-2 h-auto text-sm font-bold">
+              <Phone className="w-4 h-4 ml-1.5" />
+              {hotline}
             </Button>
           </a>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="container mx-auto max-w-6xl px-4 py-8">
+      <div className="container mx-auto max-w-6xl px-4 pb-8">
         {/* Filters Section */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8 flex flex-col gap-6">
-          <div className="flex flex-wrap items-center gap-4">
-            {/* Search */}
-            <div className="flex-1 min-w-[250px]">
-              <div className="relative group">
-                <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-green-500 transition-colors" />
-                <input
-                  type="text"
-                  placeholder="البحث عن مركز أو خدمة..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-gray-50 border-transparent focus:bg-white border focus:border-green-500 rounded-xl focus:ring-4 focus:ring-green-50/50 transition-all text-right outline-none font-medium"
-                />
-              </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 mb-4 flex flex-wrap items-center gap-2">
+          {/* Search */}
+          <div className="flex-1 min-w-[180px]">
+            <div className="relative group">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-green-500 transition-colors" />
+              <input
+                type="text"
+                placeholder="البحث عن مركز أو خدمة..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 border-transparent focus:bg-white border focus:border-green-500 rounded-lg focus:ring-2 focus:ring-green-50 transition-all text-right outline-none"
+              />
             </div>
+          </div>
 
-            {/* Governorate Filter */}
-            <div className="min-w-[200px] flex-1 lg:flex-none lg:w-64">
-              <select
-                value={selectedGovernorate}
-                onChange={(e) => setSelectedGovernorate(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-50 border-transparent focus:bg-white border focus:border-green-500 rounded-xl focus:ring-4 focus:ring-green-50/50 transition-all text-right outline-none font-medium cursor-pointer"
-              >
-                <option value="">جميع المحافظات</option>
-                {governorates.map(governorate => (
-                  <option key={governorate} value={governorate}>{governorate}</option>
-                ))}
-              </select>
-            </div>
+          {/* Governorate Filter */}
+          <div className="min-w-[150px] flex-1 lg:flex-none lg:w-44">
+            <select
+              value={selectedGovernorate}
+              onChange={(e) => setSelectedGovernorate(e.target.value)}
+              className="w-full px-3 py-2 text-sm bg-gray-50 border-transparent focus:bg-white border focus:border-green-500 rounded-lg focus:ring-2 focus:ring-green-50 transition-all text-right outline-none cursor-pointer"
+            >
+              <option value="">جميع المحافظات</option>
+              {governorates.map(governorate => (
+                <option key={governorate} value={governorate}>{governorate}</option>
+              ))}
+            </select>
+          </div>
 
-            {/* Type Filter */}
-            <div className="min-w-[180px] flex-1 lg:flex-none lg:w-48">
-              <select
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value as 'all' | 'government' | 'private')}
-                className="w-full px-4 py-3 bg-gray-50 border-transparent focus:bg-white border focus:border-green-500 rounded-xl focus:ring-4 focus:ring-green-50/50 transition-all text-right outline-none font-medium cursor-pointer"
-              >
-                <option value="all">جميع الأنواع</option>
-                <option value="government">حكومي (24 ساعة)</option>
-                <option value="private">خاص (عيادات)</option>
-              </select>
-            </div>
+          {/* Type Filter */}
+          <div className="min-w-[140px] flex-1 lg:flex-none lg:w-40">
+            <select
+              value={selectedType}
+              onChange={(e) => setSelectedType(e.target.value as 'all' | 'government' | 'private')}
+              className="w-full px-3 py-2 text-sm bg-gray-50 border-transparent focus:bg-white border focus:border-green-500 rounded-lg focus:ring-2 focus:ring-green-50 transition-all text-right outline-none cursor-pointer"
+            >
+              <option value="all">جميع الأنواع</option>
+              <option value="government">حكومي (24 ساعة)</option>
+              <option value="private">خاص (عيادات)</option>
+            </select>
+          </div>
 
-            {/* View Mode */}
-            <div className="flex gap-1 bg-gray-100/50 p-1.5 rounded-xl border border-gray-100">
-              <button
-                onClick={() => setViewMode('list')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'list' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
-                  }`}
-              >
-                <Filter className="w-4 h-4" />
-                قائمة
-              </button>
-              <button
-                onClick={() => setViewMode('map')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${viewMode === 'map' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
-                  }`}
-              >
-                <MapPin className="w-4 h-4" />
-                خريطة
-              </button>
-            </div>
+          {/* View Mode */}
+          <div className="flex gap-0.5 bg-gray-100/50 p-1 rounded-lg border border-gray-100">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${viewMode === 'list' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              <Filter className="w-3.5 h-3.5" />
+              قائمة
+            </button>
+            <button
+              onClick={() => setViewMode('map')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${viewMode === 'map' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              <MapPin className="w-3.5 h-3.5" />
+              خريطة
+            </button>
           </div>
 
           {/* Reset Filters */}
           {(searchTerm || selectedGovernorate || selectedType !== 'all') && (
-            <div className="flex justify-start border-t border-gray-100 pt-4">
-              <Button variant="ghost" onClick={resetFilters} size="sm" className="text-red-500 hover:bg-red-50 hover:text-red-600 rounded-lg">
-                <span className="ml-2">×</span>
-                مسح جميع الفلاتر
-              </Button>
-            </div>
+            <Button variant="ghost" onClick={resetFilters} size="sm" className="text-red-500 hover:bg-red-50 hover:text-red-600 rounded-lg text-xs px-2 py-1.5 h-auto">
+              × مسح
+            </Button>
           )}
         </div>
 
         {/* Results Summary */}
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
               نتائج البحث
-              <span className="px-3 py-1 bg-gray-100 text-gray-600 text-sm rounded-full">{filteredCenters.length}</span>
+              <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">{filteredCenters.length}</span>
             </h2>
             {selectedType !== 'all' && (
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 mt-0.5">
                 {selectedType === 'government' ? 'مراكز حكومية (24 ساعة)' : 'عيادات خاصة'}
                 {selectedGovernorate && ` • ${selectedGovernorate}`}
               </p>
@@ -332,68 +313,66 @@ export const EmergencyCentersPage: React.FC = () => {
 
         {/* Centers List */}
         {viewMode === 'list' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filteredCenters.map((center) => (
-              <div key={center.id} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-lg hover:border-green-100 transition-all group flex flex-col">
+              <div key={center.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-green-100 transition-all group flex flex-col">
                 <div className="flex-1">
-                  <div className="flex justify-between items-start mb-4">
+                  <div className="flex justify-between items-start mb-2">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${getTypeColor(center.type)}`}>
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold flex items-center gap-1 ${getTypeColor(center.type)}`}>
                           {getTypeIcon(center.type)}
-                          <span className="mr-1">{getTypeLabel(center.type)}</span>
+                          <span className="mr-0.5">{getTypeLabel(center.type)}</span>
                         </span>
                         {center.is24Hours && (
-                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-red-50 text-red-600 flex items-center gap-1 border border-red-100">
+                          <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-50 text-red-600 flex items-center gap-1 border border-red-100">
                             <Clock className="w-3 h-3" />
                             24 ساعة
                           </span>
                         )}
                       </div>
-                      <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-green-600 transition-colors">{center.name}</h3>
-                      <div className="flex items-center gap-2 text-gray-500 text-sm mb-4">
-                        <MapPin className="w-4 h-4 text-gray-400" />
+                      <h3 className="text-base font-bold text-gray-900 mb-1 group-hover:text-green-600 transition-colors">{center.name}</h3>
+                      <div className="flex items-center gap-1.5 text-gray-500 text-xs mb-3">
+                        <MapPin className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                         <span>{center.address}</span>
                       </div>
                     </div>
-                    <div className="flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-yellow-50 text-yellow-600 border border-yellow-100">
-                      <span className="font-bold text-lg">{center.rating}</span>
-                      <Star className="w-3 h-3 fill-current" />
+                    <div className="flex flex-col items-center justify-center w-10 h-10 rounded-lg bg-yellow-50 text-yellow-600 border border-yellow-100 flex-shrink-0">
+                      <span className="font-bold text-sm">{center.rating}</span>
+                      <Star className="w-2.5 h-2.5 fill-current" />
                     </div>
                   </div>
 
-                  <div className="space-y-3 mb-6">
-                    <div>
-                      <p className="text-xs font-bold text-gray-400 uppercase mb-2">الخدمات المتوفرة</p>
-                      <div className="flex flex-wrap gap-2">
-                        {center.services.slice(0, 3).map((service, index) => (
-                          <span key={index} className="px-2.5 py-1 bg-gray-50 text-gray-600 text-xs font-medium rounded-lg border border-gray-100">
-                            {service}
-                          </span>
-                        ))}
-                        {center.services.length > 3 && (
-                          <span className="px-2.5 py-1 bg-gray-50 text-gray-400 text-xs font-medium rounded-lg border border-gray-100">
-                            +{center.services.length - 3}
-                          </span>
-                        )}
-                      </div>
+                  <div className="mb-3">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">الخدمات المتوفرة</p>
+                    <div className="flex flex-wrap gap-1">
+                      {center.services.slice(0, 3).map((service, index) => (
+                        <span key={index} className="px-2 py-0.5 bg-gray-50 text-gray-600 text-[11px] font-medium rounded-md border border-gray-100">
+                          {service}
+                        </span>
+                      ))}
+                      {center.services.length > 3 && (
+                        <span className="px-2 py-0.5 bg-gray-50 text-gray-400 text-[11px] font-medium rounded-md border border-gray-100">
+                          +{center.services.length - 3}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 mt-auto pt-6 border-t border-gray-50">
+                <div className="grid grid-cols-2 gap-2 mt-auto pt-3 border-t border-gray-50">
                   <a href={`tel:${center.phone}`} className="col-span-1">
-                    <Button className="w-full bg-green-50 text-green-700 hover:bg-green-100 border-green-100 shadow-none font-bold" variant="secondary">
-                      <Phone className="w-4 h-4 ml-2" />
+                    <Button className="w-full bg-green-50 text-green-700 hover:bg-green-100 border-green-100 shadow-none font-bold text-xs h-8" variant="secondary">
+                      <Phone className="w-3.5 h-3.5 ml-1.5" />
                       اتصال
                     </Button>
                   </a>
                   <Button
                     variant="outline"
-                    className="col-span-1 border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-bold"
+                    className="col-span-1 border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-bold text-xs h-8"
                     onClick={() => window.open(`https://maps.google.com/?q=${center.location.lat},${center.location.lng}`, '_blank')}
                   >
-                    <MapPin className="w-4 h-4 ml-2" />
+                    <MapPin className="w-3.5 h-3.5 ml-1.5" />
                     الخريطة
                   </Button>
                 </div>
@@ -404,46 +383,42 @@ export const EmergencyCentersPage: React.FC = () => {
             {selectedType === 'private' && surgicalClinics.length > 0 && (
               <>
                 {surgicalClinics.map((clinic) => (
-                  <div key={clinic.id} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-lg hover:border-green-100 transition-all group flex flex-col">
+                  <div key={clinic.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-green-100 transition-all group flex flex-col">
                     <div className="flex-1">
-                      <div className="flex justify-between items-start mb-4">
+                      <div className="flex justify-between items-start mb-2">
                         <div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-green-50 text-green-700 flex items-center gap-1 border border-green-100">
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-green-50 text-green-700 flex items-center gap-1 border border-green-100">
                               <Heart className="w-3 h-3" />
                               عيادة خاصة
                             </span>
                           </div>
-                          <h4 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-green-600 transition-colors">{clinic.name}</h4>
-                          <div className="flex items-center gap-2 text-gray-500 text-sm mb-4">
-                            <MapPin className="w-4 h-4 text-gray-400" />
-                            <span>
-                              {formatLocation(clinic.governorate, clinic.address)}
-                            </span>
+                          <h4 className="text-base font-bold text-gray-900 mb-1 group-hover:text-green-600 transition-colors">{clinic.name}</h4>
+                          <div className="flex items-center gap-1.5 text-gray-500 text-xs mb-3">
+                            <MapPin className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                            <span>{formatLocation(clinic.governorate, clinic.address)}</span>
                           </div>
                         </div>
                       </div>
 
-                      <div className="space-y-3 mb-6">
-                        <div>
-                          <p className="text-xs font-bold text-gray-400 uppercase mb-2">الاختصاصات</p>
-                          <div className="flex flex-wrap gap-2">
-                            {clinic.specialties?.slice(0, 3).map((specialty, index) => (
-                              <span key={index} className="px-2.5 py-1 bg-gray-50 text-gray-600 text-xs font-medium rounded-lg border border-gray-100">
-                                {specialty}
-                              </span>
-                            ))}
-                          </div>
+                      <div className="mb-3">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">الاختصاصات</p>
+                        <div className="flex flex-wrap gap-1">
+                          {clinic.specialties?.slice(0, 3).map((specialty, index) => (
+                            <span key={index} className="px-2 py-0.5 bg-gray-50 text-gray-600 text-[11px] font-medium rounded-md border border-gray-100">
+                              {specialty}
+                            </span>
+                          ))}
                         </div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 mt-auto pt-6 border-t border-gray-50">
-                      <Button variant="primary" className="col-span-1 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg shadow-green-100" onClick={() => navigate(`/booking?clinic=${clinic.id}`)}>
+                    <div className="grid grid-cols-2 gap-2 mt-auto pt-3 border-t border-gray-50">
+                      <Button variant="primary" className="col-span-1 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg text-xs h-8" onClick={() => navigate(`/booking?clinic=${clinic.id}`)}>
                         حجز
                       </Button>
-                      <Button variant="outline" className="col-span-1 border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-bold rounded-xl">
-                        <MapPin className="w-4 h-4 ml-2" />
+                      <Button variant="outline" className="col-span-1 border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-bold rounded-lg text-xs h-8">
+                        <MapPin className="w-3.5 h-3.5 ml-1.5" />
                         موقع
                       </Button>
                     </div>
@@ -453,13 +428,13 @@ export const EmergencyCentersPage: React.FC = () => {
             )}
 
             {filteredCenters.length === 0 && selectedType !== 'private' && (
-              <div className="col-span-full text-center py-16 bg-white rounded-3xl border border-dashed border-gray-200">
-                <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Search className="w-10 h-10 text-gray-300" />
+              <div className="col-span-full text-center py-10 bg-white rounded-2xl border border-dashed border-gray-200">
+                <div className="w-14 h-14 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Search className="w-7 h-7 text-gray-300" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">لا توجد نتائج مطابقة</h3>
-                <p className="text-gray-500">جرب تغيير الفلاتر أو البحث عن منطقة أخرى</p>
-                <Button variant="outline" onClick={resetFilters} className="mt-6 border-gray-200">
+                <h3 className="text-base font-bold text-gray-900 mb-1">لا توجد نتائج مطابقة</h3>
+                <p className="text-sm text-gray-500">جرب تغيير الفلاتر أو البحث عن منطقة أخرى</p>
+                <Button variant="outline" onClick={resetFilters} className="mt-4 border-gray-200 text-sm h-8">
                   إعادة تعيين الفلاتر
                 </Button>
               </div>
@@ -470,55 +445,55 @@ export const EmergencyCentersPage: React.FC = () => {
         {/* Map View */}
         {viewMode === 'map' && (
           <Card className="p-0 overflow-hidden">
-            <div className="p-4 bg-green-50 border-b border-green-200">
-              <h3 className="text-xl font-bold text-gray-900">خريطة المراكز</h3>
+            <div className="p-3 bg-green-50 border-b border-green-200">
+              <h3 className="text-base font-bold text-gray-900">خريطة المراكز</h3>
             </div>
-            <div className="h-96 bg-gray-200 flex items-center justify-center">
+            <div className="h-80 bg-gray-200 flex items-center justify-center">
               <div className="text-center">
-                <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600">خريطة تفاعلية</p>
-                <p className="text-sm text-gray-500">تظهر مواقع المراكز على الخريطة</p>
+                <MapPin className="w-10 h-10 text-gray-400 mx-auto mb-3" />
+                <p className="text-gray-600 text-sm">خريطة تفاعلية</p>
+                <p className="text-xs text-gray-500">تظهر مواقع المراكز على الخريطة</p>
               </div>
             </div>
           </Card>
         )}
 
         {/* Quick Actions */}
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="p-6 text-center hover:shadow-lg transition-shadow">
-            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Phone className="w-6 h-6 text-red-600" />
+        <div className="mt-6 grid grid-cols-3 gap-3">
+          <Card className="p-4 text-center hover:shadow-md transition-shadow">
+            <div className="w-9 h-9 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-2">
+              <Phone className="w-4 h-4 text-red-600" />
             </div>
-            <h3 className="font-bold text-gray-900 mb-2">اتصال طوارئ</h3>
-            <p className="text-gray-600 text-sm mb-4">للحالات العاجلة</p>
+            <h3 className="font-bold text-gray-900 text-sm mb-1">اتصال طوارئ</h3>
+            <p className="text-gray-600 text-xs mb-3">للحالات العاجلة</p>
             <a href={`tel:${hotline}`}>
-              <Button className="w-full bg-red-500 hover:bg-red-600 text-white">
+              <Button className="w-full bg-red-500 hover:bg-red-600 text-white text-xs h-8">
                 {hotline}
               </Button>
             </a>
           </Card>
 
-          <Card className="p-6 text-center hover:shadow-lg transition-shadow">
-            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Stethoscope className="w-6 h-6 text-blue-600" />
+          <Card className="p-4 text-center hover:shadow-md transition-shadow">
+            <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
+              <Stethoscope className="w-4 h-4 text-blue-600" />
             </div>
-            <h3 className="font-bold text-gray-900 mb-2">طوارئ الأسنان</h3>
-            <p className="text-gray-600 text-sm mb-4">إسعافات أولية وتوجيهات</p>
+            <h3 className="font-bold text-gray-900 text-sm mb-1">طوارئ الأسنان</h3>
+            <p className="text-gray-600 text-xs mb-3">إسعافات أولية وتوجيهات</p>
             <a href="/emergency/dental">
-              <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white">
-                استكشاف الخدمات
+              <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white text-xs h-8">
+                استكشاف
               </Button>
             </a>
           </Card>
 
-          <Card className="p-6 text-center hover:shadow-lg transition-shadow">
-            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Heart className="w-6 h-6 text-green-600" />
+          <Card className="p-4 text-center hover:shadow-md transition-shadow">
+            <div className="w-9 h-9 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
+              <Heart className="w-4 h-4 text-green-600" />
             </div>
-            <h3 className="font-bold text-gray-900 mb-2">الإسعافات الأولية</h3>
-            <p className="text-gray-600 text-sm mb-4">دليل تفاعلي شامل</p>
+            <h3 className="font-bold text-gray-900 text-sm mb-1">الإسعافات الأولية</h3>
+            <p className="text-gray-600 text-xs mb-3">دليل تفاعلي شامل</p>
             <a href="/emergency/first-aid">
-              <Button className="w-full bg-green-500 hover:bg-green-600 text-white">
+              <Button className="w-full bg-green-500 hover:bg-green-600 text-white text-xs h-8">
                 قراءة الدليل
               </Button>
             </a>
