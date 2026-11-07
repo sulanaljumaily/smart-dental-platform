@@ -56,7 +56,10 @@ const SubscriptionCard: React.FC = () => {
           const billingPeriod = request.payment_details?.billing_period;
           const expiryDate = calcExpiry(request.created_at, billingPeriod);
           const discountApplied = request.payment_details?.discount_applied || request.payment_details?.discountApplied || 0;
-          const basePrice = request.amount_paid || request.plan?.price?.monthly || 0;
+          const basePrice =
+            request.amount_paid !== undefined && request.amount_paid !== null
+              ? Number(request.amount_paid)
+              : Number(request.plan?.price?.monthly || 0);
 
           setSubscription({
             ...request,
@@ -65,7 +68,7 @@ const SubscriptionCard: React.FC = () => {
             expiryDate,
             isExpired: new Date() > expiryDate,
             billingPeriod: billingPeriod || 'monthly',
-            discountApplied,
+            discountApplied: Number(discountApplied),
             price: Number(basePrice),
             features: request.plan?.features || [],
             maxClinics: request.plan?.limits?.max_clinics || 1,
@@ -85,7 +88,7 @@ const SubscriptionCard: React.FC = () => {
   }, [user]);
 
 
-  if (loading) return <div className="h-64 bg-gray-100 rounded-2xl animate-pulse" />;
+  if (loading) return <div className="h-36 bg-gray-100 rounded-2xl animate-pulse" />;
 
   // Default / Free Plan State if no subscription found
   const sub = subscription || {
@@ -109,60 +112,65 @@ const SubscriptionCard: React.FC = () => {
 
 
   return (
-    <Card className={`bg-gradient-to-br ${sub.isFree ? 'from-gray-700 to-gray-900' : sub.isExpired ? 'from-red-900 to-gray-900' : 'from-indigo-900 to-blue-900'} text-white border-none overflow-hidden relative`}>
-      <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-      <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/5 rounded-full -ml-16 -mb-16 blur-2xl"></div>
+    <Card className={`bg-gradient-to-br ${sub.isFree ? 'from-gray-700 to-gray-900' : sub.isExpired ? 'from-red-900 to-gray-900' : 'from-indigo-900 to-blue-900'} text-white border-none overflow-hidden relative !p-0`}>
+      <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -mr-10 -mt-10 blur-2xl"></div>
+      <div className="absolute bottom-0 left-0 w-40 h-40 bg-white/5 rounded-full -ml-10 -mb-10 blur-2xl"></div>
 
-      <div className="p-8 relative z-10">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+      <div className="p-4 sm:p-5 relative z-10">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
-            <div className="flex items-center gap-3 mb-2">
-              <span className={`px-3 py-1 rounded-full text-xs font-medium backdrop-blur-sm border border-white/10 ${statusColor}`}>
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold backdrop-blur-sm border border-white/10 ${statusColor}`}>
                 {activeStatus}
               </span>
               {!sub.isFree && (
-                <span className="text-white/60 text-sm bg-white/10 px-2 py-0.5 rounded-full">{billingLabel}</span>
+                <span className="text-white/80 text-[11px] bg-white/10 px-2 py-0.5 rounded-full">{billingLabel}</span>
               )}
               {sub.expiryDate && (
-                <span className={`text-sm ${sub.isExpired ? 'text-red-300' : 'text-white/60'}`}>
+                <span className={`text-[11px] ${sub.isExpired ? 'text-red-300' : 'text-white/70'}`}>
                   {sub.isExpired ? 'انتهت في: ' : 'تنتهي في: '}{sub.expiryDate.toLocaleDateString('ar-EG')}
                 </span>
               )}
             </div>
 
-            <h2 className="text-3xl font-bold mb-2">{sub.planName}</h2>
-            <p className="text-blue-100 max-w-xl">
+            <h2 className="text-lg sm:text-xl font-bold leading-snug">{sub.planName}</h2>
+            <p className="text-blue-100/90 text-xs mt-0.5 max-w-xl">
               {sub.isFree ? 'قم بالترقية للحصول على المزيد من المميزات وإدارة عيادات متعددة.' : 'استمتع بميزات باقتك الحالية.'}
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          <div className="flex sm:flex-row gap-2 w-full sm:w-auto shrink-0">
             <Button
               variant="secondary"
-              className="whitespace-nowrap bg-white text-blue-900 hover:bg-blue-50 border-none"
+              size="sm"
+              className="w-full sm:w-auto whitespace-nowrap bg-white text-blue-900 hover:bg-blue-50 border-none text-xs sm:text-sm py-1.5 px-3.5"
               onClick={() => navigate('/doctor/subscription/upgrade')}
             >
-              <Star className="w-4 h-4 mr-2" />
+              <Star className="w-3.5 h-3.5 ml-1.5" />
               {sub.isFree ? 'ترقية الباقة' : 'تغيير الباقة'}
             </Button>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-8 pt-8 border-t border-white/10">
+        <div className="grid grid-cols-4 gap-2 sm:gap-4 mt-3.5 pt-3 border-t border-white/10 text-center sm:text-right">
           <div>
-            <p className="text-blue-200 text-xs mb-1">قيمة الاشتراك</p>
-            <p className="text-xl font-bold">{sub.price?.toLocaleString()} <span className="text-xs font-normal text-blue-200">د.ع</span></p>
+            <p className="text-blue-200 text-[10px] sm:text-xs mb-0.5">قيمة الاشتراك</p>
+            <p className="text-sm sm:text-base font-bold">
+              {sub.price?.toLocaleString()} <span className="text-[10px] font-normal text-blue-200">د.ع</span>
+            </p>
           </div>
           <div>
-            <p className="text-blue-200 text-xs mb-1">العيادات المسموحة</p>
-            <p className="text-xl font-bold">{sub.maxClinics}</p>
+            <p className="text-blue-200 text-[10px] sm:text-xs mb-0.5">العيادات المسموحة</p>
+            <p className="text-sm sm:text-base font-bold">{sub.maxClinics >= 999 ? '∞' : sub.maxClinics}</p>
           </div>
           <div>
-            <p className="text-blue-200 text-xs mb-1">المرضى</p>
-            <p className="text-xl font-bold">{sub.maxPatients >= 9999 ? '∞' : sub.maxPatients}</p>
+            <p className="text-blue-200 text-[10px] sm:text-xs mb-0.5">المرضى</p>
+            <p className="text-sm sm:text-base font-bold">{sub.maxPatients >= 9999 ? '∞' : sub.maxPatients}</p>
           </div>
           <div>
-            <p className="text-blue-200 text-xs mb-1">الذكاء الاصطناعي</p>
-            <p className="text-xl font-bold">{sub.aiRequestLimit === -1 ? '∞' : sub.aiRequestLimit} <span className="text-xs font-normal text-blue-200">طلب</span></p>
+            <p className="text-blue-200 text-[10px] sm:text-xs mb-0.5">الذكاء الاصطناعي</p>
+            <p className="text-sm sm:text-base font-bold">
+              {sub.aiRequestLimit === -1 ? '∞' : sub.aiRequestLimit} <span className="text-[10px] font-normal text-blue-200">طلب</span>
+            </p>
           </div>
         </div>
       </div>
@@ -587,7 +595,10 @@ export const DoctorProfilePage: React.FC = () => {
                         const expiryDate = computeExpiry(req.created_at, req.payment_details);
                         const isExpired = req.status === 'approved' && new Date() > expiryDate;
                         const discount = req.payment_details?.discount_applied || req.payment_details?.discountApplied || 0;
-                        const amountPaid = req.amount_paid || req.plan?.price?.monthly || 0;
+                        const amountPaid =
+                          req.amount_paid !== undefined && req.amount_paid !== null
+                            ? Number(req.amount_paid)
+                            : Number(req.plan?.price?.monthly || 0);
                         
                         let statusLabel = 'مرفوض';
                         let statusClass = 'bg-red-100 text-red-700';

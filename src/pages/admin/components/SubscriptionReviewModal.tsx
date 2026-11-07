@@ -103,111 +103,132 @@ export const SubscriptionReviewModal: React.FC<SubscriptionReviewModalProps> = (
                         </button>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="p-4 border border-gray-200 rounded-xl bg-white">
-                            <span className="text-sm text-gray-500 block mb-1">الباقة المطلوبة</span>
-                            <div className="flex items-center gap-2">
-                                {(() => {
-                                    const period = request.paymentDetails?.billing_period || 'monthly';
-                                    const durationIcon = period === 'yearly' ? '12' : period === 'semi_annual' ? '6' : '1';
-                                    return (
-                                        <span className="w-6 h-6 flex items-center justify-center bg-purple-600 text-white text-xs font-black rounded-md shadow-sm">
-                                            {durationIcon}
+                    {(() => {
+                        const isFreeCoupon =
+                            request.paymentMethod === 'free_coupon' ||
+                            request.paymentDetails?.is_full_discount ||
+                            (Number(request.amountPaid || 0) === 0 && Number(request.discount || 0) > 0);
+
+                        return (
+                            <>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="p-4 border border-gray-200 rounded-xl bg-white">
+                                        <span className="text-sm text-gray-500 block mb-1">الباقة المطلوبة</span>
+                                        <div className="flex items-center gap-2">
+                                            {(() => {
+                                                const period = request.paymentDetails?.billing_period || 'monthly';
+                                                const durationIcon = period === 'yearly' ? '12' : period === 'semi_annual' ? '6' : '1';
+                                                return (
+                                                    <span className="w-6 h-6 flex items-center justify-center bg-purple-600 text-white text-xs font-black rounded-md shadow-sm">
+                                                        {durationIcon}
+                                                    </span>
+                                                );
+                                            })()}
+                                            <span className="font-bold text-lg text-purple-600">{request.requestedPlan}</span>
+                                        </div>
+                                    </div>
+                                    <div className="p-4 border border-gray-200 rounded-xl bg-white">
+                                        <span className="text-sm text-gray-500 block mb-1">مدة الاشتراك</span>
+                                        <span className="font-bold text-gray-700">
+                                            {request.paymentDetails?.billing_period === 'yearly' ? '🗓 سنوي (12 شهر)' : request.paymentDetails?.billing_period === 'semi_annual' ? '📅 نصف سنوي (6 أشهر)' : '📆 شهري (1 شهر)'}
                                         </span>
-                                    );
-                                })()}
-                                <span className="font-bold text-lg text-purple-600">{request.requestedPlan}</span>
-                            </div>
-                        </div>
-                        <div className="p-4 border border-gray-200 rounded-xl bg-white">
-                            <span className="text-sm text-gray-500 block mb-1">مدة الاشتراك</span>
-                            <span className="font-bold text-gray-700">
-                                {request.paymentDetails?.billing_period === 'yearly' ? '🗓 سنوي (12 شهر)' : request.paymentDetails?.billing_period === 'semi_annual' ? '📅 نصف سنوي (6 أشهر)' : '📆 شهري (1 شهر)'}
-                            </span>
-                        </div>
-                        <div className="p-4 border border-gray-200 rounded-xl bg-white">
-                            <span className="text-sm text-gray-500 block mb-1">المبلغ المدفوع</span>
-                            <span className="font-bold text-lg text-green-600">
-                                {request.amountPaid?.toLocaleString() || '0'} <span className="text-xs font-normal text-gray-500">د.ع</span>
-                            </span>
-                        </div>
-                        <div className="p-4 border border-gray-200 rounded-xl bg-white">
-                            <span className="text-sm text-gray-500 block mb-1">طريقة الدفع</span>
-                            <span className="font-bold text-lg text-gray-900">
-                                {request.paymentMethod === 'zain' ? 'ZainCash' : request.paymentMethod === 'agent' ? 'عن طريق وكيل' : (request.paymentMethod === 'rafidain' ? 'QiCard' : request.paymentMethod)}
-                            </span>
-                        </div>
-                        <div className="p-4 border border-gray-200 rounded-xl bg-white">
-                            <span className="text-sm text-gray-500 block mb-1">تاريخ الطلب</span>
-                            <span className="font-medium text-gray-800">{formatNumericDate(request.submittedDate)}</span>
-                        </div>
-                        <div className="p-4 border rounded-xl bg-white border-gray-200">
-                            <span className="text-sm text-gray-500 block mb-1">الخصم المطبق</span>
-                            {request.discount > 0 ? (
-                                <div>
-                                    <span className="font-bold text-green-600">−{Number(request.discount).toLocaleString()} د.ع</span>
-                                    {request.paymentDetails?.coupon_code && (
-                                        <span className="mr-2 text-xs bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full font-mono">
-                                            {request.paymentDetails.coupon_code}
+                                    </div>
+                                    <div className="p-4 border border-gray-200 rounded-xl bg-white">
+                                        <span className="text-sm text-gray-500 block mb-1">قيمة الدفع (الصافي)</span>
+                                        <span className="font-bold text-lg text-green-600">
+                                            {Number(request.amountPaid || 0).toLocaleString()} <span className="text-xs font-normal text-gray-500">د.ع</span>
+                                            {isFreeCoupon && <span className="mr-2 text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">مجاني بخصم 100%</span>}
                                         </span>
+                                    </div>
+                                    <div className="p-4 border rounded-xl bg-white border-gray-200">
+                                        <span className="text-sm text-gray-500 block mb-1">قيمة الخصم المطبق</span>
+                                        {request.discount > 0 ? (
+                                            <div>
+                                                <span className="font-bold text-lg text-green-600">−{Number(request.discount).toLocaleString()} د.ع</span>
+                                                {request.paymentDetails?.coupon_code && (
+                                                    <span className="mr-2 text-xs bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full font-mono">
+                                                        {request.paymentDetails.coupon_code}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <span className="text-gray-400 text-sm">لا يوجد خصم</span>
+                                        )}
+                                    </div>
+                                    {!isFreeCoupon && (
+                                        <div className="p-4 border border-gray-200 rounded-xl bg-white">
+                                            <span className="text-sm text-gray-500 block mb-1">طريقة الدفع</span>
+                                            <span className="font-bold text-lg text-gray-900">
+                                                {request.paymentMethod === 'zain' ? 'ZainCash' : (request.paymentMethod === 'agent' || request.paymentMethod === 'cash_agent') ? 'عن طريق وكيل' : (request.paymentMethod === 'rafidain' ? 'QiCard' : request.paymentMethod)}
+                                            </span>
+                                        </div>
                                     )}
+                                    <div className="p-4 border border-gray-200 rounded-xl bg-white">
+                                        <span className="text-sm text-gray-500 block mb-1">تاريخ الطلب</span>
+                                        <span className="font-medium text-gray-800">{formatNumericDate(request.submittedDate)}</span>
+                                    </div>
                                 </div>
-                            ) : (
-                                <span className="text-gray-400 text-sm">لا يوجد خصم</span>
-                            )}
-                        </div>
-                    </div>
 
-                    {/* Sender Details (From Payment Details) */}
-                    {(request.paymentDetails?.senderName || request.paymentDetails?.notes) && (
-                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 text-sm space-y-2">
-                            <h4 className="font-bold text-gray-900 border-b pb-2 mb-2">معلومات الدفع الإضافية</h4>
-                            {request.paymentDetails?.senderName && (
-                                <div className="grid grid-cols-2 gap-2">
-                                    <div><span className="text-gray-500">اسم المرسل:</span> <span className="font-medium">{request.paymentDetails.senderName}</span></div>
-                                    <div><span className="text-gray-500">رقم الهاتف:</span> <span className="font-medium" dir="ltr">{request.paymentDetails.senderPhone}</span></div>
-                                </div>
-                            )}
-                            {request.paymentDetails?.notes && (
-                                <div className="pt-2">
-                                    <span className="text-gray-500 block">ملاحظات:</span>
-                                    <p className="text-gray-800 bg-white p-2 rounded border border-gray-100 mt-1">{request.paymentDetails.notes}</p>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {request.paymentMethod === 'agent' ? (
-                        <div className="bg-blue-50 text-blue-800 p-4 rounded-xl border border-blue-100">
-                            <strong className="block mb-1">دفع عن طريق الوكيل:</strong>
-                            <p className="text-sm opacity-90">يرجى الاتصال بالوكيل المحدد للتأكد من استلام المبلغ نقداً.</p>
-                            <div className="mt-2 text-sm bg-white/50 p-2 rounded-lg inline-block">
-                                وكيل: {request.agentName || 'عام'} - {request.agentGovernorate || 'غير محدد'}
-                            </div>
-                        </div>
-                    ) : (
-                        <div>
-                            <h4 className="font-bold mb-3 text-gray-900">صورة الإشعار / الوصل</h4>
-                            <div
-                                onClick={() => request.receiptImageUrl && setShowImagePreview(true)}
-                                className="relative group cursor-pointer border-2 border-dashed border-gray-200 rounded-xl overflow-hidden h-48 bg-gray-50 flex items-center justify-center hover:border-purple-300 transition-colors"
-                            >
-                                {request.receiptImageUrl ? (
-                                    <img src={request.receiptImageUrl} alt="Proof" className="object-cover w-full h-full opacity-100 group-hover:opacity-90 transition-opacity" />
-                                ) : (
-                                    <div className="text-gray-400 text-sm">لا توجد صورة مرفقة</div>
-                                )}
-
-                                {request.receiptImageUrl && (
-                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button className="text-white flex items-center gap-2 hover:underline font-medium">
-                                            <Eye className="w-5 h-5" /> تكبير الصورة
-                                        </button>
+                                {/* Sender Details (From Payment Details) */}
+                                {(request.paymentDetails?.senderName || request.paymentDetails?.notes) && (
+                                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 text-sm space-y-2">
+                                        <h4 className="font-bold text-gray-900 border-b pb-2 mb-2">معلومات مقدم الطلب</h4>
+                                        {request.paymentDetails?.senderName && (
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div><span className="text-gray-500">الاسم:</span> <span className="font-medium">{request.paymentDetails.senderName}</span></div>
+                                                <div><span className="text-gray-500">رقم الهاتف:</span> <span className="font-medium" dir="ltr">{request.paymentDetails.senderPhone}</span></div>
+                                            </div>
+                                        )}
+                                        {request.paymentDetails?.notes && (
+                                            <div className="pt-2">
+                                                <span className="text-gray-500 block">ملاحظات:</span>
+                                                <p className="text-gray-800 bg-white p-2 rounded border border-gray-100 mt-1">{request.paymentDetails.notes}</p>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
-                            </div>
-                        </div>
-                    )}
+
+                                {isFreeCoupon ? (
+                                    <div className="bg-emerald-50 text-emerald-800 p-4 rounded-xl border border-emerald-200">
+                                        <strong className="block mb-1">إعفاء كامل من الدفع (كود خصم 100%):</strong>
+                                        <p className="text-sm opacity-90">
+                                            تم تقديم هذا الطلب باستخدام كود خصم يغطي كامل قيمة الباقة ({Number(request.discount).toLocaleString()} د.ع)، لذلك لا يتطلب طريقة دفع أو وصل تحويل.
+                                        </p>
+                                    </div>
+                                ) : (request.paymentMethod === 'agent' || request.paymentMethod === 'cash_agent') ? (
+                                    <div className="bg-blue-50 text-blue-800 p-4 rounded-xl border border-blue-100">
+                                        <strong className="block mb-1">دفع عن طريق الوكيل:</strong>
+                                        <p className="text-sm opacity-90">يرجى الاتصال بالوكيل المحدد للتأكد من استلام المبلغ نقداً.</p>
+                                        <div className="mt-2 text-sm bg-white/50 p-2 rounded-lg inline-block">
+                                            وكيل: {request.agentName || 'عام'} - {request.agentGovernorate || 'غير محدد'}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <h4 className="font-bold mb-3 text-gray-900">صورة الإشعار / الوصل</h4>
+                                        <div
+                                            onClick={() => request.receiptImageUrl && setShowImagePreview(true)}
+                                            className="relative group cursor-pointer border-2 border-dashed border-gray-200 rounded-xl overflow-hidden h-48 bg-gray-50 flex items-center justify-center hover:border-purple-300 transition-colors"
+                                        >
+                                            {request.receiptImageUrl ? (
+                                                <img src={request.receiptImageUrl} alt="Proof" className="object-cover w-full h-full opacity-100 group-hover:opacity-90 transition-opacity" />
+                                            ) : (
+                                                <div className="text-gray-400 text-sm">لا توجد صورة مرفقة</div>
+                                            )}
+
+                                            {request.receiptImageUrl && (
+                                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button className="text-white flex items-center gap-2 hover:underline font-medium">
+                                                        <Eye className="w-5 h-5" /> تكبير الصورة
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        );
+                    })()}
 
                     {request.status === 'pending' && (
                         <div className="flex gap-3 pt-6 border-t border-gray-100 font-medium">
@@ -223,7 +244,9 @@ export const SubscriptionReviewModal: React.FC<SubscriptionReviewModalProps> = (
                                 className="flex-[2] bg-green-600 text-white py-3 rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-200 flex items-center justify-center gap-2"
                             >
                                 <CheckCircle className="w-5 h-5" />
-                                تأكيد واستلام المبلغ
+                                {request.paymentMethod === 'free_coupon' || (Number(request.amountPaid || 0) === 0 && Number(request.discount || 0) > 0)
+                                    ? 'تأكيد وتفعيل الاشتراك'
+                                    : 'تأكيد واستلام المبلغ'}
                             </button>
                         </div>
                     )}

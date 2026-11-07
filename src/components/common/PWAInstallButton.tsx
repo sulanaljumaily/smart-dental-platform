@@ -25,6 +25,11 @@ interface PWAInstallButtonProps {
 function shouldShowPWAInstall(pathname: string, search: string): boolean {
   const cleanPath = pathname.replace(/\/$/, '').toLowerCase();
 
+  // Never show in Clinic Dashboard or any clinic sub-route
+  if (cleanPath.includes('/clinic')) {
+    return false;
+  }
+
   // 1. Doctor Center: ONLY show in /doctor (overview)
   if (cleanPath.startsWith('/doctor')) {
     return cleanPath === '/doctor' || cleanPath === '/doctor-welcome';
@@ -71,8 +76,8 @@ export function PWAInstallButton({ variant = 'floating' }: PWAInstallButtonProps
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(false);
 
-  // Never show inside already-installed native apps (Windows EXE / Android APK / iOS App)
-  if (isNativeApp()) return null;
+  // Never show inside already-installed native apps (Windows EXE / Android APK / iOS App) or installed PWA
+  if (isNativeApp() || isInstalled) return null;
 
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
   const isAndroid = /Android/i.test(ua);
@@ -102,11 +107,7 @@ export function PWAInstallButton({ variant = 'floating' }: PWAInstallButtonProps
     ? hasAndroidOptions
     : hasIOSOptions;
 
-  // On desktop, even if PWA is already installed, the user may still want the Windows offline .exe
   if (!showOnRoute || dismissed || !hasOptionsForDevice) return null;
-  if (!isDesktop && isInstalled && appsConfig.android.playStoreStatus === 'hidden' && !appsConfig.android.directApkEnabled && appsConfig.ios.appStoreStatus === 'hidden') {
-    return null;
-  }
 
   const handleOpenModal = () => {
     setStatusMessage(null);
@@ -260,7 +261,7 @@ export function PWAInstallButton({ variant = 'floating' }: PWAInstallButtonProps
                     : 'نسخة أجهزة الآيفون والآيباد'}
                 </span>
               </div>
-              <h3 className="font-bold text-lg leading-snug">تثبيت تطبيق المنصة الذكية</h3>
+              <h3 className="font-bold text-lg leading-snug">تثبيت تطبيق المنصة طب الاسنان</h3>
               <p className="text-xs text-white/80">اختر طريقة التثبيت المناسبة لجهازك</p>
             </div>
           </div>
@@ -530,11 +531,14 @@ export function PWAInstallButton({ variant = 'floating' }: PWAInstallButtonProps
     </div>
   );
 
-  // ── Floating variant (above bottom nav) ────────────────────────────────────
+  // ── Floating variant (above bottom nav with safe margin) ──────────────────
   if (variant === 'floating') {
     return (
       <>
-        <div className="fixed bottom-14 left-1/2 -translate-x-1/2 z-[150] flex items-center gap-2 animate-in slide-in-from-bottom-4 fade-in duration-500">
+        <div
+          className="fixed left-1/2 -translate-x-1/2 z-[150] flex items-center gap-2 animate-in slide-in-from-bottom-4 fade-in duration-500"
+          style={{ bottom: 'calc(4.15rem + max(calc(env(safe-area-inset-bottom, 0px) * 0.5), 4px))' }}
+        >
           <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 bg-gradient-to-r from-[#0D8ABC] to-[#0a6fa0] text-white rounded-full shadow-lg shadow-blue-400/40 border border-white/20">
             <img
               src="/icons/icon-72x72.png"

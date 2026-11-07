@@ -120,11 +120,15 @@ export const SubscriptionsSection: React.FC = () => {
     {
       key: 'paymentMethod',
       title: 'طريقة الدفع',
-      render: (value) => {
+      render: (value, record: any) => {
+        const isFreeCoupon = value === 'free_coupon' || record?.paymentDetails?.is_full_discount || (Number(record?.amountPaid) === 0 && Number(record?.discount) > 0);
+        if (isFreeCoupon) {
+          return <span className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-bold">خصم 100% (بدون دفع)</span>;
+        }
         if (value === 'zain') return <span className="text-pink-600 font-bold">ZainCash</span>;
         if (value === 'rafidain') return <span className="text-yellow-600 font-bold">QiCard</span>;
-        if (value === 'agent') return <span className="text-blue-600 font-bold">وكيل</span>;
-        return <span className="text-gray-500">{value}</span>;
+        if (value === 'agent' || value === 'cash_agent') return <span className="text-blue-600 font-bold">وكيل</span>;
+        return <span className="text-gray-500">{value || '-'}</span>;
       }
     },
     {
@@ -148,14 +152,33 @@ export const SubscriptionsSection: React.FC = () => {
     },
     {
       key: 'amountPaid',
-      title: 'القيمة',
+      title: 'قيمة الدفع',
       sortable: true,
-      render: (value) => <span className="font-semibold text-gray-900">{Number(value || 0).toLocaleString()} د.ع</span>
+      render: (value, record: any) => {
+        const paid = Number(value || 0);
+        const isFreeCoupon = record?.paymentMethod === 'free_coupon' || record?.paymentDetails?.is_full_discount || (paid === 0 && Number(record?.discount) > 0);
+        return (
+          <span className={`font-semibold ${isFreeCoupon ? 'text-emerald-700' : 'text-gray-900'}`}>
+            {paid.toLocaleString()} د.ع
+          </span>
+        );
+      }
     },
     {
       key: 'discount',
-      title: 'الخصم',
-      render: (value) => Number(value) > 0 ? <span className="text-sm font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">{Number(value).toLocaleString()} د.ع</span> : <span className="text-gray-400">-</span>
+      title: 'قيمة الخصم',
+      render: (value, record: any) => Number(value) > 0 ? (
+        <div className="inline-flex items-center gap-1">
+          <span className="text-xs font-bold text-green-600 bg-green-50 border border-green-100 px-2 py-0.5 rounded">
+            -{Number(value).toLocaleString()} د.ع
+          </span>
+          {record?.paymentDetails?.coupon_code && (
+            <span className="text-[10px] font-mono bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded">
+              {record.paymentDetails.coupon_code}
+            </span>
+          )}
+        </div>
+      ) : <span className="text-gray-400">-</span>
     },
     {
       key: 'submittedDate',
