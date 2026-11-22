@@ -114,19 +114,9 @@ export async function savePushTokenToSupabase(userId: string, token: string): Pr
 export async function requestDeviceNotificationPermission(): Promise<'granted' | 'denied' | 'default' | 'unsupported'> {
   if (typeof window === 'undefined') return 'unsupported';
 
-  // 1. Windows Desktop (Tauri v2 Native Notification Plugin)
+  // 1. Windows Desktop (Tauri v2 Native Rust Notification Command — always permitted)
   if (isDesktopApp()) {
-    try {
-      const tauriNotif = await import('@tauri-apps/plugin-notification');
-      let granted = await tauriNotif.isPermissionGranted();
-      if (!granted) {
-        const perm = await tauriNotif.requestPermission();
-        granted = perm === 'granted';
-      }
-      return granted ? 'granted' : 'denied';
-    } catch (err) {
-      console.warn('[Push] Tauri notification permission fallback:', err);
-    }
+    return 'granted';
   }
 
   // 2. Android APK Native Bridge
@@ -269,24 +259,19 @@ export async function showNativeDeviceNotification(params: {
     }
   }
 
-  // 2. Windows Desktop Tauri v2 Native Notification Bar (Windows Action Center)
+  // 2. Windows Desktop Tauri v2 — Direct Native Rust Notification Command (bypasses WebView2 permission blocks & guarantees Windows Action Center toast)
   if (isDesktopApp()) {
     try {
-      const tauriNotif = await import('@tauri-apps/plugin-notification');
-      let granted = await tauriNotif.isPermissionGranted();
-      if (!granted) {
-        const perm = await tauriNotif.requestPermission();
-        granted = perm === 'granted';
-      }
-      if (granted) {
-        tauriNotif.sendNotification({
-          title,
-          body,
-        });
-        return true;
-      }
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('send_native_notification', { title, body });
+      return true;
     } catch (err) {
-      console.warn('[Push] Tauri sendNotification fallback to Web Notification:', err);
+      console.warn('[Push] Rust send_native_notification failed, trying plugin fallback:', err);
+      try {
+        const tauriNotif = await import('@tauri-apps/plugin-notification');
+        tauriNotif.sendNotification({ title, body });
+        return true;
+      } catch {}
     }
   }
 

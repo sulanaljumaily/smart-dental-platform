@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Home, RotateCw, Copy, ExternalLink } from 'lucide-react';
+import { ArrowRight, Home, RotateCw, Copy, Minimize2, Power } from 'lucide-react';
 import { isDesktopApp } from '../../lib/platform';
 
 interface MenuPosition {
@@ -15,22 +15,33 @@ export const DesktopContextMenu: React.FC = () => {
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
+  const invokeDesktopCommand = async (cmd: 'hide_to_tray' | 'quit_app') => {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke(cmd);
+    } catch (err) {
+      console.warn(`[DesktopContextMenu] Command ${cmd} failed:`, err);
+      if (cmd === 'quit_app') {
+        try {
+          window.close();
+        } catch {}
+      }
+    }
+  };
+
   useEffect(() => {
     // Only activate in desktop app (Tauri/Windows)
     if (!isDesktopApp()) return;
 
     const handleContextMenu = (e: MouseEvent) => {
-      // Allow native behavior on text input / textarea if user is typing
-      const target = e.target as HTMLElement;
-      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
       const selection = window.getSelection()?.toString().trim() || '';
       setSelectedText(selection);
 
       // In desktop app, always show our tailored premium application menu
       e.preventDefault();
 
-      const menuWidth = 210;
-      const menuHeight = selection ? 180 : 140;
+      const menuWidth = 230;
+      const menuHeight = selection ? 270 : 230;
       let x = e.clientX;
       let y = e.clientY;
 
@@ -81,7 +92,7 @@ export const DesktopContextMenu: React.FC = () => {
     <div
       ref={menuRef}
       dir="rtl"
-      className="fixed z-[9999999] bg-slate-900/95 backdrop-blur-2xl border border-white/15 rounded-2xl shadow-2xl p-1.5 min-w-[200px] text-white select-none animate-in fade-in zoom-in-95 duration-150"
+      className="fixed z-[9999999] bg-slate-900/95 backdrop-blur-2xl border border-white/15 rounded-2xl shadow-2xl p-1.5 min-w-[220px] text-white select-none animate-in fade-in zoom-in-95 duration-150"
       style={{ top: `${position.y}px`, left: `${position.x}px` }}
       role="menu"
     >
@@ -150,6 +161,40 @@ export const DesktopContextMenu: React.FC = () => {
             </button>
           </>
         )}
+
+        <div className="my-1 border-t border-white/10" />
+
+        {/* إغلاق النافذة مع إبقاء التطبيق يعمل في الخلفية لاستقبال الإشعارات */}
+        <button
+          type="button"
+          onClick={() => {
+            setIsOpen(false);
+            invokeDesktopCommand('hide_to_tray');
+          }}
+          className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-sky-200 hover:text-white hover:bg-sky-500/25 rounded-xl transition-all group"
+          role="menuitem"
+        >
+          <div className="flex items-center gap-2.5">
+            <Minimize2 className="w-4 h-4 text-sky-400 group-hover:text-sky-300 transition-colors" />
+            <span>إغلاق (إبقاء بالخلفية)</span>
+          </div>
+        </button>
+
+        {/* خروج نهائي من التطبيق والخلفية */}
+        <button
+          type="button"
+          onClick={() => {
+            setIsOpen(false);
+            invokeDesktopCommand('quit_app');
+          }}
+          className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-rose-300 hover:text-white hover:bg-rose-600/35 rounded-xl transition-all group"
+          role="menuitem"
+        >
+          <div className="flex items-center gap-2.5">
+            <Power className="w-4 h-4 text-rose-400 group-hover:text-rose-200 transition-colors" />
+            <span>خروج من التطبيق</span>
+          </div>
+        </button>
       </div>
     </div>
   );
