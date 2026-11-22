@@ -1,49 +1,36 @@
-# دليل تفعيل إشعارات الدفع (Push Notifications — FCM HTTP v1 + Supabase)
+# دليل نظام الإشعارات الفورية (يعمل بدون Firebase بالكامل!)
 
-تم بناء البنية البرمجية الكاملة لإشعارات الدفع في المنصة وفقاً للوثائق الرسمية لـ Supabase (`send-push-notification` + `user_push_tokens` + `Database Triggers` + `Realtime OS Notifications`).
+تم بناء وتشغيل نظام الإشعارات الفورية في **منصة طب الأسنان** ليعمل مباشرة في **شريط إشعارات الجهاز** على ويندوز وأندرويد والويب **بدون الحاجة إلى Firebase نهائياً**، مع ترحيل جميع التعديلات على Supabase تلقائياً عبر سكربت `scripts/deploy-supabase-notifications.cjs`.
 
-## 1. ما يعمل تلقائياً الآن (بدون أي إعدادات إضافية)
-- **إشعارات النظام الفورية على Windows Desktop و Web PWA والهواتف المفتوحة** عبر Supabase Realtime + Notification API + صوت وتنبيه داخل التطبيق.
-- **إشعارات المواعيد التلقائية:** عند استقبال حجز أونلاين أو تسجيل موعد جديد يظهر إشعار فوري للطبيب وطاقم العيادة.
-- **التذكير قبل الموعد بيوم (24 ساعة):** يتم توليده وإرساله تلقائياً للطبيب والعيادة وللمراجع (إن كان لديه حساب).
-- **إشعارات الدورات والندوات الجديدة:** عند نشر أي دورة أو ندوة من لوحة الإدارة يُرسل إشعار تلقائي لجميع الأطباء والطاقم والمعامل والموردين.
-- **حملات وإشعارات الإدارة المجدولة والفورية:** عروض المتجر، التخفيضات، التحديثات، والقوالب الجاهزة مع استهداف الفئات الأربع.
+## 1. كيف تعمل الإشعارات بدون Firebase على كل منصة؟
 
-## 2. لتفعيل وصول الإشعارات والهاتف مغلق تماماً (Firebase Cloud Messaging — Android / iOS / Background Push)
+| المنصة | التطبيق مفتوح | التطبيق مغلق / الشاشة مقفلة |
+|---|---|---|
+| **تطبيق سطح المكتب (Windows Tauri)** | فوري (<1–12 ثانية) في **شريط إشعارات ويندوز (Action Center)** عبر `tauri-plugin-notification` + Supabase Realtime | بمجرد فتح التطبيق تظهر الإشعارات الجديدة تلقائياً |
+| **تطبيق أندرويد (Android APK)** | فوري (<1–12 ثانية) في **شريط إشعارات أندرويد** عبر `AndroidNative.showNotification` و `NotificationChannel (IMPORTANCE_HIGH)` | **نعم! يعمل والهاتف مغلق بدون Firebase** عبر `NotificationPollReceiver` + `AlarmManager.setAndAllowWhileIdle` (يفحص Supabase كل 5 دقائق ويحدّث التوكن تلقائياً ويعيد الجدولة بعد إعادة تشغيل الهاتف عبر `NotificationBootReceiver`) |
+| **الويب (Web / PWA)** | فوري عبر Notification API و Service Worker | عند فتح المتصفح أو PWA |
 
-### الخطوة 1: إنشاء مشروع Firebase
-1. افتح [Firebase Console](https://console.firebase.google.com/) وأنشئ مشروعاً (أو استخدم مشروعك الحالي).
-2. أضف تطبيق Android بمعرف الحزمة:
-   - تطبيق القطاع الطبي: `com.dentalplatform.pro`
-   - تطبيق المراجعين: `com.dentalplatform.patient`
-3. حمّل ملف `google-services.json` وضعه في `android/app/google-services.json` (أو كـ Secret باسم `ANDROID_GOOGLE_SERVICES_JSON` في GitHub Actions).
-4. من **Project Settings -> Service Accounts** اضغط **Generate new private key** لتحميل ملف JSON الخاص بحساب الخدمة (`service-account.json`).
-
-### الخطوة 2: رفع مفتاح Firebase ونشر Edge Function على Supabase
+## 2. ترحيل وتحديث قاعدة بيانات Supabase تلقائياً
+لتطبيق جميع الجداول والـ Triggers و `REPLICA IDENTITY FULL` و `pg_cron` (الجدولة الخلفية كل 5 دقائق على الخادم):
 ```bash
-# 1. تسجيل الدخول وربط المشروع
-supabase login
-supabase link --project-ref nhueyaeyutfmadbgghfe
-
-# 2. حفظ مفتاح Firebase Service Account كسر آمن
-supabase secrets set FIREBASE_SERVICE_ACCOUNT="$(cat service-account.json)"
-
-# 3. نشر دالة Push Notifications
-supabase functions deploy send-push-notification --no-verify-jwt
+node scripts/deploy-supabase-notifications.cjs
 ```
+تم تشغيل هذا السكربت مسبقاً على قاعدة البيانات الحية، مما فعّل:
+- `trg_notify_on_appointment_insert`: إشعار فوري للطبيب والطاقم عند استقبال موعد أونلاين أو تسجيل موعد جديد.
+- `trg_notify_on_course_insert`: إشعار تلقائي عند نشر دورة أو ندوة جديدة.
+- `dental_notifications_scheduler` (`pg_cron` كل 5 دقائق): يرسل الحملات المجدولة وتذكيرات المواعيد قبل يوم (24 ساعة) تلقائياً على الخادم.
 
-### الخطوة 3: تفعيل Database Webhook في لوحة Supabase
-1. اذهب إلى **Supabase Dashboard -> Database -> Webhooks -> Create a new hook**.
-2. الإعدادات:
-   - **Name:** `push_on_new_notification`
-   - **Table:** `public.notifications`
-   - **Events:** `INSERT`
-   - **Type:** `Supabase Edge Functions`
-   - **Edge Function:** `send-push-notification`
+## 3. ملاحظة هامة عند التحديث
+بما أن إضافات إشعارات النظام الأصلية أُضيفت في الكود الأصلي لـ **Windows (`tauri-plugin-notification`)** و **Android (`MainActivity` + `NotificationPollReceiver` + إذن `POST_NOTIFICATIONS`)**:
+- تحتاج لتثبيت **النسخة الجديدة المبنية عبر GitHub Actions (`v22.32` أو أحدث)** لـ `.exe` و `.apk` حتى تظهر الإشعارات في شريط إشعارات النظام!
+- داخل `/doctor/notifications` يوجد زر **«تفعيل واختبار إشعارات الجهاز»** للتأكد بضغطة واحدة من منح الإذن وظهور الإشعار في شريط الجهاز.
 
-### الخطوة 4 (اختياري لجدولة الخلفية الدقيقة): Cron Job كل 15 دقيقة
-يمكنك استدعاء الدالة بوضع الجدولة (لإرسال الحملات المجدولة وتذكيرات المواعيد قبل يوم حتى لو لم يكن أحد فاتحاً التطبيق):
-- **Endpoint:** `https://nhueyaeyutfmadbgghfe.supabase.co/functions/v1/send-push-notification`
-- **Method:** `POST`
-- **Body:** `{"action": "process_scheduled"}`
-- **Schedule:** كل 15 دقيقة (`*/15 * * * *`) عبر Supabase Cron أو GitHub Actions Scheduled Workflow.
+## 4. (اختياري مستقبلاً) إضافة Firebase FCM لوصول فوري بأقل من ثانية على أندرويد وآيفون مغلق
+في حال رغبت مستقبلاً بإضافة Firebase (للملاحظة فقط، غير مطلوب حالياً لأن أندرويد يعمل بالخلفية بدونه):
+1. ضع `google-services.json` في `android/app/`.
+2. ارفع المفتاح ونشر الدالة الجاهزة:
+   ```bash
+   supabase secrets set FIREBASE_SERVICE_ACCOUNT="$(cat service-account.json)"
+   supabase functions deploy send-push-notification --project-ref nhueyaeyutfmadbgghfe --no-verify-jwt
+   ```
+3. اربط Database Webhook على `public.notifications` (حدث `INSERT`) بدالة `send-push-notification`.

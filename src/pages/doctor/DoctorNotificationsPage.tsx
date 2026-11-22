@@ -12,6 +12,8 @@ import { useAppointments } from '../../hooks/useAppointments';
 import { useLabOrders } from '../../hooks/useLabOrders';
 import { useStoreOrders } from '../../hooks/useStoreOrders';
 import { ClinicOfflineIndicator } from '../../components/clinic/ClinicOfflineIndicator';
+import { requestDeviceNotificationPermission, showNativeDeviceNotification } from '../../lib/pushNotifications';
+import { toast } from 'sonner';
 
 // Define the display categories
 type FilterCategory = 'all' | 'unread' | 'general' | 'update' | 'system' | 'appointment' | 'inventory' | 'order';
@@ -435,12 +437,37 @@ export const DoctorNotificationsPage: React.FC = () => {
           <p className="text-gray-500 text-sm mt-1">تتبع جميع التنبيهات والتحديثات في مكان واحد</p>
         </div>
 
-        {(notifications.some(n => !n.isRead) || unreadCount > 0) && (
-          <Button variant="outline" size="sm" onClick={() => markAllAsRead()}>
-            <CheckCircle2 className="w-4 h-4 ml-2" />
-            تحديد الكل كمقروء
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              const perm = await requestDeviceNotificationPermission();
+              const shown = await showNativeDeviceNotification({
+                title: '🔔 إشعارات الجهاز مفعّلة بنجاح',
+                body: 'ستصلك إشعارات المواعيد والعروض والتحديثات مباشرة في شريط إشعارات جهازك.',
+                link: '/doctor/notifications',
+              });
+              if (shown) {
+                toast.success('تم إرسال إشعار تجريبي إلى شريط إشعارات الجهاز');
+              } else if (perm === 'denied') {
+                toast.error('تم حظر الإشعارات من إعدادات الجهاز — يرجى تفعيلها من إعدادات التطبيق/النظام');
+              } else {
+                toast.info('يرجى السماح بصلاحية الإشعارات عند ظهور الطلب');
+              }
+            }}
+          >
+            <Bell className="w-4 h-4 ml-1.5 text-blue-600" />
+            تفعيل واختبار إشعارات الجهاز
           </Button>
-        )}
+
+          {(notifications.some(n => !n.isRead) || unreadCount > 0) && (
+            <Button variant="outline" size="sm" onClick={() => markAllAsRead()}>
+              <CheckCircle2 className="w-4 h-4 ml-2" />
+              تحديد الكل كمقروء
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Tabs */}

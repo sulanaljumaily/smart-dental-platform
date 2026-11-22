@@ -1,15 +1,20 @@
 /**
- * Dental Platform — Native & Web Push Notifications Bridge
+ * Dental Platform — Native & Web Push Notifications Bridge (100% Firebase-Free Capable)
  * Supports:
- * 1. Capacitor PushNotifications (Android / iOS FCM tokens saved in `user_push_tokens`)
- * 2. Windows Desktop (Tauri WebView2) & Web/PWA Native OS Notification API
- * 3. Direct non-blocking invocation of Supabase Edge Function `send-push-notification`
+ * 1. Windows Desktop (Tauri v2): Official `@tauri-apps/plugin-notification` -> Windows Action Center / Notification Bar
+ * 2. Android APK: Native `AndroidNative.showNotification` + Firebase-free `NotificationPollReceiver` background AlarmManager (works even when app closed & phone locked!)
+ * 3. Web / PWA: Browser Notification API + ServiceWorker `showNotification`
+ * 4. Optional Capacitor PushNotifications FCM (if Firebase is added later)
  */
 import { supabase } from './supabase';
 import { isDesktopApp } from './platform';
 
 const shownNotificationIds = new Set<string>();
-const MAX_SHOWN_CACHE = 200;
+const MAX_SHOWN_CACHE = 300;
+
+const SUPABASE_URL_FALLBACK = 'https://nhueyaeyutfmadbgghfe.supabase.co';
+const SUPABASE_ANON_FALLBACK =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5odWV5YWV5dXRmbWFkYmdnaGZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MzcwNTYsImV4cCI6MjA4NDQxMzA1Nn0.56MIbpOtVu9b_fwEyo-hvlxGxA_E5c-nU7q1MSfTg-g';
 
 export function markNotificationShownLocally(id?: string | null): boolean {
   if (!id) return true;
@@ -35,6 +40,47 @@ export function detectPushPlatform(): 'android' | 'ios' | 'desktop' | 'web' {
   if (/android/i.test(ua)) return 'android';
   if (/iphone|ipad|ipod/i.test(ua)) return 'ios';
   return 'web';
+}
+
+/**
+ * Syncs Supabase auth session to Android's native SharedPreferences so the
+ * Firebase-free NotificationPollReceiver can poll & display Android status bar
+ * notifications even when the app is completely closed and the phone is locked!
+ */
+export async function syncAndroidBackgroundNotificationSession(userId?: string | null): Promise<void> {
+  if (typeof window === 'undefined') return;
+  const androidBridge = (window as any).AndroidNative;
+  if (!androidBridge) return;
+
+  if (!userId) {
+    try {
+      if (typeof androidBridge.clearNotificationSession === 'function') {
+        androidBridge.clearNotificationSession();
+      }
+    } catch {}
+    return;
+  }
+
+  try {
+    const { data } = await supabase.auth.getSession();
+    const session = data?.session;
+    if (!session?.access_token) return;
+
+    const url = import.meta.env.VITE_SUPABASE_URL || SUPABASE_URL_FALLBACK;
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || SUPABASE_ANON_FALLBACK;
+
+    if (typeof androidBridge.saveNotificationSession === 'function') {
+      androidBridge.saveNotificationSession(
+        url,
+        anonKey,
+        session.access_token,
+        session.refresh_token || '',
+        userId
+      );
+    }
+  } catch (err) {
+    console.warn('[Push] Android background session sync skipped:', err);
+  }
 }
 
 export async function savePushTokenToSupabase(userId: string, token: string): Promise<void> {
@@ -65,10 +111,35 @@ export async function savePushTokenToSupabase(userId: string, token: string): Pr
   }
 }
 
-export async function requestBrowserNotificationPermission(): Promise<NotificationPermission | 'unsupported'> {
-  if (typeof window === 'undefined' || !('Notification' in window)) {
-    return 'unsupported';
+export async function requestDeviceNotificationPermission(): Promise<'granted' | 'denied' | 'default' | 'unsupported'> {
+  if (typeof window === 'undefined') return 'unsupported';
+
+  // 1. Windows Desktop (Tauri v2 Native Notification Plugin)
+  if (isDesktopApp()) {
+    try {
+      const tauriNotif = await import('@tauri-apps/plugin-notification');
+      let granted = await tauriNotif.isPermissionGranted();
+      if (!granted) {
+        const perm = await tauriNotif.requestPermission();
+        granted = perm === 'granted';
+      }
+      return granted ? 'granted' : 'denied';
+    } catch (err) {
+      console.warn('[Push] Tauri notification permission fallback:', err);
+    }
   }
+
+  // 2. Android APK Native Bridge
+  const androidBridge = (window as any).AndroidNative;
+  if (androidBridge && typeof androidBridge.requestNotificationPermission === 'function') {
+    try {
+      androidBridge.requestNotificationPermission();
+      return 'granted';
+    } catch {}
+  }
+
+  // 3. Standard Web / PWA Notification API
+  if (!('Notification' in window)) return 'unsupported';
   if (Notification.permission === 'granted' || Notification.permission === 'denied') {
     return Notification.permission;
   }
@@ -89,7 +160,33 @@ export async function initDevicePushRegistration(
     return () => {};
   }
 
-  // 1. Capacitor Native Push Notifications (Android / iOS FCM)
+  // Register global tap handler for Android status-bar notifications
+  if (onNavigate) {
+    (window as any).__handleNativeNotifLink = (link: string) => {
+      if (link) onNavigate(link);
+    };
+    cleanups.push(() => {
+      delete (window as any).__handleNativeNotifLink;
+    });
+  }
+
+  // 1. Android APK: sync session for Firebase-free background polling + request Android 13+ permission
+  const androidBridge = (window as any).AndroidNative;
+  if (androidBridge) {
+    try {
+      if (typeof androidBridge.requestNotificationPermission === 'function') {
+        androidBridge.requestNotificationPermission();
+      }
+      await syncAndroidBackgroundNotificationSession(userId);
+    } catch {}
+  }
+
+  // 2. Windows Desktop (Tauri v2): request native notification permission immediately
+  if (isDesktopApp()) {
+    requestDeviceNotificationPermission().catch(() => {});
+  }
+
+  // 3. Optional Capacitor PushNotifications FCM (if configured with Firebase later)
   const cap = (window as any).Capacitor;
   const pushPlugin = cap?.Plugins?.PushNotifications;
 
@@ -119,13 +216,12 @@ export async function initDevicePushRegistration(
     } catch (err) {
       console.warn('[Push] Capacitor PushNotifications init skipped:', err);
     }
-  } else {
-    // 2. Web / PWA / Windows Tauri Desktop: request OS Notification permission quietly
+  } else if (!isDesktopApp() && !androidBridge) {
+    // 4. Web Browser / PWA: request OS Notification permission on first user tap
     try {
       if ('Notification' in window && Notification.permission === 'default') {
-        // Request permission on first interaction or quietly
         const askOnce = () => {
-          requestBrowserNotificationPermission().catch(() => {});
+          requestDeviceNotificationPermission().catch(() => {});
           window.removeEventListener('pointerdown', askOnce);
         };
         window.addEventListener('pointerdown', askOnce, { once: true });
@@ -144,7 +240,10 @@ export async function initDevicePushRegistration(
 }
 
 /**
- * Displays a native OS notification banner (Windows Action Center / Android / Web PWA)
+ * Displays a REAL native OS notification banner in:
+ * - Windows 10/11 Action Center (via Tauri `tauri-plugin-notification`)
+ * - Android System Status Bar & Lock Screen (via `AndroidNative.showNotification` — Firebase-free!)
+ * - Web Browser / PWA (via ServiceWorker or Notification API)
  */
 export async function showNativeDeviceNotification(params: {
   id?: string;
@@ -153,26 +252,57 @@ export async function showNativeDeviceNotification(params: {
   link?: string | null;
   imageUrl?: string | null;
   onNavigate?: (link: string) => void;
-}): Promise<void> {
-  if (typeof window === 'undefined') return;
+}): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
 
-  // 1. Android WebView native bridge (if exposed in MainActivity)
+  const title = params.title || 'منصة طب الأسنان';
+  const body = params.body || '';
+
+  // 1. Android APK Native System Notification Bar (Firebase-free!)
   const androidBridge = (window as any).AndroidNative;
   if (androidBridge && typeof androidBridge.showNotification === 'function') {
     try {
-      androidBridge.showNotification(params.title, params.body, params.link || '');
-      return;
-    } catch {}
+      androidBridge.showNotification(title, body, params.link || '/doctor/notifications');
+      return true;
+    } catch (err) {
+      console.warn('[Push] AndroidNative.showNotification error:', err);
+    }
   }
 
-  // 2. Browser / PWA / Windows WebView2 Notification API
-  if (!('Notification' in window)) return;
-  if (Notification.permission !== 'granted') return;
+  // 2. Windows Desktop Tauri v2 Native Notification Bar (Windows Action Center)
+  if (isDesktopApp()) {
+    try {
+      const tauriNotif = await import('@tauri-apps/plugin-notification');
+      let granted = await tauriNotif.isPermissionGranted();
+      if (!granted) {
+        const perm = await tauriNotif.requestPermission();
+        granted = perm === 'granted';
+      }
+      if (granted) {
+        tauriNotif.sendNotification({
+          title,
+          body,
+        });
+        return true;
+      }
+    } catch (err) {
+      console.warn('[Push] Tauri sendNotification fallback to Web Notification:', err);
+    }
+  }
+
+  // 3. Web Browser / PWA Notification API
+  if (!('Notification' in window)) return false;
+  if (Notification.permission === 'default') {
+    try {
+      await Notification.requestPermission();
+    } catch {}
+  }
+  if (Notification.permission !== 'granted') return false;
 
   try {
     const icon = '/icons/icon-192x192.png';
     const options: NotificationOptions = {
-      body: params.body,
+      body,
       icon,
       badge: '/icons/icon-96x96.png',
       dir: 'rtl',
@@ -181,16 +311,15 @@ export async function showNativeDeviceNotification(params: {
       data: { link: params.link || '/doctor/notifications' },
     };
 
-    // Prefer Service Worker notification on PWA/mobile browsers if active
     if ('serviceWorker' in navigator) {
       const reg = await navigator.serviceWorker.getRegistration();
       if (reg && typeof reg.showNotification === 'function') {
-        await reg.showNotification(params.title, options);
-        return;
+        await reg.showNotification(title, options);
+        return true;
       }
     }
 
-    const nativeNotif = new Notification(params.title, options);
+    const nativeNotif = new Notification(title, options);
     nativeNotif.onclick = () => {
       try {
         window.focus();
@@ -200,14 +329,16 @@ export async function showNativeDeviceNotification(params: {
         nativeNotif.close();
       } catch {}
     };
+    return true;
   } catch (err) {
     console.warn('[Push] Native Notification display skipped:', err);
+    return false;
   }
 }
 
 /**
  * Non-blocking invocation of Supabase Edge Function `send-push-notification`
- * Works alongside DB Webhooks so FCM pushes dispatch immediately whenever available.
+ * (Optional FCM layer when Firebase is configured; Realtime + Native OS + Android background polling work without it!)
  */
 export async function triggerPushEdgeFunction(payload: {
   notification_ids?: string[];
@@ -224,6 +355,6 @@ export async function triggerPushEdgeFunction(payload: {
       body: payload,
     });
   } catch {
-    // Graceful fallback: DB record + Supabase Realtime already delivered to active devices
+    // Graceful fallback: DB record + Supabase Realtime + Android Background Polling already deliver notifications
   }
 }

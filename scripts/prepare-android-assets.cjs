@@ -155,6 +155,33 @@ if (fs.existsSync(manifestPath)) {
     console.log('[prepare-android-assets] Injected ACCESS_FINE_LOCATION and ACCESS_COARSE_LOCATION into AndroidManifest.xml');
   }
 
+  if (!manifestContent.includes('android.permission.POST_NOTIFICATIONS')) {
+    const notifPermissions = `
+    <!-- Native System & Background Notifications (Firebase-free) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+</manifest>`;
+    manifestContent = manifestContent.replace('</manifest>', notifPermissions);
+    modified = true;
+    console.log('[prepare-android-assets] Injected POST_NOTIFICATIONS, VIBRATE, WAKE_LOCK, RECEIVE_BOOT_COMPLETED');
+  }
+
+  if (!manifestContent.includes('NotificationPollReceiver')) {
+    const notifReceivers = `
+        <receiver android:name=".NotificationPollReceiver" android:exported="false" />
+        <receiver android:name=".NotificationBootReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+    </application>`;
+    manifestContent = manifestContent.replace('</application>', notifReceivers);
+    modified = true;
+    console.log('[prepare-android-assets] Registered NotificationPollReceiver & NotificationBootReceiver');
+  }
+
   if (modified) {
     fs.writeFileSync(manifestPath, manifestContent, 'utf8');
   }
@@ -205,10 +232,13 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        NotificationHelper.ensureChannel(this);
+        requestNotificationPermissionIfNeeded();
         if (this.bridge != null && this.bridge.getWebView() != null) {
             this.bridge.getWebView().addJavascriptInterface(new AndroidNativeBridge(), "AndroidNative");
         }
         handleOAuthDeepLink(getIntent());
+        handleNotificationTap(getIntent());
     }
 
     @Override
@@ -216,6 +246,36 @@ public class MainActivity extends BridgeActivity {
         super.onNewIntent(intent);
         setIntent(intent);
         handleOAuthDeepLink(intent);
+        handleNotificationTap(intent);
+    }
+
+    private void requestNotificationPermissionIfNeeded() {
+        try {
+            if (Build.VERSION.SDK_INT >= 33) {
+                if (checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
+                    requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 1002);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void handleNotificationTap(Intent intent) {
+        if (intent == null) return;
+        final String link = intent.getStringExtra("dental_notif_link");
+        if (link != null && !link.trim().isEmpty()) {
+            intent.removeExtra("dental_notif_link");
+            final String safeLink = link.replace("'", "\\\\'");
+            if (this.bridge != null && this.bridge.getWebView() != null) {
+                this.bridge.getWebView().postDelayed(() -> {
+                    this.bridge.getWebView().evaluateJavascript(
+                        "if(window.__handleNativeNotifLink){window.__handleNativeNotifLink('" + safeLink + "');}",
+                        null
+                    );
+                }, 500);
+            }
+        }
     }
 
     private void handleOAuthDeepLink(Intent intent) {
@@ -325,11 +385,409 @@ public class MainActivity extends BridgeActivity {
                 }
             });
         }
+
+        @JavascriptInterface
+        public void requestNotificationPermission() {
+            runOnUiThread(() -> requestNotificationPermissionIfNeeded());
+        }
+
+        @JavascriptInterface
+        public void showNotification(final String title, final String body, final String link) {
+            runOnUiThread(() -> {
+                try {
+                    int notifId = (int) (System.currentTimeMillis() & 0x7fffffff);
+                    NotificationHelper.showSystemNotification(MainActivity.this, title, body, link, notifId);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void saveNotificationSession(final String supabaseUrl, final String anonKey, final String accessToken, final String refreshToken, final String userId) {
+            try {
+                NotificationHelper.saveSession(MainActivity.this, supabaseUrl, anonKey, accessToken, refreshToken, userId);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        @JavascriptInterface
+        public void clearNotificationSession() {
+            try {
+                NotificationHelper.clearSession(MainActivity.this);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 }
 `;
     fs.writeFileSync(mainActivityPath, enhancedMainActivity, 'utf8');
     console.log('[prepare-android-assets] Enhanced MainActivity.java with AndroidNative bridge at:', mainActivityPath);
+
+    // 10. Generate pure Android SDK Firebase-free System & Background Notification classes
+    const pkgDir = path.dirname(mainActivityPath);
+
+    const notificationHelperJava = `package ${packageName};
+
+import android.app.AlarmManager;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.media.RingtoneManager;
+import android.os.Build;
+import android.os.SystemClock;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+import java.util.TimeZone;
+
+public class NotificationHelper {
+    public static final String CHANNEL_ID = "dental_platform_alerts";
+    public static final String PREFS_NAME = "dental_notif_prefs";
+
+    public static void ensureChannel(Context ctx) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            try {
+                NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
+                if (nm == null) return;
+                NotificationChannel existing = nm.getNotificationChannel(CHANNEL_ID);
+                if (existing == null) {
+                    NotificationChannel ch = new NotificationChannel(
+                        CHANNEL_ID,
+                        "إشعارات منصة طب الأسنان",
+                        NotificationManager.IMPORTANCE_HIGH
+                    );
+                    ch.setDescription("إشعارات المواعيد، التنبيهات، والعروض الفورية");
+                    ch.enableVibration(true);
+                    ch.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+                    nm.createNotificationChannel(ch);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public static void showSystemNotification(Context ctx, String title, String body, String link, int notifId) {
+        try {
+            ensureChannel(ctx);
+            NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
+            if (nm == null) return;
+
+            String safeTitle = (title != null && !title.trim().isEmpty()) ? title.trim() : "منصة طب الأسنان";
+            String safeBody = (body != null && !body.trim().isEmpty()) ? body.trim() : "لديك إشعار جديد";
+
+            Intent launchIntent = new Intent(ctx, MainActivity.class);
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+            if (link != null && !link.trim().isEmpty()) {
+                launchIntent.putExtra("dental_notif_link", link.trim());
+            }
+
+            int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                flags |= PendingIntent.FLAG_IMMUTABLE;
+            }
+            PendingIntent pi = PendingIntent.getActivity(ctx, notifId, launchIntent, flags);
+
+            Notification.Builder builder = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                ? new Notification.Builder(ctx, CHANNEL_ID)
+                : new Notification.Builder(ctx);
+
+            builder.setSmallIcon(ctx.getApplicationInfo().icon)
+                .setContentTitle(safeTitle)
+                .setContentText(safeBody)
+                .setStyle(new Notification.BigTextStyle().bigText(safeBody))
+                .setAutoCancel(true)
+                .setContentIntent(pi)
+                .setVisibility(Notification.VISIBILITY_PUBLIC)
+                .setCategory(Notification.CATEGORY_MESSAGE);
+
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+                builder.setPriority(Notification.PRIORITY_HIGH);
+                builder.setDefaults(Notification.DEFAULT_ALL);
+                builder.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
+            }
+
+            nm.notify(notifId, builder.build());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static String nowUtcIso() {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US);
+        sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+        return sdf.format(new Date());
+    }
+
+    public static void saveSession(Context ctx, String supabaseUrl, String anonKey, String accessToken, String refreshToken, String userId) {
+        if (supabaseUrl == null || userId == null || userId.trim().isEmpty()) return;
+        SharedPreferences prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        String prevUser = prefs.getString("user_id", "");
+        SharedPreferences.Editor ed = prefs.edit();
+        ed.putString("supabase_url", supabaseUrl.trim());
+        ed.putString("anon_key", anonKey != null ? anonKey.trim() : "");
+        ed.putString("access_token", accessToken != null ? accessToken.trim() : "");
+        if (refreshToken != null && !refreshToken.trim().isEmpty()) {
+            ed.putString("refresh_token", refreshToken.trim());
+        }
+        ed.putString("user_id", userId.trim());
+        if (!userId.trim().equals(prevUser) || prefs.getString("last_seen_at", "").isEmpty()) {
+            ed.putString("last_seen_at", nowUtcIso());
+        }
+        ed.apply();
+        scheduleNextPoll(ctx, 180000L);
+    }
+
+    public static void clearSession(Context ctx) {
+        SharedPreferences prefs = ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit().clear().apply();
+        cancelPolling(ctx);
+    }
+
+    public static void scheduleNextPoll(Context ctx, long delayMs) {
+        try {
+            AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
+            if (am == null) return;
+            Intent intent = new Intent(ctx, NotificationPollReceiver.class);
+            int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                flags |= PendingIntent.FLAG_IMMUTABLE;
+            }
+            PendingIntent pi = PendingIntent.getBroadcast(ctx, 9001, intent, flags);
+            long triggerAt = SystemClock.elapsedRealtime() + Math.max(60000L, delayMs);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pi);
+            } else {
+                am.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pi);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void cancelPolling(Context ctx) {
+        try {
+            AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
+            if (am == null) return;
+            Intent intent = new Intent(ctx, NotificationPollReceiver.class);
+            int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                flags |= PendingIntent.FLAG_IMMUTABLE;
+            }
+            PendingIntent pi = PendingIntent.getBroadcast(ctx, 9001, intent, flags);
+            am.cancel(pi);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+`;
+
+    const notificationPollReceiverJava = `package ${packageName};
+
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+public class NotificationPollReceiver extends BroadcastReceiver {
+    @Override
+    public void onReceive(final Context context, Intent intent) {
+        final PendingResult pendingResult = goAsync();
+        new Thread(() -> {
+            try {
+                SharedPreferences prefs = context.getSharedPreferences(NotificationHelper.PREFS_NAME, Context.MODE_PRIVATE);
+                String supabaseUrl = prefs.getString("supabase_url", "");
+                String anonKey = prefs.getString("anon_key", "");
+                String accessToken = prefs.getString("access_token", "");
+                String refreshToken = prefs.getString("refresh_token", "");
+                String userId = prefs.getString("user_id", "");
+                String lastSeenAt = prefs.getString("last_seen_at", "");
+
+                if (supabaseUrl.isEmpty() || userId.isEmpty() || anonKey.isEmpty()) {
+                    return;
+                }
+
+                // Schedule next wakeup even if network fails right now (5 minutes interval, Doze-aware)
+                NotificationHelper.scheduleNextPoll(context, 300000L);
+
+                if (lastSeenAt.isEmpty()) {
+                    lastSeenAt = NotificationHelper.nowUtcIso();
+                    prefs.edit().putString("last_seen_at", lastSeenAt).apply();
+                }
+
+                String queryUrl = supabaseUrl + "/rest/v1/notifications?select=id,title,message,link,created_at"
+                    + "&user_id=eq." + URLEncoder.encode(userId, "UTF-8")
+                    + "&is_read=eq.false"
+                    + "&created_at=gt." + URLEncoder.encode(lastSeenAt, "UTF-8")
+                    + "&order=created_at.asc&limit=10";
+
+                String responseBody = httpGet(queryUrl, anonKey, accessToken);
+
+                // If access token expired (401), refresh via Supabase Auth REST and retry once
+                if ("__401__".equals(responseBody) && !refreshToken.isEmpty()) {
+                    String refreshed = refreshAccessToken(supabaseUrl, anonKey, refreshToken, prefs);
+                    if (refreshed != null && !refreshed.isEmpty()) {
+                        responseBody = httpGet(queryUrl, anonKey, refreshed);
+                    }
+                }
+
+                if (responseBody == null || responseBody.isEmpty() || "__401__".equals(responseBody)) {
+                    return;
+                }
+
+                JSONArray arr = new JSONArray(responseBody);
+                String newestTimestamp = lastSeenAt;
+                for (int i = 0; i < arr.length(); i++) {
+                    JSONObject item = arr.getJSONObject(i);
+                    String id = item.optString("id", String.valueOf(i));
+                    String title = item.optString("title", "منصة طب الأسنان");
+                    String message = item.optString("message", "");
+                    String link = item.optString("link", "/doctor/notifications");
+                    String createdAt = item.optString("created_at", "");
+
+                    int notifId = Math.abs(id.hashCode());
+                    NotificationHelper.showSystemNotification(context, title, message, link, notifId);
+
+                    if (!createdAt.isEmpty() && createdAt.compareTo(newestTimestamp) > 0) {
+                        newestTimestamp = createdAt;
+                    }
+                }
+
+                if (arr.length() > 0 && !newestTimestamp.equals(lastSeenAt)) {
+                    prefs.edit().putString("last_seen_at", newestTimestamp).apply();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            } finally {
+                try {
+                    pendingResult.finish();
+                } catch (Exception ignored) {}
+            }
+        }).start();
+    }
+
+    private String httpGet(String urlStr, String anonKey, String bearer) {
+        HttpURLConnection conn = null;
+        try {
+            URL url = new URL(urlStr);
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(10000);
+            conn.setReadTimeout(10000);
+            conn.setRequestProperty("apikey", anonKey);
+            if (bearer != null && !bearer.isEmpty()) {
+                conn.setRequestProperty("Authorization", "Bearer " + bearer);
+            }
+            conn.setRequestProperty("Accept", "application/json");
+            int code = conn.getResponseCode();
+            if (code == 401) return "__401__";
+            if (code < 200 || code >= 300) return null;
+            return readStream(conn.getInputStream());
+        } catch (Exception e) {
+            return null;
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
+    }
+
+    private String refreshAccessToken(String supabaseUrl, String anonKey, String refreshToken, SharedPreferences prefs) {
+        HttpURLConnection conn = null;
+        try {
+            URL url = new URL(supabaseUrl + "/auth/v1/token?grant_type=refresh_token");
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setConnectTimeout(10000);
+            conn.setReadTimeout(10000);
+            conn.setDoOutput(true);
+            conn.setRequestProperty("apikey", anonKey);
+            conn.setRequestProperty("Content-Type", "application/json");
+
+            JSONObject payload = new JSONObject();
+            payload.put("refresh_token", refreshToken);
+            byte[] outBytes = payload.toString().getBytes("UTF-8");
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(outBytes);
+            }
+
+            int code = conn.getResponseCode();
+            if (code < 200 || code >= 300) return null;
+            String body = readStream(conn.getInputStream());
+            JSONObject json = new JSONObject(body);
+            String newAccess = json.optString("access_token", "");
+            String newRefresh = json.optString("refresh_token", "");
+            if (!newAccess.isEmpty()) {
+                SharedPreferences.Editor ed = prefs.edit();
+                ed.putString("access_token", newAccess);
+                if (!newRefresh.isEmpty()) ed.putString("refresh_token", newRefresh);
+                ed.apply();
+                return newAccess;
+            }
+            return null;
+        } catch (Exception e) {
+            return null;
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
+    }
+
+    private String readStream(InputStream is) throws Exception {
+        StringBuilder sb = new StringBuilder();
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(is, "UTF-8"))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                sb.append(line);
+            }
+        }
+        return sb.toString();
+    }
+}
+`;
+
+    const notificationBootReceiverJava = `package ${packageName};
+
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+
+public class NotificationBootReceiver extends BroadcastReceiver {
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        try {
+            SharedPreferences prefs = context.getSharedPreferences(NotificationHelper.PREFS_NAME, Context.MODE_PRIVATE);
+            String userId = prefs.getString("user_id", "");
+            if (userId != null && !userId.isEmpty()) {
+                NotificationHelper.ensureChannel(context);
+                NotificationHelper.scheduleNextPoll(context, 60000L);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+`;
+
+    fs.writeFileSync(path.join(pkgDir, 'NotificationHelper.java'), notificationHelperJava, 'utf8');
+    fs.writeFileSync(path.join(pkgDir, 'NotificationPollReceiver.java'), notificationPollReceiverJava, 'utf8');
+    fs.writeFileSync(path.join(pkgDir, 'NotificationBootReceiver.java'), notificationBootReceiverJava, 'utf8');
+    console.log('[prepare-android-assets] Generated Firebase-free NotificationHelper, NotificationPollReceiver, NotificationBootReceiver');
   }
 }
 
