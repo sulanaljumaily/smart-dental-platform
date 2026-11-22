@@ -717,8 +717,20 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
   };
 
   // Statistics
+  const normalizeDateOnly = (raw?: string | Date | null): string => {
+    if (!raw) return '';
+    if (typeof raw === 'string') {
+      const trimmed = raw.trim();
+      if (!trimmed) return '';
+      if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return trimmed.slice(0, 10);
+      const parsed = new Date(trimmed);
+      return isNaN(parsed.getTime()) ? '' : parsed.toLocaleDateString('en-CA');
+    }
+    return isNaN(raw.getTime()) ? '' : raw.toLocaleDateString('en-CA');
+  };
+
   const today = new Date().toLocaleDateString('en-CA');
-  const todayAppointments = appointments.filter(apt => apt.date === today);
+  const todayAppointments = appointments.filter(apt => normalizeDateOnly(apt.date) === today);
   const completed = appointments.filter(apt => apt.status === 'completed').length;
   const cancelled = appointments.filter(apt => apt.status === 'cancelled').length;
   const pending = appointments.filter(apt => apt.status === 'pending' || apt.status === 'confirmed').length;
@@ -726,30 +738,18 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
 
   // Filter Logic
   const filteredAppointments = appointments.filter(apt => {
-    // Reliable Local YYYY-MM-DD
-    const toLocalDateStr = (d: Date | string) => {
-      // Start with a Date object
-      const dateObj = typeof d === 'string' ? new Date(d) : d;
-      // Use en-CA for YYYY-MM-DD format
-      return dateObj.toLocaleDateString('en-CA');
-    };
-
-    const aptDateStr = apt.date; // Assuming apt.date is already YYYY-MM-DD string from DB. If not, sanitize.
-    // If apt.date comes as full timestamp, normalize it:
-    const normalizedAptDate = apt.date.includes('T') ? apt.date.split('T')[0] : apt.date;
-
-    // For "Today" comparison
-    const todayStr = toLocalDateStr(new Date()); // Local Today
+    const normalizedAptDate = normalizeDateOnly(apt.date);
+    const todayStr = today;
 
     // Tab Filter
     if (sectionTab === 'past') {
       // Show only dates BEFORE today
-      if (normalizedAptDate >= todayStr) return false;
+      if (!normalizedAptDate || normalizedAptDate >= todayStr) return false;
     } else {
       // UPCOMING Tab
       // If View is Calendar, match selected date
       if (activeView === 'calendar') {
-        const filterDate = toLocalDateStr(selectedDate);
+        const filterDate = normalizeDateOnly(selectedDate);
         if (normalizedAptDate !== filterDate) return false;
       }
       // Note: We are ignoring "future only" filter here to allow Calendar to explore future AND today. 
@@ -934,7 +934,10 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
           <HorizontalCalendar
             selectedDate={selectedDate}
             onDateSelect={setSelectedDate}
-            appointments={appointments.filter(a => new Date(a.date).toISOString().split('T')[0] >= new Date().toISOString().split('T')[0])}
+            appointments={appointments.filter(a => {
+              const d = normalizeDateOnly(a.date);
+              return !!d && d >= today;
+            })}
           />
 
           <div className="flex items-center justify-between">
@@ -966,15 +969,16 @@ export const ClinicAppointmentsPage: React.FC<ClinicAppointmentsPageProps> = ({ 
                     <div className="flex flex-col items-center justify-center min-w-[70px] h-18 bg-blue-50/50 rounded-2xl text-blue-700 border border-blue-100">
                       <span className="text-xl font-bold">
                         {(() => {
-                          const [h, m] = apt.time.split(':');
+                          const [h, m = '00'] = (apt.time || '09:00').split(':');
                           let hours = parseInt(h, 10);
+                          if (isNaN(hours)) return apt.time || '09:00';
                           hours = hours % 12;
                           hours = hours ? hours : 12;
                           return `${hours.toString().padStart(2, '0')}:${m}`;
                         })()}
                       </span>
                       <span className="text-[10px] font-bold opacity-75">
-                        {parseInt(apt.time.split(':')[0]) >= 12 ? 'م' : 'ص'}
+                        {parseInt((apt.time || '09:00').split(':')[0], 10) >= 12 ? 'م' : 'ص'}
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">

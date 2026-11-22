@@ -43,7 +43,7 @@ export const useFinance = (clinicId?: string, patientId?: string, staffId?: stri
         }
         // إذا كان لدينا كاش لمعاملات العيادة الكاملة، نفلتر منه فوراً للمريض أو الموظف
         const clinicManual = getInstantCache<Transaction[]>(clinicManualCacheKey);
-        if (clinicManual && clinicManual.length > 0) {
+        if (Array.isArray(clinicManual)) {
             const filtered = clinicManual.filter(tx => {
                 if (patientId && String(tx.patientId) !== String(patientId)) return false;
                 if (staffId && String(tx.doctorId) !== String(staffId) && String(tx.staffId) !== String(staffId)) return false;
@@ -57,7 +57,9 @@ export const useFinance = (clinicId?: string, patientId?: string, staffId?: stri
 
     const initialData = getInitialData();
     const [transactions, setTransactions] = useState<Transaction[]>(initialData?.transactions || []);
-    const [loading, setLoading] = useState(!initialData && !!clinicId && clinicId !== '0');
+    const [loading, setLoading] = useState(
+        !initialData && !!clinicId && clinicId !== '0' && (typeof navigator === 'undefined' || navigator.onLine)
+    );
     const [stats, setStats] = useState(initialData?.stats || {
         income: 0,
         expenses: 0,

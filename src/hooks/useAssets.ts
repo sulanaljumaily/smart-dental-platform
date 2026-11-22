@@ -102,11 +102,11 @@ export const useAssets = (clinicId?: string) => {
     const cacheKey = `clinic_assets_${clinicId || 'default'}`;
     const mountedRef = useRef(true);
 
-    const readSyncLocalRaw = (): any[] => {
+    const readSyncLocalRaw = (): any[] | null => {
         const mem = assetsMemoryCache.get(cacheKey);
-        if (mem && mem.length > 0) return mem;
+        if (mem) return mem;
         const instant = getInstantCache<any[]>(cacheKey);
-        if (Array.isArray(instant) && instant.length > 0) {
+        if (Array.isArray(instant)) {
             assetsMemoryCache.set(cacheKey, instant);
             return instant;
         }
@@ -114,20 +114,23 @@ export const useAssets = (clinicId?: string) => {
             const legacyRaw = localStorage.getItem(cacheKey);
             if (legacyRaw) {
                 const parsed = JSON.parse(legacyRaw);
-                if (Array.isArray(parsed) && parsed.length > 0) {
+                if (Array.isArray(parsed)) {
                     assetsMemoryCache.set(cacheKey, parsed);
                     return parsed;
                 }
             }
         } catch {}
-        return [];
+        return null;
     };
 
-    const initialRaw = readSyncLocalRaw();
+    const initialRawOrNull = readSyncLocalRaw();
+    const initialRaw = initialRawOrNull || [];
     const initialComputed = mapRawAssetsWithStats(initialRaw, clinicId);
 
     const [assets, setAssets] = useState<Asset[]>(initialComputed.mappedAssets);
-    const [loading, setLoading] = useState<boolean>(initialRaw.length === 0 && !!clinicId);
+    const [loading, setLoading] = useState<boolean>(
+        initialRawOrNull === null && !!clinicId && (typeof navigator === 'undefined' || navigator.onLine)
+    );
     const [stats, setStats] = useState(initialComputed.stats);
 
     const applyAndPersistAssets = (rawItems: any[], persist = true) => {
@@ -148,12 +151,12 @@ export const useAssets = (clinicId?: string) => {
 
     const loadFromLocal = async (): Promise<any[]> => {
         const syncItems = readSyncLocalRaw();
-        if (syncItems.length > 0) {
+        if (syncItems !== null) {
             applyAndPersistAssets(syncItems, false);
             return syncItems;
         }
         const dexieItems = await getCache<any[]>(cacheKey);
-        if (Array.isArray(dexieItems) && dexieItems.length > 0) {
+        if (Array.isArray(dexieItems)) {
             applyAndPersistAssets(dexieItems, false);
             return dexieItems;
         }
@@ -190,7 +193,7 @@ export const useAssets = (clinicId?: string) => {
         }
 
         const localItems = await loadFromLocal();
-        if (localItems.length > 0 && mountedRef.current) {
+        if ((localItems.length > 0 || readSyncLocalRaw() !== null) && mountedRef.current) {
             setLoading(false);
         }
 
@@ -276,7 +279,7 @@ export const useAssets = (clinicId?: string) => {
                 if (authed) {
                     const { data, error } = await supabase.from('assets').insert(dbPayload).select().single();
                     if (!error && data) {
-                        const current = readSyncLocalRaw();
+                        const current = readSyncLocalRaw() || [];
                         applyAndPersistAssets([data, ...current], true);
                         return data;
                     }
@@ -284,7 +287,7 @@ export const useAssets = (clinicId?: string) => {
             } catch {}
         }
 
-        const currentList = readSyncLocalRaw();
+        const currentList = readSyncLocalRaw() || [];
         const updatedList = [baseItem, ...currentList];
         applyAndPersistAssets(updatedList, true);
         await addToSyncQueue('INSERT', 'assets', localId, dbPayload);
@@ -295,7 +298,7 @@ export const useAssets = (clinicId?: string) => {
 
     const deleteAsset = async (id: string) => {
         const targetId = String(id);
-        const currentList = readSyncLocalRaw();
+        const currentList = readSyncLocalRaw() || [];
         const updatedList = currentList.filter(a => String(a.id) !== targetId);
         applyAndPersistAssets(updatedList, true);
 

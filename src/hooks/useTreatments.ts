@@ -24,9 +24,11 @@ export interface TreatmentService {
 export const useTreatments = (clinicId?: string) => {
     const { user } = useAuth();
     const cacheKey = `clinic_treatments_${clinicId || 'all'}`;
-    const initial = getInstantCache<TreatmentService[]>(cacheKey) || [];
-    const [treatments, setTreatments] = useState<TreatmentService[]>(initial);
-    const [loading, setLoading] = useState(initial.length === 0);
+    const initialCached = getInstantCache<TreatmentService[]>(cacheKey);
+    const [treatments, setTreatments] = useState<TreatmentService[]>(Array.isArray(initialCached) ? initialCached : []);
+    const [loading, setLoading] = useState(
+        initialCached === null && (typeof navigator === 'undefined' || navigator.onLine)
+    );
     const mountedRef = useRef(true);
 
     const saveTreatmentsCache = (items: TreatmentService[]) => {
@@ -76,7 +78,9 @@ export const useTreatments = (clinicId?: string) => {
             return;
         }
 
-        if (treatments.length === 0 && localCached.length === 0) setLoading(true);
+        if (getInstantCache<TreatmentService[]>(cacheKey) === null && treatments.length === 0 && localCached.length === 0) {
+            setLoading(true);
+        }
         try {
             let query = supabase.from('treatments').select('*');
 

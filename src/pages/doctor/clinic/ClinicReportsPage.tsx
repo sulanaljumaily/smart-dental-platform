@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   BarChart3,
   TrendingUp,
@@ -42,10 +42,23 @@ export const ClinicReportsPage: React.FC<ClinicReportsPageProps> = ({ clinicId }
   const [selectedPeriod, setSelectedPeriod] = useState<string>('month');
   const [selectedType, setSelectedType] = useState<string>('all');
 
-  const { clinic: currentClinic } = useCurrentClinic();
+  const { clinic: currentClinic } = useCurrentClinic(clinicId);
 
   // Dynamic Period-Aware Data Hook
   const { stats, loading } = useClinicReports(clinicId, selectedPeriod);
+  const [loaderTimedOut, setLoaderTimedOut] = useState(false);
+
+  const isOnline = typeof navigator === 'undefined' || navigator.onLine;
+  const hasReportData = stats.totalPatients > 0 || stats.monthlyRevenue > 0 || stats.appointmentStats.total > 0 || stats.staffStats.length > 0;
+
+  useEffect(() => {
+    if (!loading || !isOnline || hasReportData) {
+      setLoaderTimedOut(false);
+      return;
+    }
+    const timer = setTimeout(() => setLoaderTimedOut(true), 2000);
+    return () => clearTimeout(timer);
+  }, [loading, isOnline, hasReportData, selectedPeriod]);
 
   const getPeriodLabel = () => {
     switch (selectedPeriod) {
@@ -128,7 +141,7 @@ export const ClinicReportsPage: React.FC<ClinicReportsPageProps> = ({ clinicId }
     }
   };
 
-  if (loading) {
+  if (loading && isOnline && !hasReportData && !loaderTimedOut) {
     return (
       <div className="flex flex-col items-center justify-center p-16 space-y-3">
         <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin"></div>

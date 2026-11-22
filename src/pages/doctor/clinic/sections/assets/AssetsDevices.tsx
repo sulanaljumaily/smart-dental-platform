@@ -70,7 +70,15 @@ export const AssetsDevices: React.FC<AssetsDevicesProps> = ({ clinicId }) => {
         }
     };
 
-    if (loading) return <div>جاري التحميل...</div>;
+    const isOnline = typeof navigator === 'undefined' || navigator.onLine;
+    if (loading && isOnline && assets.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[260px] gap-3">
+                <div className="w-10 h-10 rounded-full border-4 border-blue-500/20 border-t-blue-500 animate-spin"></div>
+                <p className="text-gray-500 font-medium text-sm">جاري تحميل الأصول الثابتة...</p>
+            </div>
+        );
+    }
 
     return (
         <Card>

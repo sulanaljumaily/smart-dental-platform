@@ -33,9 +33,11 @@ function computeInventoryStatus(quantity: number, minStock: number): InventoryIt
 export const useInventory = (clinicId?: string) => {
     const { user } = useAuth();
     const cacheKey = `clinic_inventory_${clinicId || 'all'}`;
-    const initial = getInstantCache<InventoryItem[]>(cacheKey) || [];
-    const [inventory, setInventory] = useState<InventoryItem[]>(initial);
-    const [loading, setLoading] = useState(initial.length === 0);
+    const initialCached = getInstantCache<InventoryItem[]>(cacheKey);
+    const [inventory, setInventory] = useState<InventoryItem[]>(Array.isArray(initialCached) ? initialCached : []);
+    const [loading, setLoading] = useState(
+        initialCached === null && (typeof navigator === 'undefined' || navigator.onLine)
+    );
     const mountedRef = useRef(true);
 
     const saveInventoryCache = (items: InventoryItem[]) => {
@@ -85,7 +87,9 @@ export const useInventory = (clinicId?: string) => {
             return;
         }
 
-        if (inventory.length === 0 && localCached.length === 0) setLoading(true);
+        if (getInstantCache<InventoryItem[]>(cacheKey) === null && inventory.length === 0 && localCached.length === 0) {
+            setLoading(true);
+        }
         try {
             let query = supabase.from('inventory').select('*');
 

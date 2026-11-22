@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../../../../../components/common/Card';
 import { BentoStatCard } from '../../../../../components/dashboard/BentoStatCard';
 import { Briefcase, ShoppingCart, Wallet, ArrowDownRight, AlertCircle, CheckCircle } from 'lucide-react';
@@ -19,8 +19,22 @@ export const AssetsOverview: React.FC<AssetsOverviewProps> = ({ clinicId }) => {
     const { inventory, loading: loadingInventory } = useInventory(clinicId);
     const { treatments, loading: loadingTreatments } = useTreatments(clinicId);
     const { purchases, totalPurchasesAmount } = useWarehousePurchases(clinicId);
+    const [loaderTimedOut, setLoaderTimedOut] = useState(false);
 
-    const isLoading = loadingAssets || loadingFinance || loadingInventory || loadingTreatments;
+    const hasAnyData = assets.length > 0 || transactions.length > 0 || inventory.length > 0 || treatments.length > 0 || purchases.length > 0;
+    const isOnline = typeof navigator === 'undefined' || navigator.onLine;
+    const rawLoading = loadingAssets || loadingFinance || loadingInventory || loadingTreatments;
+
+    useEffect(() => {
+        if (!rawLoading || !isOnline || hasAnyData) {
+            setLoaderTimedOut(false);
+            return;
+        }
+        const timer = setTimeout(() => setLoaderTimedOut(true), 1200);
+        return () => clearTimeout(timer);
+    }, [rawLoading, isOnline, hasAnyData]);
+
+    const isLoading = isOnline && rawLoading && !hasAnyData && !loaderTimedOut;
 
     if (isLoading) {
         return (

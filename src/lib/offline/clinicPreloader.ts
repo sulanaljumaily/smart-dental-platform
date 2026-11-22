@@ -1,11 +1,11 @@
 /**
  * Dental Platform — Clinic Full Offline Preloader
- * يقوم بالتحميل المسبق لجميع أقسام العيادة (الأصول، المخزون، العلاجات، المالية)
+ * يقوم بالتحميل المسبق لجميع أقسام العيادة (الأصول، المخزون، العلاجات، المالية، المواعيد، طلبات الحجز الرقمية، الخطط العلاجية)
  * في Dexie و LocalStorage بمجرد فتح لوحة تحكم العيادة أونلاين، حتى تكون جميع التبويبات
  * جاهزة للعرض الفوري (0ms) عند انقطاع الإنترنت حتى لو لم يفتحها الطبيب مسبقاً.
  */
 import { supabase, ensureFreshOnlineSession } from '../supabase';
-import { setCache, getInstantCache } from './db';
+import { db, LocalAppointment, setCache, getInstantCache } from './db';
 
 const lastPreloadedAt = new Map<string, number>();
 const PRELOAD_COOLDOWN_MS = 25000;
@@ -24,7 +24,7 @@ export async function preloadClinicOfflineData(clinicId?: string | null, force =
   lastPreloadedAt.set(cid, Date.now());
 
   try {
-    const [assetsRes, treatmentsRes, inventoryRes, financeRes] = await Promise.allSettled([
+    const [assetsRes, treatmentsRes, inventoryRes, financeRes, appointmentsRes, plansRes, staffRes] = await Promise.allSettled([
       supabase
         .from('assets')
         .select('*')
@@ -43,6 +43,20 @@ export async function preloadClinicOfflineData(clinicId?: string | null, force =
         .select('*, patient:patients!fk_fin_patients(full_name), staff_record:staff!fk_fin_staff_record(full_name), recorder_staff:staff!fk_fin_recorded_by_staff(full_name)')
         .eq('clinic_id', cid)
         .order('transaction_date', { ascending: false }),
+      supabase
+        .from('appointments')
+        .select('*, staff:staff_id(full_name)')
+        .eq('clinic_id', cid)
+        .order('appointment_date', { ascending: false })
+        .order('appointment_time', { ascending: false }),
+      supabase
+        .from('tooth_treatment_plans')
+        .select('*')
+        .eq('clinic_id', cid),
+      supabase
+        .from('staff')
+        .select('*')
+        .eq('clinic_id', cid),
     ]);
 
     let updatedAny = false;
@@ -159,6 +173,84 @@ export async function preloadClinicOfflineData(clinicId?: string | null, force =
       const existing = getInstantCache<any[]>(manualCacheKey) || [];
       const unsynced = existing.filter(tx => String(tx.id).startsWith('offline_'));
       await setCache(manualCacheKey, [...unsynced, ...mapped], 86400 * 30);
+      updatedAny = true;
+    }
+
+    // 5. Appointments & Pending Digital Booking Requests (المواعيد وطلبات الحجز الرقمية)
+    let rawAptData: any[] | null = null;
+    if (appointmentsRes.status === 'fulfilled' && !appointmentsRes.value.error && Array.isArray(appointmentsRes.value.data)) {
+      rawAptData = appointmentsRes.value.data;
+    } else {
+      const fbApts = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('clinic_id', cid)
+        .order('created_at', { ascending: false });
+      if (!fbApts.error && Array.isArray(fbApts.data)) {
+        rawAptData = fbApts.data;
+      }
+    }
+
+    if (rawAptData) {
+      const now = new Date().toISOString();
+      const localItems: LocalAppointment[] = rawAptData.map((a: any) => ({
+        id: String(a.id),
+        clinic_id: String(a.clinic_id || cid),
+        patient_id: a.patient_id ? String(a.patient_id) : '',
+        doctor_id: a.staff_id ? String(a.staff_id) : undefined,
+        title: a.title || 'موعد',
+        date: a.appointment_date || a.date || '',
+        time: a.appointment_time || a.time || a.start_time || '',
+        status: a.status || 'scheduled',
+        notes: a.notes || '',
+        data: a,
+        synced: true,
+        created_at: a.created_at || now,
+        updated_at: a.updated_at || now,
+      }));
+      try {
+        const existingLocal = await db.appointments.where('clinic_id').equals(cid).toArray();
+        const serverIds = new Set(localItems.map(item => String(item.id)));
+        const staleIds = existingLocal
+          .filter(la => la.synced !== false && !serverIds.has(String(la.id)))
+          .map(la => la.id);
+        if (localItems.length > 0) {
+          await db.appointments.bulkPut(localItems);
+        }
+        if (staleIds.length > 0) {
+          await db.appointments.bulkDelete(staleIds);
+        }
+      } catch {}
+
+      const pendingRequests = rawAptData
+        .filter((a: any) => a.status === 'pending')
+        .map((a: any) => ({
+          id: String(a.id),
+          patientName: a.patient_name || 'مريض غير مسجل',
+          source: a.created_via || 'online',
+          date: a.appointment_date || a.date || '',
+          time: a.appointment_time || a.time || a.start_time || '09:00',
+          phone: a.phone_number || a.patient_phone || a.phone || '',
+          status: 'pending' as const,
+          hasFile: !!a.patient_id,
+          notes: a.notes,
+          patientId: a.patient_id ? String(a.patient_id) : undefined,
+          patientUserId: a.patient_user_id || undefined,
+          type: a.type || a.appointment_type || 'consultation',
+        }));
+      await setCache(`online_requests_${cid}`, pendingRequests, 86400 * 30);
+      updatedAny = true;
+    }
+
+    // 6. Treatment Plans (for Offline Executive Reports & Debt Aging)
+    if (plansRes.status === 'fulfilled' && !plansRes.value.error && Array.isArray(plansRes.value.data)) {
+      await setCache(`clinic_plans_${cid}`, plansRes.value.data, 86400 * 30);
+      updatedAny = true;
+    }
+
+    // 7. Raw Staff Snapshot (for Offline Executive Reports)
+    if (staffRes.status === 'fulfilled' && !staffRes.value.error && Array.isArray(staffRes.value.data)) {
+      await setCache(`clinic_raw_staff_${cid}`, staffRes.value.data, 86400 * 30);
       updatedAny = true;
     }
 

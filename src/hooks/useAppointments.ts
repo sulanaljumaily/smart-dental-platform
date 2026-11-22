@@ -65,20 +65,22 @@ export const useAppointments = (clinicId?: string) => {
     const { user: authUser } = useAuth();
     const cacheKey = clinicId || 'all';
 
-    const getInitialList = (): Appointment[] => {
+    const getInitialList = (): Appointment[] | null => {
         const mem = appointmentsCache.get(cacheKey);
-        if (mem && mem.length > 0) return mem;
+        if (mem) return mem;
         const instant = getInstantCache<Appointment[]>('appointments_' + cacheKey);
-        if (instant && instant.length > 0) {
+        if (Array.isArray(instant)) {
             appointmentsCache.set(cacheKey, instant);
             return instant;
         }
-        return [];
+        return null;
     };
 
     const initial = getInitialList();
-    const [appointments, setAppointments] = useState<Appointment[]>(initial);
-    const [loading, setLoading] = useState(initial.length === 0 && clinicId !== undefined);
+    const [appointments, setAppointments] = useState<Appointment[]>(initial || []);
+    const [loading, setLoading] = useState(
+        initial === null && clinicId !== undefined && clinicId !== '0' && (typeof navigator === 'undefined' || navigator.onLine)
+    );
     const mountedRef = useRef(true);
 
     const saveAppointmentsToCache = (list: Appointment[]) => {
@@ -116,7 +118,7 @@ export const useAppointments = (clinicId?: string) => {
         mountedRef.current = true;
         if (clinicId !== undefined && clinicId !== '0') {
             const cached = getInitialList();
-            if (cached.length > 0) {
+            if (cached !== null) {
                 setAppointments(cached);
                 setLoading(false);
             }
@@ -133,12 +135,14 @@ export const useAppointments = (clinicId?: string) => {
         window.addEventListener('dental-auth-session-ready', handleRefreshEvent);
         window.addEventListener('dental-online-ready', handleRefreshEvent);
         window.addEventListener('dental-clinic-preloaded', handleRefreshEvent);
+        window.addEventListener('dental-online-requests-mutated', handleRefreshEvent);
         return () => {
             mountedRef.current = false;
             window.removeEventListener('dental-sync-completed', handleRefreshEvent);
             window.removeEventListener('dental-auth-session-ready', handleRefreshEvent);
             window.removeEventListener('dental-online-ready', handleRefreshEvent);
             window.removeEventListener('dental-clinic-preloaded', handleRefreshEvent);
+            window.removeEventListener('dental-online-requests-mutated', handleRefreshEvent);
         };
     }, [clinicId, authUser?.id]);
 
@@ -183,6 +187,7 @@ export const useAppointments = (clinicId?: string) => {
                 .order('appointment_date', { ascending: false })
                 .order('appointment_time', { ascending: false });
 
+            let accessibleIds: Array<string | number> | null = null;
             if (clinicId && clinicId !== 'all') {
                 query = query.eq('clinic_id', clinicId);
             } else {
@@ -194,7 +199,7 @@ export const useAppointments = (clinicId?: string) => {
                         supabase.from('staff').select('clinic_id').or(`user_id.eq.${sessionUserId},auth_user_id.eq.${sessionUserId}`).in('status', ['active', 'on_leave'])
                     ]);
 
-                    const accessibleIds = [
+                    accessibleIds = [
                         ...(ownedClinics?.map(c => c.id) || []),
                         ...(staffClinics?.map(c => c.clinic_id) || [])
                     ];
@@ -209,16 +214,19 @@ export const useAppointments = (clinicId?: string) => {
 
             let { data, error } = await query;
 
-            if (error && error.code === '42703') {
-                query = supabase
+            // Robust fallback without FK join or appointment_date ordering if PostgREST/RLS rejects the join or column
+            if (error) {
+                let fbQuery = supabase
                     .from('appointments')
-                    .select('*, staff:staff_id(full_name)')
+                    .select('*')
                     .order('created_at', { ascending: false });
 
                 if (clinicId && clinicId !== 'all') {
-                    query = query.eq('clinic_id', clinicId);
+                    fbQuery = fbQuery.eq('clinic_id', clinicId);
+                } else if (accessibleIds) {
+                    fbQuery = fbQuery.in('clinic_id', accessibleIds.length > 0 ? accessibleIds : [-1]);
                 }
-                const result = await query;
+                const result = await fbQuery;
                 data = result.data;
                 error = result.error;
             }
@@ -283,6 +291,18 @@ export const useAppointments = (clinicId?: string) => {
                 }));
                 if (localItems.length > 0) {
                     await db.appointments.bulkPut(localItems);
+                }
+                // Remove stale synced rows for this clinic that were deleted or updated away on server
+                if (clinicId && clinicId !== 'all') {
+                    const staleIds = dexieRaw
+                        .filter(la => la.synced !== false && !serverIds.has(String(la.id)))
+                        .map(la => la.id);
+                    if (staleIds.length > 0) {
+                        await db.appointments.bulkDelete(staleIds);
+                    }
+                }
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('dental-appointments-mutated', { detail: { clinicId } }));
                 }
             } catch {}
         } catch (err: any) {
