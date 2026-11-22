@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
-import { addToSyncQueue } from '../lib/offline/db';
+import { useState, useEffect, useRef } from 'react';
+import { supabase, ensureFreshOnlineSession } from '../lib/supabase';
+import { addToSyncQueue, getInstantCache, getCache, setCache } from '../lib/offline/db';
+import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 
 export interface Asset {
@@ -24,114 +25,183 @@ export interface Asset {
     dailyDepreciation?: number;
 }
 
-export const useAssets = (clinicId?: string) => {
-    const [assets, setAssets] = useState<Asset[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [stats, setStats] = useState({
-        totalValue: 0,
-        totalCost: 0,
-        totalDepreciation: 0,
-        assetCount: 0
-    });
+const assetsMemoryCache = new Map<string, any[]>();
 
-    const getLocalStorageKey = () => `clinic_assets_${clinicId || 'default'}`;
+function computeDepreciation(asset: Asset) {
+    const purchaseDate = new Date(asset.purchaseDate);
+    const now = new Date();
+    const lifeInDays = Math.max(1, (asset.usefulLifeYears || 5) * 365);
+    const daysSincePurchase = Math.max(0, Math.floor((now.getTime() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24)));
 
-    const calculateDepreciation = (asset: Asset) => {
-        const purchaseDate = new Date(asset.purchaseDate);
-        const now = new Date();
-        const lifeInDays = Math.max(1, (asset.usefulLifeYears || 5) * 365);
-        const daysSincePurchase = Math.max(0, Math.floor((now.getTime() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24)));
+    const depreciableAmount = asset.purchaseCost - (asset.salvageValue || 0);
+    const dailyDepreciation = depreciableAmount / lifeInDays;
 
-        const depreciableAmount = asset.purchaseCost - (asset.salvageValue || 0);
-        const dailyDepreciation = depreciableAmount / lifeInDays;
+    let accumulatedDepreciation = dailyDepreciation * daysSincePurchase;
+    if (accumulatedDepreciation > depreciableAmount) accumulatedDepreciation = depreciableAmount;
 
-        let accumulatedDepreciation = dailyDepreciation * daysSincePurchase;
-        if (accumulatedDepreciation > depreciableAmount) accumulatedDepreciation = depreciableAmount;
+    const currentValue = asset.purchaseCost - accumulatedDepreciation;
 
-        const currentValue = asset.purchaseCost - accumulatedDepreciation;
+    return {
+        currentValue,
+        accumulatedDepreciation,
+        dailyDepreciation
+    };
+}
+
+function mapRawAssetsWithStats(items: any[], clinicId?: string) {
+    let totalValue = 0;
+    let totalCost = 0;
+    let totalDepreciation = 0;
+
+    const mappedAssets: Asset[] = (items || []).map((a: any) => {
+        const baseAsset: Asset = {
+            id: a.id?.toString() || `asset-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            clinicId: (a.clinic_id || a.clinicId || clinicId || '0').toString(),
+            name: a.name || 'أصل بدون اسم',
+            description: a.description || '',
+            category: a.category || 'equipment',
+            purchaseDate: a.purchase_date || a.purchaseDate || new Date().toISOString(),
+            purchaseCost: parseFloat(a.purchase_cost ?? a.purchaseCost ?? 0),
+            currency: a.currency || 'IQD',
+            usefulLifeYears: Number(a.useful_life_years ?? a.usefulLifeYears ?? 5),
+            salvageValue: parseFloat(a.salvage_value ?? a.salvageValue ?? 0),
+            status: a.status || 'active',
+            location: a.location || '',
+            serialNumber: a.serial_number || a.serialNumber || '',
+            supplier: a.supplier || '',
+            warrantyExpiry: a.warranty_expiry || a.warrantyExpiry || ''
+        };
+
+        const dep = computeDepreciation(baseAsset);
+
+        if (baseAsset.status === 'active' || baseAsset.status === 'maintenance') {
+            totalValue += dep.currentValue;
+            totalCost += baseAsset.purchaseCost;
+            totalDepreciation += dep.accumulatedDepreciation;
+        }
 
         return {
-            currentValue,
-            accumulatedDepreciation,
-            dailyDepreciation
+            ...baseAsset,
+            ...dep
         };
-    };
+    });
 
-    const processAssetsList = (items: any[]): Asset[] => {
-        let totalValue = 0;
-        let totalCost = 0;
-        let totalDepreciation = 0;
-
-        const mappedAssets: Asset[] = (items || []).map((a: any) => {
-            const baseAsset: Asset = {
-                id: a.id?.toString() || `asset-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-                clinicId: (a.clinic_id || a.clinicId || clinicId || '0').toString(),
-                name: a.name || 'أصل بدون اسم',
-                description: a.description || '',
-                category: a.category || 'equipment',
-                purchaseDate: a.purchase_date || a.purchaseDate || new Date().toISOString(),
-                purchaseCost: parseFloat(a.purchase_cost ?? a.purchaseCost ?? 0),
-                currency: a.currency || 'IQD',
-                usefulLifeYears: Number(a.useful_life_years ?? a.usefulLifeYears ?? 5),
-                salvageValue: parseFloat(a.salvage_value ?? a.salvageValue ?? 0),
-                status: a.status || 'active',
-                location: a.location || '',
-                serialNumber: a.serial_number || a.serialNumber || '',
-                supplier: a.supplier || '',
-                warrantyExpiry: a.warranty_expiry || a.warrantyExpiry || ''
-            };
-
-            const dep = calculateDepreciation(baseAsset);
-
-            if (baseAsset.status === 'active' || baseAsset.status === 'maintenance') {
-                totalValue += dep.currentValue;
-                totalCost += baseAsset.purchaseCost;
-                totalDepreciation += dep.accumulatedDepreciation;
-            }
-
-            return {
-                ...baseAsset,
-                ...dep
-            };
-        });
-
-        setAssets(mappedAssets);
-        setStats({
+    return {
+        mappedAssets,
+        stats: {
             totalValue,
             totalCost,
             totalDepreciation,
             assetCount: mappedAssets.length
-        });
-
-        return mappedAssets;
+        }
     };
+}
 
-    const loadFromLocalStorage = () => {
+export const useAssets = (clinicId?: string) => {
+    const { user } = useAuth();
+    const cacheKey = `clinic_assets_${clinicId || 'default'}`;
+    const mountedRef = useRef(true);
+
+    const readSyncLocalRaw = (): any[] => {
+        const mem = assetsMemoryCache.get(cacheKey);
+        if (mem && mem.length > 0) return mem;
+        const instant = getInstantCache<any[]>(cacheKey);
+        if (Array.isArray(instant) && instant.length > 0) {
+            assetsMemoryCache.set(cacheKey, instant);
+            return instant;
+        }
         try {
-            const raw = localStorage.getItem(getLocalStorageKey());
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed)) {
-                    processAssetsList(parsed);
-                    return;
+            const legacyRaw = localStorage.getItem(cacheKey);
+            if (legacyRaw) {
+                const parsed = JSON.parse(legacyRaw);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    assetsMemoryCache.set(cacheKey, parsed);
+                    return parsed;
                 }
             }
         } catch {}
-        processAssetsList([]);
+        return [];
+    };
+
+    const initialRaw = readSyncLocalRaw();
+    const initialComputed = mapRawAssetsWithStats(initialRaw, clinicId);
+
+    const [assets, setAssets] = useState<Asset[]>(initialComputed.mappedAssets);
+    const [loading, setLoading] = useState<boolean>(initialRaw.length === 0 && !!clinicId);
+    const [stats, setStats] = useState(initialComputed.stats);
+
+    const applyAndPersistAssets = (rawItems: any[], persist = true) => {
+        assetsMemoryCache.set(cacheKey, rawItems);
+        const { mappedAssets, stats: nextStats } = mapRawAssetsWithStats(rawItems, clinicId);
+        if (mountedRef.current) {
+            setAssets(mappedAssets);
+            setStats(nextStats);
+        }
+        if (persist) {
+            setCache(cacheKey, rawItems, 86400 * 30).catch(() => {});
+            try {
+                localStorage.setItem(cacheKey, JSON.stringify(rawItems));
+            } catch {}
+        }
+        return mappedAssets;
+    };
+
+    const loadFromLocal = async (): Promise<any[]> => {
+        const syncItems = readSyncLocalRaw();
+        if (syncItems.length > 0) {
+            applyAndPersistAssets(syncItems, false);
+            return syncItems;
+        }
+        const dexieItems = await getCache<any[]>(cacheKey);
+        if (Array.isArray(dexieItems) && dexieItems.length > 0) {
+            applyAndPersistAssets(dexieItems, false);
+            return dexieItems;
+        }
+        return [];
     };
 
     useEffect(() => {
+        mountedRef.current = true;
         if (clinicId) {
-            loadFromLocalStorage();
-            setLoading(false);
             fetchAssets();
+        } else {
+            setLoading(false);
         }
-    }, [clinicId]);
+        const handleRefresh = () => {
+            if (clinicId) fetchAssets();
+        };
+        window.addEventListener('dental-online-ready', handleRefresh);
+        window.addEventListener('dental-auth-session-ready', handleRefresh);
+        window.addEventListener('dental-sync-completed', handleRefresh);
+        window.addEventListener('dental-clinic-preloaded', handleRefresh);
+        return () => {
+            mountedRef.current = false;
+            window.removeEventListener('dental-online-ready', handleRefresh);
+            window.removeEventListener('dental-auth-session-ready', handleRefresh);
+            window.removeEventListener('dental-sync-completed', handleRefresh);
+            window.removeEventListener('dental-clinic-preloaded', handleRefresh);
+        };
+    }, [clinicId, user?.id]);
 
     const fetchAssets = async () => {
-        if (!navigator.onLine) {
-            loadFromLocalStorage();
+        if (!clinicId) {
+            if (mountedRef.current) setLoading(false);
+            return;
+        }
+
+        const localItems = await loadFromLocal();
+        if (localItems.length > 0 && mountedRef.current) {
             setLoading(false);
+        }
+
+        if (!navigator.onLine) {
+            if (mountedRef.current) setLoading(false);
+            return;
+        }
+
+        const authed = await ensureFreshOnlineSession();
+        if (!authed) {
+            if (mountedRef.current) setLoading(false);
             return;
         }
 
@@ -139,24 +209,22 @@ export const useAssets = (clinicId?: string) => {
             const { data, error } = await supabase
                 .from('assets')
                 .select('*')
-                .eq('clinic_id', clinicId || 0)
+                .eq('clinic_id', clinicId)
                 .order('purchase_date', { ascending: false });
 
-            if (error) {
-                loadFromLocalStorage();
-                return;
-            }
+            if (error) return;
 
-            if (data) {
-                processAssetsList(data);
-                try {
-                    localStorage.setItem(getLocalStorageKey(), JSON.stringify(data));
-                } catch {}
+            if (Array.isArray(data)) {
+                const unsyncedLocal = localItems.filter(
+                    a => String(a.id).startsWith('asset-') || String(a.id).startsWith('offline_')
+                );
+                const merged = [...unsyncedLocal, ...data];
+                applyAndPersistAssets(merged, true);
             }
         } catch {
-            loadFromLocalStorage();
+            // Keep existing local data intact on transient network failure
         } finally {
-            setLoading(false);
+            if (mountedRef.current) setLoading(false);
         }
     };
 
@@ -204,52 +272,44 @@ export const useAssets = (clinicId?: string) => {
 
         if (navigator.onLine) {
             try {
-                const { data, error } = await supabase.from('assets').insert(dbPayload).select().single();
-                if (!error && data) {
-                    fetchAssets();
-                    return data;
+                const authed = await ensureFreshOnlineSession();
+                if (authed) {
+                    const { data, error } = await supabase.from('assets').insert(dbPayload).select().single();
+                    if (!error && data) {
+                        const current = readSyncLocalRaw();
+                        applyAndPersistAssets([data, ...current], true);
+                        return data;
+                    }
                 }
             } catch {}
         }
 
-        try {
-            const raw = localStorage.getItem(getLocalStorageKey());
-            const currentList: any[] = raw ? JSON.parse(raw) : [];
-            const updatedList = [baseItem, ...currentList];
-            localStorage.setItem(getLocalStorageKey(), JSON.stringify(updatedList));
-            processAssetsList(updatedList);
-            if (!navigator.onLine) {
-                await addToSyncQueue('INSERT', 'assets', localId, dbPayload);
-                toast.success('تم حفظ الأصل محلياً');
-            }
-        } catch (e) {
-            console.error('[useAssets] Failed saving to localStorage:', e);
-        }
+        const currentList = readSyncLocalRaw();
+        const updatedList = [baseItem, ...currentList];
+        applyAndPersistAssets(updatedList, true);
+        await addToSyncQueue('INSERT', 'assets', localId, dbPayload);
+        toast.success('تم حفظ الأصل محلياً (ستتم المزامنة تلقائياً عند الاتصال)');
 
         return baseItem;
     };
 
     const deleteAsset = async (id: string) => {
-        if (navigator.onLine) {
+        const targetId = String(id);
+        const currentList = readSyncLocalRaw();
+        const updatedList = currentList.filter(a => String(a.id) !== targetId);
+        applyAndPersistAssets(updatedList, true);
+
+        if (navigator.onLine && !targetId.startsWith('asset-') && !targetId.startsWith('offline_')) {
             try {
-                await supabase.from('assets').delete().eq('id', id);
+                await ensureFreshOnlineSession();
+                await supabase.from('assets').delete().eq('id', targetId);
+                return;
             } catch {}
-        } else {
-            await addToSyncQueue('DELETE', 'assets', String(id), {});
         }
 
-        try {
-            const raw = localStorage.getItem(getLocalStorageKey());
-            if (raw) {
-                const currentList: any[] = JSON.parse(raw);
-                const updatedList = currentList.filter(a => a.id !== id && a.id?.toString() !== id);
-                localStorage.setItem(getLocalStorageKey(), JSON.stringify(updatedList));
-                processAssetsList(updatedList);
-                return;
-            }
-        } catch {}
-
-        setAssets(prev => prev.filter(a => a.id !== id));
+        if (!targetId.startsWith('asset-') && !targetId.startsWith('offline_')) {
+            await addToSyncQueue('DELETE', 'assets', targetId, {});
+        }
     };
 
     return {

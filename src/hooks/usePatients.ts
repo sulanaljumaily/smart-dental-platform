@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
+import { supabase, ensureFreshOnlineSession } from '../lib/supabase';
 import { db, addToSyncQueue, LocalPatient, getInstantCache, setCache } from '../lib/offline/db';
 import { recordResolvedPatientId, getResolvedPatientId } from '../lib/offline/syncService';
 import { toast } from 'sonner';
@@ -182,14 +182,16 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
         window.addEventListener('dental-sync-id-resolved', handleSyncUpdate);
         window.addEventListener('dental-sync-completed', handleSyncUpdate);
         window.addEventListener('dental-auth-session-ready', handleSyncUpdate);
-        window.addEventListener('online', handleSyncUpdate);
+        window.addEventListener('dental-online-ready', handleSyncUpdate);
+        window.addEventListener('dental-clinic-preloaded', handleSyncUpdate);
 
         return () => {
             mountedRef.current = false;
             window.removeEventListener('dental-sync-id-resolved', handleSyncUpdate);
             window.removeEventListener('dental-sync-completed', handleSyncUpdate);
             window.removeEventListener('dental-auth-session-ready', handleSyncUpdate);
-            window.removeEventListener('online', handleSyncUpdate);
+            window.removeEventListener('dental-online-ready', handleSyncUpdate);
+            window.removeEventListener('dental-clinic-preloaded', handleSyncUpdate);
         };
     }, [clinicId, clinicIds?.join(','), user?.id]);
 
@@ -208,6 +210,13 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
                     setPatients(instant);
                 }
             }
+            if (mountedRef.current) setLoading(false);
+            return;
+        }
+
+        // ضمان وجود توكن جلسة محدث وصالح قبل الاستعلام حتى لا تُرجع RLS مصفوفة فارغة
+        const authed = await ensureFreshOnlineSession();
+        if (!authed) {
             if (mountedRef.current) setLoading(false);
             return;
         }

@@ -13,8 +13,24 @@ const GLOBAL_KEY = '__supabase_client__' as const
 // Smart short circuit-breaker ONLY for truly dead Wi-Fi (multiple consecutive network failures)
 let lastNetworkFailureAt = 0
 let consecutiveNetworkFailures = 0
+let usedOfflineAuthFallback = false
 const CIRCUIT_BREAKER_MS = 5000
 const activeControllers = new Set<AbortController>()
+
+// In-process single-flight mutex for Supabase Auth (avoids navigator.locks AbortError storms
+// while STILL preventing concurrent refresh_token rotation races on app reopen!)
+let authLockChain: Promise<unknown> = Promise.resolve()
+function inMemoryAuthLock<T>(_name: string, _acquireTimeout: number, fn: () => Promise<T>): Promise<T> {
+  const next = authLockChain.then(
+    () => fn(),
+    () => fn()
+  )
+  authLockChain = next.then(
+    () => undefined,
+    () => undefined
+  )
+  return next
+}
 
 export function resetSupabaseNetworkState() {
   lastNetworkFailureAt = 0
@@ -32,13 +48,19 @@ function abortAllActiveRequestsOnOffline() {
   activeControllers.clear()
 }
 
-if (typeof window !== 'undefined') {
-  window.addEventListener('online', () => {
-    resetSupabaseNetworkState()
-  })
-  window.addEventListener('offline', () => {
-    abortAllActiveRequestsOnOffline()
-  })
+function isJwtExpired(token?: string | null, bufferSeconds = 45): boolean {
+  if (!token || typeof token !== 'string') return true
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return true
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=')
+    const payload = JSON.parse(atob(padded))
+    if (typeof payload?.exp !== 'number') return false
+    return payload.exp <= Math.floor(Date.now() / 1000) + bufferSeconds
+  } catch {
+    return false
+  }
 }
 
 function getStoredSupabaseSession(): any | null {
@@ -67,11 +89,14 @@ function buildOfflineAuthResponse(urlStr: string): Response | null {
   if (!storedSession) return null
 
   if (urlStr.includes('/auth/v1/token')) {
+    usedOfflineAuthFallback = true
     const nowSec = Math.floor(Date.now() / 1000)
+    // Short synthetic expiry (15s) so session survives while offline WITHOUT tricking
+    // Supabase into reusing an expired JWT once internet returns!
     const offlineSession = {
       ...storedSession,
-      expires_in: 3600,
-      expires_at: nowSec + 3600,
+      expires_in: 15,
+      expires_at: nowSec + 15,
     }
     return new Response(JSON.stringify(offlineSession), {
       status: 200,
@@ -149,10 +174,12 @@ const offlineAwareFetch: typeof fetch = async (input, init) => {
       signal: controller.signal,
     })
     resetSupabaseNetworkState()
+    if (isAuthRequest && response.ok) {
+      usedOfflineAuthFallback = false
+    }
     return response
   } catch (err: any) {
     if (timedOut || (err?.name !== 'AbortError' && !existingSignal?.aborted)) {
-      // Only count pure REST/auth connectivity errors toward the short circuit-breaker (never storage uploads or edge functions)
       if (!isStorageRequest && !isFunctionRequest) {
         consecutiveNetworkFailures += 1
         lastNetworkFailureAt = Date.now()
@@ -181,10 +208,8 @@ if (!(globalThis as any)[GLOBAL_KEY]) {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        // CRITICAL FIX: Bypass navigator.locks which causes AbortError storms
-        lock: async (_name: string, _acquireTimeout: number, fn: () => Promise<any>) => {
-          return await fn()
-        },
+        // Single-flight in-memory mutex: prevents both navigator.locks AbortErrors AND concurrent refresh-token races
+        lock: inMemoryAuthLock,
       },
       global: {
         fetch: offlineAwareFetch,
@@ -194,6 +219,63 @@ if (!(globalThis as any)[GLOBAL_KEY]) {
 }
 
 export const supabase: SupabaseClient = (globalThis as any)[GLOBAL_KEY]
+
+// Single-flight session freshness verifier called before online DB fetches & upon reconnect
+let inflightSessionCheck: Promise<boolean> | null = null
+
+export async function ensureFreshOnlineSession(forceRefresh = false): Promise<boolean> {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return false
+  if (inflightSessionCheck && !forceRefresh) return inflightSessionCheck
+
+  const run = async (): Promise<boolean> => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) {
+        return false
+      }
+
+      const needsRefresh =
+        forceRefresh ||
+        usedOfflineAuthFallback ||
+        isJwtExpired(session.access_token, 60)
+
+      if (needsRefresh && session.refresh_token) {
+        const { data: refreshed, error } = await supabase.auth.refreshSession({
+          refresh_token: session.refresh_token,
+        })
+        if (!error && refreshed?.session?.access_token) {
+          usedOfflineAuthFallback = false
+          return true
+        }
+        // Fallback: if refresh failed transiently, only proceed if current JWT is still cryptographically valid
+        return !isJwtExpired(session.access_token, 5)
+      }
+
+      return !isJwtExpired(session.access_token, 5)
+    } catch {
+      return false
+    } finally {
+      inflightSessionCheck = null
+    }
+  }
+
+  inflightSessionCheck = run()
+  return inflightSessionCheck
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', async () => {
+    resetSupabaseNetworkState()
+    // Wait briefly for OS network interface to settle, refresh expired JWT cleanly, THEN notify all hooks!
+    await new Promise(resolve => setTimeout(resolve, 350))
+    if (!navigator.onLine) return
+    await ensureFreshOnlineSession(usedOfflineAuthFallback)
+    window.dispatchEvent(new CustomEvent('dental-online-ready'))
+  })
+  window.addEventListener('offline', () => {
+    abortAllActiveRequestsOnOffline()
+  })
+}
 
 // Export tables type helper if needed
 export type Tables = any;

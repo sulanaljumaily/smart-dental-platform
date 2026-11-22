@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, ensureFreshOnlineSession } from '../lib/supabase';
 import { Patient } from '../types';
 import { db, addToSyncQueue, getInstantCache, setCache, getCache } from '../lib/offline/db';
 import { getResolvedPatientId, recordResolvedPatientId } from '../lib/offline/syncService';
@@ -106,13 +106,15 @@ export const usePatient = (patientId: string | undefined) => {
         };
         window.addEventListener('dental-sync-id-resolved', handleIdResolved);
         window.addEventListener('dental-sync-completed', handleSyncCompleted);
-        window.addEventListener('online', handleSyncCompleted);
+        window.addEventListener('dental-online-ready', handleSyncCompleted);
+        window.addEventListener('dental-auth-session-ready', handleSyncCompleted);
 
         return () => {
             mountedRef.current = false;
             window.removeEventListener('dental-sync-id-resolved', handleIdResolved);
             window.removeEventListener('dental-sync-completed', handleSyncCompleted);
-            window.removeEventListener('online', handleSyncCompleted);
+            window.removeEventListener('dental-online-ready', handleSyncCompleted);
+            window.removeEventListener('dental-auth-session-ready', handleSyncCompleted);
         };
     }, [patientId]);
 
@@ -195,6 +197,12 @@ export const usePatient = (patientId: string | undefined) => {
         // إذا كان الجهاز أوفلاين أو المريض محلياً غير مزامن بعد (UUID)، لا نطلب من السيرفر
         const isUnsyncedUuid = isNaN(Number(effectiveId));
         if (!navigator.onLine || isUnsyncedUuid) {
+            if (mountedRef.current) setLoading(false);
+            return;
+        }
+
+        const authed = await ensureFreshOnlineSession();
+        if (!authed) {
             if (mountedRef.current) setLoading(false);
             return;
         }

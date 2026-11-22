@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, ensureFreshOnlineSession } from '../lib/supabase';
 import { Transaction } from '../types';
 import { useAppointments } from './useAppointments';
 import { getInstantCache, setCache, getCache, addToSyncQueue } from '../lib/offline/db';
@@ -123,12 +123,14 @@ export const useFinance = (clinicId?: string, patientId?: string, staffId?: stri
         };
         window.addEventListener('dental-sync-completed', handleRefreshEvent);
         window.addEventListener('dental-auth-session-ready', handleRefreshEvent);
-        window.addEventListener('online', handleRefreshEvent);
+        window.addEventListener('dental-online-ready', handleRefreshEvent);
+        window.addEventListener('dental-clinic-preloaded', handleRefreshEvent);
         return () => {
             mountedRef.current = false;
             window.removeEventListener('dental-sync-completed', handleRefreshEvent);
             window.removeEventListener('dental-auth-session-ready', handleRefreshEvent);
-            window.removeEventListener('online', handleRefreshEvent);
+            window.removeEventListener('dental-online-ready', handleRefreshEvent);
+            window.removeEventListener('dental-clinic-preloaded', handleRefreshEvent);
         };
     }, [clinicId, appointments.length, patientId, staffId, authUser?.id]);
 
@@ -138,8 +140,12 @@ export const useFinance = (clinicId?: string, patientId?: string, staffId?: stri
             return;
         }
 
-        // 1. تحميل فوري من الكاش المحلي
-        const cachedManual = getInstantCache<Transaction[]>(clinicManualCacheKey) || (await getCache<Transaction[]>(clinicManualCacheKey)) || [];
+        // 1. تحميل فوري من الكاش المحلي (localStorage ثم Dexie)
+        const instantManual = getInstantCache<Transaction[]>(clinicManualCacheKey);
+        const cachedManual =
+            (Array.isArray(instantManual) && instantManual.length > 0
+                ? instantManual
+                : await getCache<Transaction[]>(clinicManualCacheKey)) || [];
         if (cachedManual.length > 0) {
             applyCombinedTransactions(cachedManual);
             if (mountedRef.current) setLoading(false);
@@ -149,6 +155,12 @@ export const useFinance = (clinicId?: string, patientId?: string, staffId?: stri
 
         if (!navigator.onLine || isUnsyncedPatient) {
             applyCombinedTransactions(cachedManual);
+            if (mountedRef.current) setLoading(false);
+            return;
+        }
+
+        const authed = await ensureFreshOnlineSession();
+        if (!authed) {
             if (mountedRef.current) setLoading(false);
             return;
         }
@@ -170,8 +182,19 @@ export const useFinance = (clinicId?: string, patientId?: string, staffId?: stri
                 query = query.eq('staff_record_id', Number(staffId));
             }
 
-            const { data: dbTransactions, error } = await query.order('transaction_date', { ascending: false });
-            if (error) throw error;
+            let { data: dbTransactions, error } = await query.order('transaction_date', { ascending: false });
+            if (error) {
+                // Fallback without FK joins in case a relationship/RLS alias fails
+                let fbQuery = supabase
+                    .from('financial_transactions')
+                    .select('*')
+                    .eq('clinic_id', clinicId);
+                if (patientId) fbQuery = fbQuery.eq('patient_id', patientId);
+                if (staffId && !isNaN(Number(staffId))) fbQuery = fbQuery.eq('staff_record_id', Number(staffId));
+                const fbRes = await fbQuery.order('transaction_date', { ascending: false });
+                if (fbRes.error) throw fbRes.error;
+                dbTransactions = fbRes.data;
+            }
 
             const serverMapped: Transaction[] = (dbTransactions || []).map(t => ({
                 id: String(t.id),

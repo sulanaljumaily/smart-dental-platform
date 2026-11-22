@@ -26,6 +26,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 // import { useLanguage } from '../../contexts/LanguageContext';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useClinics } from '@/hooks/useClinics';
+import { preloadClinicOfflineData } from '../../../lib/offline/clinicPreloader';
 import { ClinicOverviewPage } from './ClinicOverviewPage';
 import { ClinicAppointmentsPage } from './ClinicAppointmentsPage';
 import { ClinicPatientsPage } from './ClinicPatientsPage';
@@ -77,6 +78,20 @@ export const ClinicDashboard: React.FC = () => {
   // URL Tab Support
   const location = useLocation();
   const { user } = useAuth(); // Moved to top level to avoid Hook violation
+
+  useEffect(() => {
+    if (!id) return;
+    preloadClinicOfflineData(id);
+    const handleReconnectPreload = () => {
+      preloadClinicOfflineData(id, true);
+    };
+    window.addEventListener('dental-online-ready', handleReconnectPreload);
+    window.addEventListener('dental-auth-session-ready', handleReconnectPreload);
+    return () => {
+      window.removeEventListener('dental-online-ready', handleReconnectPreload);
+      window.removeEventListener('dental-auth-session-ready', handleReconnectPreload);
+    };
+  }, [id, user?.id]);
 
   useEffect(() => {
     if (!loading && !clinic) {

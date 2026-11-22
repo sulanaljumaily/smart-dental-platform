@@ -152,22 +152,25 @@ export function setInstantCache(key: string, data: unknown) {
     const serialized = JSON.stringify(data);
     localStorage.setItem(fullKey, serialized);
   } catch {
-    // في حال امتلاء localStorage، نحذف بعض عناصر الكاش غير الحرجة لتوفير مساحة
+    // في حال امتلاء localStorage، نحذف عناصر الصور الكبيرة/الكاش غير الحرج من localStorage (تبقى محفوظة بأمان في Dexie)
     try {
-      const nonCriticalPrefixes = [
+      const evictablePrefixes = [
         INSTANT_CACHE_PREFIX + 'recent_activities_',
         INSTANT_CACHE_PREFIX + 'low_stock_',
         INSTANT_CACHE_PREFIX + 'system_updates_',
+        'dental_offline_img_b64_',
+        'dental_clinic_cover_b64_',
+        'dental_instant_patient_files_',
       ];
       for (let i = localStorage.length - 1; i >= 0; i--) {
         const k = localStorage.key(i);
-        if (k && nonCriticalPrefixes.some((p) => k.startsWith(p))) {
+        if (k && evictablePrefixes.some((p) => k.startsWith(p))) {
           localStorage.removeItem(k);
         }
       }
       localStorage.setItem(fullKey, JSON.stringify(data));
     } catch {
-      // Ignore quota errors if still full
+      // Ignore quota errors if still full (data is still persisted in Dexie)
     }
   }
 }

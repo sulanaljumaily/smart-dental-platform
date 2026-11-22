@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, ensureFreshOnlineSession } from '../lib/supabase';
 import { getInstantCache, setCache, getCache, addToSyncQueue } from '../lib/offline/db';
+import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 
 export interface InventoryItem {
@@ -30,6 +31,7 @@ function computeInventoryStatus(quantity: number, minStock: number): InventoryIt
 }
 
 export const useInventory = (clinicId?: string) => {
+    const { user } = useAuth();
     const cacheKey = `clinic_inventory_${clinicId || 'all'}`;
     const initial = getInstantCache<InventoryItem[]>(cacheKey) || [];
     const [inventory, setInventory] = useState<InventoryItem[]>(initial);
@@ -51,20 +53,39 @@ export const useInventory = (clinicId?: string) => {
             setLoading(false);
         }
         fetchInventory();
-        return () => { mountedRef.current = false; };
-    }, [clinicId]);
+        const handleRefresh = () => fetchInventory();
+        window.addEventListener('dental-online-ready', handleRefresh);
+        window.addEventListener('dental-auth-session-ready', handleRefresh);
+        window.addEventListener('dental-sync-completed', handleRefresh);
+        window.addEventListener('dental-clinic-preloaded', handleRefresh);
+        return () => {
+            mountedRef.current = false;
+            window.removeEventListener('dental-online-ready', handleRefresh);
+            window.removeEventListener('dental-auth-session-ready', handleRefresh);
+            window.removeEventListener('dental-sync-completed', handleRefresh);
+            window.removeEventListener('dental-clinic-preloaded', handleRefresh);
+        };
+    }, [clinicId, user?.id]);
 
     const fetchInventory = async () => {
+        const localCached = getInstantCache<InventoryItem[]>(cacheKey) || (await getCache<InventoryItem[]>(cacheKey)) || [];
+        if (localCached.length > 0 && mountedRef.current) {
+            setInventory(localCached);
+            setLoading(false);
+        }
+
         if (!navigator.onLine) {
-            const cached = await getCache<InventoryItem[]>(cacheKey);
-            if (cached && mountedRef.current) {
-                setInventory(cached);
-            }
             if (mountedRef.current) setLoading(false);
             return;
         }
 
-        if (inventory.length === 0) setLoading(true);
+        const authed = await ensureFreshOnlineSession();
+        if (!authed) {
+            if (mountedRef.current) setLoading(false);
+            return;
+        }
+
+        if (inventory.length === 0 && localCached.length === 0) setLoading(true);
         try {
             let query = supabase.from('inventory').select('*');
 
@@ -94,13 +115,11 @@ export const useInventory = (clinicId?: string) => {
                 clinicId: i.clinic_id?.toString()
             }));
 
-            const currentCached = getInstantCache<InventoryItem[]>(cacheKey) || [];
-            const unsyncedOffline = currentCached.filter(item => String(item.id).startsWith('offline_'));
+            const unsyncedOffline = localCached.filter(item => String(item.id).startsWith('offline_'));
             saveInventoryCache([...unsyncedOffline, ...mappedItems]);
         } catch {
-            const cached = await getCache<InventoryItem[]>(cacheKey);
-            if (cached && mountedRef.current) {
-                setInventory(cached);
+            if (localCached.length > 0 && mountedRef.current) {
+                setInventory(localCached);
             }
         } finally {
             if (mountedRef.current) setLoading(false);

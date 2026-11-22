@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { User, UserRole } from '../types';
-import { supabase, resetSupabaseNetworkState } from '../lib/supabase';
+import { supabase, resetSupabaseNetworkState, ensureFreshOnlineSession } from '../lib/supabase';
 import { toast } from 'sonner';
 import { sendRoleNotification } from '../lib/notifications';
 import { db } from '../lib/offline/db';
@@ -309,6 +309,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         if (session?.user) {
           resetSupabaseNetworkState();
+          await ensureFreshOnlineSession();
           await fetchProfile(session.user.id, session.user.email!);
           window.dispatchEvent(
             new CustomEvent('dental-auth-session-ready', { detail: { userId: session.user.id } })
@@ -336,6 +337,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (!mountedRef.current) return;
 
       if (event === 'TOKEN_REFRESHED' && session?.user && userRef.current?.id === session.user.id) {
+        window.dispatchEvent(
+          new CustomEvent('dental-auth-session-ready', { detail: { userId: session.user.id } })
+        );
         return;
       }
 

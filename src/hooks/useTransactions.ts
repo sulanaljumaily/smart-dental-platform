@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, ensureFreshOnlineSession } from '../lib/supabase';
 import { getInstantCache, setCache, getCache } from '../lib/offline/db';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -82,21 +82,34 @@ export const useTransactions = (clinicId?: string) => {
         };
         window.addEventListener('dental-auth-session-ready', handleRefresh);
         window.addEventListener('dental-sync-completed', handleRefresh);
-        window.addEventListener('online', handleRefresh);
+        window.addEventListener('dental-online-ready', handleRefresh);
+        window.addEventListener('dental-clinic-preloaded', handleRefresh);
         return () => {
             mountedRef.current = false;
             window.removeEventListener('dental-auth-session-ready', handleRefresh);
             window.removeEventListener('dental-sync-completed', handleRefresh);
-            window.removeEventListener('online', handleRefresh);
+            window.removeEventListener('dental-online-ready', handleRefresh);
+            window.removeEventListener('dental-clinic-preloaded', handleRefresh);
         };
     }, [clinicId, authUser?.id]);
 
     const fetchTransactions = async () => {
         if (!navigator.onLine) {
             const cached = await getCache<Transaction[]>(cacheKey);
-            if (cached && mountedRef.current) {
+            if (cached && cached.length > 0 && mountedRef.current) {
                 setTransactions(cached);
+            } else {
+                const agg = aggregateCachedTransactions(clinicId);
+                if (agg.length > 0 && mountedRef.current) {
+                    setTransactions(agg);
+                }
             }
+            if (mountedRef.current) setLoading(false);
+            return;
+        }
+
+        const authed = await ensureFreshOnlineSession();
+        if (!authed) {
             if (mountedRef.current) setLoading(false);
             return;
         }

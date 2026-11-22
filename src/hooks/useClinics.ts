@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
+import { supabase, ensureFreshOnlineSession } from '../lib/supabase';
 import { Clinic } from '../types';
 import { setCache, getCache, getInstantCache } from '../lib/offline/db';
 import { isRealClinicLogoUrl } from '../lib/printReceipt';
@@ -127,12 +127,12 @@ export const useClinics = () => {
         };
         window.addEventListener('dental-offline-image-cached', handleImageCached);
         window.addEventListener('dental-auth-session-ready', handleAuthOrOnline);
-        window.addEventListener('online', handleAuthOrOnline);
+        window.addEventListener('dental-online-ready', handleAuthOrOnline);
         return () => {
             mountedRef.current = false;
             window.removeEventListener('dental-offline-image-cached', handleImageCached);
             window.removeEventListener('dental-auth-session-ready', handleAuthOrOnline);
-            window.removeEventListener('online', handleAuthOrOnline);
+            window.removeEventListener('dental-online-ready', handleAuthOrOnline);
         };
     }, [user?.id]);
 
@@ -162,6 +162,12 @@ export const useClinics = () => {
                     setClinics(hydrated);
                 }
             } catch {}
+            if (mountedRef.current) setLoading(false);
+            return;
+        }
+
+        const authed = await ensureFreshOnlineSession();
+        if (!authed) {
             if (mountedRef.current) setLoading(false);
             return;
         }

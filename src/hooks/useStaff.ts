@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, ensureFreshOnlineSession } from '../lib/supabase';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { getInstantCache, setCache, getCache, addToSyncQueue } from '../lib/offline/db';
@@ -137,11 +137,13 @@ export const useStaff = (clinicId?: string) => {
             fetchStaff();
         };
         window.addEventListener('dental-auth-session-ready', handleRefresh);
-        window.addEventListener('online', handleRefresh);
+        window.addEventListener('dental-online-ready', handleRefresh);
+        window.addEventListener('dental-clinic-preloaded', handleRefresh);
         return () => {
             mountedRef.current = false;
             window.removeEventListener('dental-auth-session-ready', handleRefresh);
-            window.removeEventListener('online', handleRefresh);
+            window.removeEventListener('dental-online-ready', handleRefresh);
+            window.removeEventListener('dental-clinic-preloaded', handleRefresh);
         };
     }, [clinicId, user?.id]);
 
@@ -155,6 +157,12 @@ export const useStaff = (clinicId?: string) => {
                     setStaff(cached);
                 }
             } catch {}
+            if (mountedRef.current) setLoading(false);
+            return;
+        }
+
+        const authed = await ensureFreshOnlineSession();
+        if (!authed) {
             if (mountedRef.current) setLoading(false);
             return;
         }

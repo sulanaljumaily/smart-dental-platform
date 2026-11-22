@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Appointment } from '../types/appointments';
-import { supabase } from '../lib/supabase';
+import { supabase, ensureFreshOnlineSession } from '../lib/supabase';
 import { db, addToSyncQueue, LocalAppointment, getInstantCache, setCache } from '../lib/offline/db';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
@@ -131,12 +131,14 @@ export const useAppointments = (clinicId?: string) => {
         };
         window.addEventListener('dental-sync-completed', handleRefreshEvent);
         window.addEventListener('dental-auth-session-ready', handleRefreshEvent);
-        window.addEventListener('online', handleRefreshEvent);
+        window.addEventListener('dental-online-ready', handleRefreshEvent);
+        window.addEventListener('dental-clinic-preloaded', handleRefreshEvent);
         return () => {
             mountedRef.current = false;
             window.removeEventListener('dental-sync-completed', handleRefreshEvent);
             window.removeEventListener('dental-auth-session-ready', handleRefreshEvent);
-            window.removeEventListener('online', handleRefreshEvent);
+            window.removeEventListener('dental-online-ready', handleRefreshEvent);
+            window.removeEventListener('dental-clinic-preloaded', handleRefreshEvent);
         };
     }, [clinicId, authUser?.id]);
 
@@ -160,6 +162,12 @@ export const useAppointments = (clinicId?: string) => {
                     setAppointments(instant);
                 }
             }
+            if (mountedRef.current) setLoading(false);
+            return;
+        }
+
+        const authed = await ensureFreshOnlineSession();
+        if (!authed) {
             if (mountedRef.current) setLoading(false);
             return;
         }

@@ -2,7 +2,7 @@
  * Dental Platform — Sync Service
  * يُزامن البيانات المحلية مع Supabase عند عودة الاتصال بالترتيب الزمني مع ربط المعرفات المؤقتة
  */
-import { supabase } from '../supabase';
+import { supabase, ensureFreshOnlineSession } from '../supabase';
 import {
   db,
   getPendingSyncItems,
@@ -606,6 +606,10 @@ export async function runSync(): Promise<void> {
   const pendingItems = await getPendingSyncItems();
   if (pendingItems.length === 0) return;
 
+  // ضمان وجود توكن جلسة صالح ومحدث قبل رفع العمليات المتأخرة للسيرفر
+  const authed = await ensureFreshOnlineSession();
+  if (!authed) return;
+
   isSyncing = true;
   emit('syncing', pendingItems.length);
 
@@ -670,9 +674,15 @@ export function initSyncService() {
   if (initialized) return;
   initialized = true;
 
-  // عند عودة الاتصال → مزامنة فورية سريعة
+  // عند عودة الاتصال وجاهزية التوكن → مزامنة فورية سريعة
+  window.addEventListener('dental-online-ready', () => {
+    scheduleSync(200);
+  });
+  window.addEventListener('dental-auth-session-ready', () => {
+    if (navigator.onLine) scheduleSync(300);
+  });
   window.addEventListener('online', () => {
-    scheduleSync(500);
+    scheduleSync(900);
   });
 
   // عند إضافة عنصر جديد للطابور أثناء توفر الإنترنت → مزامنة فورية

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { ToothCondition, TreatmentPlan } from '../types/treatment';
-import { supabase } from '../lib/supabase';
+import { supabase, ensureFreshOnlineSession } from '../lib/supabase';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { setCache, getCache, getInstantCache, addToSyncQueue } from '../lib/offline/db';
@@ -71,11 +71,15 @@ export const usePatientTreatments = (patientId: string | undefined) => {
             fetchData();
         };
         window.addEventListener('dental-sync-completed', handleSyncCompleted);
+        window.addEventListener('dental-online-ready', handleSyncCompleted);
+        window.addEventListener('dental-auth-session-ready', handleSyncCompleted);
         return () => {
             mountedRef.current = false;
             window.removeEventListener('dental-sync-completed', handleSyncCompleted);
+            window.removeEventListener('dental-online-ready', handleSyncCompleted);
+            window.removeEventListener('dental-auth-session-ready', handleSyncCompleted);
         };
-    }, [targetPatientId, patientId]);
+    }, [targetPatientId, patientId, user?.id]);
 
     const fetchData = async () => {
         if (!targetPatientId) return;
@@ -93,6 +97,12 @@ export const usePatientTreatments = (patientId: string | undefined) => {
                     setLoading(false);
                 }
             } catch {}
+            if (mountedRef.current) setLoading(false);
+            return;
+        }
+
+        const authed = await ensureFreshOnlineSession();
+        if (!authed) {
             if (mountedRef.current) setLoading(false);
             return;
         }

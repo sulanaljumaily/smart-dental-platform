@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, ensureFreshOnlineSession } from '../lib/supabase';
 import { getInstantCache, setCache, getCache, addToSyncQueue } from '../lib/offline/db';
+import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 
 export interface TreatmentService {
@@ -21,6 +22,7 @@ export interface TreatmentService {
 }
 
 export const useTreatments = (clinicId?: string) => {
+    const { user } = useAuth();
     const cacheKey = `clinic_treatments_${clinicId || 'all'}`;
     const initial = getInstantCache<TreatmentService[]>(cacheKey) || [];
     const [treatments, setTreatments] = useState<TreatmentService[]>(initial);
@@ -42,20 +44,39 @@ export const useTreatments = (clinicId?: string) => {
             setLoading(false);
         }
         fetchTreatments();
-        return () => { mountedRef.current = false; };
-    }, [clinicId]);
+        const handleRefresh = () => fetchTreatments();
+        window.addEventListener('dental-online-ready', handleRefresh);
+        window.addEventListener('dental-auth-session-ready', handleRefresh);
+        window.addEventListener('dental-sync-completed', handleRefresh);
+        window.addEventListener('dental-clinic-preloaded', handleRefresh);
+        return () => {
+            mountedRef.current = false;
+            window.removeEventListener('dental-online-ready', handleRefresh);
+            window.removeEventListener('dental-auth-session-ready', handleRefresh);
+            window.removeEventListener('dental-sync-completed', handleRefresh);
+            window.removeEventListener('dental-clinic-preloaded', handleRefresh);
+        };
+    }, [clinicId, user?.id]);
 
     const fetchTreatments = async () => {
+        const localCached = getInstantCache<TreatmentService[]>(cacheKey) || (await getCache<TreatmentService[]>(cacheKey)) || [];
+        if (localCached.length > 0 && mountedRef.current) {
+            setTreatments(localCached);
+            setLoading(false);
+        }
+
         if (!navigator.onLine) {
-            const cached = await getCache<TreatmentService[]>(cacheKey);
-            if (cached && mountedRef.current) {
-                setTreatments(cached);
-            }
             if (mountedRef.current) setLoading(false);
             return;
         }
 
-        if (treatments.length === 0) setLoading(true);
+        const authed = await ensureFreshOnlineSession();
+        if (!authed) {
+            if (mountedRef.current) setLoading(false);
+            return;
+        }
+
+        if (treatments.length === 0 && localCached.length === 0) setLoading(true);
         try {
             let query = supabase.from('treatments').select('*');
 
@@ -83,13 +104,11 @@ export const useTreatments = (clinicId?: string) => {
                 scope: t.scope || 'tooth'
             }));
 
-            const currentCached = getInstantCache<TreatmentService[]>(cacheKey) || [];
-            const unsyncedOffline = currentCached.filter(item => String(item.id).startsWith('offline_'));
+            const unsyncedOffline = localCached.filter(item => String(item.id).startsWith('offline_'));
             saveTreatmentsCache([...unsyncedOffline, ...mappedItems]);
         } catch {
-            const cached = await getCache<TreatmentService[]>(cacheKey);
-            if (cached && mountedRef.current) {
-                setTreatments(cached);
+            if (localCached.length > 0 && mountedRef.current) {
+                setTreatments(localCached);
             }
         } finally {
             if (mountedRef.current) setLoading(false);

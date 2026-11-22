@@ -225,10 +225,18 @@ export async function cacheRemoteImageAsBase64(
     );
     if (dataUrl && dataUrl.startsWith('data:image/')) {
       memoryImageCache.set(storageKey, dataUrl);
-      try {
-        localStorage.setItem(storageKey, dataUrl);
-        localStorage.setItem(srcKey, rawUrl);
-      } catch {}
+      // Only store compact images (< 120KB) in localStorage so clinic JSON caches never hit 5MB quota;
+      // larger images (covers, archive photos) are stored safely in Dexie (IndexedDB) + memoryImageCache.
+      if (dataUrl.length < 120000) {
+        try {
+          localStorage.setItem(storageKey, dataUrl);
+          localStorage.setItem(srcKey, rawUrl);
+        } catch {}
+      } else {
+        try {
+          localStorage.setItem(srcKey, rawUrl);
+        } catch {}
+      }
       db.cache
         .put({
           key: storageKey,
