@@ -60,6 +60,11 @@ export default defineConfig(({ mode }) => {
                 expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 30 },
               },
             },
+            // Never serve stale cached notifications from PWA Service Worker!
+            {
+              urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/notifications.*/i,
+              handler: 'NetworkOnly',
+            },
             // Cache Supabase API responses
             {
               urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,

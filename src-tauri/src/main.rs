@@ -7,6 +7,7 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     AppHandle, Manager, WindowEvent,
 };
+#[cfg(not(target_os = "windows"))]
 use tauri_plugin_notification::NotificationExt;
 
 static NOTIFIED_BACKGROUND_ONCE: AtomicBool = AtomicBool::new(false);
@@ -96,15 +97,21 @@ $toast = [Windows.UI.Notifications.ToastNotification]::new($xml)
 fn send_windows_winrt_toast_fallback(_title: &str, _body: &str) {}
 
 fn dispatch_os_notification(app: &AppHandle, title: &str, body: &str) {
-    let result = app
-        .notification()
-        .builder()
-        .title(title)
-        .body(body)
-        .show();
-
-    if result.is_err() {
+    #[cfg(target_os = "windows")]
+    {
+        // On Windows 10/11, direct WinRT ToastNotificationManager with our registered HKCU AUMID
+        // guarantees the banner always appears in Windows Action Center (even when hidden in tray).
+        let _ = app;
         send_windows_winrt_toast_fallback(title, body);
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = app
+            .notification()
+            .builder()
+            .title(title)
+            .body(body)
+            .show();
     }
 }
 
