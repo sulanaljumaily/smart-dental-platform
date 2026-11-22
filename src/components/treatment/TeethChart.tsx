@@ -4,6 +4,10 @@ import { Check, MousePointerClick, Sparkles } from 'lucide-react';
 import { Button } from '../common/Button';
 import { supabase } from '../../lib/supabase';
 import { HEALTHY_TEETH_SVGS } from '../../constants/healthyTeeth';
+import { DEFAULT_ODONTOGRAM_TEMPLATES } from '../../constants/odontogramTemplates';
+import { db } from '../../lib/offline/db';
+
+let memoryTemplatesCache: Record<string, string> | null = null;
 
 interface TeethChartProps {
     teeth: ToothCondition[];
@@ -29,35 +33,71 @@ export const TeethChart: React.FC<TeethChartProps> = ({
     onGeneralTreatmentClick
 }) => {
     const [templates, setTemplates] = useState<Record<string, string>>(() => {
-        const initial: Record<string, string> = {};
+        const initial: Record<string, string> = { ...DEFAULT_ODONTOGRAM_TEMPLATES };
         Object.entries(HEALTHY_TEETH_SVGS).forEach(([toothNum, svg]) => {
-            initial[`${toothNum}_healthy`] = svg;
+            if (!initial[`${toothNum}_healthy`]) {
+                initial[`${toothNum}_healthy`] = svg;
+            }
         });
+        if (memoryTemplatesCache) {
+            Object.assign(initial, memoryTemplatesCache);
+        }
         return initial;
     });
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
+        let mounted = true;
         const fetchTemplates = async () => {
+            try {
+                // 1. Load cached templates from IndexedDB (Dexie) first for offline support
+                const cached = await db.cache.get('odontogram_templates_v1').catch(() => null);
+                if (cached?.data && typeof cached.data === 'object' && mounted) {
+                    const cachedMap = cached.data as Record<string, string>;
+                    memoryTemplatesCache = { ...(memoryTemplatesCache || {}), ...cachedMap };
+                    setTemplates(prev => ({ ...prev, ...cachedMap }));
+                }
+            } catch {}
+
+            if (typeof navigator !== 'undefined' && !navigator.onLine) {
+                if (mounted) setLoading(false);
+                return;
+            }
+
             try {
                 const { data, error } = await supabase
                     .from('odontogram_templates')
                     .select('tooth_number, state, svg_content');
                 if (error) throw error;
-                if (data) {
+                if (data && data.length > 0) {
                     const loaded: Record<string, string> = {};
                     data.forEach((row: any) => {
-                        loaded[`${row.tooth_number}_${row.state}`] = row.svg_content;
+                        if (row.svg_content) {
+                            loaded[`${row.tooth_number}_${row.state}`] = row.svg_content;
+                        }
                     });
-                    setTemplates(prev => ({ ...prev, ...loaded }));
+                    memoryTemplatesCache = loaded;
+                    if (mounted) {
+                        setTemplates(prev => ({ ...prev, ...loaded }));
+                    }
+                    const now = Date.now();
+                    await db.cache.put({
+                        key: 'odontogram_templates_v1',
+                        data: loaded,
+                        cached_at: now,
+                        expires_at: now + 86400 * 365 * 1000
+                    }).catch(() => {});
                 }
-            } catch (e) {
-                console.error('Error fetching odontogram templates:', e);
+            } catch (e: any) {
+                if (e?.name !== 'AbortError' && !e?.message?.includes('Failed to fetch')) {
+                    console.warn('Error fetching odontogram templates:', e);
+                }
             } finally {
-                setLoading(false);
+                if (mounted) setLoading(false);
             }
         };
         fetchTemplates();
+        return () => { mounted = false; };
     }, []);
 
     const toggleToothSelection = (toothNumber: number) => {

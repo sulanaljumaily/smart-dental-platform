@@ -282,6 +282,33 @@ public class MainActivity extends BridgeActivity {
         }
 
         @JavascriptInterface
+        public void shareContent(final String title, final String text, final String url) {
+            runOnUiThread(() -> {
+                try {
+                    Intent sendIntent = new Intent(Intent.ACTION_SEND);
+                    sendIntent.setType("text/plain");
+                    String safeTitle = (title != null && !title.trim().isEmpty()) ? title : "مشاركة";
+                    StringBuilder body = new StringBuilder();
+                    if (text != null && !text.trim().isEmpty()) {
+                        body.append(text.trim());
+                    }
+                    if (url != null && !url.trim().isEmpty()) {
+                        if (body.length() > 0) body.append("\n");
+                        body.append(url.trim());
+                    }
+                    sendIntent.putExtra(Intent.EXTRA_SUBJECT, safeTitle);
+                    sendIntent.putExtra(Intent.EXTRA_TITLE, safeTitle);
+                    sendIntent.putExtra(Intent.EXTRA_TEXT, body.toString());
+                    Intent shareIntent = Intent.createChooser(sendIntent, safeTitle);
+                    shareIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(shareIntent);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        }
+
+        @JavascriptInterface
         public void requestLocationPermission() {
             runOnUiThread(() -> {
                 try {

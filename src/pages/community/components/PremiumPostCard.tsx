@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { MoreVertical, Shield, Edit, Heart, MessageCircle, Share2, Bookmark, Star, Trash2 } from 'lucide-react';
+import { shareContent, getPublicOrigin } from '../../../lib/platform';
 import { useNavigate } from 'react-router-dom';
 
 export const PremiumPostCard = ({
@@ -154,7 +155,18 @@ export const PremiumPostCard = ({
                 </div>
 
                 <div className="flex gap-1">
-                    <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            shareContent({
+                                title: `منشور د. ${post.authorName || ''}`,
+                                text: (post.content || '').slice(0, 200),
+                                url: `${getPublicOrigin()}/community/post/${post.id}`,
+                            });
+                        }}
+                        className="p-2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                    >
                         <Share2 className="w-5 h-5" />
                     </button>
                     <button

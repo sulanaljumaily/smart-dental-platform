@@ -115,7 +115,15 @@ export const useFinance = (clinicId?: string, patientId?: string, staffId?: stri
         } else {
             setLoading(false);
         }
-        return () => { mountedRef.current = false; };
+        const handleSyncDone = () => {
+            financeCache.delete(cacheKey);
+            if (clinicId && clinicId !== '0') fetchFinancials();
+        };
+        window.addEventListener('dental-sync-completed', handleSyncDone);
+        return () => {
+            mountedRef.current = false;
+            window.removeEventListener('dental-sync-completed', handleSyncDone);
+        };
     }, [clinicId, appointments.length, patientId, staffId]);
 
     const fetchFinancials = async () => {

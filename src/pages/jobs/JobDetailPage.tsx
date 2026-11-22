@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useJobs, Job } from '../../hooks/useJobs';
+import { shareContent, getPublicOrigin } from '../../lib/platform';
 import { Button } from '../../components/common/Button';
 import {
     Briefcase, MapPin, DollarSign, Clock, Building,
@@ -99,7 +100,16 @@ export const JobDetailPage: React.FC = () => {
                         </div>
 
                         <div className="flex flex-col sm:flex-row gap-3">
-                            <Button variant="outline" onClick={() => { /* Share logic */ }}>
+                            <Button
+                                variant="outline"
+                                onClick={() =>
+                                    shareContent({
+                                        title: job.title,
+                                        text: `${job.title} - ${(job as any).companyName || ''} (${job.location || ''})`,
+                                        url: `${getPublicOrigin()}/jobs/${job.id}`,
+                                    })
+                                }
+                            >
                                 <Share2 className="w-4 h-4" />
                             </Button>
                             {alreadyApplied ? (

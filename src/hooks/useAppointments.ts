@@ -123,7 +123,15 @@ export const useAppointments = (clinicId?: string) => {
             setAppointments([]);
             setLoading(false);
         }
-        return () => { mountedRef.current = false; };
+        const handleSyncDone = () => {
+            appointmentsCache.delete(cacheKey);
+            if (clinicId !== undefined && clinicId !== '0') fetchAppointments();
+        };
+        window.addEventListener('dental-sync-completed', handleSyncDone);
+        return () => {
+            mountedRef.current = false;
+            window.removeEventListener('dental-sync-completed', handleSyncDone);
+        };
     }, [clinicId]);
 
     const fetchAppointments = async () => {

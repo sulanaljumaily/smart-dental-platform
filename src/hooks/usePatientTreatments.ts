@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { setCache, getCache, getInstantCache, addToSyncQueue } from '../lib/offline/db';
+import { getResolvedPatientId } from '../lib/offline/syncService';
 
 const INITIAL_TEETH: ToothCondition[] = Array.from({ length: 32 }, (_, i) => {
     let num = 0;
@@ -22,9 +23,18 @@ const INITIAL_TEETH: ToothCondition[] = Array.from({ length: 32 }, (_, i) => {
 
 export const usePatientTreatments = (patientId: string | undefined) => {
     const { user } = useAuth();
-    const targetPatientId = patientId ? String(patientId) : '';
-    const initialTeeth = (targetPatientId ? getInstantCache<ToothCondition[]>('patient_teeth_' + targetPatientId) : null) || INITIAL_TEETH;
-    const initialPlans = (targetPatientId ? getInstantCache<TreatmentPlan[]>('patient_plans_' + targetPatientId) : null) || [];
+    const resolvedId = patientId ? (getResolvedPatientId(String(patientId)) || String(patientId)) : '';
+    const targetPatientId = resolvedId;
+    const initialTeeth =
+        (targetPatientId
+            ? getInstantCache<ToothCondition[]>('patient_teeth_' + targetPatientId) ||
+              (patientId ? getInstantCache<ToothCondition[]>('patient_teeth_' + String(patientId)) : null)
+            : null) || INITIAL_TEETH;
+    const initialPlans =
+        (targetPatientId
+            ? getInstantCache<TreatmentPlan[]>('patient_plans_' + targetPatientId) ||
+              (patientId ? getInstantCache<TreatmentPlan[]>('patient_plans_' + String(patientId)) : null)
+            : null) || [];
 
     const [teeth, setTeeth] = useState<ToothCondition[]>(initialTeeth);
     const [treatmentPlans, setTreatmentPlans] = useState<TreatmentPlan[]>(initialPlans);
@@ -47,13 +57,25 @@ export const usePatientTreatments = (patientId: string | undefined) => {
     useEffect(() => {
         mountedRef.current = true;
         if (!targetPatientId) return;
-        const cachedT = getInstantCache<ToothCondition[]>('patient_teeth_' + targetPatientId);
-        const cachedP = getInstantCache<TreatmentPlan[]>('patient_plans_' + targetPatientId);
+        const cachedT =
+            getInstantCache<ToothCondition[]>('patient_teeth_' + targetPatientId) ||
+            (patientId ? getInstantCache<ToothCondition[]>('patient_teeth_' + String(patientId)) : null);
+        const cachedP =
+            getInstantCache<TreatmentPlan[]>('patient_plans_' + targetPatientId) ||
+            (patientId ? getInstantCache<TreatmentPlan[]>('patient_plans_' + String(patientId)) : null);
         if (cachedT) setTeeth(cachedT);
         if (cachedP) setTreatmentPlans(cachedP);
         fetchData();
-        return () => { mountedRef.current = false; };
-    }, [targetPatientId]);
+
+        const handleSyncCompleted = () => {
+            fetchData();
+        };
+        window.addEventListener('dental-sync-completed', handleSyncCompleted);
+        return () => {
+            mountedRef.current = false;
+            window.removeEventListener('dental-sync-completed', handleSyncCompleted);
+        };
+    }, [targetPatientId, patientId]);
 
     const fetchData = async () => {
         if (!targetPatientId) return;
@@ -88,7 +110,11 @@ export const usePatientTreatments = (patientId: string | undefined) => {
 
             if (teethError) throw teethError;
 
-            let currentTeeth = INITIAL_TEETH;
+            const cachedTeethLocal =
+                getInstantCache<ToothCondition[]>('patient_teeth_' + targetPatientId) ||
+                (patientId ? getInstantCache<ToothCondition[]>('patient_teeth_' + String(patientId)) : null);
+
+            let currentTeeth = cachedTeethLocal || INITIAL_TEETH;
             if (dbTeeth && dbTeeth.length > 0) {
                 currentTeeth = INITIAL_TEETH.map(initial => {
                     const found = dbTeeth.find(t => t.tooth_number === initial.number);
@@ -98,6 +124,10 @@ export const usePatientTreatments = (patientId: string | undefined) => {
                             condition: found.condition,
                             notes: found.notes || '',
                         };
+                    }
+                    const localTooth = cachedTeethLocal?.find(t => t.number === initial.number);
+                    if (localTooth && localTooth.condition !== 'healthy') {
+                        return localTooth;
                     }
                     return initial;
                 });
@@ -151,9 +181,26 @@ export const usePatientTreatments = (patientId: string | undefined) => {
                     })
             }));
 
+            // الحفاظ على أي خطط محلية لا تزال قيد المزامنة حتى لا تختفي لحظياً
+            const cachedPlansLocal =
+                getInstantCache<TreatmentPlan[]>('patient_plans_' + targetPatientId) ||
+                (patientId ? getInstantCache<TreatmentPlan[]>('patient_plans_' + String(patientId)) : null) ||
+                [];
+            const unsyncedLocalPlans = cachedPlansLocal.filter(
+                lp =>
+                    String(lp.id).startsWith('offline_') &&
+                    !mappedPlans.some(
+                        mp =>
+                            mp.toothNumber === lp.toothNumber &&
+                            mp.type === lp.type &&
+                            Number(mp.cost) === Number(lp.cost)
+                    )
+            );
+            const finalPlans = [...unsyncedLocalPlans, ...mappedPlans];
+
             if (mountedRef.current) {
                 persistTeeth(currentTeeth);
-                persistPlans(mappedPlans);
+                persistPlans(finalPlans);
                 setError(null);
             }
         } catch (err: any) {

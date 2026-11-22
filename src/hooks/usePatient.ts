@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Patient } from '../types';
 import { db, addToSyncQueue, getInstantCache, setCache, getCache } from '../lib/offline/db';
+import { getResolvedPatientId, recordResolvedPatientId } from '../lib/offline/syncService';
 import { getCachedPatientById } from './usePatients';
 import { toast } from 'sonner';
 
@@ -36,20 +37,24 @@ function normalizeMedicalHistory(raw: any): any {
 
 function getInitialPatientSync(patientId?: string): Patient | null {
     if (!patientId) return null;
-    const targetId = String(patientId);
-    const instantDetail = getInstantCache<Patient>('patient_detail_' + targetId);
+    const resolvedId = getResolvedPatientId(patientId);
+    const targetId = String(resolvedId || patientId);
+    const instantDetail =
+        getInstantCache<Patient>('patient_detail_' + targetId) ||
+        getInstantCache<Patient>('patient_detail_' + String(patientId));
     if (instantDetail) {
         return {
             ...instantDetail,
+            id: String(resolvedId || instantDetail.id),
             medicalHistory: normalizeMedicalHistory(instantDetail.medicalHistory),
             medicalHistoryData: instantDetail.medicalHistoryData || DEFAULT_MEDICAL_HISTORY_DATA
         };
     }
 
-    const fromList = getCachedPatientById(targetId);
+    const fromList = getCachedPatientById(targetId) || getCachedPatientById(String(patientId));
     if (fromList) {
         return {
-            id: String(fromList.id),
+            id: String(resolvedId || fromList.id),
             name: fromList.name || 'مريض',
             age: Number(fromList.age) || 0,
             phone: fromList.phone || '',
@@ -89,15 +94,46 @@ export const usePatient = (patientId: string | undefined) => {
             setLoading(false);
         }
         fetchPatient();
-        return () => { mountedRef.current = false; };
+
+        const handleIdResolved = (e: Event) => {
+            const detail = (e as CustomEvent)?.detail;
+            if (detail?.table === 'patients' && String(detail.oldId) === String(patientId)) {
+                fetchPatient(String(detail.newId));
+            }
+        };
+        const handleSyncCompleted = () => {
+            fetchPatient();
+        };
+        window.addEventListener('dental-sync-id-resolved', handleIdResolved);
+        window.addEventListener('dental-sync-completed', handleSyncCompleted);
+        window.addEventListener('online', handleSyncCompleted);
+
+        return () => {
+            mountedRef.current = false;
+            window.removeEventListener('dental-sync-id-resolved', handleIdResolved);
+            window.removeEventListener('dental-sync-completed', handleSyncCompleted);
+            window.removeEventListener('online', handleSyncCompleted);
+        };
     }, [patientId]);
 
-    const loadPatientFromLocalStore = async (targetId: string): Promise<Patient | null> => {
+    const loadPatientFromLocalStore = async (rawTargetId: string): Promise<Patient | null> => {
+        const targetId = getResolvedPatientId(rawTargetId) || rawTargetId;
         try {
             let local = await db.patients.get(targetId);
+            if (!local && targetId !== rawTargetId) {
+                local = await db.patients.get(rawTargetId);
+            }
             if (!local) {
                 const all = await db.patients.toArray();
-                local = all.find(item => String(item.id) === targetId);
+                local = all.find(
+                    item =>
+                        String(item.id) === targetId ||
+                        String(item.id) === rawTargetId ||
+                        String((item.data as any)?.medical_history_data?.offline_id) === rawTargetId
+                );
+                if (local && String(local.id) !== rawTargetId && !isNaN(Number(local.id))) {
+                    recordResolvedPatientId(rawTargetId, String(local.id));
+                }
             }
             if (local) {
                 const d = (local.data || {}) as any;
@@ -139,12 +175,13 @@ export const usePatient = (patientId: string | undefined) => {
         return getInitialPatientSync(targetId);
     };
 
-    const fetchPatient = async () => {
-        if (!patientId) {
+    const fetchPatient = async (overrideId?: string) => {
+        const rawId = overrideId || patientId;
+        if (!rawId) {
             if (mountedRef.current) setLoading(false);
             return;
         }
-        const targetId = String(patientId);
+        const targetId = getResolvedPatientId(String(rawId)) || String(rawId);
 
         // 1. محاولة التحميل الفوري من التخزين المحلي أولاً لفتح الملف بدون أي تأخير
         const localPatient = await loadPatientFromLocalStore(targetId);
@@ -154,8 +191,9 @@ export const usePatient = (patientId: string | undefined) => {
             setLoading(false);
         }
 
-        // إذا كان الجهاز أوفلاين أو المريض محلياً غير مزامن (UUID)، لا نطلب من السيرفر
-        const isUnsyncedUuid = isNaN(Number(targetId));
+        const effectiveId = localPatient?.id && !isNaN(Number(localPatient.id)) ? String(localPatient.id) : targetId;
+        // إذا كان الجهاز أوفلاين أو المريض محلياً غير مزامن بعد (UUID)، لا نطلب من السيرفر
+        const isUnsyncedUuid = isNaN(Number(effectiveId));
         if (!navigator.onLine || isUnsyncedUuid) {
             if (mountedRef.current) setLoading(false);
             return;
@@ -169,7 +207,7 @@ export const usePatient = (patientId: string | undefined) => {
             const { data, error } = await supabase
                 .from('patients')
                 .select('*')
-                .eq('id', targetId)
+                .eq('id', effectiveId)
                 .single();
 
             if (error) throw error;

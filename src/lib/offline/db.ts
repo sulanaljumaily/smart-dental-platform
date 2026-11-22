@@ -239,6 +239,9 @@ export async function addToSyncQueue(
     timestamp: Date.now(),
     retries: 0,
   });
+  if (typeof window !== 'undefined' && typeof navigator !== 'undefined' && navigator.onLine) {
+    window.dispatchEvent(new CustomEvent('dental-sync-queued'));
+  }
 }
 
 /** الحصول على العناصر غير المتزامنة مرتبة بالأقدم أولاً */

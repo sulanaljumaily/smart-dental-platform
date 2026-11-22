@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { db, addToSyncQueue, LocalPatient, getInstantCache, setCache } from '../lib/offline/db';
+import { recordResolvedPatientId, getResolvedPatientId } from '../lib/offline/syncService';
 import { toast } from 'sonner';
 
 export interface PatientData {
@@ -173,7 +174,21 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
             setLoading(false);
         }
         fetchPatients();
-        return () => { mountedRef.current = false; };
+
+        const handleSyncUpdate = () => {
+            patientsCache.delete(cacheKey);
+            fetchPatients();
+        };
+        window.addEventListener('dental-sync-id-resolved', handleSyncUpdate);
+        window.addEventListener('dental-sync-completed', handleSyncUpdate);
+        window.addEventListener('online', handleSyncUpdate);
+
+        return () => {
+            mountedRef.current = false;
+            window.removeEventListener('dental-sync-id-resolved', handleSyncUpdate);
+            window.removeEventListener('dental-sync-completed', handleSyncUpdate);
+            window.removeEventListener('online', handleSyncUpdate);
+        };
     }, [clinicId, clinicIds?.join(','), user?.id]);
 
     const fetchPatients = async () => {
@@ -243,10 +258,21 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
             }));
 
             // دمج أي مرضى مضافين أوفلاين ولم تتم مزامنتهم بعد حتى لا يختفوا قبل اكتمال المزامنة
-            const unsyncedLocal = dexiePatients.filter(lp => lp.isOfflineUnsynced);
             const serverIds = new Set(serverPatients.map(sp => String(sp.id)));
+            const serverOfflineIds = new Set<string>();
+            for (const sp of serverPatients) {
+                const offId = sp.medicalHistoryData?.offline_id;
+                if (offId) {
+                    serverOfflineIds.add(String(offId));
+                    recordResolvedPatientId(String(offId), String(sp.id));
+                    db.patients.delete(String(offId)).catch(() => {});
+                }
+            }
+            const unsyncedLocal = dexiePatients.filter(lp => lp.isOfflineUnsynced);
             const mergedPatients = [
-                ...unsyncedLocal.filter(lp => !serverIds.has(String(lp.id))),
+                ...unsyncedLocal.filter(
+                    lp => !serverIds.has(String(lp.id)) && !serverOfflineIds.has(String(lp.id))
+                ),
                 ...serverPatients
             ];
 
@@ -310,6 +336,15 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
         const targetClinicId = String(clinicId || newPatient.clinicId || '101');
         const localId = crypto.randomUUID();
         const now = new Date().toISOString();
+        const medicalHistoryDataObj = {
+            vitals: { weight: '', height: '', bp: '', sugar: '', pulse: '' },
+            conditions: [],
+            allergies: [],
+            habits: [],
+            notes: '',
+            ...(newPatient.medicalHistoryData || {}),
+            offline_id: localId
+        };
         const offlineData = {
             id: localId,
             clinic_id: Number.isNaN(Number(targetClinicId)) ? targetClinicId : Number(targetClinicId),
@@ -321,6 +356,7 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
             address: newPatient.address || '',
             notes: newPatient.notes || '',
             medical_history: newPatient.medicalHistory ? JSON.parse(JSON.stringify(newPatient.medicalHistory)) : [],
+            medical_history_data: medicalHistoryDataObj,
             status: 'active',
             patient_user_id: null,
             created_at: now
@@ -359,13 +395,7 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
             medicalHistory: offlineData.medical_history,
             clinicId: targetClinicId,
             patientUserId: null,
-            medicalHistoryData: {
-                vitals: { weight: '', height: '', bp: '', sugar: '', pulse: '' },
-                conditions: [],
-                allergies: [],
-                habits: [],
-                notes: ''
-            }
+            medicalHistoryData: medicalHistoryDataObj
         }, 86400 * 30).catch(() => {});
 
         return offlineData;

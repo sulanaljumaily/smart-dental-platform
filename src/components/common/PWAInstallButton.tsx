@@ -309,6 +309,9 @@ export function PWAInstallButton({ variant = 'floating' }: PWAInstallButtonProps
                       {appsConfig.windows.exeSubtitle ||
                         'برنامج سطح المكتب المتكامل • يعمل بدون إنترنت ويدعم الطابعات الحرارية'}
                     </p>
+                    <p className="text-[10px] text-blue-700/80 bg-blue-50/80 border border-blue-100 rounded-lg px-2 py-1 mt-2 leading-relaxed">
+                      💡 عند التثبيت في ويندوز: إذا ظهرت نافذة SmartScreen، اضغط على <b>More info (مزيد من المعلومات)</b> ثم <b>Run anyway (التشغيل على أي حال)</b>.
+                    </p>
                   </div>
                 </button>
               )}

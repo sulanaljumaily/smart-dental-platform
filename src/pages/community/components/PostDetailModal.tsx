@@ -9,6 +9,7 @@ import {
     MoreVertical, Send, CheckCircle, Edit, Trash2, AlertCircle, X, LogIn
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { shareContent, getPublicOrigin } from '../../../lib/platform';
 
 interface PostDetailModalProps {
     isOpen: boolean;
@@ -239,7 +240,17 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClos
                             </button>
                         </div>
                         <div className="flex gap-2">
-                            <Button variant="ghost" className="rounded-xl">
+                            <Button
+                                variant="ghost"
+                                className="rounded-xl"
+                                onClick={() =>
+                                    shareContent({
+                                        title: `منشور د. ${post.authorName || ''}`,
+                                        text: (post.content || '').slice(0, 200),
+                                        url: `${getPublicOrigin()}/community/post/${post.id}`,
+                                    })
+                                }
+                            >
                                 <Share2 className="w-5 h-5 text-gray-400" />
                             </Button>
                             <Button

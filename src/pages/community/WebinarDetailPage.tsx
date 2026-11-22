@@ -9,6 +9,7 @@ import { mockCourses } from '../../data/mock';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCommunity } from '../../hooks/useCommunity';
 import { Button } from '../../components/common/Button';
+import { shareContent, getPublicOrigin } from '../../lib/platform';
 
 export const WebinarDetailPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -49,7 +50,17 @@ export const WebinarDetailPage: React.FC = () => {
                         <ArrowRight className="w-5 h-5" />
                     </button>
                     <div className="flex gap-2">
-                        <button className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/20 transition-all">
+                        <button
+                            type="button"
+                            onClick={() =>
+                                shareContent({
+                                    title: webinar.title,
+                                    text: `${webinar.title} - ${webinar.instructor || ''}`,
+                                    url: `${getPublicOrigin()}/community/webinar/${webinar.id}`,
+                                })
+                            }
+                            className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/20 transition-all cursor-pointer"
+                        >
                             <Share2 className="w-5 h-5" />
                         </button>
                         <button

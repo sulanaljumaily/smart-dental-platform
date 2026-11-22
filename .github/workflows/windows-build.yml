@@ -46,6 +46,23 @@ jobs:
           VITE_SUPABASE_URL: https://nhueyaeyutfmadbgghfe.supabase.co
           VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5odWV5YWV5dXRmbWFkYmdnaGZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MzcwNTYsImV4cCI6MjA4NDQxMzA1Nn0.56MIbpOtVu9b_fwEyo-hvlxGxA_E5c-nU7q1MSfTg-g
 
+      - name: Sign Installers (Authenticode SHA-256)
+        shell: pwsh
+        run: |
+          $certPwd = ConvertTo-SecureString -String "DentalPlatform2026!" -Force -AsPlainText
+          $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=Dental Platform, O=Dental Platform Medical Systems, C=IQ" -KeyAlgorithm RSA -KeyLength 2048 -Provider "Microsoft Enhanced RSA and AES Cryptographic Provider" -CertStoreLocation "Cert:\CurrentUser\My" -HashAlgorithm SHA256 -NotAfter (Get-Date).AddYears(5)
+          $pfxPath = "$env:TEMP\dental-codesign.pfx"
+          Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password $certPwd | Out-Null
+
+          $signtool = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Filter "signtool.exe" -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.FullName -like "*x64*" } | Select-Object -First 1 -ExpandProperty FullName
+          if ($signtool) {
+            $filesToSign = Get-ChildItem -Path "src-tauri/target/release/bundle" -Include *.exe,*.msi -Recurse
+            foreach ($f in $filesToSign) {
+              Write-Host "Signing $($f.FullName)..."
+              & $signtool sign /f $pfxPath /p "DentalPlatform2026!" /fd SHA256 /tr "http://timestamp.digicert.com" /td SHA256 $f.FullName
+            }
+          }
+
       - name: Upload EXE/MSI Artifacts
         uses: actions/upload-artifact@v4
         with:

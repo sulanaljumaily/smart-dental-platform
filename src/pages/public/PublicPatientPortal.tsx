@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   HeartPulse,
   Calendar,
@@ -16,14 +16,20 @@ import {
   ShieldCheck,
   MapPin,
   Smile,
-  AlertCircle
+  AlertCircle,
+  ArrowRight
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Card } from '../../components/common/Card';
 import { BentoStatCard } from '../../components/dashboard/BentoStatCard';
+import { db, getInstantCache } from '../../lib/offline/db';
+import { getResolvedPatientId } from '../../lib/offline/syncService';
+import { resolveOfflineClinic } from '../../lib/printReceipt';
+import { getCachedClinicsForUser } from '../../hooks/useClinics';
 
 export const PublicPatientPortal: React.FC = () => {
   const { clinicId, patientId } = useParams<{ clinicId: string; patientId: string }>();
+  const navigate = useNavigate();
 
   const [patient, setPatient] = useState<any>(null);
   const [clinic, setClinic] = useState<any>(null);
@@ -36,57 +42,186 @@ export const PublicPatientPortal: React.FC = () => {
   useEffect(() => {
     if (!clinicId || !patientId) return;
 
+    const loadFromLocalOfflineCache = async (): Promise<boolean> => {
+      try {
+        const resolvedId = getResolvedPatientId(patientId) || patientId;
+        const cachedClinic = getCachedClinicsForUser().find((c) => String(c.id) === String(clinicId));
+        const resolvedClinic = resolveOfflineClinic(cachedClinic, clinicId);
+        if (resolvedClinic?.name) {
+          setClinic(resolvedClinic);
+        }
+
+        let localPatient: any =
+          getInstantCache<any>('patient_detail_' + resolvedId) ||
+          getInstantCache<any>('patient_detail_' + patientId);
+
+        if (!localPatient) {
+          const allLocal = await db.patients.toArray();
+          const matched = allLocal.find(
+            (lp) =>
+              String(lp.id) === String(resolvedId) ||
+              String(lp.id) === String(patientId) ||
+              String((lp.data as any)?.medical_history_data?.offline_id) === String(patientId)
+          );
+          if (matched) {
+            localPatient = { ...(matched.data || {}), ...matched };
+          }
+        }
+
+        if (!localPatient) return false;
+
+        const realId = String(localPatient.id || resolvedId);
+        setPatient({
+          ...localPatient,
+          id: realId,
+          full_name: localPatient.full_name || localPatient.name || 'المراجع',
+        });
+
+        const cachedPlans =
+          getInstantCache<any[]>('patient_plans_' + realId) ||
+          getInstantCache<any[]>('patient_plans_' + patientId) ||
+          [];
+        setTreatmentPlans(
+          cachedPlans.map((p: any) => ({
+            ...p,
+            estimated_cost: p.estimated_cost ?? p.cost ?? 0,
+            paid: p.paid ?? 0,
+            treatment_description: p.treatment_description || p.notes || p.type,
+            treatment_name: p.treatment_name || p.type,
+            session_count: p.session_count || p.totalSessions || 1,
+            tooth_number: p.tooth_number ?? p.toothNumber,
+            tooth_numbers: p.tooth_numbers ?? p.toothNumbers,
+            created_at: p.created_at || p.startDate,
+          }))
+        );
+
+        const patientFin =
+          getInstantCache<{ transactions: any[] }>(`finance_${clinicId}_${realId}_`) ||
+          getInstantCache<{ transactions: any[] }>(`finance_${clinicId}_${patientId}_`) ||
+          getInstantCache<{ transactions: any[] }>(`finance_${clinicId}__`);
+        const manualTx = getInstantCache<any[]>(`finance_manual_tx_${clinicId}`) || [];
+        const txSource = patientFin?.transactions || manualTx;
+        const patientIncomeTx = txSource
+          .filter(
+            (t: any) =>
+              (String(t.patientId ?? t.patient_id) === realId ||
+                String(t.patientId ?? t.patient_id) === String(patientId)) &&
+              t.type === 'income'
+          )
+          .map((t: any) => ({
+            ...t,
+            transaction_date: t.transaction_date || t.date,
+          }));
+        setTransactions(patientIncomeTx);
+
+        const cachedApts =
+          getInstantCache<any[]>('appointments_' + clinicId) ||
+          getInstantCache<any[]>('appointments_all') ||
+          [];
+        const patientApts = cachedApts
+          .filter(
+            (a: any) =>
+              String(a.patientId ?? a.patient_id) === realId ||
+              String(a.patientId ?? a.patient_id) === String(patientId)
+          )
+          .map((a: any) => ({
+            ...a,
+            appointment_date: a.appointment_date || a.date,
+            appointment_time: a.appointment_time || a.time,
+            reason: a.reason || a.title || a.notes || 'جلسة علاج أسنان',
+          }));
+        setAppointments(patientApts);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
     const fetchPortalData = async () => {
       setLoading(true);
-      try {
-        // 1. Fetch Patient Info
-        const { data: pData } = await supabase
-          .from('patients')
-          .select('*')
-          .eq('id', patientId)
-          .maybeSingle();
+      const foundLocally = await loadFromLocalOfflineCache();
 
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // 1. Primary lookup via SECURITY DEFINER RPC (works for anon & authenticated, supports numeric ID and offline_id)
+        const numericClinicId = Number(clinicId);
+        if (!isNaN(numericClinicId)) {
+          const { data: rpcData, error: rpcError } = await supabase.rpc('get_public_patient_portal', {
+            p_clinic_id: numericClinicId,
+            p_patient_identifier: String(patientId),
+          });
+
+          if (!rpcError && rpcData?.patient) {
+            setPatient(rpcData.patient);
+            if (rpcData.clinic) setClinic(resolveOfflineClinic(rpcData.clinic, clinicId));
+            setTreatmentPlans(rpcData.treatmentPlans || []);
+            setTransactions(rpcData.transactions || []);
+            setAppointments(rpcData.appointments || []);
+            setLoading(false);
+            return;
+          }
+        }
+
+        // 2. Fallback direct query (for authenticated clinic owner/staff)
+        const isNumericId = /^\d+$/.test(String(patientId));
+        let pQuery = supabase.from('patients').select('*').eq('clinic_id', clinicId);
+        if (isNumericId) {
+          pQuery = pQuery.eq('id', Number(patientId));
+        } else {
+          pQuery = pQuery.eq('medical_history_data->>offline_id', String(patientId));
+        }
+        const { data: pData } = await pQuery.maybeSingle();
+
+        if (!pData) {
+          if (foundLocally) {
+            setLoading(false);
+            return;
+          }
+          setPatient(null);
+          setLoading(false);
+          return;
+        }
+
+        const realPatientId = pData.id;
         setPatient(pData);
 
-        // 2. Fetch Clinic Info
-        const { data: cData } = await supabase
-          .from('clinics')
-          .select('*')
-          .eq('id', clinicId)
-          .maybeSingle();
+        const [
+          { data: cData },
+          { data: plansData },
+          { data: txData },
+          { data: aptData },
+        ] = await Promise.all([
+          supabase.from('clinics').select('*').eq('id', clinicId).maybeSingle(),
+          supabase
+            .from('tooth_treatment_plans')
+            .select('*')
+            .eq('patient_id', realPatientId)
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('financial_transactions')
+            .select('*')
+            .eq('patient_id', realPatientId)
+            .eq('type', 'income')
+            .order('transaction_date', { ascending: false }),
+          supabase
+            .from('appointments')
+            .select('*')
+            .eq('patient_id', realPatientId)
+            .order('appointment_date', { ascending: false }),
+        ]);
 
-        setClinic(cData);
-
-        // 3. Fetch Treatment Plans
-        const { data: plansData } = await supabase
-          .from('tooth_treatment_plans')
-          .select('*')
-          .eq('patient_id', patientId)
-          .order('created_at', { ascending: false });
-
+        if (cData) setClinic(resolveOfflineClinic(cData, clinicId));
         setTreatmentPlans(plansData || []);
-
-        // 4. Fetch Financial Transactions (Income)
-        const { data: txData } = await supabase
-          .from('financial_transactions')
-          .select('*')
-          .eq('patient_id', patientId)
-          .eq('type', 'income')
-          .order('transaction_date', { ascending: false });
-
         setTransactions(txData || []);
-
-        // 5. Fetch Appointments
-        const { data: aptData } = await supabase
-          .from('appointments')
-          .select('*')
-          .eq('patient_id', patientId)
-          .order('appointment_date', { ascending: false });
-
         setAppointments(aptData || []);
-
       } catch (err) {
-        console.error('Error fetching public patient portal:', err);
+        if (!foundLocally) {
+          console.error('Error fetching public patient portal:', err);
+        }
       } finally {
         setLoading(false);
       }
@@ -126,11 +261,29 @@ export const PublicPatientPortal: React.FC = () => {
     <div className="min-h-screen bg-slate-50 pb-16 font-sans text-slate-800" dir="rtl">
       {/* Top Clinic Branding Bar */}
       <header className="bg-white border-b border-slate-200/80 sticky top-0 z-30 shadow-xs">
-        <div className="max-w-4xl mx-auto px-4 py-3.5 flex items-center justify-between">
+        <div className="max-w-4xl mx-auto px-4 py-3.5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-lg shadow-sm shadow-blue-200">
-              <Building2 className="w-5 h-5" />
-            </div>
+            {typeof window !== 'undefined' && window.history.length > 1 && (
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                title="رجوع"
+              >
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            )}
+            {clinic?.logo_url || clinic?.image_url ? (
+              <img
+                src={clinic.logo_url || clinic.image_url}
+                alt={clinic?.name || 'العيادة'}
+                className="w-10 h-10 rounded-xl object-contain border border-slate-200 bg-white p-0.5 shrink-0"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-lg shadow-sm shadow-blue-200 shrink-0">
+                <Building2 className="w-5 h-5" />
+              </div>
+            )}
             <div>
               <h1 className="font-extrabold text-sm sm:text-base text-gray-900">{clinic?.name || 'العيادة التخصصية'}</h1>
               <p className="text-[11px] text-gray-400">بوابة المراجع الإلكترونية الذكية</p>

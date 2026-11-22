@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { ArrowLeft, Share2, Calendar, Copy, Twitter, Facebook, Linkedin, BookOpen, Quote } from 'lucide-react';
+import { shareContent, getPublicOrigin } from '../../lib/platform';
 import { useArticle, useArticles } from '../../hooks/useArticles';
 import { usePublicClinics } from '../../hooks/usePublicClinics';
 import { Card } from '../../components/common/Card';
@@ -128,7 +129,17 @@ export const ArticleDetailPage: React.FC = () => {
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div className="flex items-center gap-2">
-            <button className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 hover:text-blue-600 transition-colors">
+            <button
+              type="button"
+              onClick={() =>
+                shareContent({
+                  title: article.title,
+                  text: article.excerpt || article.title,
+                  url: `${getPublicOrigin()}/article/${article.id}`,
+                })
+              }
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 hover:text-blue-600 transition-colors cursor-pointer"
+            >
               <Share2 className="w-4 h-4" />
             </button>
           </div>

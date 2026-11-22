@@ -7,6 +7,7 @@ import { useCommunity } from '../../hooks/useCommunity';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
+import { shareContent, getPublicOrigin } from '../../lib/platform';
 import {
     ArrowRight, Heart, MessageCircle, Share2, Bookmark,
     MoreVertical, Send, Shield, Edit, Trash2, CheckCircle, LogIn
@@ -143,7 +144,17 @@ export const PostDetailPage: React.FC = () => {
                                 </Button>
                             </div>
                             <div className="flex gap-2">
-                                <Button variant="ghost" className="rounded-xl">
+                                <Button
+                                    variant="ghost"
+                                    className="rounded-xl"
+                                    onClick={() =>
+                                        shareContent({
+                                            title: `منشور د. ${post.authorName || ''}`,
+                                            text: (post.content || '').slice(0, 200),
+                                            url: `${getPublicOrigin()}/community/post/${post.id}`,
+                                        })
+                                    }
+                                >
                                     <Share2 className="w-5 h-5 text-gray-400" />
                                 </Button>
                                 <Button

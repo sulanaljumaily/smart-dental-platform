@@ -17,6 +17,7 @@ import {
 
 import { ComprehensiveTransactionModal } from '../../../components/finance/ComprehensiveTransactionModal';
 import { PatientPortalQRModal } from '../../../components/patient/PatientPortalQRModal';
+import { getResolvedPatientId } from '../../../lib/offline/syncService';
 import { TransactionDetailsModal } from './ClinicFinancePage';
 import { PatientAccountModal } from '../../../components/finance/PatientAccountModal';
 import { printIncomeReceipt, printExpenseVoucher, printRawHtmlDocument } from '../../../lib/printReceipt';
@@ -221,17 +222,36 @@ export const ClinicPatientProfile = () => {
 
   // Use param ID (preferred) or found clinic ID
   const effectiveClinicId = clinicId || currentClinic?.id || '';
+  const effectivePatientId = getResolvedPatientId(patientId) || patientId;
+
+  // Automatically replace URL when an offline-created patient's UUID is resolved to its permanent numeric server ID
+  useEffect(() => {
+    if (!patientId || !effectiveClinicId) return;
+    const alreadyResolved = getResolvedPatientId(patientId);
+    if (alreadyResolved && alreadyResolved !== String(patientId)) {
+      navigate(`/doctor/clinic/${effectiveClinicId}/patient/${alreadyResolved}`, { replace: true });
+      return;
+    }
+    const handleIdResolved = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      if (detail?.table === 'patients' && String(detail.oldId) === String(patientId) && detail.newId) {
+        navigate(`/doctor/clinic/${effectiveClinicId}/patient/${detail.newId}`, { replace: true });
+      }
+    };
+    window.addEventListener('dental-sync-id-resolved', handleIdResolved);
+    return () => window.removeEventListener('dental-sync-id-resolved', handleIdResolved);
+  }, [patientId, effectiveClinicId, navigate]);
 
   // Restore original hook signature
-  const { patient, loading: patientLoading, error, updatePatientProfile } = usePatient(patientId);
+  const { patient, loading: patientLoading, error, updatePatientProfile } = usePatient(effectivePatientId);
   // Restore original hook signature
   const { appointments, createAppointment, refresh: refreshAppointments } = useAppointments(effectiveClinicId ? effectiveClinicId.toString() : undefined);
-  const { transactions, addTransaction } = useFinance(effectiveClinicId ? effectiveClinicId.toString() : undefined, patientId);
+  const { transactions, addTransaction } = useFinance(effectiveClinicId ? effectiveClinicId.toString() : undefined, effectivePatientId);
   const { staff: clinicStaff } = useStaff(effectiveClinicId ? effectiveClinicId.toString() : undefined);
 
   // Find latest appointment for this patient to determine default doctor
   const latestAppointmentObj = (appointments || [])
-    .filter(apt => apt.patientId?.toString() === patientId?.toString())
+    .filter(apt => apt.patientId?.toString() === effectivePatientId?.toString() || apt.patientId?.toString() === patientId?.toString())
     .reduce((latest: any, current: any) => {
       if (!latest) return current;
       return new Date(current.date) > new Date(latest.date) ? current : latest;
@@ -262,9 +282,10 @@ export const ClinicPatientProfile = () => {
         transaction: tx,
         clinic: currentClinic,
         patient: {
-          id: patient?.id || patientId,
+          id: patient?.id || effectivePatientId || patientId,
           full_name: patient?.name || (patient as any)?.full_name || tx.relatedPerson || '',
-          phone: patient?.phone
+          phone: patient?.phone,
+          medicalHistoryData: patient?.medicalHistoryData
         },
         doctorName: tx.doctorName || defaultDoctorName,
         recorderName: tx.recorderName || tx.recorder_staff?.full_name || currentStaffMember?.name
@@ -298,7 +319,7 @@ export const ClinicPatientProfile = () => {
     deletePlan,
     updatePlan,
     loading: treatmentsLoading
-  } = usePatientTreatments(patientId);
+  } = usePatientTreatments(effectivePatientId);
 
   // Files State - DB Backed
   const [files, setFiles] = useState<FileItem[]>([]);
@@ -415,13 +436,13 @@ export const ClinicPatientProfile = () => {
     notes: rawMedicalData?.notes ?? ''
   };
 
-  const patientAppointments = appointments.filter(a => a.patientId === patientId);
+  const patientAppointments = appointments.filter(a => a.patientId === effectivePatientId || a.patientId === patientId);
   const nextAppointment = patientAppointments
     .filter(a => new Date(a.date) > new Date() && a.status !== 'cancelled')
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
   const completedVisits = patientAppointments.filter(a => a.status === 'completed').length;
 
-  const patientTransactions = transactions.filter(t => t.patientId === patientId);
+  const patientTransactions = transactions.filter(t => t.patientId === effectivePatientId || t.patientId === patientId);
   const totalPaid = patientTransactions
     .filter(t => t.type === 'income')
     .reduce((sum, t) => sum + t.amount, 0);
@@ -4211,11 +4232,13 @@ export const ClinicPatientProfile = () => {
       <PatientPortalQRModal
         isOpen={showPortalQRModal}
         onClose={() => setShowPortalQRModal(false)}
-        patientId={patientId || '0'}
+        patientId={patient?.id || effectivePatientId || '0'}
         patientName={patient?.name}
         patientPhone={patient?.phone}
         clinicId={effectiveClinicId}
         clinicName={currentClinic?.name}
+        patient={patient}
+        clinic={currentClinic}
       />
 
       {/* Transaction Details Modal */}

@@ -1,7 +1,8 @@
 import React from 'react';
 import QRCode from 'qrcode';
 import { formatCategoryName } from './utils';
-import { getPublicOrigin, isMobileApp } from './platform';
+import { getPublicOrigin, isMobileApp, shareContent } from './platform';
+import { getPermanentPatientPortalSlug } from './offline/syncService';
 
 const UNSPLASH_PLACEHOLDER_FRAGMENT = 'images.unsplash.com';
 
@@ -126,7 +127,7 @@ export const resolveOfflineClinic = (clinic?: any, fallbackClinicId?: string | n
         const raw = localStorage.getItem(key);
         if (!raw) continue;
         const parsed = JSON.parse(raw);
-        const list = Array.isArray(parsed?.value) ? parsed.value : [];
+        const list = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.value) ? parsed.value : []);
         if (list.length > 0) {
           const found = targetId
             ? list.find((c: any) => String(c.id) === String(targetId))
@@ -141,8 +142,9 @@ export const resolveOfflineClinic = (clinic?: any, fallbackClinicId?: string | n
         const raw = localStorage.getItem(key);
         if (!raw) continue;
         const parsed = JSON.parse(raw);
-        if (parsed?.value && (!targetId || String(parsed.value.id) === String(targetId))) {
-          cachedClinic = parsed.value;
+        const val = parsed?.value || parsed;
+        if (val && typeof val === 'object' && (!targetId || String(val.id) === String(targetId))) {
+          cachedClinic = val;
         }
       }
     }
@@ -807,15 +809,10 @@ const showMobilePrintModal = (fullHtml: string, docTitle: string, isFullA4Doc: b
         .replace(/\n{3,}/g, '\n\n')
         .trim();
 
-      if (navigator.share) {
-        await navigator.share({
-          title: docTitle,
-          text: `${docTitle}\n\n${plainText.slice(0, 1500)}`
-        });
-      } else if (navigator.clipboard) {
-        await navigator.clipboard.writeText(plainText);
-        alert('تم نسخ محتوى الوصل للحافظة');
-      }
+      await shareContent({
+        title: docTitle,
+        text: `${docTitle}\n\n${plainText.slice(0, 1500)}`
+      });
     } catch (e) {
       console.warn('Share cancelled or failed:', e);
     }
@@ -968,6 +965,9 @@ export interface IncomeReceiptParams {
     full_name?: string;
     phone?: string;
     id?: string | number;
+    medicalHistoryData?: any;
+    medical_history_data?: any;
+    [key: string]: any;
   };
   doctorName?: string;
   recorderName?: string;
@@ -1002,8 +1002,9 @@ export const printIncomeReceipt = ({
   const category = formatCategoryName(transaction?.category, 'income');
   const paymentMethod = transaction?.paymentMethod === 'cash' ? 'نقدي (كاش)' : transaction?.paymentMethod === 'card' ? 'بطاقة دفع إلكتروني' : 'نقدي';
 
-  // QR Code URL pointing to patient portal
-  const portalUrl = `${getPublicOrigin()}/patient-portal/${clinicId}/${patientId || '0'}`;
+  // QR Code URL pointing to patient portal (uses permanent portal slug so offline & online QR codes are identical)
+  const portalSlug = getPermanentPatientPortalSlug(patient, patientId);
+  const portalUrl = `${getPublicOrigin()}/patient-portal/${clinicId}/${portalSlug || '0'}`;
   const qrSvgString = generateQrSvgString(portalUrl, 84);
 
   const html = `
@@ -1320,7 +1321,8 @@ export const printTreatmentPlanReport = ({
     `;
   }).join('');
 
-  const portalUrl = `${getPublicOrigin()}/patient-portal/${clinicId}/${patientId || '0'}`;
+  const portalSlug = getPermanentPatientPortalSlug(patient, patientId);
+  const portalUrl = `${getPublicOrigin()}/patient-portal/${clinicId}/${portalSlug || '0'}`;
   const qrSvgString = generateQrSvgString(portalUrl, 84);
 
   const html = `
@@ -1462,7 +1464,8 @@ export const printPatientFullStatement = ({
   const totalPaid = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
   const remaining = Math.max(0, totalCost - totalPaid);
 
-  const portalUrl = `${getPublicOrigin()}/patient-portal/${clinicId}/${patientId || '0'}`;
+  const portalSlug = getPermanentPatientPortalSlug(patient, patientId);
+  const portalUrl = `${getPublicOrigin()}/patient-portal/${clinicId}/${portalSlug || '0'}`;
   const qrSvgString = generateQrSvgString(portalUrl, 84);
 
   const html = `
@@ -2375,6 +2378,8 @@ export interface PrintPatientQRCardParams {
   clinicId: string | number;
   clinicName?: string;
   clinic?: any;
+  patient?: any;
+  portalSlug?: string;
 }
 
 export const printPatientQRCard = ({
@@ -2383,18 +2388,22 @@ export const printPatientQRCard = ({
   patientPhone = '',
   clinicId,
   clinicName = '',
-  clinic
+  clinic,
+  patient,
+  portalSlug
 }: PrintPatientQRCardParams) => {
   const resolvedClinic = resolveOfflineClinic(clinic, clinicId);
   const effectiveClinicName = resolvedClinic?.name || clinicName;
   const clinicPhone = resolvedClinic?.phone || '';
   const clinicAddress = resolvedClinic?.address || '';
-  const portalUrl = `${getPublicOrigin()}/patient-portal/${clinicId}/${patientId}`;
+  const effectiveSlug = portalSlug || getPermanentPatientPortalSlug(patient, patientId);
+  const portalUrl = `${getPublicOrigin()}/patient-portal/${clinicId}/${effectiveSlug}`;
   const qrSvgString = generateQrSvgString(portalUrl, 148);
+  const displayFileNumber = !isNaN(Number(patientId)) ? `#${patientId}` : `#${String(effectiveSlug).slice(0, 8).toUpperCase()}`;
 
   const html = `
     <div class="thermal-receipt">
-      ${renderLuxuryClinicHeader(resolvedClinic, effectiveClinicName, clinicPhone, clinicAddress, false)}
+      ${renderLuxuryClinicHeader(resolvedClinic, effectiveClinicName, clinicPhone, clinicAddress, true)}
 
       <div class="divider-double"></div>
 
@@ -2407,7 +2416,7 @@ export const printPatientQRCard = ({
           ${patientName}
         </div>
         <div style="font-size: 11px; font-weight: 800; color: #000000;">
-          رقم الملف: <span class="pill-badge">#${patientId}</span>
+          رقم الملف: <span class="pill-badge">${displayFileNumber}</span>
           ${patientPhone ? ` • <span dir="ltr">${patientPhone}</span>` : ''}
         </div>
       </div>

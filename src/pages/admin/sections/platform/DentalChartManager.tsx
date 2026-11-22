@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../../../lib/supabase';
 import { HEALTHY_TEETH_SVGS } from '../../../../constants/healthyTeeth';
+import { DEFAULT_ODONTOGRAM_TEMPLATES } from '../../../../constants/odontogramTemplates';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ToothState =
@@ -275,9 +276,11 @@ const ToothMini: React.FC<{
 // ─── Main Component ────────────────────────────────────────────────────────────
 export const DentalChartManager: React.FC = () => {
   const [templates, setTemplates] = useState<Record<string, string>>(() => {
-    const initial: Record<string, string> = {};
+    const initial: Record<string, string> = { ...DEFAULT_ODONTOGRAM_TEMPLATES };
     Object.entries(HEALTHY_TEETH_SVGS).forEach(([toothNum, svg]) => {
-      initial[`${toothNum}_healthy`] = svg;
+      if (!initial[`${toothNum}_healthy`]) {
+        initial[`${toothNum}_healthy`] = svg;
+      }
     });
     return initial;
   });

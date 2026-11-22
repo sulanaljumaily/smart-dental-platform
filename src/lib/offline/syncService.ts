@@ -8,8 +8,91 @@ import {
   getPendingSyncItems,
   removeSyncItem,
   updateSyncItemRetry,
+  setCache,
+  getInstantCache,
   SyncQueueItem,
 } from './db';
+
+const RESOLVED_PATIENT_IDS_KEY = 'dental_resolved_patient_ids_v1';
+
+function readResolvedPatientMap(): Record<string, string> {
+  if (typeof localStorage === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(RESOLVED_PATIENT_IDS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') return parsed;
+    }
+  } catch {}
+  return {};
+}
+
+export function recordResolvedPatientId(oldId: string, newId: string) {
+  if (!oldId || !newId || oldId === newId || typeof localStorage === 'undefined') return;
+  try {
+    const map = readResolvedPatientMap();
+    map[String(oldId)] = String(newId);
+    localStorage.setItem(RESOLVED_PATIENT_IDS_KEY, JSON.stringify(map));
+  } catch {}
+}
+
+/**
+ * إذا كان المريض قد أُضيف أوفلاين بمعرف مؤقت (UUID) ثم تمت مزامنته وحصل على معرف رقمي جديد،
+ * تُعيد هذه الدالة المعرف الرقمي الجديد دائماً.
+ */
+export function getResolvedPatientId(id?: string | number | null): string {
+  if (id === undefined || id === null) return '';
+  const str = String(id);
+  const map = readResolvedPatientMap();
+  return map[str] || str;
+}
+
+/**
+ * استرجاع المعرف المحلي الأصلي (offline_id) للمريض إن وُجد،
+ * لضمان بقاء رابط بوابة المراجع ورمز QR ثابتين 100% قبل وبعد المزامنة.
+ */
+export function getOriginalOfflinePatientId(id?: string | number | null): string | null {
+  if (id === undefined || id === null) return null;
+  const str = String(id);
+  if (isTempOrNonNumericId(str)) return str;
+  const map = readResolvedPatientMap();
+  for (const [oldId, newId] of Object.entries(map)) {
+    if (String(newId) === str) return oldId;
+  }
+  try {
+    const cachedDetail = getInstantCache<any>('patient_detail_' + str);
+    const offlineId =
+      cachedDetail?.medicalHistoryData?.offline_id ||
+      cachedDetail?.medical_history_data?.offline_id;
+    if (offlineId) return String(offlineId);
+  } catch {}
+  return null;
+}
+
+/**
+ * تُعيد المعرف الثابت الدائم لبوابة المراجع ورمز QR بحيث يكون الرابط المطبوع
+ * أو المشارك في وضع الأوفلاين مطابقاً 100% للرابط في قاعدة البيانات بعد المزامنة.
+ */
+export function getPermanentPatientPortalSlug(
+  patientOrId?: any,
+  fallbackId?: string | number | null
+): string {
+  if (patientOrId && typeof patientOrId === 'object') {
+    const fromObj =
+      patientOrId.medicalHistoryData?.offline_id ||
+      patientOrId.medical_history_data?.offline_id ||
+      patientOrId.data?.medical_history_data?.offline_id;
+    if (fromObj) return String(fromObj);
+    const candidateId = patientOrId.id ?? fallbackId;
+    const orig = getOriginalOfflinePatientId(candidateId);
+    if (orig) return orig;
+    return String(candidateId || '0');
+  }
+  const targetId = patientOrId ?? fallbackId;
+  const orig = getOriginalOfflinePatientId(targetId);
+  if (orig) return orig;
+  return String(targetId || '0');
+}
 
 const MAX_RETRIES = 4;
 
@@ -70,6 +153,136 @@ function isTempOrNonNumericId(val: unknown): boolean {
 }
 
 /**
+ * ترحيل وتحديث كافة نسخ الكاش المحلي (localStorage + Dexie) فور حصول المريض المضاف أوفلاين على معرف رقمي من السيرفر
+ */
+async function migrateLocalPatientCaches(oldId: string, newId: string) {
+  const PREFIX = 'dental_instant_cache_v1_';
+  try {
+    // 1. ترحيل تفاصيل المريض patient_detail_
+    const oldDetail = getInstantCache<any>('patient_detail_' + oldId);
+    if (oldDetail) {
+      const updatedDetail = {
+        ...oldDetail,
+        id: String(newId),
+        isOfflineUnsynced: false,
+        medicalHistoryData: {
+          ...(oldDetail.medicalHistoryData || {}),
+          offline_id: oldDetail.medicalHistoryData?.offline_id || oldId,
+        },
+      };
+      await setCache('patient_detail_' + newId, updatedDetail, 86400 * 30);
+      await setCache('patient_detail_' + oldId, updatedDetail, 86400 * 30);
+    }
+
+    // 2. ترحيل خطط العلاج وحالات الأسنان والملفات
+    const oldPlans = getInstantCache<any[]>('patient_plans_' + oldId);
+    if (Array.isArray(oldPlans)) {
+      const updatedPlans = oldPlans.map((p: any) => ({ ...p, patientId: String(newId) }));
+      await setCache('patient_plans_' + newId, updatedPlans, 86400 * 30);
+    }
+    const oldTeeth = getInstantCache<any[]>('patient_teeth_' + oldId);
+    if (Array.isArray(oldTeeth)) {
+      await setCache('patient_teeth_' + newId, oldTeeth, 86400 * 30);
+    }
+
+    if (typeof localStorage === 'undefined') return;
+
+    // 3. تحديث قوائم المرضى والمعاملات المالية والمواعيد في localStorage
+    const keysToProcess: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(PREFIX)) keysToProcess.push(k);
+    }
+
+    for (const fullKey of keysToProcess) {
+      const shortKey = fullKey.slice(PREFIX.length);
+      const raw = localStorage.getItem(fullKey);
+      if (!raw) continue;
+
+      if (shortKey.startsWith('patients_')) {
+        try {
+          const list = JSON.parse(raw);
+          if (Array.isArray(list)) {
+            let modified = false;
+            const nextList = list.map((p: any) => {
+              if (p && String(p.id) === String(oldId)) {
+                modified = true;
+                return {
+                  ...p,
+                  id: String(newId),
+                  isOfflineUnsynced: false,
+                  medicalHistoryData: {
+                    ...(p.medicalHistoryData || {}),
+                    offline_id: p.medicalHistoryData?.offline_id || oldId,
+                  },
+                };
+              }
+              return p;
+            });
+            if (modified) {
+              await setCache(shortKey, nextList, 86400 * 30);
+            }
+          }
+        } catch {}
+      } else if (shortKey.startsWith('finance_')) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            let modified = false;
+            const nextTx = parsed.map((tx: any) => {
+              if (tx && (String(tx.patientId) === String(oldId) || String(tx.patient_id) === String(oldId))) {
+                modified = true;
+                return { ...tx, patientId: String(newId), patient_id: String(newId) };
+              }
+              return tx;
+            });
+            if (modified) {
+              await setCache(shortKey, nextTx, 86400 * 30);
+            }
+          } else if (parsed && Array.isArray(parsed.transactions)) {
+            let modified = false;
+            const nextTx = parsed.transactions.map((tx: any) => {
+              if (tx && (String(tx.patientId) === String(oldId) || String(tx.patient_id) === String(oldId))) {
+                modified = true;
+                return { ...tx, patientId: String(newId), patient_id: String(newId) };
+              }
+              return tx;
+            });
+            const updatedObj = { ...parsed, transactions: nextTx };
+            if (shortKey.includes(`_${oldId}_`)) {
+              const newShortKey = shortKey.replace(`_${oldId}_`, `_${newId}_`);
+              await setCache(newShortKey, updatedObj, 86400 * 30);
+            }
+            if (modified) {
+              await setCache(shortKey, updatedObj, 86400 * 30);
+            }
+          }
+        } catch {}
+      } else if (shortKey.startsWith('appointments_')) {
+        try {
+          const list = JSON.parse(raw);
+          if (Array.isArray(list)) {
+            let modified = false;
+            const nextList = list.map((apt: any) => {
+              if (apt && String(apt.patientId) === String(oldId)) {
+                modified = true;
+                return { ...apt, patientId: String(newId) };
+              }
+              return apt;
+            });
+            if (modified) {
+              await setCache(shortKey, nextList, 86400 * 30);
+            }
+          }
+        } catch {}
+      }
+    }
+  } catch (e) {
+    console.warn('[SyncService] migrateLocalPatientCaches error:', e);
+  }
+}
+
+/**
  * استبدال المعرف المؤقت بالمعرف الحقيقي في طابور المزامنة والذاكرة المحلية
  */
 async function propagateResolvedId(
@@ -80,19 +293,55 @@ async function propagateResolvedId(
 ) {
   if (!oldId || !newId || oldId === newId) return;
 
-  // تحديث الجداول المحلية في Dexie
+  // تحديث الجداول المحلية في Dexie والكاش المحلي
   try {
     if (table === 'patients') {
+      recordResolvedPatientId(oldId, newId);
       const existing = await db.patients.get(oldId);
       if (existing) {
+        const existingData = (existing.data || {}) as Record<string, any>;
+        const existingMedData = (existingData.medical_history_data || {}) as Record<string, any>;
+        const updatedData = {
+          ...existingData,
+          id: Number.isNaN(Number(newId)) ? newId : Number(newId),
+          medical_history_data: {
+            ...existingMedData,
+            offline_id: existingMedData.offline_id || oldId,
+          },
+        };
         await db.patients.delete(oldId);
-        await db.patients.put({ ...existing, id: newId, synced: true });
+        await db.patients.put({ ...existing, id: newId, data: updatedData, synced: true });
       }
+      // تحديث المواعيد والعلاجات المحلية المرتبطة بالمريض في Dexie
+      const localApts = await db.appointments.where('patient_id').equals(oldId).toArray().catch(() => []);
+      for (const apt of localApts) {
+        await db.appointments.update(apt.id, { patient_id: newId }).catch(() => {});
+      }
+      await migrateLocalPatientCaches(oldId, newId);
     } else if (table === 'appointments') {
       const existing = await db.appointments.get(oldId);
       if (existing) {
         await db.appointments.delete(oldId);
         await db.appointments.put({ ...existing, id: newId, synced: true });
+      }
+    } else if (table === 'tooth_treatment_plans') {
+      // تحديث معرف الخطة العلاجية في الكاش المحلي
+      if (typeof localStorage !== 'undefined') {
+        const PREFIX = 'dental_instant_cache_v1_patient_plans_';
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith(PREFIX)) {
+            try {
+              const raw = localStorage.getItem(k);
+              if (!raw) continue;
+              const plans = JSON.parse(raw);
+              if (Array.isArray(plans) && plans.some((p: any) => String(p.id) === String(oldId))) {
+                const updated = plans.map((p: any) => (String(p.id) === String(oldId) ? { ...p, id: String(newId) } : p));
+                await setCache(k.slice('dental_instant_cache_v1_'.length), updated, 86400 * 30);
+              }
+            } catch {}
+          }
+        }
       }
     }
   } catch (e) {
@@ -137,6 +386,14 @@ async function propagateResolvedId(
       } catch {}
     }
   }
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('dental-sync-id-resolved', {
+        detail: { table, oldId: String(oldId), newId: String(newId) },
+      })
+    );
+  }
 }
 
 // ── تنفيذ عملية واحدة على Supabase ────────────────────────────────────────
@@ -159,6 +416,22 @@ async function executeSyncItem(
 
   switch (operation) {
     case 'INSERT': {
+      if (targetTable === 'patients' && isTempOrNonNumericId(record_id)) {
+        const currentMed =
+          payload.medical_history_data && typeof payload.medical_history_data === 'object'
+            ? (payload.medical_history_data as Record<string, unknown>)
+            : {};
+        payload.medical_history_data = {
+          ...currentMed,
+          offline_id: currentMed.offline_id || String(record_id),
+        };
+      }
+      if (targetTable !== 'patients' && payload.patient_id && isTempOrNonNumericId(payload.patient_id)) {
+        const resolvedPid = getResolvedPatientId(String(payload.patient_id));
+        if (resolvedPid && !isTempOrNonNumericId(resolvedPid)) {
+          payload.patient_id = Number(resolvedPid);
+        }
+      }
       if (INTEGER_PK_TABLES.has(targetTable) && isTempOrNonNumericId(payload.id)) {
         delete payload.id;
       } else if (typeof payload.id === 'string' && payload.id.startsWith('offline_')) {
@@ -273,13 +546,21 @@ export async function runSync(): Promise<void> {
   } else {
     emit('success', 0);
   }
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('dental-sync-completed', {
+        detail: { remaining: remaining.length, failCount },
+      })
+    );
+  }
 }
 
 // ── إعداد المستمعين التلقائيين ────────────────────────────────────────────
 let syncTimeout: ReturnType<typeof setTimeout> | null = null;
 let initialized = false;
 
-export function scheduleSync(delayMs = 1500) {
+export function scheduleSync(delayMs = 800) {
   if (syncTimeout) clearTimeout(syncTimeout);
   syncTimeout = setTimeout(() => runSync(), delayMs);
 }
@@ -288,18 +569,23 @@ export function initSyncService() {
   if (initialized) return;
   initialized = true;
 
-  // عند عودة الاتصال → مزامنة فورية
+  // عند عودة الاتصال → مزامنة فورية سريعة
   window.addEventListener('online', () => {
-    scheduleSync(1000);
+    scheduleSync(500);
   });
 
-  // فحص دوري كل دقيقتين
+  // عند إضافة عنصر جديد للطابور أثناء توفر الإنترنت → مزامنة فورية
+  window.addEventListener('dental-sync-queued', () => {
+    if (navigator.onLine) scheduleSync(400);
+  });
+
+  // فحص دوري كل 45 ثانية
   setInterval(() => {
     if (navigator.onLine) runSync();
-  }, 2 * 60 * 1000);
+  }, 45 * 1000);
 
   // مزامنة أولية عند تشغيل التطبيق
-  if (navigator.onLine) scheduleSync(2500);
+  if (navigator.onLine) scheduleSync(1200);
 
   console.log('[SyncService] Initialized ✅');
 }
