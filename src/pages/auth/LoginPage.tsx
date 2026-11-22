@@ -9,7 +9,7 @@ import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { Header } from '../../components/layout/Header';
 import { supabase } from '../../lib/supabase';
-import { startOAuthSignIn } from '../../lib/nativeOAuth';
+import { startOAuthSignIn, isNativeOAuthRelayBrowser } from '../../lib/nativeOAuth';
 
 export const LoginPage: React.FC = () => {
   const { t } = useLanguage();
@@ -36,6 +36,7 @@ export const LoginPage: React.FC = () => {
   const { isAuthenticated, user: authUser } = useAuth(); // Destructure properly
   useEffect(() => {
     if (isAuthenticated && authUser) {
+      if (isNativeOAuthRelayBrowser()) return;
       const targetRole = authUser.role || 'newuser';
       if (targetRole === 'admin') navigate('/admin');
       else if (targetRole === 'supplier') navigate('/supplier');

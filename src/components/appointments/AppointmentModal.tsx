@@ -260,10 +260,7 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
         updatedBy: editingAppointment ? 'CURRENT_USER' : undefined
       };
 
-      // محاكاة حفظ البيانات
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      onSave(appointmentData);
+      await onSave(appointmentData);
       onClose();
     } catch (error) {
       console.error('خطأ في حفظ الموعد:', error);

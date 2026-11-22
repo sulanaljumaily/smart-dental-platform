@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { MapPin, Brain, FileText, AlertCircle, MessageSquare, Upload, Phone, CheckCircle, Calendar as CalendarIcon, Navigation, User, Star, Stethoscope, Camera, Zap, ChevronRight, Clock, Heart, Shield, Filter, TrendingUp, Award, Users, Send, RefreshCw } from 'lucide-react';
+import { MapPin, Brain, FileText, AlertCircle, MessageSquare, Upload, Phone, CheckCircle, Calendar as CalendarIcon, Navigation, User, Star, Stethoscope, Camera, Zap, ChevronRight, Clock, Heart, Shield, Filter, TrendingUp, Award, Users, Send, RefreshCw, WifiOff } from 'lucide-react';
+import { toast } from 'sonner';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
@@ -19,11 +20,31 @@ export const ServicesPage: React.FC = () => {
   const { hotline } = useEmergencyHotline();
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const [isOnline, setIsOnline] = useState<boolean>(() =>
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
   const [activeTab, setActiveTab] = useState<'clinics' | 'diagnosis' | 'articles' | 'emergency'>('clinics');
   const [clinicsSubTab, setClinicsSubTab] = useState<'map' | 'featured'>('map');
   const { clinics, loading: clinicsLoading } = usePublicClinics();
   const [filteredClinics, setFilteredClinics] = useState(clinics);
   const { articles, loading: articlesLoading } = useArticles();
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => {
+      setIsOnline(false);
+      toast.warning('تنبيه: قسم الخدمات الطبية يحتاج إلى اتصال بالإنترنت دائماً للعمل بشكل مباشر');
+    };
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      toast.warning('تنبيه: قسم الخدمات الطبية يحتاج إلى اتصال بالإنترنت دائماً للعمل بشكل مباشر');
+    }
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Filters State
   const [selectedGovernorate, setSelectedGovernorate] = useState('');
@@ -239,6 +260,23 @@ export const ServicesPage: React.FC = () => {
             ))}
         </div>
       </div>
+
+      {/* Offline Requirement Notice Banner */}
+      {!isOnline && (
+        <div className="container mx-auto px-4 max-w-6xl mb-4 animate-in fade-in">
+          <div className="bg-amber-50 border border-amber-300 rounded-2xl p-3.5 sm:p-4 flex items-start sm:items-center gap-3 shadow-sm">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+              <WifiOff className="w-5 h-5" />
+            </div>
+            <div className="flex-1 text-right">
+              <h4 className="text-sm font-bold text-amber-900">تنبيه: الخدمات الطبية تحتاج إلى اتصال بالإنترنت دائماً</h4>
+              <p className="text-xs text-amber-800 mt-0.5 leading-relaxed">
+                أنت حالياً في وضع عدم الاتصال. خدمات خريطة العيادات، حجز المواعيد المباشر، التشخيص الذكي بالذكاء الاصطناعي، وطوارئ الأسنان تتطلب اتصالاً نشطاً بالإنترنت للعمل بشكل مباشر.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       <div className="container mx-auto px-4 pt-2 pb-8 max-w-6xl">

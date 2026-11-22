@@ -12,6 +12,7 @@ import { BentoStatCard } from '../../components/dashboard/BentoStatCard';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useClinics } from '../../hooks/useClinics';
+import { cacheUserAvatar } from '../../lib/offline/imageCache';
 import { usePatients } from '../../hooks/usePatients';
 import { useTransactions } from '../../hooks/useTransactions';
 import { supabase } from '../../lib/supabase';
@@ -276,6 +277,7 @@ export const DoctorProfilePage: React.FC = () => {
 
       if (updateError) throw updateError;
 
+      await cacheUserAvatar(user.id, publicUrl).catch(() => {});
       toast.success('تم تحديث الصورة الشخصية بنجاح');
       window.location.reload(); 
     } catch (err: any) {

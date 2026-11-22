@@ -9,6 +9,12 @@ import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
 import { Modal } from '../../components/common/Modal';
 import { useClinics } from '@/hooks/useClinics';
+import {
+  cacheClinicLogo,
+  cacheClinicCover,
+  DEFAULT_OFFLINE_CLINIC_LOGO,
+  DEFAULT_OFFLINE_CLINIC_COVER
+} from '../../lib/offline/imageCache';
 import { useAppointments } from '../../hooks/useAppointments';
 import { usePatients } from '../../hooks/usePatients';
 import { useStaff } from '../../hooks/useStaff';
@@ -104,6 +110,11 @@ export const DoctorClinicsPage: React.FC = () => {
       const result = await uploadFile(file, 'clinics', `clinic_${selectedClinic}/${type}`);
 
       if (result) {
+        if (type === 'logo') {
+          cacheClinicLogo(selectedClinic, result.url).catch(() => {});
+        } else {
+          cacheClinicCover(selectedClinic, result.url).catch(() => {});
+        }
         setTempSettings(prev => ({
           ...prev,
           [type === 'logo' ? 'logo' : 'coverImage']: result.url
@@ -476,9 +487,10 @@ export const DoctorClinicsPage: React.FC = () => {
               <div className="p-3 pb-0">
                 <div className="h-40 relative rounded-2xl overflow-hidden transition-transform duration-500">
                 <img
-                  src={clinic.coverImage || clinic.image}
+                  src={clinic.coverImage || clinic.image || DEFAULT_OFFLINE_CLINIC_COVER}
                   alt={clinic.name}
                   className="w-full h-full object-cover"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).src = DEFAULT_OFFLINE_CLINIC_COVER; }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
                 <div className="absolute bottom-0 right-0 p-4">
@@ -486,7 +498,12 @@ export const DoctorClinicsPage: React.FC = () => {
                   <div className="flex items-center gap-3">
                     <h3 className="text-xl font-bold text-white drop-shadow-md">{clinic.name}</h3>
                     <div className="w-10 h-10 rounded-full border-2 border-white/50 overflow-hidden bg-white/10 backdrop-blur-sm">
-                      <img src={clinic.image} alt="" className="w-full h-full object-cover" />
+                      <img
+                        src={clinic.image || DEFAULT_OFFLINE_CLINIC_LOGO}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).src = DEFAULT_OFFLINE_CLINIC_LOGO; }}
+                      />
                     </div>
                   </div>
                 </div>

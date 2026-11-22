@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import { sendRoleNotification } from '../lib/notifications';
 import { db } from '../lib/offline/db';
+import { getCachedUserAvatar, cacheUserAvatar } from '../lib/offline/imageCache';
 
 const OFFLINE_AUTH_USER_KEY = 'dental_offline_auth_user_v1';
 
@@ -13,6 +14,8 @@ function getInstantCachedUser(): User | null {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && parsed.id && parsed.email) {
+        const cachedAvatar = getCachedUserAvatar(parsed.id);
+        if (cachedAvatar) parsed.avatar = cachedAvatar;
         return parsed as User;
       }
     }
@@ -27,12 +30,14 @@ function getInstantCachedUser(): User | null {
             const u = parsed.user;
             const meta = u.user_metadata || {};
             const role = (meta.role || u.role || 'doctor') as UserRole;
+            const cachedAvatar = getCachedUserAvatar(u.id);
             const fallbackUser: User = {
               id: u.id,
               email: u.email,
               name: meta.full_name || meta.name || u.email.split('@')[0],
               role,
               phone: meta.phone || u.phone || '',
+              avatar: cachedAvatar || meta.avatar_url || '',
               active: true,
             };
             return fallbackUser;
@@ -116,25 +121,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   // Build user object from profile DB row
-  const buildUserFromProfile = (data: any, email: string): User => ({
-    id: data.id,
-    email: data.email || email,
-    name: data.full_name || email.split('@')[0],
-    role: data.role as UserRole,
-    phone: data.phone || '',
-    avatar: data.avatar_url || ''
-  });
+  const buildUserFromProfile = (data: any, email: string): User => {
+    const cachedAvatar = getCachedUserAvatar(data.id);
+    return {
+      id: data.id,
+      email: data.email || email,
+      name: data.full_name || email.split('@')[0],
+      role: data.role as UserRole,
+      phone: data.phone || '',
+      avatar: cachedAvatar || data.avatar_url || ''
+    };
+  };
 
   // Build user from auth metadata (fallback)
   const buildUserFromMeta = (userId: string, email: string, meta?: any): User => {
     const cached = getInstantCachedUser();
+    const cachedAvatar = getCachedUserAvatar(userId);
     return {
       id: userId,
       email: email || cached?.email || '',
       name: meta?.full_name || cached?.name || (email ? email.split('@')[0] : 'الطبيب'),
       role: (meta?.role as UserRole) || cached?.role || 'doctor',
       phone: meta?.phone || cached?.phone || '',
-      avatar: meta?.avatar_url || cached?.avatar || ''
+      avatar: cachedAvatar || meta?.avatar_url || cached?.avatar || ''
     };
   };
 
@@ -193,6 +202,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (!error && data) {
         const userObj = buildUserFromProfile(data, email);
         updateUserState(userObj);
+        if (data.avatar_url) {
+          cacheUserAvatar(userId, data.avatar_url)
+            .then((b64) => {
+              if (b64 && mountedRef.current) {
+                const withB64 = { ...userObj, avatar: b64 };
+                updateUserState(withB64);
+                db.user_profile
+                  .put({
+                    id: userId,
+                    role: data.role,
+                    profile_data: withB64 as unknown as Record<string, unknown>,
+                    cached_at: Date.now(),
+                  })
+                  .catch(() => {});
+              }
+            })
+            .catch(() => {});
+        }
         try {
           await db.user_profile.put({
             id: userId,

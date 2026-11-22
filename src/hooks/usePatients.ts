@@ -373,30 +373,32 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
             updated_at: now
         };
 
-        await db.patients.put(localRecord);
-        await addToSyncQueue('INSERT', 'patients', localId, offlineData);
-
         const mappedNew = mapLocalPatientToPatientData(localRecord);
         const updatedList = [mappedNew, ...patients.filter(p => p.id !== localId)];
         savePatientsToCache(updatedList);
-        setCache('patient_detail_' + localId, {
-            id: localId,
-            name: mappedNew.name,
-            age: mappedNew.age,
-            phone: mappedNew.phone,
-            email: mappedNew.email,
-            lastVisit: now,
-            totalVisits: 1,
-            balance: 0,
-            gender: mappedNew.gender,
-            address: mappedNew.address,
-            notes: mappedNew.notes,
-            status: 'active',
-            medicalHistory: offlineData.medical_history,
-            clinicId: targetClinicId,
-            patientUserId: null,
-            medicalHistoryData: medicalHistoryDataObj
-        }, 86400 * 30).catch(() => {});
+
+        await Promise.all([
+            db.patients.put(localRecord).catch(() => {}),
+            addToSyncQueue('INSERT', 'patients', localId, offlineData).catch(() => {}),
+            setCache('patient_detail_' + localId, {
+                id: localId,
+                name: mappedNew.name,
+                age: mappedNew.age,
+                phone: mappedNew.phone,
+                email: mappedNew.email,
+                lastVisit: now,
+                totalVisits: 1,
+                balance: 0,
+                gender: mappedNew.gender,
+                address: mappedNew.address,
+                notes: mappedNew.notes,
+                status: 'active',
+                medicalHistory: offlineData.medical_history,
+                clinicId: targetClinicId,
+                patientUserId: null,
+                medicalHistoryData: medicalHistoryDataObj
+            }, 86400 * 30).catch(() => {})
+        ]);
 
         return offlineData;
     };
@@ -425,54 +427,63 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
         }
 
         try {
-            // Duplicate Check on server
-            const { data: existing } = await supabase
-                .from('patients')
-                .select('id')
-                .eq('clinic_id', targetClinicId)
-                .eq('full_name', newPatient.name)
-                .eq('phone', newPatient.phone)
-                .is('deleted_at', null)
-                .maybeSingle();
-
-            if (existing) {
-                const error = new Error('patient_exists');
-                (error as any).patientId = existing.id;
-                throw error;
-            }
-
-            let patientUserId = newPatient.patient_user_id || null;
-
-            if (!patientUserId && newPatient.phone) {
-                const sanitizedPhone = newPatient.phone.replace(/\D/g, '');
-                const { data: matchingProfile } = await supabase
-                    .from('profiles')
+            const onlineCreatePromise = (async () => {
+                // Duplicate Check on server
+                const { data: existing } = await supabase
+                    .from('patients')
                     .select('id')
-                    .eq('phone', sanitizedPhone)
-                    .eq('role', 'patient')
+                    .eq('clinic_id', targetClinicId)
+                    .eq('full_name', newPatient.name)
+                    .eq('phone', newPatient.phone)
+                    .is('deleted_at', null)
                     .maybeSingle();
 
-                if (matchingProfile) {
-                    patientUserId = matchingProfile.id;
+                if (existing) {
+                    const error = new Error('patient_exists');
+                    (error as any).patientId = existing.id;
+                    throw error;
                 }
-            }
 
-            const patientData = {
-                clinic_id: targetClinicId,
-                full_name: newPatient.name,
-                phone: newPatient.phone,
-                age: Number(newPatient.age) || 0,
-                gender: newPatient.gender || 'male',
-                email: newPatient.email,
-                address: newPatient.address,
-                notes: newPatient.notes,
-                medical_history: newPatient.medicalHistory ? JSON.parse(JSON.stringify(newPatient.medicalHistory)) : [],
-                status: 'active',
-                patient_user_id: patientUserId
-            };
+                let patientUserId = newPatient.patient_user_id || null;
 
-            const { data, error } = await supabase.from('patients').insert(patientData).select().single();
-            if (error) throw error;
+                if (!patientUserId && newPatient.phone) {
+                    const sanitizedPhone = newPatient.phone.replace(/\D/g, '');
+                    const { data: matchingProfile } = await supabase
+                        .from('profiles')
+                        .select('id')
+                        .eq('phone', sanitizedPhone)
+                        .eq('role', 'patient')
+                        .maybeSingle();
+
+                    if (matchingProfile) {
+                        patientUserId = matchingProfile.id;
+                    }
+                }
+
+                const patientData = {
+                    clinic_id: targetClinicId,
+                    full_name: newPatient.name,
+                    phone: newPatient.phone,
+                    age: Number(newPatient.age) || 0,
+                    gender: newPatient.gender || 'male',
+                    email: newPatient.email,
+                    address: newPatient.address,
+                    notes: newPatient.notes,
+                    medical_history: newPatient.medicalHistory ? JSON.parse(JSON.stringify(newPatient.medicalHistory)) : [],
+                    status: 'active',
+                    patient_user_id: patientUserId
+                };
+
+                const { data, error } = await supabase.from('patients').insert(patientData).select().single();
+                if (error) throw error;
+                return data;
+            })();
+
+            const timeoutPromise = new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error('network_timeout')), 2500)
+            );
+
+            const data = await Promise.race([onlineCreatePromise, timeoutPromise]);
 
             const localRecord: LocalPatient = {
                 id: String(data.id),
@@ -484,16 +495,14 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
                 created_at: data.created_at,
                 updated_at: data.created_at
             };
-            await db.patients.put(localRecord).catch(() => {});
-
             const mappedNew = mapLocalPatientToPatientData(localRecord);
             savePatientsToCache([mappedNew, ...patients.filter(p => String(p.id) !== String(data.id))]);
-
-            await logActivity('create_patient', String(data.id), { name: data.full_name });
+            db.patients.put(localRecord).catch(() => {});
+            logActivity('create_patient', String(data.id), { name: data.full_name }).catch(() => {});
             return data;
         } catch (err: any) {
             if (err?.message === 'patient_exists') throw err;
-            // في حالة فشل الاتصال، نحفظ محلياً تلقائياً
+            // في حالة فشل الاتصال أو بطء الشبكة، نحفظ محلياً فوراً
             const saved = await savePatientLocally(newPatient);
             toast.info('تعذر الاتصال بالسيرفر، تم حفظ ملف المريض محلياً وستتم المزامنة تلقائياً');
             return saved;

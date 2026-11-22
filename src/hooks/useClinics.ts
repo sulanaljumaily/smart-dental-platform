@@ -3,24 +3,75 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Clinic } from '../types';
 import { setCache, getCache, getInstantCache } from '../lib/offline/db';
-import { cacheClinicLogoAsBase64, isRealClinicLogoUrl } from '../lib/printReceipt';
+import { isRealClinicLogoUrl } from '../lib/printReceipt';
+import {
+    getCachedClinicLogo,
+    cacheClinicLogo,
+    getCachedClinicCover,
+    cacheClinicCover,
+    DEFAULT_OFFLINE_CLINIC_LOGO,
+    DEFAULT_OFFLINE_CLINIC_COVER
+} from '../lib/offline/imageCache';
 
 const clinicsMemoryCache: Record<string, Clinic[]> = {};
+
+function isExternalUnsplashPlaceholder(url?: string | null): boolean {
+    if (!url || typeof url !== 'string') return false;
+    return url.includes('images.unsplash.com');
+}
+
+function hydrateClinicOfflineImages(c: Clinic): Clinic {
+    if (!c) return c;
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+    const logoB64 = getCachedClinicLogo(c.id);
+    const coverB64 = getCachedClinicCover(c.id);
+
+    const rawImg = isExternalUnsplashPlaceholder(c.image) ? '' : (c.image || '');
+    const rawCover = isExternalUnsplashPlaceholder(c.coverImage) ? '' : (c.coverImage || '');
+
+    // If online and a custom remote image URL exists that isn't cached yet, cache it in the background
+    if (!isOffline) {
+        if (!logoB64 && rawImg && rawImg.startsWith('http')) {
+            cacheClinicLogo(c.id, rawImg).catch(() => {});
+        }
+        if (!coverB64 && rawCover && rawCover.startsWith('http')) {
+            cacheClinicCover(c.id, rawCover).catch(() => {});
+        }
+    }
+
+    const resolvedImage =
+        logoB64 ||
+        (rawImg.startsWith('data:image/') ? rawImg : null) ||
+        (isOffline ? DEFAULT_OFFLINE_CLINIC_LOGO : (rawImg || DEFAULT_OFFLINE_CLINIC_LOGO));
+
+    const resolvedCover =
+        coverB64 ||
+        (rawCover.startsWith('data:image/') ? rawCover : null) ||
+        (isOffline ? DEFAULT_OFFLINE_CLINIC_COVER : (rawCover || DEFAULT_OFFLINE_CLINIC_COVER));
+
+    return {
+        ...c,
+        image: resolvedImage,
+        logo: logoB64 || (isExternalUnsplashPlaceholder(c.logo) ? undefined : c.logo),
+        coverImage: resolvedCover
+    };
+}
 
 export function getCachedClinicsForUser(userId?: string): Clinic[] {
     if (userId) {
         if (clinicsMemoryCache[userId]?.length) {
-            return clinicsMemoryCache[userId];
+            return clinicsMemoryCache[userId].map(hydrateClinicOfflineImages);
         }
         const instant = getInstantCache<Clinic[]>('user_clinics_' + userId);
         if (instant && instant.length > 0) {
-            clinicsMemoryCache[userId] = instant;
-            return instant;
+            const hydrated = instant.map(hydrateClinicOfflineImages);
+            clinicsMemoryCache[userId] = hydrated;
+            return hydrated;
         }
     }
     const keys = Object.keys(clinicsMemoryCache);
     if (keys.length > 0 && clinicsMemoryCache[keys[0]]?.length) {
-        return clinicsMemoryCache[keys[0]];
+        return clinicsMemoryCache[keys[0]].map(hydrateClinicOfflineImages);
     }
     try {
         for (let i = 0; i < localStorage.length; i++) {
@@ -31,7 +82,7 @@ export function getCachedClinicsForUser(userId?: string): Clinic[] {
                 const parsed = JSON.parse(raw);
                 const list = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.value) ? parsed.value : []);
                 if (list.length > 0) {
-                    return list;
+                    return list.map(hydrateClinicOfflineImages);
                 }
             }
         }
@@ -58,7 +109,23 @@ export const useClinics = () => {
         } else {
             setLoading(false);
         }
-        return () => { mountedRef.current = false; };
+
+        const handleImageCached = () => {
+            if (!mountedRef.current) return;
+            setClinics(prev => {
+                if (prev.length === 0) return prev;
+                const hydrated = prev.map(hydrateClinicOfflineImages);
+                if (user?.id) {
+                    clinicsMemoryCache[user.id] = hydrated;
+                }
+                return hydrated;
+            });
+        };
+        window.addEventListener('dental-offline-image-cached', handleImageCached);
+        return () => {
+            mountedRef.current = false;
+            window.removeEventListener('dental-offline-image-cached', handleImageCached);
+        };
     }, [user?.id]);
 
     const fetchClinics = async () => {
@@ -82,8 +149,9 @@ export const useClinics = () => {
             try {
                 const cached = await getCache<Clinic[]>('user_clinics_' + user.id);
                 if (cached && cached.length > 0 && mountedRef.current) {
-                    clinicsMemoryCache[user.id] = cached;
-                    setClinics(cached);
+                    const hydrated = cached.map(hydrateClinicOfflineImages);
+                    clinicsMemoryCache[user.id] = hydrated;
+                    setClinics(hydrated);
                 }
             } catch {}
             if (mountedRef.current) setLoading(false);
@@ -118,13 +186,14 @@ export const useClinics = () => {
                 index === self.findIndex((t) => (t.id === c.id))
             );
 
-            // Map to Interface
+            // Map to Interface & trigger background Base64 caching for both logo and cover
             const mappedClinics: Clinic[] = allClinics.map((c: any) => {
-                const rawLogo = c.image_url || c.image || '';
+                const rawLogo = isExternalUnsplashPlaceholder(c.image_url || c.image) ? '' : (c.image_url || c.image || '');
                 const realLogo = isRealClinicLogoUrl(rawLogo) ? rawLogo : '';
-                if (realLogo) {
-                    cacheClinicLogoAsBase64(c.id, realLogo).catch(() => {});
-                }
+                const rawCover = isExternalUnsplashPlaceholder(c.cover_url || c.coverImage) ? '' : (c.cover_url || c.coverImage || '');
+                const cachedLogoB64 = getCachedClinicLogo(c.id);
+                const cachedCoverB64 = getCachedClinicCover(c.id);
+
                 return {
                     id: c.id.toString(),
                     name: c.name,
@@ -136,9 +205,9 @@ export const useClinics = () => {
                     specialties: c.specialties || ['طب أسنان عام'],
                     services: c.services || [],
                     workingHours: (typeof c.working_hours === 'string' ? c.working_hours : '09:00 - 21:00'),
-                    image: c.image_url || c.image || 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=800&auto=format&fit=crop&q=60',
-                    logo: realLogo || undefined,
-                    coverImage: c.cover_url || 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80',
+                    image: cachedLogoB64 || rawLogo || DEFAULT_OFFLINE_CLINIC_LOGO,
+                    logo: cachedLogoB64 || realLogo || undefined,
+                    coverImage: cachedCoverB64 || rawCover || DEFAULT_OFFLINE_CLINIC_COVER,
                     description: c.description,
                     email: c.email,
                     owner_id: c.owner_id,
@@ -157,6 +226,25 @@ export const useClinics = () => {
             if (user?.id) {
                 setCache('user_clinics_' + user.id, mappedClinics, 86400 * 30).catch(() => {});
             }
+
+            // Cache clinic logos and cover images as Base64 in background so they work 100% offline
+            Promise.all(
+                allClinics.map(async (c: any) => {
+                    const rawLogo = c.image_url || c.image || '';
+                    const rawCover = c.cover_url || c.coverImage || '';
+                    if (rawLogo) await cacheClinicLogo(c.id, rawLogo).catch(() => null);
+                    if (rawCover) await cacheClinicCover(c.id, rawCover).catch(() => null);
+                })
+            ).then(() => {
+                const hydrated = mappedClinics.map(hydrateClinicOfflineImages);
+                if (user?.id) {
+                    clinicsMemoryCache[user.id] = hydrated;
+                    setCache('user_clinics_' + user.id, hydrated, 86400 * 30).catch(() => {});
+                }
+                if (mountedRef.current) {
+                    setClinics(hydrated);
+                }
+            }).catch(() => {});
         } catch (err: any) {
             if (err?.name === 'AbortError' || err?.message?.includes('AbortError')) return;
             if (mountedRef.current && user?.id) {

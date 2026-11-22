@@ -18,6 +18,12 @@ import {
 import { ComprehensiveTransactionModal } from '../../../components/finance/ComprehensiveTransactionModal';
 import { PatientPortalQRModal } from '../../../components/patient/PatientPortalQRModal';
 import { getResolvedPatientId } from '../../../lib/offline/syncService';
+import { addToSyncQueue, getCache, setCache, getInstantCache } from '../../../lib/offline/db';
+import {
+  fileOrBlobToBase64,
+  cacheRemoteImageAsBase64,
+  getCachedImageBase64,
+} from '../../../lib/offline/imageCache';
 import { TransactionDetailsModal } from './ClinicFinancePage';
 import { PatientAccountModal } from '../../../components/finance/PatientAccountModal';
 import { printIncomeReceipt, printExpenseVoucher, printRawHtmlDocument } from '../../../lib/printReceipt';
@@ -166,6 +172,31 @@ interface FileItem {
   date: string;
   size: string;
   url?: string;
+  isOfflineUnsynced?: boolean;
+}
+
+function persistPatientFilesCache(pid: string | number | undefined, fileList: FileItem[]) {
+  if (!pid) return;
+  const cacheKey = `patient_files_${pid}`;
+  try {
+    localStorage.setItem(
+      `dental_instant_${cacheKey}`,
+      JSON.stringify({ data: fileList, timestamp: Date.now() })
+    );
+  } catch {}
+  setCache(cacheKey, fileList, 86400 * 30).catch(() => {});
+}
+
+function readRawFileAsDataUrl(file: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') resolve(reader.result);
+      else reject(new Error('Failed to read file as Data URL'));
+    };
+    reader.onerror = () => reject(reader.error || new Error('FileReader error'));
+    reader.readAsDataURL(file);
+  });
 }
 
 export const ClinicPatientProfile = () => {
@@ -383,42 +414,97 @@ export const ClinicPatientProfile = () => {
   };
 
   useEffect(() => {
-    const fetchFiles = async () => {
-      if (!patientId) return;
-      const cacheKey = `patient_files_${patientId}`;
-      try {
-        const cachedRaw = localStorage.getItem(`dental_instant_${cacheKey}`);
-        if (cachedRaw) {
-          const parsed = JSON.parse(cachedRaw);
-          if (Array.isArray(parsed.data)) setFiles(parsed.data);
-        }
-      } catch { /* ignore */ }
+    const targetPid = effectivePatientId || patientId;
+    if (!targetPid) return;
 
-      if (!navigator.onLine || isNaN(Number(patientId))) return;
+    const loadCachedFiles = (): FileItem[] => {
+      const candidateKeys = [
+        `patient_files_${targetPid}`,
+        ...(patientId && String(patientId) !== String(targetPid) ? [`patient_files_${patientId}`] : []),
+      ];
+      for (const key of candidateKeys) {
+        const instant = getInstantCache<FileItem[]>(key);
+        if (Array.isArray(instant) && instant.length > 0) {
+          return instant.map(f => ({
+            ...f,
+            url: getCachedImageBase64(`archive_img_${f.id}`) || f.url,
+          }));
+        }
+        try {
+          const cachedRaw = localStorage.getItem(`dental_instant_${key}`);
+          if (cachedRaw) {
+            const parsed = JSON.parse(cachedRaw);
+            if (Array.isArray(parsed?.data) && parsed.data.length > 0) {
+              return parsed.data.map((f: FileItem) => ({
+                ...f,
+                url: getCachedImageBase64(`archive_img_${f.id}`) || f.url,
+              }));
+            }
+          }
+        } catch {}
+      }
+      return [];
+    };
+
+    const fetchFiles = async () => {
+      let localFiles = loadCachedFiles();
+      if (localFiles.length === 0) {
+        const dexieCached = await getCache<FileItem[]>(`patient_files_${targetPid}`);
+        if (Array.isArray(dexieCached) && dexieCached.length > 0) {
+          localFiles = dexieCached.map(f => ({
+            ...f,
+            url: getCachedImageBase64(`archive_img_${f.id}`) || f.url,
+          }));
+        }
+      }
+      if (localFiles.length > 0) {
+        setFiles(localFiles);
+      }
+
+      if (!navigator.onLine || isNaN(Number(targetPid))) return;
 
       const { data } = await supabase
         .from('patient_files')
         .select('*')
-        .eq('patient_id', patientId)
+        .eq('patient_id', targetPid)
         .order('created_at', { ascending: false });
 
       if (data) {
-        const mappedFiles = data.map(f => ({
-          id: f.id,
-          name: f.name,
-          type: f.type as any,
-          date: f.date || new Date(f.created_at).toLocaleDateString(),
-          size: f.size || '-',
-          url: f.url
-        }));
-        setFiles(mappedFiles);
-        try {
-          localStorage.setItem(`dental_instant_${cacheKey}`, JSON.stringify({ data: mappedFiles, timestamp: Date.now() }));
-        } catch { /* ignore */ }
+        const mappedServerFiles: FileItem[] = data.map(f => {
+          const cachedB64 = getCachedImageBase64(`archive_img_${f.id}`);
+          const isImg = f.type === 'xray' || /\.(jpg|jpeg|png|gif|webp)$/i.test(f.name || '');
+          if (!cachedB64 && isImg && f.url && f.url.startsWith('http')) {
+            cacheRemoteImageAsBase64(`archive_img_${f.id}`, f.url, { maxDim: 1024 }).catch(() => {});
+          }
+          return {
+            id: String(f.id),
+            name: f.name,
+            type: f.type as any,
+            date: f.date ? new Date(f.date).toLocaleDateString('ar-IQ') : new Date(f.created_at).toLocaleDateString('ar-IQ'),
+            size: f.size || '-',
+            url: cachedB64 || f.url,
+            isOfflineUnsynced: false,
+          };
+        });
+
+        // الاحتفاظ بأي ملفات محلية لم تكتمل مزامنتها بعد
+        const currentLocal = loadCachedFiles();
+        const unsyncedLocal = currentLocal.filter(
+          f => f.isOfflineUnsynced || String(f.id).startsWith('offline_file_')
+        );
+        const mergedFiles = [...unsyncedLocal, ...mappedServerFiles];
+        setFiles(mergedFiles);
+        persistPatientFilesCache(targetPid, mergedFiles);
       }
     };
+
     fetchFiles();
-  }, [patientId]);
+    const handleSyncDone = () => {
+      fetchFiles();
+    };
+    window.addEventListener('dental-sync-completed', handleSyncDone);
+    return () => window.removeEventListener('dental-sync-completed', handleSyncDone);
+  }, [patientId, effectivePatientId]);
 
   // Derived Data - with null safety for nested vitals and array fields
   const rawMedicalData = patient?.medicalHistoryData;
@@ -549,45 +635,119 @@ export const ClinicPatientProfile = () => {
 
   // --- HANDLERS ---
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'xray' | 'report') => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      try {
-        const result = await uploadFile(file, 'patient-docs', `${patientId}/${type}s`);
-        if (result) {
-          // Save to DB
-          const newFilePayload = {
-            patient_id: patientId,
-            name: file.name,
-            type: type,
-            url: result.url,
-            size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
-            date: new Date().toISOString()
-          };
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
 
-          const { data: dbFile, error: dbError } = await supabase
-            .from('patient_files')
-            .insert(newFilePayload)
-            .select()
-            .single();
+    const targetPid = effectivePatientId || patientId;
+    if (!targetPid) return;
 
-          if (dbError) throw dbError;
+    const sizeStr =
+      file.size >= 1024 * 1024
+        ? `${(file.size / 1024 / 1024).toFixed(2)} MB`
+        : `${Math.max(1, Math.round(file.size / 1024))} KB`;
 
-          if (dbFile) {
-            const newFile: FileItem = {
-              id: dbFile.id,
-              name: dbFile.name,
-              type: dbFile.type as any,
-              date: new Date(dbFile.created_at).toLocaleDateString('ar-IQ'),
-              size: dbFile.size,
-              url: dbFile.url
-            };
-            setFiles(prev => [newFile, ...prev]);
-            // toast.success('تم رفع الملف وحفظه بنجاح');
-          }
-        }
-      } catch (err) {
-        console.error("Upload failed", err);
+    const isImageFile = file.type.startsWith('image/') || type === 'xray';
+
+    let base64DataUrl = '';
+    try {
+      base64DataUrl = isImageFile
+        ? await fileOrBlobToBase64(file, 1280, 'image/jpeg', 0.85)
+        : await readRawFileAsDataUrl(file);
+    } catch (readErr) {
+      console.error('Failed to read file locally:', readErr);
+      toast.error('تعذر قراءة الملف المرفوع');
+      return;
+    }
+
+    const saveFileLocallyAndQueueSync = async () => {
+      const localId = `offline_file_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      const newFile: FileItem = {
+        id: localId,
+        name: file.name,
+        type: type,
+        date: new Date().toLocaleDateString('ar-IQ'),
+        size: sizeStr,
+        url: base64DataUrl,
+        isOfflineUnsynced: true,
+      };
+
+      setFiles(prev => {
+        const next = [newFile, ...prev];
+        persistPatientFilesCache(targetPid, next);
+        return next;
+      });
+
+      await addToSyncQueue('INSERT', 'patient_files', localId, {
+        patient_id: targetPid,
+        name: file.name,
+        type: type,
+        size: sizeStr,
+        date: new Date().toISOString(),
+        _offline_file_b64: base64DataUrl,
+        _offline_file_mime: file.type || (isImageFile ? 'image/jpeg' : 'application/octet-stream'),
+        _offline_bucket: 'patient-docs',
+        _offline_folder: `${type}s`,
+      });
+
+      toast.success('تم حفظ الملف في الأرشيف محلياً وسيتم مزامنته تلقائياً عند عودة الاتصال');
+    };
+
+    if (!navigator.onLine || isNaN(Number(targetPid))) {
+      await saveFileLocallyAndQueueSync();
+      return;
+    }
+
+    try {
+      const result = await uploadFile(file, 'patient-docs', `${targetPid}/${type}s`);
+      if (!result?.url) {
+        await saveFileLocallyAndQueueSync();
+        return;
       }
+
+      const newFilePayload = {
+        patient_id: Number(targetPid),
+        name: file.name,
+        type: type,
+        url: result.url,
+        size: sizeStr,
+        date: new Date().toISOString(),
+      };
+
+      const { data: dbFile, error: dbError } = await supabase
+        .from('patient_files')
+        .insert(newFilePayload)
+        .select()
+        .single();
+
+      if (dbError) throw dbError;
+
+      if (dbFile) {
+        if (isImageFile && base64DataUrl) {
+          setCache(`img_b64_archive_img_${dbFile.id}`, base64DataUrl, 86400 * 180).catch(() => {});
+          try {
+            localStorage.setItem(`dental_offline_img_b64_v1_archive_img_${dbFile.id}`, base64DataUrl);
+          } catch {}
+        }
+        const newFile: FileItem = {
+          id: String(dbFile.id),
+          name: dbFile.name,
+          type: dbFile.type as any,
+          date: new Date(dbFile.created_at).toLocaleDateString('ar-IQ'),
+          size: dbFile.size || sizeStr,
+          url: base64DataUrl || dbFile.url,
+          isOfflineUnsynced: false,
+        };
+        setFiles(prev => {
+          const next = [newFile, ...prev];
+          persistPatientFilesCache(targetPid, next);
+          return next;
+        });
+        toast.success('تم رفع الملف وحفظه في الأرشيف بنجاح');
+      }
+    } catch (err) {
+      console.warn('Online archive upload failed, falling back to offline storage & sync queue:', err);
+      await saveFileLocallyAndQueueSync();
     }
   };
 
@@ -1956,7 +2116,13 @@ export const ClinicPatientProfile = () => {
 
 
   /* --- ARCHIVE GALLERY LOGIC --- */
-  const getImages = () => files.filter(f => f.type === 'xray' || f.name.match(/\.(jpg|jpeg|png|gif)$/i));
+  const getImages = () =>
+    files.filter(
+      f =>
+        f.type === 'xray' ||
+        /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(f.name || '') ||
+        f.url?.startsWith('data:image/')
+    );
   const currentImageIndex = previewUrl ? getImages().findIndex(f => f.url === previewUrl) : -1;
 
   const handleNextImage = (e?: React.MouseEvent) => {
@@ -1964,7 +2130,7 @@ export const ClinicPatientProfile = () => {
     const images = getImages();
     if (images.length === 0) return;
     const nextIndex = (currentImageIndex + 1) % images.length;
-    setPreviewUrl(images[nextIndex].url);
+    setPreviewUrl(images[nextIndex].url || null);
   };
 
   const handlePrevImage = (e?: React.MouseEvent) => {
@@ -1972,7 +2138,7 @@ export const ClinicPatientProfile = () => {
     const images = getImages();
     if (images.length === 0) return;
     const prevIndex = (currentImageIndex - 1 + images.length) % images.length;
-    setPreviewUrl(images[prevIndex].url);
+    setPreviewUrl(images[prevIndex].url || null);
   };
 
   /* --- FINANCE MODAL LOGIC --- */
@@ -1986,68 +2152,134 @@ export const ClinicPatientProfile = () => {
   const [selectedImageIds, setSelectedImageIds] = useState<string[]>([]);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingFile, setEditingFile] = useState<FileItem | null>(null);
-  const [previewFile, setPreviewFile] = useState<FileItem | null>(null); // Added this line
+  const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
 
   const handleSaveEditedImage = async (newUrl: string) => {
-    if (!editingFile || !patientId) return;
+    const targetPid = effectivePatientId || patientId;
+    if (!editingFile || !targetPid) return;
+
+    const saveEditOffline = async (sizeStr: string) => {
+      setFiles(prev => {
+        const next = prev.map(f =>
+          f.id === editingFile.id ? { ...f, url: newUrl, size: sizeStr, isOfflineUnsynced: true } : f
+        );
+        persistPatientFilesCache(targetPid, next);
+        return next;
+      });
+      setPreviewUrl(newUrl);
+      if (!String(editingFile.id).startsWith('offline_file_')) {
+        await addToSyncQueue('UPDATE', 'patient_files', String(editingFile.id), {
+          patient_id: targetPid,
+          name: editingFile.name || `edited_${Date.now()}.jpg`,
+          size: sizeStr,
+          _offline_file_b64: newUrl,
+          _offline_file_mime: 'image/jpeg',
+          _offline_bucket: 'patient-docs',
+          _offline_folder: 'images',
+        });
+      }
+      toast.success('تم حفظ تعديلات الصورة محلياً وسيتم مزامنتها عند عودة الاتصال');
+    };
 
     try {
-      // Convert DataURL to File
       const res = await fetch(newUrl);
       const blob = await res.blob();
+      const sizeStr = (blob.size / 1024).toFixed(1) + ' KB';
+
+      if (!navigator.onLine || isNaN(Number(targetPid)) || String(editingFile.id).startsWith('offline_file_')) {
+        await saveEditOffline(sizeStr);
+        return;
+      }
+
       const fileName = `edited_${Date.now()}.jpg`;
       const file = new File([blob], fileName, { type: 'image/jpeg' });
+      const result = await uploadFile(file, 'patient-docs', `${targetPid}/images`);
 
-      // Upload
-      const result = await uploadFile(file, 'patient-docs', `${patientId}/images`);
-
-      if (result) {
-        // Update Database
+      if (result?.url) {
         const { error } = await supabase
           .from('patient_files')
           .update({
             url: result.url,
-            size: (file.size / 1024).toFixed(1) + ' KB'
+            size: sizeStr,
           })
           .eq('id', editingFile.id);
 
         if (error) throw error;
 
-        // Update UI
-        setFiles(prev => prev.map(f => f.id === editingFile.id ? { ...f, url: result.url } : f));
-        setPreviewUrl(result.url); // Update preview if open
+        setFiles(prev => {
+          const next = prev.map(f => (f.id === editingFile.id ? { ...f, url: newUrl, size: sizeStr } : f));
+          persistPatientFilesCache(targetPid, next);
+          return next;
+        });
+        setPreviewUrl(newUrl);
         toast.success('تم حفظ التعديلات بنجاح');
+      } else {
+        await saveEditOffline(sizeStr);
       }
     } catch (error) {
-      console.error('Save edit error:', error);
-      toast.error('فشل حفظ التعديلات');
+      console.warn('Save edit online failed, saving offline:', error);
+      await saveEditOffline('120 KB');
     }
   };
 
   const handleSaveCopy = async (newUrl: string) => {
-    if (!editingFile || !patientId) return;
+    const targetPid = effectivePatientId || patientId;
+    if (!editingFile || !targetPid) return;
+    const fileName = `copy_${Date.now()}.jpg`;
+
+    const saveCopyOffline = async (sizeStr: string) => {
+      const localId = `offline_file_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      const newFile: FileItem = {
+        id: localId,
+        name: fileName,
+        type: 'xray',
+        url: newUrl,
+        date: new Date().toLocaleDateString('ar-IQ'),
+        size: sizeStr,
+        isOfflineUnsynced: true,
+      };
+      setFiles(prev => {
+        const next = [newFile, ...prev];
+        persistPatientFilesCache(targetPid, next);
+        return next;
+      });
+      await addToSyncQueue('INSERT', 'patient_files', localId, {
+        patient_id: targetPid,
+        name: fileName,
+        type: 'xray',
+        size: sizeStr,
+        date: new Date().toISOString(),
+        _offline_file_b64: newUrl,
+        _offline_file_mime: 'image/jpeg',
+        _offline_bucket: 'patient-docs',
+        _offline_folder: 'images',
+      });
+      toast.success('تم حفظ نسخة جديدة في الأرشيف محلياً وسيتم مزامنتها عند عودة الاتصال');
+    };
 
     try {
-      // Convert DataURL to File
       const res = await fetch(newUrl);
       const blob = await res.blob();
-      const fileName = `copy_${Date.now()}.jpg`;
+      const sizeStr = (blob.size / 1024).toFixed(1) + ' KB';
+
+      if (!navigator.onLine || isNaN(Number(targetPid))) {
+        await saveCopyOffline(sizeStr);
+        return;
+      }
+
       const file = new File([blob], fileName, { type: 'image/jpeg' });
+      const result = await uploadFile(file, 'patient-docs', `${targetPid}/images`);
 
-      // Upload
-      const result = await uploadFile(file, 'patient-docs', `${patientId}/images`);
-
-      if (result) {
-        // Insert new record
+      if (result?.url) {
         const { data, error } = await supabase
           .from('patient_files')
           .insert({
-            patient_id: patientId,
+            patient_id: Number(targetPid),
             name: fileName,
             type: 'xray',
             url: result.url,
-            size: (file.size / 1024).toFixed(1) + ' KB',
-            date: new Date().toISOString()
+            size: sizeStr,
+            date: new Date().toISOString(),
           })
           .select()
           .single();
@@ -2056,20 +2288,27 @@ export const ClinicPatientProfile = () => {
 
         if (data) {
           const newFile: FileItem = {
-            id: data.id,
+            id: String(data.id),
             name: data.name,
-            type: 'xray', // Cast if needed, or ensure DB type matches
-            url: data.url,
+            type: 'xray',
+            url: newUrl || data.url,
             date: new Date(data.created_at).toLocaleDateString('ar-IQ'),
-            size: data.size
+            size: data.size || sizeStr,
+            isOfflineUnsynced: false,
           };
-          setFiles(prev => [newFile, ...prev]);
+          setFiles(prev => {
+            const next = [newFile, ...prev];
+            persistPatientFilesCache(targetPid, next);
+            return next;
+          });
           toast.success('تم حفظ نسخة جديدة بنجاح');
         }
+      } else {
+        await saveCopyOffline(sizeStr);
       }
     } catch (error) {
-      console.error('Save copy error:', error);
-      toast.error('فشل حفظ النسخة');
+      console.warn('Save copy online failed, saving offline:', error);
+      await saveCopyOffline('120 KB');
     }
   };
 
@@ -2177,6 +2416,12 @@ export const ClinicPatientProfile = () => {
                       <div className="w-full h-full flex items-center justify-center text-gray-400">
                         <ImageIcon className="w-8 h-8" />
                       </div>
+                    )}
+
+                    {(file.isOfflineUnsynced || String(file.id).startsWith('offline_file_')) && (
+                      <span className="absolute top-2 right-2 bg-amber-500/95 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                        محلي • بانتظار المزامنة
+                      </span>
                     )}
 
                     {/* Selection Indicator Overlay */}
@@ -2689,21 +2934,43 @@ export const ClinicPatientProfile = () => {
   const handleDeleteFiles = async () => {
     if (selectedImageIds.length === 0) return;
     if (!confirm(`هل أنت متأكد من حذف ${selectedImageIds.length} ملفات بشكل نهائي؟`)) return;
+    const targetPid = effectivePatientId || patientId;
+
+    const remoteIds = selectedImageIds.filter(id => !String(id).startsWith('offline_file_'));
+
+    if (!navigator.onLine) {
+      for (const id of remoteIds) {
+        await addToSyncQueue('DELETE', 'patient_files', String(id), null);
+      }
+      setFiles(prev => {
+        const next = prev.filter(f => !selectedImageIds.includes(f.id));
+        persistPatientFilesCache(targetPid, next);
+        return next;
+      });
+      setSelectedImageIds([]);
+      setIsSelectionMode(false);
+      toast.success('تم حذف الملفات محلياً وسيتم مزامنة الحذف عند عودة الاتصال');
+      return;
+    }
 
     try {
-      const { error } = await supabase
-        .from('patient_files')
-        .delete()
-        .in('id', selectedImageIds);
+      if (remoteIds.length > 0) {
+        const { error } = await supabase
+          .from('patient_files')
+          .delete()
+          .in('id', remoteIds);
 
-      if (error) throw error;
+        if (error) throw error;
+      }
 
-      // Update UI
-      setFiles(prev => prev.filter(f => !selectedImageIds.includes(f.id)));
+      setFiles(prev => {
+        const next = prev.filter(f => !selectedImageIds.includes(f.id));
+        persistPatientFilesCache(targetPid, next);
+        return next;
+      });
       setSelectedImageIds([]);
       setIsSelectionMode(false);
       toast.success('تم حذف الملفات بنجاح');
-
     } catch (error) {
       console.error('File deletion error:', error);
       toast.error('فشل حذف الملفات');

@@ -1256,6 +1256,16 @@ ${GOVERNORATES.join('، ')}
           )}
         </div>
 
+        {/* Offline Notice Banner */}
+        {typeof navigator !== 'undefined' && !navigator.onLine && (
+          <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex items-center gap-2.5 text-right shrink-0">
+            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+            <p className="text-xs font-bold text-amber-900">
+              تنبيه: خدمة التشخيص الذكي وحجز المواعيد تحتاج إلى اتصال بالإنترنت دائماً للعمل بشكل مباشر.
+            </p>
+          </div>
+        )}
+
         {/* Chat Area */}
         <div className="flex-1 flex flex-col relative overflow-hidden bg-gray-50/30">
           <div

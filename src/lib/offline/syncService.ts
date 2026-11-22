@@ -121,6 +121,7 @@ const ALLOWED_TABLES = [
   'tooth_treatment_plans',
   'treatment_sessions',
   'patient_teeth',
+  'patient_files',
   'treatments',
   'inventory',
   'clinic_inventory',
@@ -136,6 +137,7 @@ const INTEGER_PK_TABLES = new Set([
   'patients',
   'appointments',
   'financial_transactions',
+  'patient_files',
   'treatments',
   'inventory',
   'clinic_inventory',
@@ -144,6 +146,21 @@ const INTEGER_PK_TABLES = new Set([
   'tasks',
   'staff',
 ]);
+
+function base64DataUrlToBlob(dataUrl: string, fallbackMime = 'image/jpeg'): Blob {
+  const parts = dataUrl.split(',');
+  const header = parts[0] || '';
+  const base64 = parts[1] || '';
+  const mimeMatch = header.match(/data:([^;]+);base64/i);
+  const mime = mimeMatch ? mimeMatch[1] : fallbackMime;
+  const binaryStr = atob(base64);
+  const len = binaryStr.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryStr.charCodeAt(i);
+  }
+  return new Blob([bytes], { type: mime });
+}
 
 function isTempOrNonNumericId(val: unknown): boolean {
   if (val === undefined || val === null) return false;
@@ -183,6 +200,18 @@ async function migrateLocalPatientCaches(oldId: string, newId: string) {
     const oldTeeth = getInstantCache<any[]>('patient_teeth_' + oldId);
     if (Array.isArray(oldTeeth)) {
       await setCache('patient_teeth_' + newId, oldTeeth, 86400 * 30);
+    }
+    const oldFiles = getInstantCache<any[]>('patient_files_' + oldId);
+    if (Array.isArray(oldFiles)) {
+      await setCache('patient_files_' + newId, oldFiles, 86400 * 30);
+    }
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const legacyFilesRaw = localStorage.getItem('dental_instant_patient_files_' + oldId);
+        if (legacyFilesRaw) {
+          localStorage.setItem('dental_instant_patient_files_' + newId, legacyFilesRaw);
+        }
+      } catch {}
     }
 
     if (typeof localStorage === 'undefined') return;
@@ -343,6 +372,41 @@ async function propagateResolvedId(
           }
         }
       }
+    } else if (table === 'patient_files') {
+      if (typeof localStorage !== 'undefined') {
+        const PREFIX1 = 'dental_instant_cache_v1_patient_files_';
+        const PREFIX2 = 'dental_instant_patient_files_';
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (!k) continue;
+          if (k.startsWith(PREFIX1)) {
+            try {
+              const raw = localStorage.getItem(k);
+              if (!raw) continue;
+              const files = JSON.parse(raw);
+              if (Array.isArray(files) && files.some((f: any) => String(f.id) === String(oldId))) {
+                const updated = files.map((f: any) =>
+                  String(f.id) === String(oldId) ? { ...f, id: String(newId), isOfflineUnsynced: false } : f
+                );
+                await setCache(k.slice('dental_instant_cache_v1_'.length), updated, 86400 * 30);
+              }
+            } catch {}
+          } else if (k.startsWith(PREFIX2)) {
+            try {
+              const raw = localStorage.getItem(k);
+              if (!raw) continue;
+              const parsed = JSON.parse(raw);
+              const list = Array.isArray(parsed?.data) ? parsed.data : Array.isArray(parsed) ? parsed : null;
+              if (list && list.some((f: any) => String(f.id) === String(oldId))) {
+                const updated = list.map((f: any) =>
+                  String(f.id) === String(oldId) ? { ...f, id: String(newId), isOfflineUnsynced: false } : f
+                );
+                localStorage.setItem(k, JSON.stringify({ data: updated, timestamp: Date.now() }));
+              }
+            } catch {}
+          }
+        }
+      }
     }
   } catch (e) {
     console.warn('[SyncService] Failed to update local Dexie record ID:', e);
@@ -413,6 +477,49 @@ async function executeSyncItem(
 
   // تنظيف الحقول المحلية فقط التي لا توجد في جداول Supabase
   delete payload.synced;
+  delete payload.isOfflineUnsynced;
+
+  if (targetTable !== 'patients' && payload.patient_id && isTempOrNonNumericId(payload.patient_id)) {
+    const resolvedPid = getResolvedPatientId(String(payload.patient_id));
+    if (resolvedPid && !isTempOrNonNumericId(resolvedPid)) {
+      payload.patient_id = Number(resolvedPid);
+    }
+  }
+
+  // إذا كان الملف مرفوعاً في الأرشيف أثناء وضع الأوفلاين (مخزن بصيغة Base64)، نرفعه أولاً إلى Supabase Storage
+  if (
+    targetTable === 'patient_files' &&
+    typeof payload._offline_file_b64 === 'string' &&
+    payload._offline_file_b64.startsWith('data:')
+  ) {
+    const b64Data = String(payload._offline_file_b64);
+    const mimeType = String(payload._offline_file_mime || 'image/jpeg');
+    const bucket = String(payload._offline_bucket || 'patient-docs');
+    const folderType = String(payload._offline_folder || 'xrays');
+    const blob = base64DataUrlToBlob(b64Data, mimeType);
+    const rawName = String(payload.name || 'file.jpg');
+    const extMatch = rawName.split('.').pop();
+    const ext = extMatch && extMatch.length <= 5 ? extMatch : mimeType.includes('pdf') ? 'pdf' : 'jpg';
+    const filePath = `${payload.patient_id}/${folderType}/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
+
+    const { error: storageErr } = await supabase.storage
+      .from(bucket)
+      .upload(filePath, blob, { contentType: blob.type });
+
+    if (storageErr) {
+      throw new Error(storageErr.message);
+    }
+
+    const { data: pubUrlData } = supabase.storage.from(bucket).getPublicUrl(filePath);
+    if (pubUrlData?.publicUrl) {
+      payload.url = pubUrlData.publicUrl;
+    }
+  }
+
+  delete payload._offline_file_b64;
+  delete payload._offline_file_mime;
+  delete payload._offline_bucket;
+  delete payload._offline_folder;
 
   switch (operation) {
     case 'INSERT': {
@@ -425,12 +532,6 @@ async function executeSyncItem(
           ...currentMed,
           offline_id: currentMed.offline_id || String(record_id),
         };
-      }
-      if (targetTable !== 'patients' && payload.patient_id && isTempOrNonNumericId(payload.patient_id)) {
-        const resolvedPid = getResolvedPatientId(String(payload.patient_id));
-        if (resolvedPid && !isTempOrNonNumericId(resolvedPid)) {
-          payload.patient_id = Number(resolvedPid);
-        }
       }
       if (INTEGER_PK_TABLES.has(targetTable) && isTempOrNonNumericId(payload.id)) {
         delete payload.id;

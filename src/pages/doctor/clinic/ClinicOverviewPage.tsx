@@ -32,6 +32,12 @@ import { Appointment } from '../../../types';
 
 // Hooks
 import { useClinics } from '@/hooks/useClinics';
+import {
+  DEFAULT_OFFLINE_CLINIC_LOGO,
+  DEFAULT_OFFLINE_CLINIC_COVER,
+  getCachedClinicLogo,
+  getCachedClinicCover
+} from '../../../lib/offline/imageCache';
 import { useFinance } from '@/hooks/useFinance';
 import { usePatients } from '@/hooks/usePatients';
 import { useInventory } from '@/hooks/useInventory';
@@ -231,9 +237,9 @@ export const ClinicOverviewPage: React.FC<ClinicOverviewPageProps> = ({ clinicId
     openTime: realClinic.openTime || '09:00',
     closeTime: realClinic.closeTime || '17:00',
     workingDays: realClinic.workingDays || ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'],
-    image: realClinic.image || 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=2600&ixlib=rb-4.0.3',
+    image: getCachedClinicLogo(realClinic.id) || realClinic.image || DEFAULT_OFFLINE_CLINIC_LOGO,
     rating: realClinic.rating || '4.8',
-    cover: realClinic.coverImage || 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=800&auto=format&fit=crop&q=60'
+    cover: getCachedClinicCover(realClinic.id) || realClinic.coverImage || DEFAULT_OFFLINE_CLINIC_COVER
   };
 
   // Daily Appointments Array
@@ -263,6 +269,7 @@ export const ClinicOverviewPage: React.FC<ClinicOverviewPageProps> = ({ clinicId
               src={displayClinic.cover}
               alt="Clinic Cover"
               className="w-full h-full object-cover"
+              onError={(e) => { (e.currentTarget as HTMLImageElement).src = DEFAULT_OFFLINE_CLINIC_COVER; }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-80" />
             
@@ -302,6 +309,7 @@ export const ClinicOverviewPage: React.FC<ClinicOverviewPageProps> = ({ clinicId
                 src={displayClinic.image}
                 alt={displayClinic.name}
                 className="w-full h-full object-cover"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).src = DEFAULT_OFFLINE_CLINIC_LOGO; }}
               />
             </div>
 

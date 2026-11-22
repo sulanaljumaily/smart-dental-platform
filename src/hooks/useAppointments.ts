@@ -308,11 +308,13 @@ export const useAppointments = (clinicId?: string) => {
             updated_at: now
         };
 
-        await db.appointments.put(localRecord);
-        await addToSyncQueue('INSERT', 'appointments', localId, offlineApt);
-
         const mappedNew = mapLocalToAppointment(localRecord);
         saveAppointmentsToCache([mappedNew, ...appointments]);
+
+        await Promise.all([
+            db.appointments.put(localRecord).catch(() => {}),
+            addToSyncQueue('INSERT', 'appointments', localId, offlineApt).catch(() => {})
+        ]);
     };
 
     const createAppointment = async (appointment: Appointment) => {
@@ -353,21 +355,26 @@ export const useAppointments = (clinicId?: string) => {
         }
 
         try {
-            let insertedData: any = null;
-            const { data, error } = await supabase.from('appointments').insert(newApt).select().maybeSingle();
-            if (error) {
-                if (error.code === '42703' || error.code === 'PGRST204' || error.message?.includes('metadata')) {
-                    const fallbackApt = { ...newApt };
-                    delete fallbackApt.metadata;
-                    const { data: fbData, error: fallbackError } = await supabase.from('appointments').insert(fallbackApt).select().maybeSingle();
-                    if (fallbackError) throw fallbackError;
-                    insertedData = fbData;
-                } else {
+            const onlineInsertPromise = (async () => {
+                const { data, error } = await supabase.from('appointments').insert(newApt).select().maybeSingle();
+                if (error) {
+                    if (error.code === '42703' || error.code === 'PGRST204' || error.message?.includes('metadata')) {
+                        const fallbackApt = { ...newApt };
+                        delete fallbackApt.metadata;
+                        const { data: fbData, error: fallbackError } = await supabase.from('appointments').insert(fallbackApt).select().maybeSingle();
+                        if (fallbackError) throw fallbackError;
+                        return fbData;
+                    }
                     throw error;
                 }
-            } else {
-                insertedData = data;
-            }
+                return data;
+            })();
+
+            const timeoutPromise = new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error('network_timeout')), 2500)
+            );
+
+            const insertedData = await Promise.race([onlineInsertPromise, timeoutPromise]);
 
             if (insertedData) {
                 const localRecord: LocalAppointment = {
@@ -385,10 +392,12 @@ export const useAppointments = (clinicId?: string) => {
                     created_at: insertedData.created_at || new Date().toISOString(),
                     updated_at: insertedData.created_at || new Date().toISOString()
                 };
-                await db.appointments.put(localRecord).catch(() => {});
+                const mappedNew = mapLocalToAppointment(localRecord);
+                saveAppointmentsToCache([mappedNew, ...appointments.filter(a => String(a.id) !== String(insertedData.id))]);
+                db.appointments.put(localRecord).catch(() => {});
+            } else {
+                fetchAppointments();
             }
-
-            fetchAppointments();
         } catch {
             await saveAppointmentOffline(appointment, newApt);
             toast.info('تعذر الاتصال، تم حفظ الموعد محلياً وستتم المزامنة تلقائياً');

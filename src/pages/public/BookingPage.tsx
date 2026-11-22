@@ -318,6 +318,14 @@ export const BookingPage: React.FC = () => {
             )}
 
             <div className="max-w-3xl mx-auto px-4">
+                {typeof navigator !== 'undefined' && !navigator.onLine && (
+                    <div className="mb-4 bg-amber-50 border border-amber-300 rounded-2xl p-3.5 flex items-center gap-3 text-right shadow-sm">
+                        <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+                        <p className="text-xs font-bold text-amber-900">
+                            تنبيه: حجز المواعيد المباشر والخدمات الطبية تحتاج إلى اتصال بالإنترنت دائماً لتأكيد الحجز لدى العيادة.
+                        </p>
+                    </div>
+                )}
                 {!clinicData && (
                     <div className="mb-8 text-center pt-8">
                         <h1 className="text-3xl font-bold text-gray-900 mb-2">حجز موعد جديد</h1>
