@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Calendar, Package, MessageCircle, AlertTriangle, CheckCircle2, Clock, X, Building2, RefreshCw, Shield, Zap, Info } from 'lucide-react';
+import { Bell, Calendar, Package, MessageCircle, AlertTriangle, CheckCircle2, Clock, X, Building2, RefreshCw, Shield, Zap, Info, Tag, GraduationCap } from 'lucide-react';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
 import { NotificationContent } from '../../components/common/NotificationContent';
@@ -65,7 +65,7 @@ const getStoreStatusConfig = (s: string) => {
 export const DoctorNotificationsPage: React.FC = () => {
   const navigate = useNavigate();
   const { isMultiClinicOwner, user } = useAuth();
-  const { notifications, updates, markAsRead, deleteNotification, loading } = useNotifications();
+  const { notifications, updates, markAsRead, markAllAsRead, deleteNotification, loading } = useNotifications();
   const { selectedClinicId, clinics, loading: clinicsLoading } = useDoctorContext();
   // Guard: if user has no clinics, don't fetch clinic-specific data
   const hasNoClinics = !clinicsLoading && clinics.length === 0;
@@ -74,11 +74,55 @@ export const DoctorNotificationsPage: React.FC = () => {
   const { orders: labOrders } = useLabOrders({ clinicId: hasNoClinics ? undefined : selectedClinicId });
   const { orders: storeOrders } = useStoreOrders();
   const [activeTab, setActiveTab] = useState<FilterCategory>('all');
+  const [localSeenIds, setLocalSeenIds] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem(`doctor_seen_notif_ids_${user?.id || 'guest'}`);
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+  const autoMarkedRef = useRef(false);
 
-  // Helper to get clinic name lookup
+  // Auto-mark unread notifications as read when viewing the notifications page
+  useEffect(() => {
+    if (loading || !user?.id) return;
+    const hasUnreadDb = notifications.some(n => !n.isRead);
+    const syntheticIds = [
+      ...(appointments || []).map(a => `apt-${a.id}`),
+      ...(labOrders || []).map(o => `lab-order-${o.id}`),
+      ...(storeOrders || []).map(o => `store-order-${o.id}`),
+    ];
+    const hasUnseenSynthetic = syntheticIds.some(id => !localSeenIds.has(id));
+
+    if (!hasUnreadDb && !hasUnseenSynthetic) return;
+
+    const timer = setTimeout(() => {
+      if (hasUnreadDb) {
+        markAllAsRead();
+      }
+      if (hasUnseenSynthetic) {
+        setLocalSeenIds(prev => {
+          const next = new Set(prev);
+          syntheticIds.forEach(id => next.add(id));
+          try {
+            localStorage.setItem(`doctor_seen_notif_ids_${user.id}`, JSON.stringify(Array.from(next).slice(-300)));
+          } catch {}
+          return next;
+        });
+      }
+      autoMarkedRef.current = true;
+    }, 900);
+
+    return () => clearTimeout(timer);
+  }, [loading, user?.id, notifications.length, appointments.length, labOrders.length, storeOrders.length, markAllAsRead]);
+
+  // Helper to get clinic name lookup (prefers real clinics over mock)
   const getClinicName = (clinicId?: string) => {
     if (!clinicId) return '';
-    const clinic = clinicsData.find(c => c.id === clinicId);
+    const realClinic = clinics.find(c => String(c.id) === String(clinicId));
+    if (realClinic?.name) return realClinic.name;
+    const clinic = clinicsData.find(c => String(c.id) === String(clinicId));
     return clinic?.name || '';
   };
 
@@ -102,21 +146,34 @@ export const DoctorNotificationsPage: React.FC = () => {
 
   // Logic to categorize notifications
   const categorizedNotifications = useMemo(() => {
-    // Map regular notifications - Filter out task and reminder
+    // Track appointment IDs already present as real DB notifications to prevent duplicates
+    const realAppointmentIds = new Set<string>();
+    notifications.forEach(n => {
+      if (n.metadata?.appointment_id) {
+        realAppointmentIds.add(String(n.metadata.appointment_id));
+      }
+    });
+
+    // Map regular notifications (keep reminders, offers, discounts, updates, courses, appointments!)
     const mappedNotifications = notifications
-      .filter(n => !['task', 'reminder', 'order_update'].includes(n.type) && !n.title.includes('طلبك') && !n.title.includes('تحديث حالة الطلب'))
+      .filter(n => !['task', 'order_update'].includes(n.type) && !n.title.includes('طلبك') && !n.title.includes('تحديث حالة الطلب'))
       .map(n => {
         let category: FilterCategory = 'general';
         let icon = <Info className="w-6 h-6" />;
         let color = 'bg-gray-100 text-gray-600';
 
-        // 1. Appointments
-        if (n.type === 'appointment' || n.title.includes('موعد') || n.title.includes('Appointment')) {
+        // 1. Appointments & Appointment Reminders (1-day before / new / online booking)
+        if (
+          n.type === 'appointment' ||
+          (n.type === 'reminder' && (n.metadata?.reminder_kind === 'appointment_day_before' || n.title.includes('موعد'))) ||
+          n.title.includes('موعد') ||
+          n.title.includes('Appointment')
+        ) {
           category = 'appointment';
-          icon = <Calendar className="w-6 h-6" />;
-          color = 'bg-blue-100 text-blue-600';
+          icon = n.type === 'reminder' ? <Clock className="w-6 h-6" /> : <Calendar className="w-6 h-6" />;
+          color = n.type === 'reminder' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600';
         }
-        // 2. Inventory (Skip adding any to inventory type filter as we filter below, adding structure logic fallback)
+        // 2. Inventory
         else if ((n.type === 'alert' && (n.title.includes('مخزون') || n.description?.includes('stock'))) || n.title.includes('Inventory')) {
           category = 'inventory';
           icon = <Package className="w-6 h-6" />;
@@ -128,13 +185,25 @@ export const DoctorNotificationsPage: React.FC = () => {
           icon = <Shield className="w-6 h-6" />;
           color = 'bg-red-100 text-red-600';
         }
-        // 4. Updates (Platform Updates from Notification Table)
-        else if (n.title.includes('تحديث') || n.title.includes('Update') || n.title.includes('نسخة')) {
+        // 4. Updates (Platform Updates)
+        else if (n.type === 'update' || n.title.includes('تحديث') || n.title.includes('Update') || n.title.includes('نسخة')) {
           category = 'update';
           icon = <RefreshCw className="w-6 h-6" />;
           color = 'bg-purple-100 text-purple-600';
         }
-        // 5. General (Platform Admin Messages)
+        // 5. Store Offers & Discounts
+        else if (['offer', 'discount', 'promotional'].includes(n.type)) {
+          category = 'general';
+          icon = <Tag className="w-6 h-6" />;
+          color = 'bg-emerald-100 text-emerald-600';
+        }
+        // 6. Courses & Webinars
+        else if (['course_new', 'webinar_new', 'course', 'webinar'].includes(n.type)) {
+          category = 'general';
+          icon = <GraduationCap className="w-6 h-6" />;
+          color = 'bg-indigo-100 text-indigo-600';
+        }
+        // 7. General (Platform Admin Messages & Reminders)
         else {
           category = 'general';
           icon = <Bell className="w-6 h-6" />;
@@ -150,16 +219,19 @@ export const DoctorNotificationsPage: React.FC = () => {
         } as DisplayNotification;
       });
 
-    // Option B: Map Actual Appointments directly
-    const mappedAppointments = (appointments || []).map(a => {
+    // Option B: Map Actual Appointments that don't already have a DB notification
+    const mappedAppointments = (appointments || [])
+      .filter(a => !realAppointmentIds.has(String(a.id)))
+      .map(a => {
       const isOnline = (a.type as any) === 'كشف عام (أونلاين)' || a.title === 'كشف عام (أونلاين)' || a.doctorName === 'غير محدد' || !a.doctorName;
 
       const description = isOnline
         ? `موعد اونلاين للمريض: ${a.patientName}\nفي التاريخ ${a.date} الساعة ${formatTime12h(a.time)}`
         : `موعد للمريض: ${a.patientName}\nمع الطبيب: ${a.doctorName}\nفي التاريخ ${a.date} الساعة ${formatTime12h(a.time)}`;
 
+      const synthId = `apt-${a.id}`;
       return {
-        id: `apt-${a.id}`,
+        id: synthId,
         userId: user?.id,
         clinicId: a.clinicId,
         type: 'appointment',
@@ -173,7 +245,7 @@ export const DoctorNotificationsPage: React.FC = () => {
         },
         time: a.createdAt || new Date().toISOString(),
         priority: a.priority || 'normal',
-        isRead: a.status !== 'pending', // Pending is treated as unread
+        isRead: a.status !== 'pending' || localSeenIds.has(synthId),
         createdAt: a.createdAt || new Date().toISOString(),
         displayCategory: 'appointment' as FilterCategory,
         displayIcon: <Calendar className="w-6 h-6" />,
@@ -218,7 +290,7 @@ export const DoctorNotificationsPage: React.FC = () => {
       },
       time: o.order_date || new Date().toISOString(),
       priority: o.priority || 'normal',
-      isRead: o.status === 'completed' || o.status === 'delivered',
+      isRead: o.status === 'completed' || o.status === 'delivered' || localSeenIds.has(`lab-order-${o.id}`),
       createdAt: o.order_date || new Date().toISOString(),
       displayCategory: 'order' as FilterCategory,
       displayIcon: <Package className="w-6 h-6" />,
@@ -243,7 +315,7 @@ export const DoctorNotificationsPage: React.FC = () => {
       },
       time: o.createdAt || new Date().toISOString(),
       priority: 'normal',
-      isRead: o.status === 'delivered',
+      isRead: o.status === 'delivered' || localSeenIds.has(`store-order-${o.id}`),
       createdAt: o.createdAt || new Date().toISOString(),
       displayCategory: 'order' as FilterCategory,
       displayIcon: <Package className="w-6 h-6" />,
@@ -259,7 +331,7 @@ export const DoctorNotificationsPage: React.FC = () => {
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
 
-  }, [notifications, updates, appointments, labOrders, storeOrders, user, clinics, selectedClinicId]);
+  }, [notifications, updates, appointments, labOrders, storeOrders, user, clinics, selectedClinicId, localSeenIds]);
 
   // Filtering Logic
   const filteredList = useMemo(() => {
@@ -289,10 +361,18 @@ export const DoctorNotificationsPage: React.FC = () => {
   const unreadCount = filteredList.filter(n => !n.isRead).length;
 
   const handleNotificationClick = (n: DisplayNotification) => {
-    // Mark as read immediately on click? Or just navigate?
     if (!n.isRead) markAsRead(n.id);
 
-    const targetClinicId = n.clinicId || '1';
+    if (n.link) {
+      if (n.link.startsWith('http://') || n.link.startsWith('https://')) {
+        window.open(n.link, '_blank', 'noopener,noreferrer');
+      } else {
+        navigate(n.link);
+      }
+      return;
+    }
+
+    const targetClinicId = n.clinicId || clinics[0]?.id || '1';
 
     switch (n.displayCategory) {
       case 'appointment':
@@ -305,7 +385,6 @@ export const DoctorNotificationsPage: React.FC = () => {
         navigate('/doctor/updates');
         break;
       case 'order':
-        // Navigate to clinic labs/orders page if lab, or store orders if store
         if (n.metadata?.orderType === 'lab') {
           navigate(`/doctor/clinic/${targetClinicId}?tab=labs`);
         } else {
@@ -313,13 +392,9 @@ export const DoctorNotificationsPage: React.FC = () => {
         }
         break;
       case 'system':
-        // Subscription reminder -> Upgrade/Settings
         navigate('/doctor/subscription/upgrade');
         break;
       case 'general':
-        // User Request: "No navigation to page like congratulations"
-        // Stay on page. Maybe toggle expand if we had expandable content.
-        // For now, do nothing.
         break;
       default:
         break;
@@ -360,8 +435,8 @@ export const DoctorNotificationsPage: React.FC = () => {
           <p className="text-gray-500 text-sm mt-1">تتبع جميع التنبيهات والتحديثات في مكان واحد</p>
         </div>
 
-        {notifications.some(n => !n.isRead) && (
-          <Button variant="outline" size="sm" onClick={() => markAsRead('all')}>
+        {(notifications.some(n => !n.isRead) || unreadCount > 0) && (
+          <Button variant="outline" size="sm" onClick={() => markAllAsRead()}>
             <CheckCircle2 className="w-4 h-4 ml-2" />
             تحديد الكل كمقروء
           </Button>

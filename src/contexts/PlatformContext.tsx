@@ -3,6 +3,21 @@ import { supabase } from '../lib/supabase';
 
 export type StoreOptionStatus = 'active' | 'coming_soon' | 'hidden';
 
+export interface AppReleaseHistoryItem {
+  id: string;
+  version: string;
+  title: string;
+  notes: string;
+  releaseDate: string;
+  type: 'major' | 'minor' | 'patch' | 'security';
+  platforms: Array<'windows' | 'android' | 'ios' | 'web'>;
+  windowsUrl?: string;
+  androidProUrl?: string;
+  androidPatientUrl?: string;
+  iosUrl?: string;
+  isMandatory?: boolean;
+}
+
 export interface AppsInstallConfig {
   windows: {
     exeStatus: StoreOptionStatus;
@@ -16,6 +31,7 @@ export interface AppsInstallConfig {
     latestVersion: string;
     updateDownloadUrl: string;
     releaseNotes: string;
+    releaseDate?: string;
     autoUpdateEnabled: boolean;
     forceUpdate: boolean;
   };
@@ -37,6 +53,7 @@ export interface AppsInstallConfig {
     appStoreComingSoonMessage: string;
     homeScreenGuideEnabled: boolean;
   };
+  releaseHistory?: AppReleaseHistoryItem[];
 }
 
 export type NavRoleKey = 'public' | 'doctor' | 'patient' | 'supplier' | 'laboratory';
@@ -86,6 +103,7 @@ export const DEFAULT_APPS_CONFIG: AppsInstallConfig = {
     appStoreComingSoonMessage: 'تطبيق المنصة على متجر Apple App Store سيتوفر قريباً! يمكنك حالياً استخدام خيار (إضافة إلى الشاشة الرئيسية) أدناه لتثبيت التطبيق فوراً.',
     homeScreenGuideEnabled: true,
   },
+  releaseHistory: [],
 };
 
 const createDefaultDeviceRoleNav = (): DeviceRoleNavConfig => ({
@@ -167,6 +185,7 @@ export const mergeAppsConfig = (raw?: Partial<AppsInstallConfig>): AppsInstallCo
   windows: { ...DEFAULT_APPS_CONFIG.windows, ...(raw?.windows || {}) },
   android: { ...DEFAULT_APPS_CONFIG.android, ...(raw?.android || {}) },
   ios: { ...DEFAULT_APPS_CONFIG.ios, ...(raw?.ios || {}) },
+  releaseHistory: Array.isArray(raw?.releaseHistory) ? raw.releaseHistory : [],
 });
 
 export const mergeSectionsConfig = (raw?: Partial<SectionsNavigationConfig>): SectionsNavigationConfig => {

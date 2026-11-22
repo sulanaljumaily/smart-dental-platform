@@ -7,6 +7,7 @@ import { Button } from '../../components/common/Button';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { triggerPushEdgeFunction } from '../../lib/pushNotifications';
 
 export const BookingPage: React.FC = () => {
     const { t } = useLanguage();
@@ -219,6 +220,16 @@ export const BookingPage: React.FC = () => {
             });
 
             if (error) throw error;
+
+            // Trigger push notification for the clinic owner & doctors (DB trigger created the notification row)
+            if (clinicData?.owner_id) {
+                triggerPushEdgeFunction({
+                    user_ids: [clinicData.owner_id],
+                    title: '📩 طلب موعد أونلاين جديد',
+                    body: `حجز إلكتروني جديد من ${patientData.name} بتاريخ ${formattedDate} الساعة ${formatTime12h(selectedTime)}`,
+                    link: `/doctor/clinic/${clinicId}?tab=appointments`,
+                });
+            }
 
             setStep(3); // Success step
         } catch (err) {

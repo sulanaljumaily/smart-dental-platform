@@ -217,8 +217,10 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({
                     className="relative p-2 rounded-xl hover:bg-gray-100 transition-colors"
                   >
                     <Bell className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
-                    {(notifications.filter(n => !n.isRead).length > 0 || updates.length > 0) && (
-                      <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+                    {notifications.filter(n => !n.isRead).length > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full border-2 border-white flex items-center justify-center">
+                        {notifications.filter(n => !n.isRead).length > 9 ? '9+' : notifications.filter(n => !n.isRead).length}
+                      </span>
                     )}
                   </button>
 
@@ -255,10 +257,19 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({
                             <p className="text-sm">لا توجد إشعارات جديدة</p>
                           </div>
                         ) : (
-                          notifications.slice(0, 5).map((notification) => (
+                          notifications.slice(0, 6).map((notification) => (
                             <div
                               key={notification.id}
-                              className={`px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0 ${!notification.isRead ? 'bg-blue-50/30' : ''}`}
+                              onClick={() => {
+                                if (!notification.isRead) markAsRead(notification.id);
+                                setIsNotificationsOpen(false);
+                                if (notification.link) {
+                                  navigate(notification.link);
+                                } else {
+                                  navigate('/doctor/notifications');
+                                }
+                              }}
+                              className={`px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-50 last:border-0 ${!notification.isRead ? 'bg-blue-50/30' : ''}`}
                             >
                               <div className="flex gap-3">
                                 <div className={`w-2 h-2 mt-2 rounded-full flex-shrink-0 ${!notification.isRead ? 'bg-blue-500' : 'bg-gray-300'}`} />

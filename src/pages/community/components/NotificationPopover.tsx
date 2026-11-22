@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bell, Check, ExternalLink, Heart, MessageCircle, UserPlus, Info, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useCommunityContext } from '../../../contexts/CommunityContext';
+import { useCommunityContext, COMMUNITY_NOTIFICATION_TYPES } from '../../../contexts/CommunityContext';
 import { ClinicOfflineIndicator } from '../../../components/clinic/ClinicOfflineIndicator';
+
+const COMMUNITY_ALLOWED_SET = new Set<string>(COMMUNITY_NOTIFICATION_TYPES);
 
 export const NotificationPopover: React.FC = () => {
     const { notifications, markNotificationAsRead, markAllNotificationsAsRead } = useCommunityContext();
@@ -10,8 +12,10 @@ export const NotificationPopover: React.FC = () => {
     const popoverRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
 
-    // Defensive check
-    const safeNotifications = Array.isArray(notifications) ? notifications : [];
+    // Defensive check — strictly community notifications only
+    const safeNotifications = (Array.isArray(notifications) ? notifications : []).filter(n =>
+        COMMUNITY_ALLOWED_SET.has(String(n.type || ''))
+    );
     const unreadCount = safeNotifications.filter(n => !n.isRead).length;
 
     // Close on click outside

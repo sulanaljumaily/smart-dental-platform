@@ -1,6 +1,23 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '../lib/supabase';
+import { triggerPushEdgeFunction } from '../lib/pushNotifications';
+
+export const COMMUNITY_NOTIFICATION_TYPES = [
+    'like',
+    'comment',
+    'reply',
+    'follow',
+    'mention',
+    'post',
+    'course_new',
+    'webinar_new',
+    'group_approve',
+    'group_request',
+] as const;
+
+const COMMUNITY_TYPE_SET = new Set<string>(COMMUNITY_NOTIFICATION_TYPES);
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 import {
     CommunityPost,
     Course,
@@ -218,7 +235,7 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
                     supabase.from('follows').select('*').or(`follower_id.eq.${userId},following_id.eq.${userId}`),
                     supabase.from('models').select('*').order('created_at', { ascending: false }), // Properly ordered
                     supabase.from('enrollments').select('*').eq('user_id', userId),
-                    supabase.from('notifications').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+                    supabase.from('notifications').select('*').eq('user_id', userId).in('type', [...COMMUNITY_NOTIFICATION_TYPES]).order('created_at', { ascending: false }).limit(80),
                     supabase.from('group_requests').select('*, profiles:user_id(full_name, avatar_url)').eq('status', 'pending'),
                     supabase.from('group_members').select('group_id').eq('user_id', userId),
                     supabase.from('scientific_resources').select('*').order('created_at', { ascending: false }),
@@ -263,23 +280,25 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
                 }));
                 setMyEnrollments(adaptedEnrollments);
 
-                // Set Notifications
-                const adaptedNotifications = (notificationsData || []).map((n: any) => {
-                    const actor = (profilesData || []).find((p: any) => p.id === n.actor_id);
-                    return {
-                        id: n.id,
-                        userId: n.user_id,
-                        actorId: n.actor_id,
-                        actorName: actor?.full_name || 'System',
-                        actorAvatar: actor?.avatar_url,
-                        type: n.type,
-                        title: n.title,
-                        content: n.message,
-                        link: n.link,
-                        isRead: n.is_read,
-                        createdAt: n.created_at
-                    } as Notification;
-                });
+                // Set Notifications (strictly community interactions: likes, comments, follows, replies, groups, courses/webinars)
+                const adaptedNotifications = (notificationsData || [])
+                    .filter((n: any) => COMMUNITY_TYPE_SET.has(String(n.type || '')))
+                    .map((n: any) => {
+                        const actor = n.actor_id ? (profilesData || []).find((p: any) => p.id === n.actor_id) : null;
+                        return {
+                            id: n.id,
+                            userId: n.user_id,
+                            actorId: n.actor_id,
+                            actorName: actor?.full_name || (n.type === 'course_new' || n.type === 'webinar_new' ? 'المجتمع الطبي' : 'مستخدم'),
+                            actorAvatar: actor?.avatar_url,
+                            type: n.type,
+                            title: n.title,
+                            content: n.message || n.content || '',
+                            link: n.link,
+                            isRead: Boolean(n.is_read ?? n.read ?? false),
+                            createdAt: n.created_at
+                        } as Notification;
+                    });
                 setNotifications(adaptedNotifications);
 
                 // Set Group Requests
@@ -388,31 +407,39 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
                         table: 'notifications',
                         filter: `user_id=eq.${userId}`
                     }, async (payload) => {
-                        if (!mountedRef.current) return;
+                        if (!mountedRef.current || !payload?.new) return;
+                        // Strictly accept ONLY community notification types
+                        if (!COMMUNITY_TYPE_SET.has(String(payload.new.type || ''))) return;
 
-                        // Fetch actor details
-                        const { data: actor } = await supabase
-                            .from('profiles')
-                            .select('full_name, avatar_url')
-                            .eq('id', payload.new.actor_id)
-                            .single();
+                        let actor: any = null;
+                        if (payload.new.actor_id && UUID_REGEX.test(String(payload.new.actor_id))) {
+                            const { data: actorData } = await supabase
+                                .from('profiles')
+                                .select('full_name, avatar_url')
+                                .eq('id', payload.new.actor_id)
+                                .maybeSingle();
+                            actor = actorData;
+                        }
 
                         const newNotification: Notification = {
                             id: payload.new.id,
                             userId: payload.new.user_id,
                             actorId: payload.new.actor_id,
-                            actorName: actor?.full_name || 'System',
+                            actorName: actor?.full_name || (payload.new.type === 'course_new' || payload.new.type === 'webinar_new' ? 'المجتمع الطبي' : 'مستخدم'),
                             actorAvatar: actor?.avatar_url,
                             type: payload.new.type,
                             title: payload.new.title,
-                            content: payload.new.message,
+                            content: payload.new.message || payload.new.content || '',
                             link: payload.new.link,
-                            isRead: payload.new.is_read,
+                            isRead: Boolean(payload.new.is_read ?? payload.new.read ?? false),
                             createdAt: payload.new.created_at
                         };
 
-                        setNotifications((prev) => [newNotification, ...prev]);
-                        toast.info(`إشعار جديد: ${newNotification.title}`);
+                        setNotifications((prev) =>
+                            prev.some((item) => item.id === newNotification.id)
+                                ? prev
+                                : [newNotification, ...prev]
+                        );
                     })
                     .subscribe();
                 notificationsChannelRef = notificationsChannel;
@@ -1063,34 +1090,40 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     // --- NOTIFICATION ACTIONS ---
     const sendNotification = async (userId: string, type: string, title: string, content: string, link: string, actorId?: string) => {
+        if (!userId || !UUID_REGEX.test(String(userId))) return;
         try {
+            const validActorId = actorId && UUID_REGEX.test(String(actorId)) ? actorId : null;
             const { data } = await supabase.from('notifications').insert({
                 user_id: userId,
-                actor_id: actorId,
+                actor_id: validActorId,
                 type,
                 title,
                 message: content,
                 link,
-                is_read: false
+                is_read: false,
+                read: false,
             }).select().single();
 
-            // Local update if it's for me (edge case) or realtime subscription
-            if (userId === currentUser?.id) {
-                const actor = users.find(u => u.id === actorId);
+            if (data?.id) {
+                triggerPushEdgeFunction({ notification_ids: [data.id] });
+            }
+
+            if (userId === currentUser?.id && data && COMMUNITY_TYPE_SET.has(type)) {
+                const actor = validActorId ? users.find(u => u.id === validActorId) : null;
                 const newNotif: Notification = {
                     id: data.id,
                     userId,
-                    actorId,
-                    actorName: actor?.name || 'User',
+                    actorId: validActorId || undefined,
+                    actorName: actor?.name || 'المجتمع الطبي',
                     actorAvatar: actor?.avatar,
                     type: type as any,
                     title,
                     content,
                     link,
                     isRead: false,
-                    createdAt: new Date().toISOString()
+                    createdAt: data.created_at || new Date().toISOString()
                 };
-                setNotifications([newNotif, ...notifications]);
+                setNotifications(prev => (prev.some(n => n.id === newNotif.id) ? prev : [newNotif, ...prev]));
             }
         } catch (e) {
             console.error("Failed to send notification", e);
@@ -1098,13 +1131,28 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
 
     const markNotificationAsRead = async (id: string) => {
-        await supabase.from('notifications').update({ is_read: true }).eq('id', id);
-        setNotifications(notifications.map(n => n.id === id ? { ...n, isRead: true } : n));
+        if (!id) return;
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+        try {
+            await supabase.from('notifications').update({ is_read: true, read: true }).eq('id', id);
+        } catch (e) {
+            console.error('Failed to mark community notification as read:', e);
+        }
     };
 
     const markAllNotificationsAsRead = async () => {
-        await supabase.from('notifications').update({ is_read: true }).eq('user_id', currentUser?.id);
-        setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+        setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+        if (!currentUser?.id) return;
+        try {
+            await supabase
+                .from('notifications')
+                .update({ is_read: true, read: true })
+                .eq('user_id', currentUser.id)
+                .in('type', [...COMMUNITY_NOTIFICATION_TYPES])
+                .eq('is_read', false);
+        } catch (e) {
+            console.error('Failed to mark all community notifications as read:', e);
+        }
     };
 
     // --- GROUP ADMIN ACTIONS ---
@@ -1186,18 +1234,41 @@ export const CommunityProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     const adminAddEvent = async (event: Course | Omit<Course, 'id'>) => {
-        const newEvent = { ...event, id: (event as any).id || Math.random().toString(36).substr(2, 9) };
-        await supabase.from('courses').insert(newEvent);
-        setEvents([newEvent, ...events]);
-        toast.success('تمت إضافة الحدث بنجاح');
+        const validId =
+            (event as any).id && UUID_REGEX.test(String((event as any).id))
+                ? (event as any).id
+                : crypto.randomUUID();
+        const newEvent = { ...event, id: validId };
+        const { data: insertedCourse, error } = await supabase
+            .from('courses')
+            .insert(newEvent)
+            .select()
+            .maybeSingle();
 
-        // Broadcast Notification (Mock: sending to current user to demonstrate)
-        const type = newEvent.category === 'ندوة' ? 'webinar_new' : 'course_new';
-        const link = type === 'webinar_new' ? '/community/webinars' : '/community/courses';
-        const title = type === 'webinar_new' ? 'ندوة جديدة' : 'دورة جديدة';
+        if (error) {
+            console.error('Failed to add course/webinar:', error);
+            toast.error('تعذر نشر الدورة/الندوة');
+            return;
+        }
 
-        // Notify 'me' for demo purposes
-        sendNotification(currentUser?.id, type, title, `تم إضافة ${newEvent.title} قد تهمك`, link, 'system');
+        const savedEvent = insertedCourse || newEvent;
+        setEvents(prev => [savedEvent as Course, ...prev]);
+        toast.success('تم النشر وإرسال إشعار تلقائي لجميع المستخدمين بنجاح');
+
+        // Database trigger `trg_notify_on_course_insert` creates notifications for Doctors, Staff, Labs & Suppliers.
+        // Dispatch FCM Push for those freshly created notifications:
+        try {
+            const notifType = savedEvent.category === 'ندوة' ? 'webinar_new' : 'course_new';
+            const { data: createdNotifs } = await supabase
+                .from('notifications')
+                .select('id')
+                .eq('type', notifType)
+                .gte('created_at', new Date(Date.now() - 15000).toISOString())
+                .limit(500);
+            if (Array.isArray(createdNotifs) && createdNotifs.length > 0) {
+                triggerPushEdgeFunction({ notification_ids: createdNotifs.map((r: any) => r.id) });
+            }
+        } catch {}
     };
 
     const adminDeleteEvent = async (eventId: string) => {

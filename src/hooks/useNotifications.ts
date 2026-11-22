@@ -1,135 +1,169 @@
 import { getInstantCache, setCache } from '../lib/offline/db';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useClinics } from './useClinics';
-import { toast } from 'sonner';
 
 export interface Notification {
     id: string;
     userId?: string;
     clinicId?: string;
     laboratoryId?: string;
-    type: 'appointment' | 'order_update' | 'payment' | 'message' | 'system' | 'alert' | 'reminder';
+    actorId?: string;
+    type:
+        | 'appointment'
+        | 'order_update'
+        | 'payment'
+        | 'message'
+        | 'system'
+        | 'alert'
+        | 'reminder'
+        | 'promotional'
+        | 'offer'
+        | 'discount'
+        | 'update'
+        | 'course_new'
+        | 'webinar_new'
+        | 'announcement'
+        | string;
     title: string;
     description: string; // Mapped from 'message' in DB
     link?: string;
+    imageUrl?: string;
+    metadata?: Record<string, any>;
     time: string;
-    priority: 'low' | 'normal' | 'high';
+    priority: 'low' | 'normal' | 'high' | 'urgent';
     isRead: boolean;
     createdAt: string;
     clinicName?: string;
 }
 
+const COMMUNITY_ONLY_SOCIAL_TYPES = new Set(['like', 'comment', 'reply', 'follow', 'mention', 'group_request', 'group_approve']);
+
+const mapDbNotification = (dbRecord: any): Notification => ({
+    id: String(dbRecord.id),
+    userId: dbRecord.user_id,
+    clinicId: dbRecord.clinic_id ? String(dbRecord.clinic_id) : undefined,
+    laboratoryId: dbRecord.laboratory_id ? String(dbRecord.laboratory_id) : undefined,
+    actorId: dbRecord.actor_id || undefined,
+    type: dbRecord.type || 'system',
+    title: dbRecord.title || 'إشعار',
+    description: dbRecord.message || dbRecord.content || '',
+    link: dbRecord.link || undefined,
+    imageUrl: dbRecord.image_url || undefined,
+    metadata: dbRecord.metadata || undefined,
+    time: new Date(dbRecord.created_at || Date.now()).toLocaleDateString('ar-EG', {
+        hour: '2-digit',
+        minute: '2-digit',
+        numberingSystem: 'latn'
+    }),
+    priority: dbRecord.priority || 'normal',
+    isRead: Boolean(dbRecord.is_read ?? dbRecord.read ?? false),
+    createdAt: dbRecord.created_at || new Date().toISOString(),
+    clinicName: dbRecord.clinic?.name || undefined,
+});
+
 export const useNotifications = () => {
     const { user } = useAuth();
     const { clinics } = useClinics();
     const notifCacheKey = 'notifications_' + (user?.id || 'guest');
-    const [notifications, setNotifications] = useState<Notification[]>(() => getInstantCache<Notification[]>(notifCacheKey) || []);
-    const [loading, setLoading] = useState(true);
+    const [notifications, setNotifications] = useState<Notification[]>(
+        () => getInstantCache<Notification[]>(notifCacheKey) || []
+    );
+    const [loading, setLoading] = useState(() => !getInstantCache<Notification[]>(notifCacheKey));
     const [updates, setUpdates] = useState<any[]>(() => getInstantCache<any[]>('system_updates_list') || []);
     const mountedRef = useRef(true);
 
-    // Fetch notifications whenever user or clinic IDs change
     const clinicIdsKey = clinics.map(c => c.id).join(',');
-    useEffect(() => {
-        if (!user?.id) return;
-        fetchNotifications();
-    }, [user?.id, clinicIdsKey]);
 
-    // Fetch system updates only once per user session (avoids redundant calls on clinic list re-renders)
-    useEffect(() => {
-        if (!user?.id) return;
-        fetchUpdates();
-    }, [user?.id]);
-
-    // Realtime subscription — separate effect, only re-runs when user.id changes
-    // Uses a unique channel name to avoid React StrictMode double-invoke issues
-    useEffect(() => {
-        if (!user?.id) return;
-
-        // Unique suffix prevents Supabase from reusing a cached channel
-        // that was already subscribed in the previous (StrictMode) run
-        const channelName = `notifications_${user.id}_${Math.random().toString(36).slice(2)}`;
-
-        const channel = supabase
-            .channel(channelName)
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'notifications',
-                    filter: `user_id=eq.${user.id}`
-                },
-                (payload) => {
-                    if (!mountedRef.current) return;
-                    handleRealtimeUpdate(payload);
-                }
-            )
-            .subscribe((status) => {
-                if (status === 'CHANNEL_ERROR') {
-                    console.warn('Realtime channel error for notifications');
-                }
-            });
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [user?.id]);
-
-    const handleRealtimeUpdate = (payload: any) => {
-        if (payload.eventType === 'INSERT') {
-            const newNotif = mapDbNotification(payload.new);
-            setNotifications(prev => [newNotif, ...prev]);
-            toast(newNotif.title, {
-                description: newNotif.description,
-            });
-        } else if (payload.eventType === 'UPDATE') {
-            setNotifications(prev => prev.map(n =>
-                n.id === payload.new.id ? mapDbNotification(payload.new) : n
-            ));
-        } else if (payload.eventType === 'DELETE') {
-            setNotifications(prev => prev.filter(n => n.id !== payload.old.id));
-        }
-    };
-
-    const fetchUpdates = async () => {
-        if (typeof navigator !== 'undefined' && !navigator.onLine) { return; }
+    const fetchUpdates = useCallback(async () => {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) return;
         try {
-            const { data, error } = await supabase
-                .from('system_updates')
-                .select('*')
-                .eq('is_published', true)
-                .order('release_date', { ascending: false });
+            const [settingsRes, legacyRes] = await Promise.allSettled([
+                supabase
+                    .from('admin_settings')
+                    .select('value')
+                    .eq('key', 'platform_config')
+                    .maybeSingle(),
+                supabase
+                    .from('system_updates')
+                    .select('*')
+                    .eq('is_published', true)
+                    .order('release_date', { ascending: false }),
+            ]);
 
             if (!mountedRef.current) return;
-            if (error) {
-                return;
+
+            const combined: any[] = [];
+            const seenVersions = new Set<string>();
+
+            if (settingsRes.status === 'fulfilled' && settingsRes.value.data?.value?.apps_config) {
+                const ac = settingsRes.value.data.value.apps_config;
+                if (Array.isArray(ac.releaseHistory) && ac.releaseHistory.length > 0) {
+                    for (const rel of ac.releaseHistory) {
+                        const ver = String(rel.version || '').trim();
+                        if (ver) seenVersions.add(ver);
+                        combined.push({
+                            id: rel.id || `app-rel-${ver}`,
+                            title: rel.title || `تحديث المنصة v${ver}`,
+                            version: ver,
+                            content: rel.notes || rel.releaseNotes || '',
+                            release_date: rel.releaseDate || new Date().toISOString(),
+                            type: rel.type || 'minor',
+                            platforms: rel.platforms || ['windows', 'android', 'web'],
+                            is_published: true,
+                        });
+                    }
+                } else if (ac.windows?.latestVersion) {
+                    const ver = String(ac.windows.latestVersion).trim();
+                    seenVersions.add(ver);
+                    combined.push({
+                        id: `app-win-${ver}`,
+                        title: `تحديث تطبيقات المنصة v${ver}`,
+                        version: ver,
+                        content: ac.windows.releaseNotes || 'تحسينات في الأداء والمزامنة.',
+                        release_date: ac.windows.releaseDate || new Date().toISOString(),
+                        type: ac.windows.forceUpdate ? 'major' : 'minor',
+                        platforms: ['windows', 'android', 'web'],
+                        is_published: true,
+                    });
+                }
             }
-            setUpdates(data || []);
-            setCache('system_updates_list', data || [], 86400 * 30).catch(() => {});
+
+            if (legacyRes.status === 'fulfilled' && Array.isArray(legacyRes.value.data)) {
+                for (const u of legacyRes.value.data) {
+                    if (u.version && seenVersions.has(String(u.version).trim())) continue;
+                    combined.push(u);
+                }
+            }
+
+            combined.sort(
+                (a, b) => new Date(b.release_date || 0).getTime() - new Date(a.release_date || 0).getTime()
+            );
+
+            setUpdates(combined);
+            setCache('system_updates_list', combined, 86400 * 30).catch(() => {});
         } catch (err: any) {
             if (err?.name === 'AbortError' || err?.message?.includes('AbortError')) return;
         }
-    };
+    }, []);
 
-    const fetchNotifications = async () => {
-        if (typeof navigator !== 'undefined' && !navigator.onLine) { setLoading(false); return; }
+    const fetchNotifications = useCallback(async () => {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            if (mountedRef.current) setLoading(false);
+            return;
+        }
         try {
-            setLoading(true);
-
             if (!user?.id) {
-                setNotifications([]);
-                setLoading(false);
+                if (mountedRef.current) {
+                    setNotifications([]);
+                    setLoading(false);
+                }
                 return;
             }
 
-            // Get the IDs of clinics owned by this user
             const userClinicIds = clinics.map(c => c.id).filter(Boolean);
 
-            // Build the filter: user_id = current user OR (clinic_id IN user's clinics AND user_id IS NULL)
-            // This handles both user-level and clinic-level notifications, but ONLY for this user's clinics
             let query = supabase
                 .from('notifications')
                 .select(`
@@ -137,70 +171,174 @@ export const useNotifications = () => {
                     clinic:clinics(name)
                 `)
                 .order('created_at', { ascending: false })
-                .limit(50);
+                .limit(80);
 
             if (userClinicIds.length > 0) {
-                // Filter: notifications for THIS user, OR notifications for THIS user's clinics (no specific user)
                 query = query.or(
                     `user_id.eq.${user.id},and(clinic_id.in.(${userClinicIds.join(',')}),user_id.is.null)`
                 );
             } else {
-                // No clinics: only show notifications directly for this user
                 query = query.eq('user_id', user.id);
             }
 
-            const { data, error } = await query;
+            let { data, error } = await query;
 
             if (!mountedRef.current) return;
+
             if (error) {
-                // Fallback: just filter by user_id if the complex query fails
-                const { data: fallbackData, error: fallbackError } = await supabase
+                const fallback = await supabase
                     .from('notifications')
-                    .select(`*, clinic:clinics(name)`)
+                    .select('*')
                     .eq('user_id', user.id)
                     .order('created_at', { ascending: false })
-                    .limit(50);
-                if (fallbackError) throw fallbackError;
-                const mapped = (fallbackData || []).map((record: any) => ({
-                    ...mapDbNotification(record),
-                    clinicName: record.clinic?.name
-                }));
-                setNotifications(mapped);
-            setCache(notifCacheKey, mapped, 86400 * 14).catch(() => {});
-                return;
+                    .limit(80);
+                if (fallback.error) throw fallback.error;
+                data = fallback.data;
             }
 
-            const mapped = (data || []).map((record: any) => ({
-                ...mapDbNotification(record),
-                clinicName: record.clinic?.name
-            }));
+            const mapped = (data || [])
+                .filter((r: any) => !COMMUNITY_ONLY_SOCIAL_TYPES.has(r.type))
+                .map((record: any) => mapDbNotification(record));
 
             setNotifications(mapped);
+            setCache(notifCacheKey, mapped, 86400 * 14).catch(() => {});
         } catch (error: any) {
             if (error?.name === 'AbortError' || error?.message?.includes('AbortError')) return;
             if (mountedRef.current) console.error('Error fetching notifications:', error);
         } finally {
             if (mountedRef.current) setLoading(false);
         }
-    };
+    }, [user?.id, clinicIdsKey, notifCacheKey]);
 
-    const markAsRead = async (id: string) => {
-        // Optimistic update
-        setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+    useEffect(() => {
+        mountedRef.current = true;
+        if (user?.id) {
+            fetchNotifications();
+        } else {
+            setNotifications([]);
+            setLoading(false);
+        }
+        return () => {
+            mountedRef.current = false;
+        };
+    }, [user?.id, clinicIdsKey, fetchNotifications]);
+
+    useEffect(() => {
+        if (!user?.id) return;
+        fetchUpdates();
+    }, [user?.id, fetchUpdates]);
+
+    // Sync across components & GlobalNotificationBridge without duplicate toasts
+    useEffect(() => {
+        if (!user?.id) return;
+
+        const handleIncoming = (e: Event) => {
+            const record = (e as CustomEvent).detail;
+            if (!record || COMMUNITY_ONLY_SOCIAL_TYPES.has(record.type)) return;
+            const mapped = mapDbNotification(record);
+            setNotifications((prev) => {
+                if (prev.some((n) => n.id === mapped.id)) return prev;
+                const next = [mapped, ...prev];
+                setCache(notifCacheKey, next, 86400 * 14).catch(() => {});
+                return next;
+            });
+        };
+
+        const handleReadBroadcast = (e: Event) => {
+            const detail = (e as CustomEvent).detail || {};
+            if (detail.all) {
+                setNotifications((prev) => {
+                    const next = prev.map((n) => ({ ...n, isRead: true }));
+                    setCache(notifCacheKey, next, 86400 * 14).catch(() => {});
+                    return next;
+                });
+            } else if (detail.id) {
+                setNotifications((prev) => {
+                    const next = prev.map((n) => (n.id === detail.id ? { ...n, isRead: true } : n));
+                    setCache(notifCacheKey, next, 86400 * 14).catch(() => {});
+                    return next;
+                });
+            }
+        };
+
+        const handleOnline = () => {
+            fetchNotifications();
+            fetchUpdates();
+        };
+
+        window.addEventListener('dental-notification-received', handleIncoming);
+        window.addEventListener('dental-notifications-read', handleReadBroadcast);
+        window.addEventListener('dental-online-ready', handleOnline);
+
+        return () => {
+            window.removeEventListener('dental-notification-received', handleIncoming);
+            window.removeEventListener('dental-notifications-read', handleReadBroadcast);
+            window.removeEventListener('dental-online-ready', handleOnline);
+        };
+    }, [user?.id, notifCacheKey, fetchNotifications, fetchUpdates]);
+
+    const markAllAsRead = useCallback(async () => {
+        if (!user?.id) return;
+
+        setNotifications((prev) => {
+            const next = prev.map((n) => ({ ...n, isRead: true }));
+            setCache(notifCacheKey, next, 86400 * 14).catch(() => {});
+            return next;
+        });
+
+        window.dispatchEvent(new CustomEvent('dental-notifications-read', { detail: { all: true } }));
+
+        if (typeof navigator !== 'undefined' && !navigator.onLine) return;
 
         try {
             await supabase
                 .from('notifications')
-                .update({ is_read: true })
+                .update({ is_read: true, read: true })
+                .eq('user_id', user.id)
+                .eq('is_read', false);
+        } catch (error) {
+            console.error('Error marking all notifications as read:', error);
+        }
+    }, [user?.id, notifCacheKey]);
+
+    const markAsRead = useCallback(async (id: string) => {
+        if (!id) return;
+        if (id === 'all') {
+            await markAllAsRead();
+            return;
+        }
+
+        setNotifications((prev) => {
+            const next = prev.map((n) => (n.id === id ? { ...n, isRead: true } : n));
+            setCache(notifCacheKey, next, 86400 * 14).catch(() => {});
+            return next;
+        });
+
+        window.dispatchEvent(new CustomEvent('dental-notifications-read', { detail: { id } }));
+
+        // Only update DB if `id` is a valid UUID (skip synthetic ids like apt-123)
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+        if (!isUuid || (typeof navigator !== 'undefined' && !navigator.onLine)) return;
+
+        try {
+            await supabase
+                .from('notifications')
+                .update({ is_read: true, read: true })
                 .eq('id', id);
         } catch (error) {
-            console.error('Error marking as read:', error);
+            console.error('Error marking notification as read:', error);
         }
-    };
+    }, [markAllAsRead, notifCacheKey]);
 
-    const deleteNotification = async (id: string) => {
-        // Optimistic update
-        setNotifications(prev => prev.filter(n => n.id !== id));
+    const deleteNotification = useCallback(async (id: string) => {
+        setNotifications((prev) => {
+            const next = prev.filter((n) => n.id !== id);
+            setCache(notifCacheKey, next, 86400 * 14).catch(() => {});
+            return next;
+        });
+
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+        if (!isUuid || (typeof navigator !== 'undefined' && !navigator.onLine)) return;
 
         try {
             await supabase
@@ -210,36 +348,19 @@ export const useNotifications = () => {
         } catch (error) {
             console.error('Error deleting notification:', error);
         }
-    };
-
-    const mapDbNotification = (dbRecord: any): Notification => ({
-        id: dbRecord.id,
-        userId: dbRecord.user_id,
-        clinicId: dbRecord.clinic_id,
-        laboratoryId: dbRecord.laboratory_id,
-        type: dbRecord.type,
-        title: dbRecord.title,
-        description: dbRecord.message,
-        link: dbRecord.link,
-        time: new Date(dbRecord.created_at).toLocaleDateString('ar-EG', {
-            hour: '2-digit',
-            minute: '2-digit',
-            numberingSystem: 'latn'
-        }),
-        priority: dbRecord.priority || 'normal',
-        isRead: dbRecord.is_read,
-        createdAt: dbRecord.created_at,
-        // clinicName will be added in fetch
-    });
+    }, [notifCacheKey]);
 
     return {
         notifications,
         updates,
         loading,
         markAsRead,
+        markAllAsRead,
         deleteNotification,
-        refresh: () => { fetchNotifications(); fetchUpdates(); },
-        unreadCount: notifications.filter(n => !n.isRead).length
+        refresh: () => {
+            fetchNotifications();
+            fetchUpdates();
+        },
+        unreadCount: notifications.filter((n) => !n.isRead).length
     };
 };
-

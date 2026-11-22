@@ -40,6 +40,7 @@ import { PrivacyPolicyPage } from './pages/auth/PrivacyPolicyPage';
 import { TermsOfServicePage } from './pages/auth/TermsOfServicePage';
 import { DesktopContextMenu } from './components/common/DesktopContextMenu';
 import { NativeBackButtonHandler } from './components/common/NativeBackButtonHandler';
+import { GlobalNotificationBridge } from './components/common/GlobalNotificationBridge';
 
 // Doctor Pages
 import { DoctorDashboard } from './pages/doctor/DoctorDashboard';
@@ -195,6 +196,7 @@ function AppContent() {
 
   return (
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <GlobalNotificationBridge />
       <NativeBackButtonHandler />
       <DesktopContextMenu />
       {/* PWA Install Button - floating above bottom nav (Only for Web) */}

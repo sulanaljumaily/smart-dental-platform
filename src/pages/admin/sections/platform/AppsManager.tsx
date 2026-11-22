@@ -15,12 +15,18 @@ import {
   ShieldCheck,
   Info,
   RotateCcw,
+  Plus,
+  Trash2,
+  History,
+  Bell,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../../../lib/supabase';
+import { sendRoleNotification } from '../../../../lib/notifications';
 import {
   usePlatform,
   AppsInstallConfig,
+  AppReleaseHistoryItem,
   DEFAULT_APPS_CONFIG,
   StoreOptionStatus,
   mergeAppsConfig,
@@ -31,6 +37,23 @@ export const AppsManager: React.FC = () => {
   const [config, setConfig] = useState<AppsInstallConfig>(() => mergeAppsConfig(appsConfig));
   const [saving, setSaving] = useState(false);
   const [uploadingField, setUploadingField] = useState<string | null>(null);
+  const [newRelease, setNewRelease] = useState<{
+    version: string;
+    title: string;
+    type: 'major' | 'minor' | 'patch' | 'security';
+    notes: string;
+    platforms: Array<'windows' | 'android' | 'ios' | 'web'>;
+    releaseDate: string;
+    notifyUsers: boolean;
+  }>({
+    version: '',
+    title: '',
+    type: 'minor',
+    notes: '',
+    platforms: ['windows', 'android', 'web'],
+    releaseDate: new Date().toISOString().split('T')[0],
+    notifyUsers: true,
+  });
 
   useEffect(() => {
     setConfig(mergeAppsConfig(appsConfig));
@@ -39,15 +62,138 @@ export const AppsManager: React.FC = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const ok = await updatePlatformConfig({ apps_config: config });
+      const nowIso = new Date().toISOString();
+      const activeVer = (config.windows.latestVersion || '').trim();
+      const existingHistory = Array.isArray(config.releaseHistory) ? [...config.releaseHistory] : [];
+
+      if (activeVer) {
+        const idx = existingHistory.findIndex(
+          (r) => String(r.version || '').replace(/^v/i, '').trim() === activeVer.replace(/^v/i, '')
+        );
+        const autoEntry: AppReleaseHistoryItem = {
+          id: idx >= 0 ? existingHistory[idx].id : `rel_${Date.now()}`,
+          version: activeVer.replace(/^v/i, ''),
+          title: idx >= 0 ? existingHistory[idx].title : `تحديث تطبيقات المنصة v${activeVer.replace(/^v/i, '')}`,
+          notes: config.windows.releaseNotes || (idx >= 0 ? existingHistory[idx].notes : ''),
+          releaseDate: idx >= 0 ? existingHistory[idx].releaseDate : (config.windows.releaseDate || nowIso),
+          type: idx >= 0 ? existingHistory[idx].type : (config.windows.forceUpdate ? 'major' : 'minor'),
+          platforms: idx >= 0 ? existingHistory[idx].platforms : ['windows', 'android', 'web'],
+          windowsUrl: config.windows.updateDownloadUrl || config.windows.exeDownloadUrl || undefined,
+          androidProUrl: config.android.directApkProUrl || config.android.playStoreProUrl || undefined,
+          androidPatientUrl: config.android.directApkPatientUrl || config.android.playStorePatientUrl || undefined,
+          iosUrl: config.ios.appStoreProUrl || undefined,
+          isMandatory: config.windows.forceUpdate,
+        };
+        if (idx >= 0) {
+          existingHistory[idx] = autoEntry;
+        } else {
+          existingHistory.unshift(autoEntry);
+        }
+      }
+
+      const nextConfig: AppsInstallConfig = {
+        ...config,
+        windows: {
+          ...config.windows,
+          releaseDate: config.windows.releaseDate || nowIso,
+        },
+        releaseHistory: existingHistory,
+      };
+
+      const ok = await updatePlatformConfig({ apps_config: nextConfig });
       if (ok) {
-        toast.success('تم حفظ ومزامنة إعدادات التطبيقات والتحديثات بنجاح');
+        setConfig(nextConfig);
+        toast.success('تم حفظ ومزامنة إعدادات التطبيقات وسجل التحديثات بنجاح');
       } else {
         toast.error('تعذر حفظ إعدادات التطبيقات');
       }
     } finally {
       setSaving(false);
     }
+  };
+
+  const handlePublishReleaseEntry = async () => {
+    const cleanVer = newRelease.version.replace(/^v/i, '').trim();
+    if (!cleanVer || !newRelease.title.trim() || !newRelease.notes.trim()) {
+      toast.error('يرجى إدخال رقم الإصدار وعنوان وتفاصيل التحديث');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const releaseDateIso = newRelease.releaseDate
+        ? new Date(`${newRelease.releaseDate}T12:00:00`).toISOString()
+        : new Date().toISOString();
+
+      const item: AppReleaseHistoryItem = {
+        id: `rel_${Date.now()}`,
+        version: cleanVer,
+        title: newRelease.title.trim(),
+        notes: newRelease.notes.trim(),
+        releaseDate: releaseDateIso,
+        type: newRelease.type,
+        platforms: newRelease.platforms.length > 0 ? newRelease.platforms : ['windows', 'android', 'web'],
+        windowsUrl: config.windows.updateDownloadUrl || config.windows.exeDownloadUrl || undefined,
+        androidProUrl: config.android.directApkProUrl || config.android.playStoreProUrl || undefined,
+        androidPatientUrl: config.android.directApkPatientUrl || config.android.playStorePatientUrl || undefined,
+        iosUrl: config.ios.appStoreProUrl || undefined,
+        isMandatory: config.windows.forceUpdate,
+      };
+
+      const existingHistory = Array.isArray(config.releaseHistory) ? config.releaseHistory : [];
+      const filteredHistory = existingHistory.filter(
+        (r) => String(r.version || '').replace(/^v/i, '').trim() !== cleanVer
+      );
+      const nextConfig: AppsInstallConfig = {
+        ...config,
+        windows: {
+          ...config.windows,
+          latestVersion: cleanVer,
+          releaseNotes: newRelease.notes.trim(),
+          releaseDate: releaseDateIso,
+        },
+        releaseHistory: [item, ...filteredHistory],
+      };
+
+      const ok = await updatePlatformConfig({ apps_config: nextConfig });
+      if (ok) {
+        setConfig(nextConfig);
+        if (newRelease.notifyUsers) {
+          await sendRoleNotification(
+            'all',
+            `🚀 ${item.title} (v${item.version})`,
+            item.notes,
+            '/doctor/updates',
+            'update'
+          );
+          toast.success('تم نشر التحديث في سجل التحديثات وإرسال إشعار Push لجميع المستخدمين');
+        } else {
+          toast.success('تم نشر التحديث في سجل التحديثات بنجاح');
+        }
+        setNewRelease({
+          version: '',
+          title: '',
+          type: 'minor',
+          notes: '',
+          platforms: ['windows', 'android', 'web'],
+          releaseDate: new Date().toISOString().split('T')[0],
+          notifyUsers: true,
+        });
+      } else {
+        toast.error('تعذر نشر التحديث');
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteReleaseEntry = async (releaseId: string) => {
+    if (!window.confirm('هل تريد حذف هذا التحديث من السجل؟')) return;
+    const nextHistory = (config.releaseHistory || []).filter((r) => r.id !== releaseId);
+    const nextConfig: AppsInstallConfig = { ...config, releaseHistory: nextHistory };
+    setConfig(nextConfig);
+    const ok = await updatePlatformConfig({ apps_config: nextConfig });
+    if (ok) toast.success('تم حذف التحديث من السجل');
   };
 
   const handleReset = () => {
@@ -858,6 +1004,176 @@ export const AppsManager: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* 3. Release History Log (Synced directly with /doctor/updates) */}
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+              <History className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900 text-base">سجل وتاريخ التحديثات (يُعرض في صفحة /doctor/updates)</h3>
+              <p className="text-xs text-gray-500">
+                أضف تفاصيل كل إصدار وتاريخه ليظهر تلقائياً في صفحة التحديثات لدى الأطباء والطاقم مع إمكانية إرسال إشعار فوري
+              </p>
+            </div>
+          </div>
+          <span className="text-xs font-bold bg-purple-50 text-purple-700 px-3 py-1 rounded-full border border-purple-100">
+            {(config.releaseHistory || []).length} إصدار مسجل
+          </span>
+        </div>
+
+        {/* Add New Release Form */}
+        <div className="bg-gray-50/80 rounded-2xl border border-gray-200 p-4 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">رقم الإصدار *</label>
+              <input
+                type="text"
+                dir="ltr"
+                placeholder="22.31"
+                value={newRelease.version}
+                onChange={(e) => setNewRelease((p) => ({ ...p, version: e.target.value }))}
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-mono font-bold outline-none focus:ring-2 focus:ring-purple-200"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-gray-700 mb-1">عنوان التحديث *</label>
+              <input
+                type="text"
+                placeholder="مثال: تحديث نظام الإشعارات الفورية وتحسين العمل أوفلاين"
+                value={newRelease.title}
+                onChange={(e) => setNewRelease((p) => ({ ...p, title: e.target.value }))}
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-purple-200"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">تاريخ التحديث</label>
+              <input
+                type="date"
+                value={newRelease.releaseDate}
+                onChange={(e) => setNewRelease((p) => ({ ...p, releaseDate: e.target.value }))}
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-purple-200"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">نوع التحديث</label>
+              <select
+                value={newRelease.type}
+                onChange={(e) => setNewRelease((p) => ({ ...p, type: e.target.value as any }))}
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold outline-none"
+              >
+                <option value="major">تحديث رئيسي (مزايا جديدة)</option>
+                <option value="minor">تحسينات ومزايا إضافية</option>
+                <option value="patch">إصلاحات سريعة</option>
+                <option value="security">تحديث أمني</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1">المنصات المشمولة</label>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {(['windows', 'android', 'ios', 'web'] as const).map((plat) => {
+                  const active = newRelease.platforms.includes(plat);
+                  const label =
+                    plat === 'windows' ? 'ويندوز' : plat === 'android' ? 'أندرويد' : plat === 'ios' ? 'آيفون' : 'الويب';
+                  return (
+                    <button
+                      key={plat}
+                      type="button"
+                      onClick={() =>
+                        setNewRelease((p) => ({
+                          ...p,
+                          platforms: active
+                            ? p.platforms.filter((x) => x !== plat)
+                            : [...p.platforms, plat],
+                        }))
+                      }
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                        active
+                          ? 'bg-purple-600 text-white border-purple-600'
+                          : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1">تفاصيل وملاحظات التحديث الكاملة *</label>
+            <textarea
+              rows={3}
+              value={newRelease.notes}
+              onChange={(e) => setNewRelease((p) => ({ ...p, notes: e.target.value }))}
+              placeholder="- تحسين سرعة المزامنة...&#10;- إضافة نظام إشعارات الدفع..."
+              className="w-full px-3.5 py-2 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-purple-200"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={newRelease.notifyUsers}
+                onChange={(e) => setNewRelease((p) => ({ ...p, notifyUsers: e.target.checked }))}
+                className="w-4 h-4 accent-purple-600 rounded"
+              />
+              <Bell className="w-4 h-4 text-purple-600" />
+              <span>إرسال إشعار Push لجميع المستخدمين عند النشر</span>
+            </label>
+
+            <button
+              type="button"
+              onClick={handlePublishReleaseEntry}
+              disabled={saving}
+              className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm disabled:opacity-60"
+            >
+              <Plus className="w-4 h-4" />
+              <span>نشر التحديث في السجل</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Recorded Release History List */}
+        {(config.releaseHistory || []).length > 0 && (
+          <div className="space-y-3">
+            {(config.releaseHistory || []).map((rel) => (
+              <div
+                key={rel.id}
+                className="p-4 rounded-xl border border-gray-200 bg-white flex flex-col sm:flex-row sm:items-start justify-between gap-3"
+              >
+                <div className="space-y-1 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-mono text-xs font-bold bg-indigo-50 text-indigo-700 px-2.5 py-0.5 rounded-full border border-indigo-100" dir="ltr">
+                      v{rel.version}
+                    </span>
+                    <h4 className="font-bold text-sm text-gray-900">{rel.title}</h4>
+                    <span className="text-xs text-gray-400">
+                      {new Date(rel.releaseDate).toLocaleDateString('ar-IQ')}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed">{rel.notes}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteReleaseEntry(rel.id)}
+                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg shrink-0 self-end sm:self-start"
+                  title="حذف من السجل"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

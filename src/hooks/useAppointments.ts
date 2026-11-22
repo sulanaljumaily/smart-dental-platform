@@ -3,6 +3,7 @@ import { Appointment } from '../types/appointments';
 import { supabase, ensureFreshOnlineSession } from '../lib/supabase';
 import { db, addToSyncQueue, LocalAppointment, getInstantCache, setCache } from '../lib/offline/db';
 import { useAuth } from '../contexts/AuthContext';
+import { triggerPushEdgeFunction } from '../lib/pushNotifications';
 import { toast } from 'sonner';
 
 const appointmentsCache = new Map<string, Appointment[]>();
@@ -433,6 +434,23 @@ export const useAppointments = (clinicId?: string) => {
                 const mappedNew = mapLocalToAppointment(localRecord);
                 saveAppointmentsToCache([mappedNew, ...appointments.filter(a => String(a.id) !== String(insertedData.id))]);
                 db.appointments.put(localRecord).catch(() => {});
+
+                // Dispatch push for the newly created appointment notification created by DB trigger
+                Promise.resolve(
+                    supabase
+                        .from('notifications')
+                        .select('id')
+                        .eq('type', 'appointment')
+                        .eq('clinic_id', insertedData.clinic_id)
+                        .gte('created_at', new Date(Date.now() - 10000).toISOString())
+                        .limit(20)
+                )
+                    .then(({ data: notifRows }) => {
+                        if (Array.isArray(notifRows) && notifRows.length > 0) {
+                            triggerPushEdgeFunction({ notification_ids: notifRows.map((r: any) => r.id) });
+                        }
+                    })
+                    .catch(() => {});
             } else {
                 fetchAppointments();
             }
