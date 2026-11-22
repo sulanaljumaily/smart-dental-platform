@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { User, UserRole } from '../types';
-import { supabase } from '../lib/supabase';
+import { supabase, resetSupabaseNetworkState } from '../lib/supabase';
 import { toast } from 'sonner';
 import { sendRoleNotification } from '../lib/notifications';
 import { db } from '../lib/offline/db';
@@ -308,7 +308,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (!mountedRef.current) return;
 
         if (session?.user) {
+          resetSupabaseNetworkState();
           await fetchProfile(session.user.id, session.user.email!);
+          window.dispatchEvent(
+            new CustomEvent('dental-auth-session-ready', { detail: { userId: session.user.id } })
+          );
         } else {
           const restored = await restoreOfflineUserFallback();
           if (!restored && mountedRef.current) {
@@ -337,9 +341,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (session?.user) {
         explicitLogoutRef.current = false;
-        setTimeout(() => {
+        resetSupabaseNetworkState();
+        setTimeout(async () => {
           if (mountedRef.current) {
-            fetchProfile(session.user.id, session.user.email!);
+            await fetchProfile(session.user.id, session.user.email!);
+            window.dispatchEvent(
+              new CustomEvent('dental-auth-session-ready', { detail: { userId: session.user.id } })
+            );
           }
         }, 50);
       } else if (event === 'SIGNED_OUT') {

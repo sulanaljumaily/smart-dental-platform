@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { getInstantCache, setCache, getCache } from '../lib/offline/db';
+import { useAuth } from '../contexts/AuthContext';
 
 export interface Transaction {
     id: string;
@@ -63,6 +64,7 @@ function aggregateCachedTransactions(clinicId?: string): Transaction[] {
 }
 
 export const useTransactions = (clinicId?: string) => {
+    const { user: authUser } = useAuth();
     const cacheKey = `transactions_list_${clinicId || 'all'}`;
     const [transactions, setTransactions] = useState<Transaction[]>(() => {
         const cached = getInstantCache<Transaction[]>(cacheKey);
@@ -75,8 +77,19 @@ export const useTransactions = (clinicId?: string) => {
     useEffect(() => {
         mountedRef.current = true;
         fetchTransactions();
-        return () => { mountedRef.current = false; };
-    }, [clinicId]);
+        const handleRefresh = () => {
+            fetchTransactions();
+        };
+        window.addEventListener('dental-auth-session-ready', handleRefresh);
+        window.addEventListener('dental-sync-completed', handleRefresh);
+        window.addEventListener('online', handleRefresh);
+        return () => {
+            mountedRef.current = false;
+            window.removeEventListener('dental-auth-session-ready', handleRefresh);
+            window.removeEventListener('dental-sync-completed', handleRefresh);
+            window.removeEventListener('online', handleRefresh);
+        };
+    }, [clinicId, authUser?.id]);
 
     const fetchTransactions = async () => {
         if (!navigator.onLine) {

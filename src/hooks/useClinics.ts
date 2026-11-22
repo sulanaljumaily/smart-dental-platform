@@ -121,10 +121,18 @@ export const useClinics = () => {
                 return hydrated;
             });
         };
+        const handleAuthOrOnline = () => {
+            if (!mountedRef.current || !user) return;
+            fetchClinics();
+        };
         window.addEventListener('dental-offline-image-cached', handleImageCached);
+        window.addEventListener('dental-auth-session-ready', handleAuthOrOnline);
+        window.addEventListener('online', handleAuthOrOnline);
         return () => {
             mountedRef.current = false;
             window.removeEventListener('dental-offline-image-cached', handleImageCached);
+            window.removeEventListener('dental-auth-session-ready', handleAuthOrOnline);
+            window.removeEventListener('online', handleAuthOrOnline);
         };
     }, [user?.id]);
 

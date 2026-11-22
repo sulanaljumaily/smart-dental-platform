@@ -181,12 +181,14 @@ export const usePatients = (clinicId?: string, clinicIds?: string[]) => {
         };
         window.addEventListener('dental-sync-id-resolved', handleSyncUpdate);
         window.addEventListener('dental-sync-completed', handleSyncUpdate);
+        window.addEventListener('dental-auth-session-ready', handleSyncUpdate);
         window.addEventListener('online', handleSyncUpdate);
 
         return () => {
             mountedRef.current = false;
             window.removeEventListener('dental-sync-id-resolved', handleSyncUpdate);
             window.removeEventListener('dental-sync-completed', handleSyncUpdate);
+            window.removeEventListener('dental-auth-session-ready', handleSyncUpdate);
             window.removeEventListener('online', handleSyncUpdate);
         };
     }, [clinicId, clinicIds?.join(','), user?.id]);

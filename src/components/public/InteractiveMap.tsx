@@ -20,6 +20,8 @@ const iraqCenter = {
   lng: 44.3661,
 };
 
+const GOOGLE_MAP_LIBRARIES: ('places')[] = ['places'];
+
 const mapOptions = {
   disableDefaultUI: false,
   zoomControl: true,
@@ -68,7 +70,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     id: 'google-map-script',
     googleMapsApiKey: 'AIzaSyCO0kKndUNlmQi3B5mxy4dblg_8WYcuKuk',
     language: 'ar',
-    libraries: ['places'],
+    libraries: GOOGLE_MAP_LIBRARIES,
   });
 
   // Handle "Locate Me"

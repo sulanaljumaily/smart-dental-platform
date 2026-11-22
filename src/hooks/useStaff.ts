@@ -132,8 +132,18 @@ export const useStaff = (clinicId?: string) => {
             setLoading(false);
         }
         fetchStaff();
-        return () => { mountedRef.current = false; };
-    }, [clinicId]);
+        const handleRefresh = () => {
+            staffMemoryCache.delete(cacheKey);
+            fetchStaff();
+        };
+        window.addEventListener('dental-auth-session-ready', handleRefresh);
+        window.addEventListener('online', handleRefresh);
+        return () => {
+            mountedRef.current = false;
+            window.removeEventListener('dental-auth-session-ready', handleRefresh);
+            window.removeEventListener('online', handleRefresh);
+        };
+    }, [clinicId, user?.id]);
 
     const fetchStaff = async () => {
         // في وضع عدم الاتصال، نستخدم البيانات المخزنة محلياً فوراً بدون إظهار أي رسائل خطأ

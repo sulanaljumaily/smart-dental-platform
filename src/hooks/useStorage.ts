@@ -17,9 +17,9 @@ export const useStorage = (): UseStorageReturn => {
         setLoading(true);
         setError(null);
         try {
-            // Validate file size (e.g., max 5MB)
-            if (file.size > 5 * 1024 * 1024) {
-                throw new Error('حجم الملف كبير جداً. الحد الأقصى هو 5 ميجابايت.');
+            // Validate file size (max 50MB)
+            if (file.size > 50 * 1024 * 1024) {
+                throw new Error('حجم الملف كبير جداً. الحد الأقصى هو 50 ميجابايت.');
             }
 
             const fileExt = file.name.split('.').pop();

@@ -30,12 +30,18 @@ export const useNotifications = () => {
     const [updates, setUpdates] = useState<any[]>(() => getInstantCache<any[]>('system_updates_list') || []);
     const mountedRef = useRef(true);
 
-    // Fetch data whenever user or clinics change
+    // Fetch notifications whenever user or clinic IDs change
+    const clinicIdsKey = clinics.map(c => c.id).join(',');
     useEffect(() => {
-        if (!user) return;
+        if (!user?.id) return;
         fetchNotifications();
+    }, [user?.id, clinicIdsKey]);
+
+    // Fetch system updates only once per user session (avoids redundant calls on clinic list re-renders)
+    useEffect(() => {
+        if (!user?.id) return;
         fetchUpdates();
-    }, [user, clinics]);
+    }, [user?.id]);
 
     // Realtime subscription — separate effect, only re-runs when user.id changes
     // Uses a unique channel name to avoid React StrictMode double-invoke issues
@@ -99,14 +105,12 @@ export const useNotifications = () => {
 
             if (!mountedRef.current) return;
             if (error) {
-                console.warn('Could not fetch system updates');
                 return;
             }
             setUpdates(data || []);
             setCache('system_updates_list', data || [], 86400 * 30).catch(() => {});
         } catch (err: any) {
             if (err?.name === 'AbortError' || err?.message?.includes('AbortError')) return;
-            console.warn('Error fetching updates:', err);
         }
     };
 

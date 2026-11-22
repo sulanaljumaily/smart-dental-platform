@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Appointment } from '../types/appointments';
 import { supabase } from '../lib/supabase';
 import { db, addToSyncQueue, LocalAppointment, getInstantCache, setCache } from '../lib/offline/db';
+import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 
 const appointmentsCache = new Map<string, Appointment[]>();
@@ -61,6 +62,7 @@ function mapLocalToAppointment(la: LocalAppointment): Appointment {
 }
 
 export const useAppointments = (clinicId?: string) => {
+    const { user: authUser } = useAuth();
     const cacheKey = clinicId || 'all';
 
     const getInitialList = (): Appointment[] => {
@@ -123,16 +125,20 @@ export const useAppointments = (clinicId?: string) => {
             setAppointments([]);
             setLoading(false);
         }
-        const handleSyncDone = () => {
+        const handleRefreshEvent = () => {
             appointmentsCache.delete(cacheKey);
             if (clinicId !== undefined && clinicId !== '0') fetchAppointments();
         };
-        window.addEventListener('dental-sync-completed', handleSyncDone);
+        window.addEventListener('dental-sync-completed', handleRefreshEvent);
+        window.addEventListener('dental-auth-session-ready', handleRefreshEvent);
+        window.addEventListener('online', handleRefreshEvent);
         return () => {
             mountedRef.current = false;
-            window.removeEventListener('dental-sync-completed', handleSyncDone);
+            window.removeEventListener('dental-sync-completed', handleRefreshEvent);
+            window.removeEventListener('dental-auth-session-ready', handleRefreshEvent);
+            window.removeEventListener('online', handleRefreshEvent);
         };
-    }, [clinicId]);
+    }, [clinicId, authUser?.id]);
 
     const fetchAppointments = async () => {
         if (clinicId === undefined || clinicId === '0') {
@@ -169,23 +175,27 @@ export const useAppointments = (clinicId?: string) => {
                 .order('appointment_date', { ascending: false })
                 .order('appointment_time', { ascending: false });
 
-            const { data: { user } } = await supabase.auth.getUser();
-
             if (clinicId && clinicId !== 'all') {
                 query = query.eq('clinic_id', clinicId);
-            } else if (user && user.user_metadata?.role !== 'admin') {
-                const { data: ownedClinics } = await supabase.from('clinics').select('id').eq('owner_id', user.id);
-                const { data: staffClinics } = await supabase.from('staff').select('clinic_id').or(`user_id.eq.${user.id},auth_user_id.eq.${user.id}`).in('status', ['active', 'on_leave']);
+            } else {
+                const sessionUserId = authUser?.id || (await supabase.auth.getSession()).data?.session?.user?.id;
+                const isAdminRole = authUser?.role === 'admin';
+                if (sessionUserId && !isAdminRole) {
+                    const [{ data: ownedClinics }, { data: staffClinics }] = await Promise.all([
+                        supabase.from('clinics').select('id').eq('owner_id', sessionUserId),
+                        supabase.from('staff').select('clinic_id').or(`user_id.eq.${sessionUserId},auth_user_id.eq.${sessionUserId}`).in('status', ['active', 'on_leave'])
+                    ]);
 
-                const accessibleIds = [
-                    ...(ownedClinics?.map(c => c.id) || []),
-                    ...(staffClinics?.map(c => c.clinic_id) || [])
-                ];
+                    const accessibleIds = [
+                        ...(ownedClinics?.map(c => c.id) || []),
+                        ...(staffClinics?.map(c => c.clinic_id) || [])
+                    ];
 
-                if (accessibleIds.length > 0) {
-                    query = query.in('clinic_id', accessibleIds);
-                } else {
-                    query = query.in('clinic_id', [-1]);
+                    if (accessibleIds.length > 0) {
+                        query = query.in('clinic_id', accessibleIds);
+                    } else {
+                        query = query.in('clinic_id', [-1]);
+                    }
                 }
             }
 

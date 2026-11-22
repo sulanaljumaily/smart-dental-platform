@@ -61,24 +61,37 @@ export const AppsManager: React.FC = () => {
     onUrlReady: (url: string) => void,
     fieldKey: string
   ) => {
+    const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
     setUploadingField(fieldKey);
+    const toastId = toast.loading(`جاري رفع الملف (${fileSizeMB} MB)... يرجى الانتظار`);
     try {
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const filePath = `releases/${folder}/${Date.now()}_${safeName}`;
       const { error: uploadError } = await supabase.storage
         .from('platform-assets')
-        .upload(filePath, file, { upsert: true });
+        .upload(filePath, file, {
+          upsert: true,
+          cacheControl: '3600',
+          contentType: file.type || 'application/octet-stream',
+        });
 
       if (uploadError) throw uploadError;
 
       const { data } = supabase.storage.from('platform-assets').getPublicUrl(filePath);
       if (data?.publicUrl) {
         onUrlReady(data.publicUrl);
-        toast.success('تم رفع الملف بنجاح وتعبئة الرابط تلقائياً');
+        toast.success('تم رفع الملف بنجاح وتعبئة الرابط تلقائياً', { id: toastId });
+      } else {
+        toast.dismiss(toastId);
       }
     } catch (err: any) {
       console.error('Upload error:', err);
-      toast.error(err?.message || 'فشل رفع الملف، يمكنك وضع رابط التحميل المباشر يدوياً');
+      const msg = String(err?.message || '');
+      if (msg.includes('413') || msg.toLowerCase().includes('maximum allowed size') || msg.toLowerCase().includes('payload too large')) {
+        toast.error('حجم الملف يتجاوز الحد الأقصى المسموح في Supabase Storage (50 MB). يرجى استخدام رابط GitHub Releases المباشر.', { id: toastId });
+      } else {
+        toast.error(msg || 'فشل رفع الملف، يمكنك وضع رابط التحميل المباشر يدوياً', { id: toastId });
+      }
     } finally {
       setUploadingField(null);
     }

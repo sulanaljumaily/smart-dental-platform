@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Transaction } from '../types';
 import { useAppointments } from './useAppointments';
 import { getInstantCache, setCache, getCache, addToSyncQueue } from '../lib/offline/db';
+import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 
 const financeCache = new Map<string, { transactions: Transaction[]; stats: any }>();
@@ -27,6 +28,7 @@ function calculateFinanceStats(allTransactions: Transaction[]) {
 }
 
 export const useFinance = (clinicId?: string, patientId?: string, staffId?: string) => {
+    const { user: authUser } = useAuth();
     const targetClinicId = String(clinicId || '0');
     const cacheKey = `${targetClinicId}_${patientId || ''}_${staffId || ''}`;
     const clinicManualCacheKey = `finance_manual_tx_${targetClinicId}`;
@@ -115,16 +117,20 @@ export const useFinance = (clinicId?: string, patientId?: string, staffId?: stri
         } else {
             setLoading(false);
         }
-        const handleSyncDone = () => {
+        const handleRefreshEvent = () => {
             financeCache.delete(cacheKey);
             if (clinicId && clinicId !== '0') fetchFinancials();
         };
-        window.addEventListener('dental-sync-completed', handleSyncDone);
+        window.addEventListener('dental-sync-completed', handleRefreshEvent);
+        window.addEventListener('dental-auth-session-ready', handleRefreshEvent);
+        window.addEventListener('online', handleRefreshEvent);
         return () => {
             mountedRef.current = false;
-            window.removeEventListener('dental-sync-completed', handleSyncDone);
+            window.removeEventListener('dental-sync-completed', handleRefreshEvent);
+            window.removeEventListener('dental-auth-session-ready', handleRefreshEvent);
+            window.removeEventListener('online', handleRefreshEvent);
         };
-    }, [clinicId, appointments.length, patientId, staffId]);
+    }, [clinicId, appointments.length, patientId, staffId, authUser?.id]);
 
     const fetchFinancials = async () => {
         if (!clinicId || clinicId === '0') {

@@ -10,13 +10,20 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || DEFAULT_SUPABA
 // Use globalThis to survive Vite HMR (prevents duplicate clients on hot-reload)
 const GLOBAL_KEY = '__supabase_client__' as const
 
-// Short circuit-breaker for dead Wi-Fi connections (where navigator.onLine is still true)
-let lastNetworkTimeoutAt = 0
-const CIRCUIT_BREAKER_MS = 30000
+// Smart short circuit-breaker ONLY for truly dead Wi-Fi (multiple consecutive network failures)
+let lastNetworkFailureAt = 0
+let consecutiveNetworkFailures = 0
+const CIRCUIT_BREAKER_MS = 5000
 const activeControllers = new Set<AbortController>()
 
-function tripOfflineCircuitBreaker() {
-  lastNetworkTimeoutAt = Date.now()
+export function resetSupabaseNetworkState() {
+  lastNetworkFailureAt = 0
+  consecutiveNetworkFailures = 0
+}
+
+function abortAllActiveRequestsOnOffline() {
+  lastNetworkFailureAt = Date.now()
+  consecutiveNetworkFailures = 3
   for (const ctrl of activeControllers) {
     try {
       ctrl.abort()
@@ -27,10 +34,10 @@ function tripOfflineCircuitBreaker() {
 
 if (typeof window !== 'undefined') {
   window.addEventListener('online', () => {
-    lastNetworkTimeoutAt = 0
+    resetSupabaseNetworkState()
   })
   window.addEventListener('offline', () => {
-    tripOfflineCircuitBreaker()
+    abortAllActiveRequestsOnOffline()
   })
 }
 
@@ -84,6 +91,9 @@ function buildOfflineAuthResponse(urlStr: string): Response | null {
 
 const offlineAwareFetch: typeof fetch = async (input, init) => {
   const urlStr = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
+  const isStorageRequest = urlStr.includes('/storage/v1/')
+  const isFunctionRequest = urlStr.includes('/functions/v1/')
+  const isAuthRequest = urlStr.includes('/auth/v1/')
 
   // 1. Immediate 0ms fail-fast when browser reports offline
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
@@ -92,19 +102,30 @@ const offlineAwareFetch: typeof fetch = async (input, init) => {
     throw new TypeError('Failed to fetch (Offline)')
   }
 
-  // 2. If dead Wi-Fi was just detected within CIRCUIT_BREAKER_MS, fail fast so parallel hooks don't hang
-  if (lastNetworkTimeoutAt > 0 && Date.now() - lastNetworkTimeoutAt < CIRCUIT_BREAKER_MS) {
-    const authFallback = buildOfflineAuthResponse(urlStr)
-    if (authFallback) return authFallback
+  // 2. Short circuit-breaker ONLY for REST queries after 3 consecutive network failures (never blocks auth or storage uploads)
+  if (
+    !isStorageRequest &&
+    !isAuthRequest &&
+    consecutiveNetworkFailures >= 3 &&
+    lastNetworkFailureAt > 0 &&
+    Date.now() - lastNetworkFailureAt < CIRCUIT_BREAKER_MS
+  ) {
     throw new TypeError('Failed to fetch (Network Unreachable)')
   }
 
-  // 3. Enforce a fast timeout so Android/Windows/iOS never hang on weak/dead connections
-  const isHeavyRequest = urlStr.includes('/storage/v1/') || urlStr.includes('/functions/v1/')
-  const timeoutMs = isHeavyRequest ? 8000 : 2200
+  // 3. Healthy timeouts per request type so uploads (.exe/.msi/.apk) and DB queries never time out prematurely
+  const timeoutMs = isStorageRequest
+    ? 300000 // 5 minutes for large file uploads (.exe, .msi, .apk, X-rays)
+    : isFunctionRequest
+      ? 60000 // 60s for Edge Functions / AI
+      : isAuthRequest
+        ? 15000 // 15s for auth/session
+        : 12000 // 12s for normal DB queries (patients, appointments, finance)
 
   const controller = new AbortController()
-  activeControllers.add(controller)
+  if (!isStorageRequest) {
+    activeControllers.add(controller)
+  }
   const existingSignal = init?.signal
   let timedOut = false
 
@@ -119,7 +140,7 @@ const offlineAwareFetch: typeof fetch = async (input, init) => {
 
   const timer = setTimeout(() => {
     timedOut = true
-    tripOfflineCircuitBreaker()
+    controller.abort()
   }, timeoutMs)
 
   try {
@@ -127,21 +148,20 @@ const offlineAwareFetch: typeof fetch = async (input, init) => {
       ...init,
       signal: controller.signal,
     })
-    lastNetworkTimeoutAt = 0
+    resetSupabaseNetworkState()
     return response
   } catch (err: any) {
     if (timedOut || (err?.name !== 'AbortError' && !existingSignal?.aborted)) {
-      tripOfflineCircuitBreaker()
+      // Only count pure REST/auth connectivity errors toward the short circuit-breaker (never storage uploads or edge functions)
+      if (!isStorageRequest && !isFunctionRequest) {
+        consecutiveNetworkFailures += 1
+        lastNetworkFailureAt = Date.now()
+      }
       const authFallback = buildOfflineAuthResponse(urlStr)
       if (authFallback) return authFallback
       if (timedOut) {
         throw new TypeError('Failed to fetch (Network Timeout)')
       }
-    } else if (lastNetworkTimeoutAt > 0 && !existingSignal?.aborted) {
-      // Aborted by circuit breaker from another parallel request timing out
-      const authFallback = buildOfflineAuthResponse(urlStr)
-      if (authFallback) return authFallback
-      throw new TypeError('Failed to fetch (Network Unreachable)')
     }
     throw err
   } finally {
