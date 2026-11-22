@@ -129,25 +129,13 @@ if (fs.existsSync(manifestPath)) {
   let manifestContent = fs.readFileSync(manifestPath, 'utf8');
   let modified = false;
 
-  // Ensure launchMode="singleTask" so OAuth deep links resume existing MainActivity immediately via onNewIntent
-  if (manifestContent.includes('android:launchMode="singleTop"')) {
-    manifestContent = manifestContent.replace(
-      'android:launchMode="singleTop"',
-      'android:launchMode="singleTask"'
-    );
-    modified = true;
-  }
-
   if (!manifestContent.includes('android:scheme="dentalplatform"')) {
     const deepLinkFilter = `
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="dentalplatform" android:host="auth-callback" />
                 <data android:scheme="dentalplatform" />
-                <data android:scheme="com.dentalplatform.pro" />
-                <data android:scheme="com.dentalplatform.patient" />
             </intent-filter>
         </activity>`;
     manifestContent = manifestContent.replace('</activity>', deepLinkFilter);
@@ -194,174 +182,152 @@ for (const mainActivityPath of mainActivityFiles) {
   const pkgMatch = existingJava.match(/package\s+([a-zA-Z0-9_.]+)\s*;/);
   if (pkgMatch) {
     const packageName = pkgMatch[1];
-    const enhancedMainActivity = [
-      `package ${packageName};`,
-      '',
-      'import android.Manifest;',
-      'import android.content.Context;',
-      'import android.content.Intent;',
-      'import android.content.pm.PackageManager;',
-      'import android.net.Uri;',
-      'import android.os.Build;',
-      'import android.os.Bundle;',
-      'import android.print.PrintAttributes;',
-      'import android.print.PrintDocumentAdapter;',
-      'import android.print.PrintManager;',
-      'import android.webkit.JavascriptInterface;',
-      'import android.webkit.WebView;',
-      'import android.webkit.WebViewClient;',
-      'import com.getcapacitor.BridgeActivity;',
-      '',
-      'public class MainActivity extends BridgeActivity {',
-      '    private WebView printWebView;',
-      '    private volatile String pendingOAuthDeepLink = null;',
-      '',
-      '    @Override',
-      '    public void onCreate(Bundle savedInstanceState) {',
-      '        super.onCreate(savedInstanceState);',
-      '        if (this.bridge != null && this.bridge.getWebView() != null) {',
-      '            this.bridge.getWebView().addJavascriptInterface(new AndroidNativeBridge(), "AndroidNative");',
-      '        }',
-      '        handleOAuthDeepLink(getIntent());',
-      '    }',
-      '',
-      '    @Override',
-      '    protected void onNewIntent(Intent intent) {',
-      '        super.onNewIntent(intent);',
-      '        setIntent(intent);',
-      '        handleOAuthDeepLink(intent);',
-      '    }',
-      '',
-      '    private void deliverDeepLinkJs(final String safeUrl) {',
-      '        if (this.bridge == null || this.bridge.getWebView() == null) return;',
-      '        final WebView wv = this.bridge.getWebView();',
-      '        final String js = "try{localStorage.setItem(\'dental_pending_native_deeplink\', \'" + safeUrl + "\');if(window.__handleNativeOAuthDeepLink){window.__handleNativeOAuthDeepLink(\'" + safeUrl + "\');}}catch(e){}";',
-      '        wv.post(() -> wv.evaluateJavascript(js, null));',
-      '        wv.postDelayed(() -> wv.evaluateJavascript(js, null), 350);',
-      '        wv.postDelayed(() -> wv.evaluateJavascript(js, null), 1200);',
-      '        wv.postDelayed(() -> wv.evaluateJavascript(js, null), 2500);',
-      '    }',
-      '',
-      '    private void handleOAuthDeepLink(Intent intent) {',
-      '        if (intent == null) return;',
-      '        final Uri data = intent.getData();',
-      '        if (data == null) return;',
-      '        final String scheme = data.getScheme();',
-      '        if ("dentalplatform".equals(scheme) || "com.dentalplatform.pro".equals(scheme) || "com.dentalplatform.patient".equals(scheme)) {',
-      '            final String rawUrl = data.toString();',
-      '            pendingOAuthDeepLink = rawUrl;',
-      '            final String safeUrl = rawUrl.replace("\\\\", "\\\\\\\\").replace("\'", "\\\\\'");',
-      '            deliverDeepLinkJs(safeUrl);',
-      '        }',
-      '    }',
-      '',
-      '    public class AndroidNativeBridge {',
-      '        @JavascriptInterface',
-      '        public String consumePendingOAuthDeepLink() {',
-      '            final String link = pendingOAuthDeepLink;',
-      '            pendingOAuthDeepLink = null;',
-      '            return link != null ? link : "";',
-      '        }',
-      '',
-      '        @JavascriptInterface',
-      '        public String getAppPackageName() {',
-      '            return getPackageName();',
-      '        }',
-      '',
-      '        @JavascriptInterface',
-      '        public void printHtml(final String htmlContent, final String jobName) {',
-      '            runOnUiThread(() -> {',
-      '                try {',
-      '                    printWebView = new WebView(MainActivity.this);',
-      '                    printWebView.getSettings().setJavaScriptEnabled(true);',
-      '                    printWebView.getSettings().setLoadsImagesAutomatically(true);',
-      '                    printWebView.setWebViewClient(new WebViewClient() {',
-      '                        private boolean printed = false;',
-      '',
-      '                        @Override',
-      '                        public void onPageFinished(WebView view, String url) {',
-      '                            if (printed) return;',
-      '                            printed = true;',
-      '                            try {',
-      '                                PrintManager printManager = (PrintManager) getSystemService(Context.PRINT_SERVICE);',
-      '                                String safeTitle = (jobName != null && !jobName.trim().isEmpty()) ? jobName : "Dental_Document";',
-      '                                PrintDocumentAdapter adapter = view.createPrintDocumentAdapter(safeTitle);',
-      '                                if (printManager != null) {',
-      '                                    printManager.print(safeTitle, adapter, new PrintAttributes.Builder().build());',
-      '                                }',
-      '                            } catch (Exception e) {',
-      '                                e.printStackTrace();',
-      '                            }',
-      '                        }',
-      '                    });',
-      '                    printWebView.loadDataWithBaseURL("https://dental-platform.com/", htmlContent, "text/html", "UTF-8", null);',
-      '                } catch (Exception e) {',
-      '                    e.printStackTrace();',
-      '                }',
-      '            });',
-      '        }',
-      '',
-      '        @JavascriptInterface',
-      '        public void openExternalUrl(final String url) {',
-      '            runOnUiThread(() -> {',
-      '                try {',
-      '                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));',
-      '                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);',
-      '                    startActivity(intent);',
-      '                } catch (Exception e) {',
-      '                    e.printStackTrace();',
-      '                }',
-      '            });',
-      '        }',
-      '',
-      '        @JavascriptInterface',
-      '        public void shareContent(final String title, final String text, final String url) {',
-      '            runOnUiThread(() -> {',
-      '                try {',
-      '                    Intent sendIntent = new Intent(Intent.ACTION_SEND);',
-      '                    sendIntent.setType("text/plain");',
-      '                    String safeTitle = (title != null && !title.trim().isEmpty()) ? title : "مشاركة";',
-      '                    StringBuilder body = new StringBuilder();',
-      '                    if (text != null && !text.trim().isEmpty()) {',
-      '                        body.append(text.trim());',
-      '                    }',
-      '                    if (url != null && !url.trim().isEmpty()) {',
-      '                        if (body.length() > 0) body.append(\'\\n\');',
-      '                        body.append(url.trim());',
-      '                    }',
-      '                    sendIntent.putExtra(Intent.EXTRA_SUBJECT, safeTitle);',
-      '                    sendIntent.putExtra(Intent.EXTRA_TITLE, safeTitle);',
-      '                    sendIntent.putExtra(Intent.EXTRA_TEXT, body.toString());',
-      '                    Intent shareIntent = Intent.createChooser(sendIntent, safeTitle);',
-      '                    shareIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);',
-      '                    startActivity(shareIntent);',
-      '                } catch (Exception e) {',
-      '                    e.printStackTrace();',
-      '                }',
-      '            });',
-      '        }',
-      '',
-      '        @JavascriptInterface',
-      '        public void requestLocationPermission() {',
-      '            runOnUiThread(() -> {',
-      '                try {',
-      '                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {',
-      '                        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {',
-      '                            requestPermissions(new String[]{',
-      '                                Manifest.permission.ACCESS_FINE_LOCATION,',
-      '                                Manifest.permission.ACCESS_COARSE_LOCATION',
-      '                            }, 1001);',
-      '                        }',
-      '                    }',
-      '                } catch (Exception e) {',
-      '                    e.printStackTrace();',
-      '                }',
-      '            });',
-      '        }',
-      '    }',
-      '}',
-      ''
-    ].join('\n');
+    const enhancedMainActivity = `package ${packageName};
+
+import android.Manifest;
+import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.print.PrintAttributes;
+import android.print.PrintDocumentAdapter;
+import android.print.PrintManager;
+import android.webkit.JavascriptInterface;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import com.getcapacitor.BridgeActivity;
+
+public class MainActivity extends BridgeActivity {
+    private WebView printWebView;
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        if (this.bridge != null && this.bridge.getWebView() != null) {
+            this.bridge.getWebView().addJavascriptInterface(new AndroidNativeBridge(), "AndroidNative");
+        }
+        handleOAuthDeepLink(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleOAuthDeepLink(intent);
+    }
+
+    private void handleOAuthDeepLink(Intent intent) {
+        if (intent == null) return;
+        final Uri data = intent.getData();
+        if (data != null && "dentalplatform".equals(data.getScheme())) {
+            final String urlStr = data.toString().replace("'", "\\\\'");
+            if (this.bridge != null && this.bridge.getWebView() != null) {
+                this.bridge.getWebView().postDelayed(() -> {
+                    this.bridge.getWebView().evaluateJavascript(
+                        "if(window.__handleNativeOAuthDeepLink){window.__handleNativeOAuthDeepLink('" + urlStr + "');}",
+                        null
+                    );
+                }, 400);
+            }
+        }
+    }
+
+    public class AndroidNativeBridge {
+        @JavascriptInterface
+        public void printHtml(final String htmlContent, final String jobName) {
+            runOnUiThread(() -> {
+                try {
+                    printWebView = new WebView(MainActivity.this);
+                    printWebView.getSettings().setJavaScriptEnabled(true);
+                    printWebView.getSettings().setLoadsImagesAutomatically(true);
+                    printWebView.setWebViewClient(new WebViewClient() {
+                        private boolean printed = false;
+
+                        @Override
+                        public void onPageFinished(WebView view, String url) {
+                            if (printed) return;
+                            printed = true;
+                            try {
+                                PrintManager printManager = (PrintManager) getSystemService(Context.PRINT_SERVICE);
+                                String safeTitle = (jobName != null && !jobName.trim().isEmpty()) ? jobName : "Dental_Document";
+                                PrintDocumentAdapter adapter = view.createPrintDocumentAdapter(safeTitle);
+                                if (printManager != null) {
+                                    printManager.print(safeTitle, adapter, new PrintAttributes.Builder().build());
+                                }
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    });
+                    printWebView.loadDataWithBaseURL("https://dental-platform.com/", htmlContent, "text/html", "UTF-8", null);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void openExternalUrl(final String url) {
+            runOnUiThread(() -> {
+                try {
+                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(intent);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void shareContent(final String title, final String text, final String url) {
+            runOnUiThread(() -> {
+                try {
+                    Intent sendIntent = new Intent(Intent.ACTION_SEND);
+                    sendIntent.setType("text/plain");
+                    String safeTitle = (title != null && !title.trim().isEmpty()) ? title : "مشاركة";
+                    StringBuilder body = new StringBuilder();
+                    if (text != null && !text.trim().isEmpty()) {
+                        body.append(text.trim());
+                    }
+                    if (url != null && !url.trim().isEmpty()) {
+                        if (body.length() > 0) body.append("\\n");
+                        body.append(url.trim());
+                    }
+                    sendIntent.putExtra(Intent.EXTRA_SUBJECT, safeTitle);
+                    sendIntent.putExtra(Intent.EXTRA_TITLE, safeTitle);
+                    sendIntent.putExtra(Intent.EXTRA_TEXT, body.toString());
+                    Intent shareIntent = Intent.createChooser(sendIntent, safeTitle);
+                    shareIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(shareIntent);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public void requestLocationPermission() {
+            runOnUiThread(() -> {
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                            requestPermissions(new String[]{
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                            }, 1001);
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        }
+    }
+}
+`;
     fs.writeFileSync(mainActivityPath, enhancedMainActivity, 'utf8');
     console.log('[prepare-android-assets] Enhanced MainActivity.java with AndroidNative bridge at:', mainActivityPath);
   }
