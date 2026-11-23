@@ -15,12 +15,55 @@ static NOTIFIED_BACKGROUND_ONCE: AtomicBool = AtomicBool::new(false);
 #[cfg(target_os = "windows")]
 const WINDOWS_AUMID: &str = "com.dentalplatform.pro";
 
-/// Ensures Windows 10/11 recognizes our AppUserModelID in HKCU so Action Center
-/// Toast Notifications always display (even without an MSIX package or Start Menu shortcut).
+#[cfg(target_os = "windows")]
+const APP_ICON_PNG: &[u8] = include_bytes!("../icons/128x128.png");
+
+#[cfg(target_os = "windows")]
+#[link(name = "shell32")]
+extern "system" {
+    fn SetCurrentProcessExplicitAppUserModelID(app_id: *const u16) -> i32;
+}
+
+/// Writes the embedded 128x128 PNG app icon to `%LOCALAPPDATA%\DentalPlatform\dental-platform-icon.png`
+/// so Windows 10/11 Action Center, Toast banners, and System > Notifications always display the real app logo.
+#[cfg(target_os = "windows")]
+fn ensure_windows_notification_icon() -> Option<String> {
+    let base = std::env::var_os("LOCALAPPDATA")?;
+    let dir = std::path::PathBuf::from(base).join("DentalPlatform");
+    let _ = std::fs::create_dir_all(&dir);
+    let icon_path = dir.join("dental-platform-icon.png");
+
+    let needs_write = std::fs::metadata(&icon_path)
+        .map(|m| m.len() != APP_ICON_PNG.len() as u64)
+        .unwrap_or(true);
+    if needs_write {
+        let _ = std::fs::write(&icon_path, APP_ICON_PNG);
+    }
+
+    if icon_path.exists() {
+        Some(icon_path.to_string_lossy().into_owned())
+    } else {
+        None
+    }
+}
+
+/// Ensures Windows 10/11 binds this process and HKCU AppUserModelID to "Dental Platform"
+/// with our real PNG IconUri so Settings > Notifications and Toast headers show the app logo.
 #[cfg(target_os = "windows")]
 fn register_windows_aumid() {
     use std::os::windows::process::CommandExt;
     use std::process::Command;
+
+    // Bind running process (and embedded WebView2 notifications) explicitly to our AUMID
+    let wide_aumid: Vec<u16> = WINDOWS_AUMID
+        .encode_utf16()
+        .chain(std::iter::once(0))
+        .collect();
+    unsafe {
+        let _ = SetCurrentProcessExplicitAppUserModelID(wide_aumid.as_ptr());
+    }
+
+    let icon_path = ensure_windows_notification_icon();
 
     const CREATE_NO_WINDOW: u32 = 0x08000000;
     let reg_key = format!("HKCU\\Software\\Classes\\AppUserModelId\\{}", WINDOWS_AUMID);
@@ -37,6 +80,29 @@ fn register_windows_aumid() {
             "Dental Platform",
             "/f",
         ])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output();
+
+    if let Some(ref path) = icon_path {
+        let _ = Command::new("reg")
+            .args([
+                "add",
+                &reg_key,
+                "/v",
+                "IconUri",
+                "/t",
+                "REG_SZ",
+                "/d",
+                path,
+                "/f",
+            ])
+            .creation_flags(CREATE_NO_WINDOW)
+            .output();
+    }
+
+    // Remove any legacy invalid IconBackgroundColor (e.g. "0") so Windows renders transparent rounded PNG cleanly
+    let _ = Command::new("reg")
+        .args(["delete", &reg_key, "/v", "IconBackgroundColor", "/f"])
         .creation_flags(CREATE_NO_WINDOW)
         .output();
 
@@ -59,21 +125,27 @@ fn register_windows_aumid() {
 #[cfg(not(target_os = "windows"))]
 fn register_windows_aumid() {}
 
-/// Fallback native Windows WinRT Toast Notification using safe environment variables
-/// (UTF-8 / Arabic safe, zero console window flash) if plugin toast returns an error.
+/// Native Windows WinRT Toast Notification using safe environment variables
+/// (UTF-8 / Arabic safe, crisp appLogoOverride icon, zero console window flash).
 #[cfg(target_os = "windows")]
 fn send_windows_winrt_toast_fallback(title: &str, body: &str) {
     use std::os::windows::process::CommandExt;
     use std::process::Command;
 
     const CREATE_NO_WINDOW: u32 = 0x08000000;
+    let icon_path = ensure_windows_notification_icon().unwrap_or_default();
     let ps_script = r#"
 [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
 [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
 $t = [System.Security.SecurityElement]::Escape($env:DENTAL_NOTIF_TITLE)
 $b = [System.Security.SecurityElement]::Escape($env:DENTAL_NOTIF_BODY)
+$imgXml = ""
+if ($env:DENTAL_NOTIF_ICON -and (Test-Path -LiteralPath $env:DENTAL_NOTIF_ICON)) {
+  $u = [System.Security.SecurityElement]::Escape(([System.Uri]$env:DENTAL_NOTIF_ICON).AbsoluteUri)
+  $imgXml = "<image placement='appLogoOverride' src='$u'/>"
+}
 $xml = New-Object Windows.Data.Xml.Dom.XmlDocument
-$xml.LoadXml("<toast><visual><binding template='ToastGeneric'><text>$t</text><text>$b</text></binding></visual><audio src='ms-winsoundevent:Notification.Default'/></toast>")
+$xml.LoadXml("<toast><visual><binding template='ToastGeneric'>$imgXml<text>$t</text><text>$b</text></binding></visual><audio src='ms-winsoundevent:Notification.Default'/></toast>")
 $toast = [Windows.UI.Notifications.ToastNotification]::new($xml)
 [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('com.dentalplatform.pro').Show($toast)
 "#;
@@ -89,6 +161,7 @@ $toast = [Windows.UI.Notifications.ToastNotification]::new($xml)
         ])
         .env("DENTAL_NOTIF_TITLE", title)
         .env("DENTAL_NOTIF_BODY", body)
+        .env("DENTAL_NOTIF_ICON", &icon_path)
         .creation_flags(CREATE_NO_WINDOW)
         .spawn();
 }

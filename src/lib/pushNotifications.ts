@@ -302,7 +302,12 @@ export async function showNativeDeviceNotification(params: {
 
   const title = params.title || 'منصة طب الأسنان';
   const body = params.body || '';
-  const icon = '/icons/icon-192x192.png';
+  const origin =
+    typeof window !== 'undefined' && window.location?.origin && window.location.origin !== 'null'
+      ? window.location.origin
+      : '';
+  const icon = origin ? `${origin}/icons/icon-192x192.png` : '/icons/icon-192x192.png';
+  const badge = origin ? `${origin}/icons/icon-96x96.png` : '/icons/icon-96x96.png';
 
   // 1. Android APK Native System Notification Bar (Firebase-free!)
   const androidBridge = (window as any).AndroidNative;
@@ -369,7 +374,7 @@ export async function showNativeDeviceNotification(params: {
   const options: NotificationOptions = {
     body,
     icon,
-    badge: '/icons/icon-96x96.png',
+    badge,
     dir: 'rtl',
     lang: 'ar',
     tag: params.id || `dental_${Date.now()}`,
